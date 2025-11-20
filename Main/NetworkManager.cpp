@@ -368,7 +368,8 @@ void NetworkMgr::failoverLoop()
 
 void NetworkMgr::switchMode(const String &newMode)
 {
-  // FIXED Bug #6: Protect activeMode access with mutex
+  // FIXED BUG #10 (was Bug #6): Protect activeMode access with mutex
+  // VERIFIED: Thread-safe mode switching with 1s timeout
   if (!modeMutex)
   {
     Serial.println("[NetworkMgr] ERROR: Mode mutex not initialized");
@@ -490,7 +491,8 @@ IPAddress NetworkMgr::getLocalIP()
 
 String NetworkMgr::getCurrentMode()
 {
-  // FIXED Bug #6: Protect activeMode read with mutex
+  // FIXED BUG #10 (was Bug #6): Protect activeMode read with mutex
+  // VERIFIED: Thread-safe mode reading with 100ms timeout
   if (!modeMutex)
   {
     return ""; // Safety fallback

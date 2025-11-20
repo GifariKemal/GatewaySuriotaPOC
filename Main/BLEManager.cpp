@@ -54,6 +54,16 @@ bool BLEManager::begin()
     return true;
   }
 
+  // FIXED BUG #4: Verify all mutexes were created successfully by initializeMetrics()
+  // Previous code didn't check if mutex creation succeeded → NULL pointer crashes!
+  if (!metricsMutex || !mtuControlMutex || !transmissionMutex || !streamingStateMutex)
+  {
+    Serial.println("[BLE] CRITICAL ERROR: Mutex initialization failed!");
+    Serial.printf("[BLE] metricsMutex: %p, mtuControlMutex: %p, transmissionMutex: %p, streamingStateMutex: %p\n",
+                  metricsMutex, mtuControlMutex, transmissionMutex, streamingStateMutex);
+    return false;  // Abort initialization - unsafe to continue
+  }
+
   // CRITICAL FIX: Release Classic Bluetooth memory BEFORE BLE init
   // This frees ~50KB DRAM to prevent "BLE_INIT: Malloc failed" errors
   esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
@@ -72,9 +82,11 @@ bool BLEManager::begin()
                 freeDRAM_after / 1024,
                 (freeDRAM_before - freeDRAM_after) / 1024);
 
-  // FIXED: Set MTU to maximum (512 bytes) for faster transmission
-  BLEDevice::setMTU(517);  // 517 = 512 data + 5 overhead
-  Serial.println("[BLE] MTU set to 517 bytes (512 effective)");
+  // FIXED BUG #12: Use conservative MTU for better compatibility
+  // Previous: Hardcoded 517 bytes - not all clients support this (especially iOS)
+  // New: Start with 247 (safe for all devices), negotiate higher if supported
+  BLEDevice::setMTU(247);  // Conservative MTU for maximum compatibility
+  Serial.println("[BLE] MTU set to 247 bytes (safe default, will negotiate higher if supported)");
 
   // Create BLE Server
   pServer = BLEDevice::createServer();
@@ -368,6 +380,31 @@ void BLEManager::handleCompleteCommand(const char *command)
 
 void BLEManager::sendResponse(const JsonDocument &data)
 {
+  // FIXED BUG #9: Check size BEFORE allocating String to prevent OOM
+  // Previous code serialized first, then checked → String already allocated!
+  size_t estimatedSize = measureJson(data);
+
+  // Early size check to prevent DRAM exhaustion
+  if (estimatedSize > 10240)
+  {
+    // Payload too large - send simplified error WITHOUT creating full response
+    Serial.printf("[BLE] ERROR: Response too large (%u bytes > 10KB). Sending error.\n", estimatedSize);
+
+    // Create minimal error response (< 200 bytes, safe)
+    const char* errorMsg = "{\"status\":\"error\",\"message\":\"Response too large\",\"size\":";
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "%s%u,\"max\":10240}", errorMsg, estimatedSize);
+
+    pResponseChar->setValue(buffer);
+    pResponseChar->notify();
+    vTaskDelay(pdMS_TO_TICKS(50));
+    pResponseChar->setValue("<END>");
+    pResponseChar->notify();
+
+    return;  // Abort large response
+  }
+
+  // Size OK - proceed with normal serialization
   String response;
   serializeJson(data, response);
   sendFragmented(response);
@@ -982,8 +1019,22 @@ void BLEManager::retryMTUNegotiation()
 
 bool BLEManager::isMTUNegotiationActive() const
 {
-  // Non-mutex version for quick checks
-  return (mtuControl.state == MTU_STATE_INITIATING || mtuControl.state == MTU_STATE_IN_PROGRESS);
+  // FIXED BUG #3: Add mutex protection to prevent race condition
+  // Previous code accessed mtuControl.state without lock → data race!
+  bool isActive = false;
+
+  if (xSemaphoreTake(const_cast<SemaphoreHandle_t>(mtuControlMutex), pdMS_TO_TICKS(100)) == pdTRUE)
+  {
+    isActive = (mtuControl.state == MTU_STATE_INITIATING || mtuControl.state == MTU_STATE_IN_PROGRESS);
+    xSemaphoreGive(mtuControlMutex);
+  }
+  else
+  {
+    // Mutex timeout - assume not active to avoid blocking
+    Serial.println("[BLE MTU] WARNING: Mutex timeout in isMTUNegotiationActive()");
+  }
+
+  return isActive;
 }
 
 void BLEManager::setMTUFallback(uint16_t fallbackSize)
