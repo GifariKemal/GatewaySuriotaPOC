@@ -3,8 +3,11 @@
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 Common Issues and Solutions
 
-**Updated for v2.1.1:** November 14, 2025 (Friday) - WIB (GMT+7)
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Troubleshooting Guide
+
+**Current Version:** v2.2.0
 **Developer:** Kemal
+**Last Updated:** November 20, 2025
 
 ---
 
@@ -1143,13 +1146,25 @@ When requesting support, include:
 
 ---
 
-## 📚 Additional Resources
+## Related Documentation
 
-- [README.md](../README.md) - Project overview
-- [API.md](API.md) - API reference
-- [PROTOCOL.md](PROTOCOL.md) - Protocol details
-- [HARDWARE.md](HARDWARE.md) - Hardware specs
-- [LOGGING.md](LOGGING.md) - Log reference
+- **[Documentation Index](../README.md)** - Main documentation hub
+- **[Quick Start Guide](../QUICKSTART.md)** - Get started in 5 minutes
+- **[FAQ](../FAQ.md)** - Frequently asked questions
+- **[API Reference](../API_Reference/API.md)** - Complete API reference
+- **[PROTOCOL.md](PROTOCOL.md)** - Protocol specifications
+- **[HARDWARE.md](HARDWARE.md)** - Hardware specifications
+- **[LOGGING.md](LOGGING.md)** - Log system reference
+- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network configuration guide
+- **[Best Practices](../BEST_PRACTICES.md)** - Production deployment guidelines
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
+
+[← Back to Technical Guides](README.md) | [↑ Top](#-troubleshooting-guide)
 
 ---
 

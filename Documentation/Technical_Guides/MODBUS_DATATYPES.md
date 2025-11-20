@@ -4,6 +4,8 @@
 
 Comprehensive reference for all supported Modbus data types, endianness variants, and byte order configurations.
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Modbus Data Types
+
 ---
 
 ## 📋 Table of Contents
@@ -550,15 +552,24 @@ Use this BLE command to test all 4 endianness variants:
 
 ---
 
-## Additional Resources
+## Related Documentation
 
-- **API Reference**: [docs/API.md](API.md)
-- **Protocol Specifications**: [docs/PROTOCOL.md](PROTOCOL.md)
-- **Hardware Documentation**: [docs/HARDWARE.md](HARDWARE.md)
-- **Troubleshooting Guide**: [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference
+- **[PROTOCOL.md](PROTOCOL.md)** - Protocol specifications
+- **[HARDWARE.md](HARDWARE.md)** - Hardware specifications and GPIO pinout
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Data type troubleshooting
+- **[REGISTER_CALIBRATION_DOCUMENTATION.md](REGISTER_CALIBRATION_DOCUMENTATION.md)** - Register calibration guide
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
 
 ---
 
-**Copyright © 2025 PT Surya Inovasi Prioritas (SURIOTA)**
+**Document Version:** 1.0
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
 
-*This document is part of the SRT-MGATE-1210 firmware documentation. Licensed under MIT License.*
+[← Back to Technical Guides](README.md) | [↑ Top](#-modbus-data-types-reference)
+
+---
+
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
+*For technical support: support@suriota.com*

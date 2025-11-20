@@ -3,6 +3,8 @@
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 Communication Protocol Reference
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Protocol Specifications
+
 ---
 
 ## 📋 Table of Contents
@@ -962,6 +964,25 @@ while (retryCount < 3) {
 - **PubSubClient**: [GitHub](https://github.com/knolleary/pubsubclient)
 - **ArduinoJson**: [GitHub](https://github.com/bblanchon/ArduinoJson)
 - **BLE Library**: ESP32 Arduino Core
+
+---
+
+## Related Documentation
+
+- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference
+- **[MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)** - Modbus data type encoding
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
+- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network configuration guide
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Protocol troubleshooting
+- **[LIBRARIES.md](LIBRARIES.md)** - Library dependencies and versions
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
+
+[← Back to Technical Guides](README.md) | [↑ Top](#-protocol-specifications)
 
 ---
 

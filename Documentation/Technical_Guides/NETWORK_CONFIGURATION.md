@@ -27,7 +27,7 @@ Dual Network Interface Configuration & Failover
 
 ## 🎯 Overview
 
-SRT-MGATE-1210 gateway mendukung **dual network interface** untuk high availability dan redundancy:
+SRT-MGATE-1210 gateway supports **dual network interface** for high availability and redundancy:
 
 1. **Ethernet** - W5500 chip (hardware SPI)
 2. **WiFi** - ESP32-S3 built-in (802.11 b/g/n)
@@ -36,11 +36,11 @@ SRT-MGATE-1210 gateway mendukung **dual network interface** untuk high availabil
 
 | Feature | Description |
 |---------|-------------|
-| **Dual Interface** | Ethernet + WiFi dapat enabled bersamaan |
-| **Automatic Failover** | Switch otomatis ke backup network jika primary gagal |
-| **Dynamic Switching** | Tidak perlu restart saat network berganti |
-| **Priority Control** | User dapat pilih network mana yang diprioritaskan |
-| **Health Monitoring** | Background task yang terus monitor network status |
+| **Dual Interface** | Ethernet + WiFi can be enabled simultaneously |
+| **Automatic Failover** | Automatic switch to backup network if primary fails |
+| **Dynamic Switching** | No restart needed when network switches |
+| **Priority Control** | User can choose which network is prioritized |
+| **Health Monitoring** | Background task continuously monitors network status |
 
 ---
 
@@ -101,7 +101,7 @@ SRT-MGATE-1210 gateway mendukung **dual network interface** untuk high availabil
 
 ### What is `communication.mode`?
 
-Field yang menentukan **primary network interface** yang akan diprioritaskan oleh gateway.
+Field that determines the **primary network interface** that will be prioritized by the gateway.
 
 ```json
 {
@@ -128,7 +128,7 @@ Field yang menentukan **primary network interface** yang akan diprioritaskan ole
 
 ## 🔄 Failover Logic
 
-Gateway menggunakan **automatic failover mechanism** untuk ensure continuous connectivity.
+Gateway uses **automatic failover mechanism** to ensure continuous connectivity.
 
 ### Decision Flow
 
@@ -203,11 +203,11 @@ else {
 
 ### Background Monitoring
 
-Gateway menjalankan **failover task** yang:
-- Monitor network health setiap 10 detik
-- Detect connection loss
-- Auto-switch ke backup network
-- Restore ke primary saat available kembali
+Gateway runs a **failover task** that:
+- Monitors network health every 10 seconds
+- Detects connection loss
+- Auto-switches to backup network
+- Restores to primary when available again
 
 ---
 
@@ -215,7 +215,7 @@ Gateway menjalankan **failover task** yang:
 
 ### Example 1: Ethernet Primary with WiFi Backup
 
-**Use Case:** Industrial plant dengan kabel Ethernet stabil, WiFi sebagai backup.
+**Use Case:** Industrial plant with stable Ethernet cable, WiFi as backup.
 
 ```json
 {
@@ -239,15 +239,15 @@ Gateway menjalankan **failover task** yang:
 ```
 
 **Behavior:**
-1. Gateway akan prioritaskan Ethernet
-2. Jika Ethernet cable unplugged → auto switch ke WiFi
-3. Jika Ethernet plugged back → auto restore ke Ethernet
+1. Gateway will prioritize Ethernet
+2. If Ethernet cable unplugged → auto switch to WiFi
+3. If Ethernet plugged back → auto restore to Ethernet
 
 ---
 
 ### Example 2: WiFi Primary with Ethernet Backup
 
-**Use Case:** Remote monitoring area dengan WiFi coverage bagus.
+**Use Case:** Remote monitoring area with good WiFi coverage.
 
 ```json
 {
@@ -271,9 +271,9 @@ Gateway menjalankan **failover task** yang:
 ```
 
 **Behavior:**
-1. Gateway akan prioritaskan WiFi
-2. Jika WiFi signal lost → auto switch ke Ethernet
-3. Jika WiFi restored → auto restore ke WiFi
+1. Gateway will prioritize WiFi
+2. If WiFi signal lost → auto switch to Ethernet
+3. If WiFi restored → auto restore to WiFi
 
 ---
 
@@ -304,9 +304,9 @@ Gateway menjalankan **failover task** yang:
 ```
 
 **Behavior:**
-1. Gateway hanya gunakan Ethernet
-2. Jika Ethernet fails → **No fallback** → status "NONE"
-3. LED NET akan OFF (no network)
+1. Gateway will only use Ethernet
+2. If Ethernet fails → **No fallback** → status "NONE"
+3. LED NET will be OFF (no network)
 
 ---
 
@@ -335,8 +335,8 @@ Gateway menjalankan **failover task** yang:
 ```
 
 **Behavior:**
-1. Gateway hanya gunakan WiFi
-2. Jika WiFi fails → **No fallback** → status "NONE"
+1. Gateway will only use WiFi
+2. If WiFi fails → **No fallback** → status "NONE"
 
 ---
 
