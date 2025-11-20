@@ -12,13 +12,15 @@
 #include "MQTTPersistentQueue.h" // Persistent queue for failed publishes
 
 // FIXED BUG #21: Define named constants for magic numbers
+// FIXED BUG #27: Increased BYTES_PER_REGISTER for accurate buffer sizing
+// FIXED BUG #28: Increased MQTT_TASK_STACK_SIZE to prevent stack overflow with 50+ registers
 namespace MqttConfig {
-  constexpr uint32_t MQTT_TASK_STACK_SIZE = 8192;      // Stack size for MQTT task
+  constexpr uint32_t MQTT_TASK_STACK_SIZE = 16384;     // Stack size for MQTT task (doubled for large JSON documents)
   constexpr uint16_t MIN_BUFFER_SIZE = 2048;           // 2KB minimum buffer
   constexpr uint16_t MAX_BUFFER_SIZE = 16384;          // 16KB maximum (PubSubClient limit)
   constexpr uint16_t DEFAULT_BUFFER_SIZE = 8192;       // 8KB conservative default
-  constexpr uint16_t BYTES_PER_REGISTER = 70;          // Estimated bytes per register in JSON
-  constexpr uint16_t BUFFER_OVERHEAD = 300;            // JSON structure overhead
+  constexpr uint16_t BYTES_PER_REGISTER = 120;         // Realistic bytes per register (includes metadata, descriptions, JSON overhead)
+  constexpr uint16_t BUFFER_OVERHEAD = 500;            // JSON structure overhead (increased for safety)
 }
 
 class MqttManager
