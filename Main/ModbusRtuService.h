@@ -3,6 +3,7 @@
 
 #include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
+#include "PSRAMString.h"         // BUG #31: Replace Arduino String with PSRAM-based String
 #include <HardwareSerial.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -24,7 +25,7 @@ private:
   // Level 1: Device-level timing (device refresh_rate)
   struct DeviceTimer
   {
-    String deviceId;
+    PSRAMString deviceId;  // BUG #31: Use PSRAM instead of DRAM
     unsigned long lastRead; // Last time device's registers were collectively polled
     uint32_t refreshRateMs; // Device-level interval
   };
@@ -39,7 +40,7 @@ private:
 
   struct RtuDeviceConfig
   {
-    String deviceId;
+    PSRAMString deviceId;  // BUG #31: Use PSRAM instead of DRAM
     std::unique_ptr<JsonDocument> doc; // FIXED Bug #2: Use smart pointer for auto-cleanup
   };
   std::vector<RtuDeviceConfig> rtuDevices;
@@ -47,7 +48,7 @@ private:
   // Device Failure State Tracking (Modbus Improvement Phase 1)
   struct DeviceFailureState
   {
-    String deviceId;
+    PSRAMString deviceId;  // BUG #31: Use PSRAM instead of DRAM
     uint8_t consecutiveFailures = 0;   // Track consecutive read failures
     uint8_t retryCount = 0;            // Current retry attempt count
     unsigned long nextRetryTime = 0;   // When to retry (exponential backoff)
@@ -61,7 +62,7 @@ private:
   // Device Read Timeout Configuration (Modbus Improvement Phase 2)
   struct DeviceReadTimeout
   {
-    String deviceId;
+    PSRAMString deviceId;  // BUG #31: Use PSRAM instead of DRAM
     uint16_t timeoutMs = 5000;            // Per-device timeout (5 seconds default)
     uint8_t consecutiveTimeouts = 0;      // Track consecutive timeouts
     unsigned long lastSuccessfulRead = 0; // Last successful read time
@@ -72,7 +73,7 @@ private:
   // --- New Scheduler Structures ---
   struct PollingTask
   {
-    String deviceId;
+    PSRAMString deviceId;  // BUG #31: Use PSRAM instead of DRAM
     unsigned long nextPollTime;
 
     // Overload > operator for the priority queue (min-heap)
@@ -107,18 +108,18 @@ private:
   void readRtuDevicesLoop();
   void readRtuDeviceData(const JsonObject &deviceConfig);
   double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
-  double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType, const String &endianness_variant);
+  double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char* baseType, const char* endianness_variant);  // BUG #31: const char* instead of String
   bool readMultipleRegisters(ModbusMaster *modbus, uint8_t functionCode, uint16_t address, int count, uint16_t *values);
-  void storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = "");
+  void storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName = "");  // BUG #31: const char* instead of String
   ModbusMaster *getModbusForBus(int serialPort);
 
   void refreshDeviceList();
 
   // Polling Hierarchy Helper Methods (CLEANUP: Removed Level 1 per-register methods)
   // Level 1 (Device-level): Device-level timing
-  DeviceTimer *getDeviceTimer(const String &deviceId);
-  bool shouldPollDevice(const String &deviceId, uint32_t refreshRateMs);
-  void updateDeviceLastRead(const String &deviceId);
+  DeviceTimer *getDeviceTimer(const char* deviceId);  // BUG #31: const char* instead of String
+  bool shouldPollDevice(const char* deviceId, uint32_t refreshRateMs);  // BUG #31: const char* instead of String
+  void updateDeviceLastRead(const char* deviceId);  // BUG #31: const char* instead of String
 
   // Level 2 (Server-level): Data transmission interval
   bool shouldTransmitData(uint32_t dataIntervalMs);
@@ -128,24 +129,24 @@ private:
   // Modbus Improvement Phase - Helper Methods
   void initializeDeviceFailureTracking();
   void initializeDeviceTimeouts();
-  struct DeviceFailureState *getDeviceFailureState(const String &deviceId);
-  struct DeviceReadTimeout *getDeviceTimeout(const String &deviceId);
+  struct DeviceFailureState *getDeviceFailureState(const char* deviceId);  // BUG #31: const char* instead of String
+  struct DeviceReadTimeout *getDeviceTimeout(const char* deviceId);  // BUG #31: const char* instead of String
 
   // Baud rate configuration
-  bool configureDeviceBaudRate(const String &deviceId, uint16_t baudRate);
-  uint16_t getDeviceBaudRate(const String &deviceId);
+  bool configureDeviceBaudRate(const char* deviceId, uint16_t baudRate);  // BUG #31: const char* instead of String
+  uint16_t getDeviceBaudRate(const char* deviceId);  // BUG #31: const char* instead of String
 
   // Exponential backoff retry logic
-  void handleReadFailure(const String &deviceId);
-  bool shouldRetryDevice(const String &deviceId);
+  void handleReadFailure(const char* deviceId);  // BUG #31: const char* instead of String
+  bool shouldRetryDevice(const char* deviceId);  // BUG #31: const char* instead of String
   unsigned long calculateBackoffTime(uint8_t retryCount);
-  void resetDeviceFailureState(const String &deviceId);
+  void resetDeviceFailureState(const char* deviceId);  // BUG #31: const char* instead of String
 
   // Timeout and device management
-  void handleReadTimeout(const String &deviceId);
-  bool isDeviceEnabled(const String &deviceId);
-  void enableDevice(const String &deviceId);
-  void disableDevice(const String &deviceId);
+  void handleReadTimeout(const char* deviceId);  // BUG #31: const char* instead of String
+  bool isDeviceEnabled(const char* deviceId);  // BUG #31: const char* instead of String
+  void enableDevice(const char* deviceId);  // BUG #31: const char* instead of String
+  void disableDevice(const char* deviceId);  // BUG #31: const char* instead of String
 
 public:
   ModbusRtuService(ConfigManager *config);

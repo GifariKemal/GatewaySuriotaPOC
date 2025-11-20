@@ -147,8 +147,8 @@ void ModbusRtuService::refreshDeviceList()
 
   for (JsonVariant deviceIdVar : deviceIds)
   {
-    const char* deviceId = deviceIdVar.as<const char*>();  // BUG #31: const char* (zero allocation!)
-    if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)
+    String deviceId = deviceIdVar.as<String>();
+    if (deviceId.isEmpty() || deviceId == "{}" || deviceId.length() < 3)
     {
       continue;
     }
@@ -157,8 +157,8 @@ void ModbusRtuService::refreshDeviceList()
     JsonObject deviceObj = tempDeviceDoc.to<JsonObject>();
     if (configManager->readDevice(deviceId, deviceObj))
     {
-      const char* protocol = deviceObj["protocol"] | "";  // BUG #31: const char* (zero allocation!)
-      if (strcmp(protocol, "RTU") == 0)
+      String protocol = deviceObj["protocol"] | "";
+      if (protocol == "RTU")
       {
         RtuDeviceConfig newDeviceEntry;
         newDeviceEntry.deviceId = deviceId;
@@ -204,9 +204,9 @@ void ModbusRtuService::readRtuDevicesLoop()
       if (!running)
         break;
 
-      const char* deviceId = deviceVar.as<const char*>();  // BUG #31: const char* (zero allocation!)
+      String deviceId = deviceVar.as<String>();
 
-      if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)
+      if (deviceId.isEmpty() || deviceId == "{}" || deviceId.length() < 3)
       {
         continue;
       }
@@ -216,9 +216,9 @@ void ModbusRtuService::readRtuDevicesLoop()
 
       if (configManager->readDevice(deviceId, deviceObj))
       {
-        const char* protocol = deviceObj["protocol"] | "";  // BUG #31: const char* (zero allocation!)
+        String protocol = deviceObj["protocol"] | "";
 
-        if (strcmp(protocol, "RTU") == 0)
+        if (protocol == "RTU")
         {
           // Level 2: Get device refresh rate (minimum retry interval)
           uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
@@ -241,7 +241,7 @@ void ModbusRtuService::readRtuDevicesLoop()
 
 void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
 {
-  const char* deviceId = deviceConfig["device_id"] | "UNKNOWN";  // BUG #31: const char* (zero allocation!)
+  String deviceId = deviceConfig["device_id"] | "UNKNOWN";
   int serialPort = deviceConfig["serial_port"] | 1;
   uint8_t slaveId = deviceConfig["slave_id"] | 1;
   uint32_t deviceRefreshRate = deviceConfig["refresh_rate_ms"] | 5000; // Device-level refresh rate
@@ -249,7 +249,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   JsonArray registers = deviceConfig["registers"];
 
   // OPTIMIZED: Get device_name once per device cycle (not per register)
-  const char* deviceName = deviceConfig["device_name"] | "";  // BUG #31: const char* (zero allocation!)
+  String deviceName = deviceConfig["device_name"] | "";
 
   if (registers.size() == 0)
   {
@@ -259,7 +259,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   // Check if device is enabled (failure state check)
   if (!isDeviceEnabled(deviceId))
   {
-    LOG_RTU_INFO("Device %s is disabled, skipping read\n", deviceId);
+    LOG_RTU_INFO("Device %s is disabled, skipping read\n", deviceId.c_str());
     return;
   }
 
@@ -271,7 +271,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     {
       static LogThrottle retryThrottle(30000); // Log every 30s to reduce spam
       if (retryThrottle.shouldLog()) {
-        LOG_RTU_DEBUG("Device %s retry backoff not elapsed, skipping\n", deviceId);
+        LOG_RTU_DEBUG("Device %s retry backoff not elapsed, skipping\n", deviceId.c_str());
       }
       return;
     }
@@ -287,7 +287,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   configureBaudRate(serialPort, baudRate);
 
   // Set slave ID for this device
-  LOG_RTU_VERBOSE("Polling device %s (Slave:%d Port:%d Baud:%d)\n", deviceId, slaveId, serialPort, baudRate);
+  LOG_RTU_VERBOSE("Polling device %s (Slave:%d Port:%d Baud:%d)\n", deviceId.c_str(), slaveId, serialPort, baudRate);
   if (serialPort == 1)
   {
     modbus1->begin(slaveId, *serial1);
@@ -312,8 +312,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   uint8_t failedRegisterCount = 0;
 
   // COMPACT LOGGING: Buffer all output for atomic printing (prevent interruption by other tasks)
-  PSRAMString outputBuffer = "";  // BUG #31: PSRAMString to avoid DRAM fragmentation
-  PSRAMString compactLine = "";   // BUG #31: PSRAMString to avoid DRAM fragmentation
+  String outputBuffer = "";
+  String compactLine = "";
   int successCount = 0;
   int lineNumber = 1;
 
@@ -325,7 +325,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     JsonObject reg = regVar.as<JsonObject>();
     uint8_t functionCode = reg["function_code"] | 3;
     uint16_t address = reg["address"] | 0;
-    const char* registerName = reg["register_name"] | "Unknown";  // BUG #31: const char* (zero allocation!)
+    String registerName = reg["register_name"] | "Unknown";
 
     // CLEANUP: Removed per-register polling logic
     // All registers now use device-level polling interval (deviceRefreshRate)
@@ -371,7 +371,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -418,7 +418,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -497,7 +497,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -529,7 +529,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   {
     // At least one register succeeded - reset failure state
     resetDeviceFailureState(deviceId);
-    LOG_RTU_INFO("Device %s: Read successful, failure state reset\n", deviceId);
+    LOG_RTU_INFO("Device %s: Read successful, failure state reset\n", deviceId.c_str());
 
     // Update timeout tracking
     DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
@@ -542,7 +542,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   else if (registers.size() > 0)
   {
     // All registers failed - handle read failure
-    LOG_RTU_ERROR("Device %s: All %d register reads failed\n", deviceId, failedRegisterCount);
+    LOG_RTU_ERROR("Device %s: All %d register reads failed\n", deviceId.c_str(), failedRegisterCount);
     handleReadFailure(deviceId);
   }
 }
@@ -574,7 +574,7 @@ double ModbusRtuService::processRegisterValue(const JsonObject &reg, uint16_t ra
   return rawValue;
 }
 
-void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName)
+void ModbusRtuService::storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName)
 {
   QueueManager *queueMgr = QueueManager::getInstance();
 
@@ -631,7 +631,7 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
 
   if (!streamId.isEmpty() && streamId == deviceId && queueMgr)
   {
-    Serial.printf("[RTU] Streaming data for device %s to BLE\n", deviceId);
+    Serial.printf("[RTU] Streaming data for device %s to BLE\n", deviceId.c_str());
     queueMgr->enqueueStream(dataPoint);
   }
 }
@@ -659,7 +659,7 @@ bool ModbusRtuService::readMultipleRegisters(ModbusMaster *modbus, uint8_t funct
   return false;
 }
 
-double ModbusRtuService::processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char* baseType, const char* endianness_variant)
+double ModbusRtuService::processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType, const String &endianness_variant)
 {
 
   if (count == 2)
@@ -823,7 +823,7 @@ void ModbusRtuService::initializeDeviceFailureTracking()
     state.maxRetries = 5;
     deviceFailureStates.push_back(state);
 
-    Serial.printf("[RTU] Initialized tracking for device %s (baudrate: %d)\n", device.deviceId, state.baudRate);
+    Serial.printf("[RTU] Initialized tracking for device %s (baudrate: %d)\n", device.deviceId.c_str(), state.baudRate);
   }
 }
 
@@ -843,11 +843,11 @@ void ModbusRtuService::initializeDeviceTimeouts()
     deviceTimeouts.push_back(timeout);
 
     Serial.printf("[RTU] Initialized timeout tracking for device: %s (timeout: %dms)\n",
-                  device.deviceId, timeout.timeoutMs);
+                  device.deviceId.c_str(), timeout.timeoutMs);
   }
 }
 
-ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const char* deviceId)
+ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const String &deviceId)
 {
   for (auto &state : deviceFailureStates)
   {
@@ -859,7 +859,7 @@ ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(co
   return nullptr;
 }
 
-ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const char* deviceId)
+ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const String &deviceId)
 {
   for (auto &timeout : deviceTimeouts)
   {
@@ -871,21 +871,21 @@ ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const ch
   return nullptr;
 }
 
-bool ModbusRtuService::configureDeviceBaudRate(const char* deviceId, uint16_t baudRate)
+bool ModbusRtuService::configureDeviceBaudRate(const String &deviceId, uint16_t baudRate)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[RTU] ERROR: Device %s not found for baud rate configuration\n", deviceId);
+    Serial.printf("[RTU] ERROR: Device %s not found for baud rate configuration\n", deviceId.c_str());
     return false;
   }
 
   state->baudRate = baudRate;
-  Serial.printf("[RTU] Configured device %s baud rate to: %d\n", deviceId, baudRate);
+  Serial.printf("[RTU] Configured device %s baud rate to: %d\n", deviceId.c_str(), baudRate);
   return true;
 }
 
-uint16_t ModbusRtuService::getDeviceBaudRate(const char* deviceId)
+uint16_t ModbusRtuService::getDeviceBaudRate(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -960,7 +960,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
   }
 }
 
-void ModbusRtuService::handleReadFailure(const char* deviceId)
+void ModbusRtuService::handleReadFailure(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -976,18 +976,18 @@ void ModbusRtuService::handleReadFailure(const char* deviceId)
     state->nextRetryTime = millis() + backoffTime;
 
     Serial.printf("[RTU] Device %s read failed. Retry %d/%d in %lums\n",
-                  deviceId, state->retryCount, state->maxRetries, backoffTime);
+                  deviceId.c_str(), state->retryCount, state->maxRetries, backoffTime);
   }
   else
   {
     // Max retries exceeded
     Serial.printf("[RTU] Device %s exceeded max retries (%d), disabling...\n",
-                  deviceId, state->maxRetries);
+                  deviceId.c_str(), state->maxRetries);
     disableDevice(deviceId);
   }
 }
 
-bool ModbusRtuService::shouldRetryDevice(const char* deviceId)
+bool ModbusRtuService::shouldRetryDevice(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state || !state->isEnabled)
@@ -1026,7 +1026,7 @@ unsigned long ModbusRtuService::calculateBackoffTime(uint8_t retryCount)
   return totalBackoff;
 }
 
-void ModbusRtuService::resetDeviceFailureState(const char* deviceId)
+void ModbusRtuService::resetDeviceFailureState(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1037,10 +1037,10 @@ void ModbusRtuService::resetDeviceFailureState(const char* deviceId)
   state->nextRetryTime = 0;
   state->lastReadAttempt = millis();
 
-  Serial.printf("[RTU] Reset failure state for device %s\n", deviceId);
+  Serial.printf("[RTU] Reset failure state for device %s\n", deviceId.c_str());
 }
 
-void ModbusRtuService::handleReadTimeout(const char* deviceId)
+void ModbusRtuService::handleReadTimeout(const String &deviceId)
 {
   DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
   if (!timeout)
@@ -1051,17 +1051,17 @@ void ModbusRtuService::handleReadTimeout(const char* deviceId)
   if (timeout->consecutiveTimeouts >= timeout->maxConsecutiveTimeouts)
   {
     Serial.printf("[RTU] Device %s exceeded timeout limit (%d), disabling...\n",
-                  deviceId, timeout->maxConsecutiveTimeouts);
+                  deviceId.c_str(), timeout->maxConsecutiveTimeouts);
     disableDevice(deviceId);
   }
   else
   {
     Serial.printf("[RTU] Device %s timeout %d/%d\n",
-                  deviceId, timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
+                  deviceId.c_str(), timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
   }
 }
 
-bool ModbusRtuService::isDeviceEnabled(const char* deviceId)
+bool ModbusRtuService::isDeviceEnabled(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1069,7 +1069,7 @@ bool ModbusRtuService::isDeviceEnabled(const char* deviceId)
   return state->isEnabled;
 }
 
-void ModbusRtuService::enableDevice(const char* deviceId)
+void ModbusRtuService::enableDevice(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1085,10 +1085,10 @@ void ModbusRtuService::enableDevice(const char* deviceId)
     timeout->lastSuccessfulRead = millis();
   }
 
-  Serial.printf("[RTU] Device %s enabled\n", deviceId);
+  Serial.printf("[RTU] Device %s enabled\n", deviceId.c_str());
 }
 
-void ModbusRtuService::disableDevice(const char* deviceId)
+void ModbusRtuService::disableDevice(const String &deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1096,7 +1096,7 @@ void ModbusRtuService::disableDevice(const char* deviceId)
 
   state->isEnabled = false;
 
-  Serial.printf("[RTU] Device %s disabled due to failures/timeouts\n", deviceId);
+  Serial.printf("[RTU] Device %s disabled due to failures/timeouts\n", deviceId.c_str());
 }
 
 // NEW: Polling Hierarchy Implementation
@@ -1105,7 +1105,7 @@ void ModbusRtuService::disableDevice(const char* deviceId)
 // All registers now use device-level polling interval
 
 // Level 1: Device-level timing methods
-ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const char* deviceId)
+ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const String &deviceId)
 {
   for (auto &timer : deviceTimers)
   {
@@ -1117,7 +1117,7 @@ ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const char* devi
   return nullptr;
 }
 
-bool ModbusRtuService::shouldPollDevice(const char* deviceId, uint32_t refreshRateMs)
+bool ModbusRtuService::shouldPollDevice(const String &deviceId, uint32_t refreshRateMs)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (!timer)
@@ -1135,7 +1135,7 @@ bool ModbusRtuService::shouldPollDevice(const char* deviceId, uint32_t refreshRa
   return (now - timer->lastRead) >= timer->refreshRateMs;
 }
 
-void ModbusRtuService::updateDeviceLastRead(const char* deviceId)
+void ModbusRtuService::updateDeviceLastRead(const String &deviceId)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (timer)
