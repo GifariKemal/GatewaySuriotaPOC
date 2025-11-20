@@ -405,10 +405,48 @@ void BLEManager::sendResponse(const JsonDocument &data)
     return;  // Abort large response
   }
 
-  // Size OK - proceed with normal serialization
-  String response;
-  serializeJson(data, response);
-  sendFragmented(response);
+  // Size OK - proceed with PSRAM-based serialization
+  // BUG #31 PART 2: Allocate buffer in PSRAM instead of String (DRAM)
+  // String class ALWAYS uses DRAM → causes exhaustion with large responses
+
+  // Allocate buffer in PSRAM with some margin for JSON overhead
+  size_t bufferSize = estimatedSize + 512;  // +512 bytes margin
+  char* psramBuffer = (char*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+  if (!psramBuffer) {
+    // PSRAM allocation failed - try DRAM as last resort
+    Serial.printf("[BLE] WARNING: PSRAM allocation failed, trying DRAM (%u bytes)\n", bufferSize);
+    psramBuffer = (char*)heap_caps_malloc(bufferSize, MALLOC_CAP_8BIT);
+
+    if (!psramBuffer) {
+      // Both failed - send error
+      Serial.printf("[BLE] ERROR: Buffer allocation failed (%u bytes)\n", bufferSize);
+      const char* errorMsg = "{\"status\":\"error\",\"message\":\"Memory allocation failed\"}";
+      pResponseChar->setValue(errorMsg);
+      pResponseChar->notify();
+      vTaskDelay(pdMS_TO_TICKS(50));
+      pResponseChar->setValue("<END>");
+      pResponseChar->notify();
+      return;
+    }
+  }
+
+  // Serialize directly to PSRAM buffer
+  size_t serializedLength = serializeJson(data, psramBuffer, bufferSize);
+
+  if (serializedLength == 0) {
+    Serial.printf("[BLE] ERROR: Serialization failed\n");
+    heap_caps_free(psramBuffer);
+    return;
+  }
+
+  Serial.printf("[BLE] Serialized %u bytes to PSRAM buffer\n", serializedLength);
+
+  // Send fragmented data from PSRAM buffer
+  sendFragmented(psramBuffer, serializedLength);
+
+  // Free PSRAM buffer after transmission
+  heap_caps_free(psramBuffer);
 }
 
 void BLEManager::sendError(const String &message)
@@ -426,9 +464,9 @@ void BLEManager::sendSuccess()
   sendResponse(doc);
 }
 
-void BLEManager::sendFragmented(const String &data)
+void BLEManager::sendFragmented(const char* data, size_t length)
 {
-  if (!pResponseChar)
+  if (!pResponseChar || !data)
     return;
 
   // CRITICAL: Emergency DRAM check FIRST before ANY allocation
@@ -450,24 +488,14 @@ void BLEManager::sendFragmented(const String &data)
   }
 
   // CRITICAL FIX: Reject payloads that are too large (>MAX_RESPONSE_SIZE_BYTES)
-  // ESP32-S3 String class has memory limits, especially when fragmenting
-  if (data.length() > MAX_RESPONSE_SIZE_BYTES) {
-    Serial.printf("[BLE] ERROR: Payload too large (%d bytes > %d KB limit). Truncating to %d KB.\n",
-                  data.length(), MAX_RESPONSE_SIZE_BYTES / 1024, MAX_RESPONSE_SIZE_BYTES / 1024);
+  // This should never happen since sendResponse() already checks, but double-check for safety
+  if (length > MAX_RESPONSE_SIZE_BYTES) {
+    Serial.printf("[BLE] ERROR: Payload too large (%u bytes > %d KB limit).\n",
+                  length, MAX_RESPONSE_SIZE_BYTES / 1024);
 
-    // Send error response instead
-    JsonDocument errorDoc;
-    errorDoc["status"] = "error";
-    errorDoc["message"] = "Response too large for BLE transmission";
-    errorDoc["payload_size"] = data.length();
-    errorDoc["max_size"] = MAX_RESPONSE_SIZE_BYTES;
-    errorDoc["suggestion"] = "Use 'minimal':true parameter or query specific register";
-
-    String errorResponse;
-    serializeJson(errorDoc, errorResponse);
-
-    // Send error via BLE (small payload, won't crash)
-    pResponseChar->setValue(errorResponse.c_str());
+    // Send error response instead (stack-allocated, no heap)
+    const char* errorMsg = "{\"status\":\"error\",\"message\":\"Response too large for BLE transmission\"}";
+    pResponseChar->setValue(errorMsg);
     pResponseChar->notify();
     vTaskDelay(pdMS_TO_TICKS(50));
     pResponseChar->setValue("<END>");
@@ -497,18 +525,18 @@ void BLEManager::sendFragmented(const String &data)
   int adaptiveChunkSize = CHUNK_SIZE;
   int adaptiveDelay = FRAGMENT_DELAY_MS;
 
-  if (data.length() > LARGE_PAYLOAD_THRESHOLD) { // >5KB payload
+  if (length > LARGE_PAYLOAD_THRESHOLD) { // >5KB payload
     adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // Reduced chunk size for safety
     adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;        // Increased delay for stability
-    Serial.printf("[BLE] Large payload detected (%d bytes > %d KB), using adaptive chunks (size:%d, delay:%dms)\n",
-                  data.length(), LARGE_PAYLOAD_THRESHOLD / 1024, adaptiveChunkSize, adaptiveDelay);
+    Serial.printf("[BLE] Large payload detected (%u bytes > %d KB), using adaptive chunks (size:%d, delay:%dms)\n",
+                  length, LARGE_PAYLOAD_THRESHOLD / 1024, adaptiveChunkSize, adaptiveDelay);
   }
 
-  // CRITICAL FIX: Use const char* direct access instead of substring()
-  // to avoid String allocation overhead and memory corruption
-  const char* dataPtr = data.c_str();
-  int dataLen = data.length();
-  int i = 0;
+  // BUG #31 PART 2: Data already in PSRAM buffer (from sendResponse)
+  // No String overhead, no DRAM allocation
+  const char* dataPtr = data;
+  size_t dataLen = length;
+  size_t i = 0;
 
   // Allocate static buffer for chunks to avoid repeated allocations
   char chunkBuffer[256]; // Max chunk size + safety margin
