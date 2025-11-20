@@ -9,7 +9,7 @@
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
 Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Developer:** Kemal | **Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Developer:** Kemal | **Last Updated:** November 20, 2025 - WIB (GMT+7)
 
 ---
 
@@ -164,8 +164,8 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 1. **Clone Repository**
    ```bash
-   git clone https://github.com/suriota/SRT-MGATE-1210-Firmware.git
-   cd SRT-MGATE-1210-Firmware
+   git clone https://github.com/GifariKemal/GatewaySuriotaPOC.git
+   cd GatewaySuriotaPOC
    ```
 
 2. **Install ESP32 Board Support**
@@ -391,7 +391,7 @@ Comprehensive documentation is available in the `Documentation/` directory:
 
 ### 🆕 What's New in v2.1.1
 
-> **Latest Update:** November 14, 2025 (Friday) by Kemal
+> **Latest Update:** November 20, 2025 by Kemal
 > - 🚀 **28x faster BLE transmission** (21KB in 2.1s vs 58s)
 > - ✨ **Enhanced CRUD responses** with actual data
 > - 🆕 **New API endpoint:** `devices_with_registers`
@@ -552,7 +552,7 @@ See [Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_
 
 - **Email**: support@suriota.com
 - **Website**: [www.suriota.com](https://www.suriota.com)
-- **GitHub Issues**: [Report Bug](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues)
+- **GitHub Issues**: [Report Bug](https://github.com/GifariKemal/GatewaySuriotaPOC/issues)
 
 ### Documentation Updates
 
@@ -645,11 +645,11 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ## 📈 Changelog
 
-### Version 2.1.1 (2025-11-14) - Current ⭐
+### Version 2.1.1 (2025-11-20) - Current ⭐
 
 **Performance & API Enhancement Release**
 
-**Developer:** Kemal | **Release Date:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Developer:** Kemal | **Release Date:** November 20, 2025 - WIB (GMT+7)
 
 #### 🚀 BLE Transmission Optimization (Critical Fix)
 - ✅ **28x faster BLE transmission** - Eliminates mobile app timeout issues
@@ -743,7 +743,7 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ### Community Requests
 
-Submit feature requests via [GitHub Issues](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues) with tag `feature-request`.
+Submit feature requests via [GitHub Issues](https://github.com/GifariKemal/GatewaySuriotaPOC/issues) with tag `feature-request`.
 
 ---
 
