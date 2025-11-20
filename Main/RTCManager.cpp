@@ -193,19 +193,12 @@ bool RTCManager::syncWithNTP()
     return false;
   }
 
-  // Get NTP time
+  // Get NTP time (already adjusted with GMT+7 offset by NTPClient)
   unsigned long epochTime = ntpClient->getEpochTime();
 
-  // Convert to DateTime
-  time_t rawTime = (time_t)epochTime;
-  struct tm *timeinfo = gmtime(&rawTime);
-
-  DateTime ntpTime(timeinfo->tm_year + 1900,
-                   timeinfo->tm_mon + 1,
-                   timeinfo->tm_mday,
-                   timeinfo->tm_hour + (gmtOffset_sec / 3600),
-                   timeinfo->tm_min,
-                   timeinfo->tm_sec);
+  // NTPClient already applies timeOffset, so epochTime is already in GMT+7
+  // Convert directly to DateTime using epoch time
+  DateTime ntpTime(epochTime);
 
   // Update RTC and system time
   rtc.adjust(ntpTime);
