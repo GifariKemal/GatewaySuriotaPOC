@@ -252,11 +252,12 @@ bool MqttManager::connectToMqtt()
 
   mqttClient.setClient(*activeClient);
 
-  // Set buffer sizes and timeouts
-  // OPTIMIZED: Increased to 8KB to handle large payloads (up to 100 registers)
-  // Previous: 512 bytes -> 1024 bytes (5-10 registers)
-  // Current: 8192 bytes (8KB) supports 50-100 registers with optimized payload structure
-  mqttClient.setBufferSize(8192, 8192);  // 8KB for TX and RX buffers
+  // FIXED BUG #15: Dynamic buffer sizing based on actual device configuration
+  // Previous: Hardcoded 8192 bytes
+  // New: Calculate based on total registers across all devices
+  uint16_t optimalBufferSize = calculateOptimalBufferSize();
+  mqttClient.setBufferSize(optimalBufferSize, optimalBufferSize);
+  Serial.printf("[MQTT] Buffer size set to %u bytes (dynamically calculated)\n", optimalBufferSize);
   mqttClient.setKeepAlive(60);
   mqttClient.setSocketTimeout(5);  // Socket timeout in seconds
 
@@ -650,10 +651,12 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   String payload;
   serializeJson(batchDoc, payload);
 
-  // Check if payload exceeds buffer size (8192 bytes / 8KB)
-  if (payload.length() > 8192)
+  // FIXED BUG #15: Check against dynamic buffer size
+  uint16_t currentBufferSize = calculateOptimalBufferSize();
+  if (payload.length() > currentBufferSize)
   {
-    Serial.printf("[MQTT] ERROR: Payload too large (%d bytes > 8192 bytes buffer)!\n", payload.length());
+    Serial.printf("[MQTT] ERROR: Payload too large (%d bytes > %u bytes buffer)!\n",
+                  payload.length(), currentBufferSize);
     Serial.printf("[MQTT] Splitting large payloads is needed. Current registers: %d\n", totalRegisters);
   }
 
@@ -879,6 +882,77 @@ uint32_t MqttManager::getQueuedMessageCount() const
     return persistentQueue->getPendingMessageCount();
   }
   return 0;
+}
+
+// ============================================
+// FIXED BUG #15: DYNAMIC MQTT BUFFER SIZING
+// ============================================
+uint16_t MqttManager::calculateOptimalBufferSize()
+{
+  if (!configManager)
+  {
+    // Fallback to conservative default if no config
+    return 4096;  // 4KB default
+  }
+
+  // Load all devices to count total registers
+  JsonDocument devicesDoc = configManager->loadDevices();
+  if (devicesDoc.isNull() || !devicesDoc.containsKey("devices"))
+  {
+    return 4096;  // 4KB default
+  }
+
+  JsonObject devices = devicesDoc["devices"];
+  uint32_t totalRegisters = 0;
+  uint32_t maxDeviceRegisters = 0;
+
+  // Count total and max registers
+  for (JsonPair devicePair : devices)
+  {
+    JsonObject device = devicePair.value();
+    JsonArray registers = device["registers"];
+    uint32_t deviceRegCount = registers.size();
+
+    totalRegisters += deviceRegCount;
+    if (deviceRegCount > maxDeviceRegisters)
+    {
+      maxDeviceRegisters = deviceRegCount;
+    }
+  }
+
+  // Calculate buffer size based on total registers
+  // Formula: (totalRegisters * 70 bytes per register) + 300 bytes overhead
+  // - Each register: ~50-70 bytes (name, value, unit, timestamp, device_id)
+  // - Batch overhead: ~300 bytes (JSON structure, device metadata)
+  uint32_t calculatedSize = (totalRegisters * 70) + 300;
+
+  // Apply constraints
+  const uint16_t MIN_BUFFER_SIZE = 2048;   // 2KB minimum
+  const uint16_t MAX_BUFFER_SIZE = 16384;  // 16KB maximum (PubSubClient limit)
+  const uint16_t DEFAULT_BUFFER_SIZE = 8192;  // 8KB conservative default
+
+  uint16_t optimalSize = DEFAULT_BUFFER_SIZE;
+
+  if (calculatedSize < MIN_BUFFER_SIZE)
+  {
+    optimalSize = MIN_BUFFER_SIZE;
+  }
+  else if (calculatedSize > MAX_BUFFER_SIZE)
+  {
+    optimalSize = MAX_BUFFER_SIZE;
+    Serial.printf("[MQTT] WARNING: Calculated buffer (%lu bytes) exceeds max (%u bytes)\n",
+                  calculatedSize, MAX_BUFFER_SIZE);
+    Serial.printf("[MQTT] Consider reducing devices/registers or enabling payload splitting\n");
+  }
+  else
+  {
+    optimalSize = (uint16_t)calculatedSize;
+  }
+
+  Serial.printf("[MQTT] Buffer calculation: %u registers → %u bytes (min: %u, max: %u)\n",
+                totalRegisters, optimalSize, MIN_BUFFER_SIZE, MAX_BUFFER_SIZE);
+
+  return optimalSize;
 }
 
 MqttManager::~MqttManager()

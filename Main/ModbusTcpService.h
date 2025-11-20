@@ -71,15 +71,38 @@ private:
   // Atomic Transaction Counter (Modbus TCP Improvement Phase 2)
   static std::atomic<uint16_t> atomicTransactionCounter;
 
+  // FIXED BUG #14: TCP Connection Pooling
+  // Keep persistent connections for frequently polled devices
+  struct ConnectionPoolEntry {
+    String deviceKey;              // "IP:PORT" identifier
+    TCPClient* client;             // Persistent connection
+    unsigned long lastUsed;        // Last activity timestamp
+    unsigned long createdAt;       // Connection creation time
+    uint32_t useCount;             // Number of times reused
+    bool isHealthy;                // Connection health status
+  };
+  std::vector<ConnectionPoolEntry> connectionPool;
+  SemaphoreHandle_t poolMutex;     // Protect connection pool access
+  static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 60000;  // Close after 60s idle
+  static constexpr uint32_t CONNECTION_MAX_AGE_MS = 300000;       // Recreate after 5min
+  static constexpr uint8_t MAX_POOL_SIZE = 10;                    // Max concurrent connections
+
+  // Connection pool methods
+  TCPClient* getPooledConnection(const String &ip, int port);
+  void returnPooledConnection(const String &ip, int port, TCPClient* client, bool healthy);
+  void closeIdleConnections();
+  void closeAllConnections();
+  String getDeviceKey(const String &ip, int port);
+
   static void readTcpDevicesTask(void *parameter);
   void readTcpDevicesLoop();
   void readTcpDeviceData(const JsonObject &deviceConfig);
   double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
   double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType = "", const String &endianness_variant = "");
   void storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = "");
-  bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result);
-  bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results);
-  bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result);
+  bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient* existingClient = nullptr);
+  bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient* existingClient = nullptr);
+  bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient* existingClient = nullptr);
   void buildModbusRequest(uint8_t *buffer, uint16_t transId, uint8_t unitId, uint8_t funcCode, uint16_t addr, uint16_t qty);
   bool parseModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, uint16_t *result, bool *boolResult);
   bool parseMultiModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, int count, uint16_t *results);
