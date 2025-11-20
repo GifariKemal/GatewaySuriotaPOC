@@ -96,6 +96,277 @@
 
 ---
 
+## 🚀 Advanced Features & Optimization
+
+### Optimization Phases (Performance Evolution)
+
+The firmware has undergone systematic optimization in phases:
+
+**Phase 1: Log Level System**
+- Two-tier logging (compile-time + runtime)
+- Module-specific log macros
+- Production mode optimization (15% firmware size reduction)
+- Result: Reduced serial overhead, cleaner production builds
+
+**Phase 2: Memory Recovery**
+- Automatic DRAM/PSRAM monitoring
+- Three-tier thresholds (WARNING → CRITICAL → EMERGENCY)
+- Automatic cache clearing and connection management
+- Result: Prevented memory exhaustion crashes
+
+**Phase 3: RTC Timestamps**
+- DS3231 RTC integration for accurate logging
+- Timestamps format: `[YYYY-MM-DD HH:MM:SS]`
+- Fallback to uptime if RTC unavailable
+- Toggle-able via `setLogTimestamps(bool)`
+
+**Phase 4: MTU Negotiation Timeout Control**
+- 5-second timeout with 2 retries (total ~15s)
+- Fallback to minimum MTU (100 bytes) on timeout
+- State machine: IDLE → INITIATING → IN_PROGRESS → COMPLETED/TIMEOUT/FAILED
+- Result: Eliminated mobile app connection hangs
+
+**v2.1.1: BLE Transmission Optimization**
+- Increased CHUNK_SIZE: 18 → 244 bytes (1356% increase)
+- Reduced FRAGMENT_DELAY: 50ms → 10ms (80% reduction)
+- Result: 28x faster transmission (58s → 2.1s for 21KB payload)
+
+**v2.2.0: Configuration Refactoring**
+- HTTP interval moved into `http_config` structure
+- Eliminated redundant root-level `data_interval`
+- Consistent API structure for all protocols
+
+### Priority Queue & Batch Operations
+
+**CRUDHandler** implements a sophisticated command execution system:
+
+**Priority Levels:**
+```cpp
+enum class CommandPriority : uint8_t {
+    PRIORITY_HIGH = 0,    // Emergency operations (config backup, emergency stop)
+    PRIORITY_NORMAL = 1,  // Standard CRUD (default)
+    PRIORITY_LOW = 2      // Background tasks (large reads, batch imports)
+};
+```
+
+**Batch Execution Modes:**
+```cpp
+enum class BatchMode : uint8_t {
+    SEQUENTIAL = 0,  // Execute commands one by one (safe, predictable)
+    PARALLEL = 1,    // Execute simultaneously (faster, requires thread safety)
+    ATOMIC = 2       // All-or-nothing (database-style transaction)
+};
+```
+
+**Example - High Priority Command:**
+```json
+{
+  "op": "update",
+  "type": "server_config",
+  "priority": "high",
+  "config": {
+    "protocol": "mqtt",
+    "mqtt": { "broker_address": "new-broker.com" }
+  }
+}
+```
+
+**Example - Batch Operation (Sequential):**
+```json
+{
+  "op": "batch",
+  "batch_mode": "sequential",
+  "commands": [
+    {
+      "op": "create",
+      "type": "device",
+      "config": { "device_name": "Sensor 1" }
+    },
+    {
+      "op": "create",
+      "type": "device",
+      "config": { "device_name": "Sensor 2" }
+    }
+  ]
+}
+```
+
+**Batch Statistics:**
+```cpp
+struct BatchStats {
+    uint32_t totalBatchesProcessed;
+    uint32_t totalCommandsProcessed;
+    uint32_t highPriorityCount;
+    uint32_t normalPriorityCount;
+    uint32_t lowPriorityCount;
+    uint32_t queuePeakDepth;
+};
+```
+
+### Log Throttling (Preventing Log Spam)
+
+**LogThrottle Class** prevents repetitive log messages from flooding the serial output:
+
+```cpp
+// In your service class
+LogThrottle connectionThrottle(10000);  // 10 second interval
+
+void checkConnection() {
+    if (!isConnected()) {
+        if (connectionThrottle.shouldLog()) {
+            LOG_NET_ERROR("Connection lost to broker");
+            // Logs: "(suppressed 47 similar messages)" if applicable
+        }
+    }
+}
+```
+
+**Features:**
+- Configurable interval (milliseconds)
+- Automatic suppression counter
+- Outputs suppressed count when resuming
+- Thread-safe with internal state management
+
+**Use Cases:**
+- Network reconnection attempts
+- Failed Modbus device polling
+- MQTT publish failures in poor network conditions
+- Memory warnings during sustained high load
+
+### BLE Metrics & Performance Monitoring
+
+**BLEManager** tracks comprehensive performance metrics:
+
+**MTU Metrics:**
+```cpp
+struct MTUMetrics {
+    uint16_t mtuSize;              // Current MTU (23-512 bytes)
+    uint16_t maxMTUSize;           // Maximum negotiated MTU
+    bool mtuNegotiated;            // Negotiation success status
+    uint8_t timeoutCount;          // Number of timeouts
+    unsigned long lastTimeoutTime; // Last timeout timestamp
+};
+```
+
+**Connection Metrics:**
+```cpp
+struct ConnectionMetrics {
+    unsigned long connectionStartTime;
+    uint32_t fragmentsSent;
+    uint32_t fragmentsReceived;
+    uint32_t bytesTransmitted;
+    uint32_t bytesReceived;
+};
+```
+
+**Queue Metrics:**
+```cpp
+struct QueueMetrics {
+    uint32_t currentDepth;
+    uint32_t peakDepth;
+    double utilizationPercent;
+    uint32_t dropCount;
+};
+```
+
+**Access Metrics:**
+```json
+{
+  "op": "read",
+  "type": "ble_metrics"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "data": {
+    "mtu": {
+      "current": 512,
+      "max": 512,
+      "negotiated": true,
+      "timeout_count": 0
+    },
+    "connection": {
+      "uptime_sec": 3600,
+      "fragments_sent": 1543,
+      "bytes_tx": 156789
+    },
+    "queue": {
+      "depth": 3,
+      "peak": 15,
+      "utilization": 30.0
+    }
+  }
+}
+```
+
+### RTC Timestamps (Phase 3)
+
+**Accurate Logging with DS3231 RTC:**
+
+```cpp
+// Enable timestamps (enabled by default)
+setLogTimestamps(true);
+
+// Example log output with RTC:
+// [2025-11-20 14:35:22][INFO][RTU] Device D7A3F2 polling...
+
+// If RTC not available, falls back to uptime:
+// [12345][INFO][RTU] Device D7A3F2 polling...
+```
+
+**RTC Manager Features:**
+- I2C communication with DS3231
+- Automatic NTP synchronization (WiFi)
+- Battery-backed time keeping
+- Temperature compensation
+- Alarm functionality (future use)
+
+**Check RTC Status:**
+```cpp
+RTCManager *rtc = RTCManager::getInstance();
+if (rtc->isRTCAvailable()) {
+    DateTime now = rtc->now();
+    LOG_RTC_INFO("RTC time: %04d-%02d-%02d %02d:%02d:%02d",
+                 now.year(), now.month(), now.day(),
+                 now.hour(), now.minute(), now.second());
+}
+```
+
+### MTU Negotiation State Machine
+
+**Handles MTU negotiation timeouts gracefully:**
+
+```cpp
+enum MTUNegotiationState {
+    MTU_STATE_IDLE,        // No negotiation in progress
+    MTU_STATE_INITIATING,  // Just started
+    MTU_STATE_IN_PROGRESS, // Waiting for MTU exchange
+    MTU_STATE_COMPLETED,   // Successfully negotiated
+    MTU_STATE_TIMEOUT,     // Timed out
+    MTU_STATE_FAILED       // Failed after retries
+};
+```
+
+**Configuration:**
+```cpp
+struct MTUNegotiationControl {
+    unsigned long negotiationTimeoutMs = 5000;  // 5-second timeout
+    uint8_t maxRetries = 2;                     // 2 retries (total ~15s)
+    uint16_t fallbackMTU = 100;                 // Safe minimum MTU
+};
+```
+
+**Behavior:**
+- **Timeout after 5s:** Retry negotiation
+- **Max 2 retries:** Fall back to 100-byte MTU
+- **Fallback mode:** Continue operation with minimal MTU
+- **Result:** Mobile app never hangs, always connects
+
+---
+
 ## 📁 Directory Structure
 
 ```
@@ -1643,14 +1914,342 @@ void modbusTask(void *parameter) {
 
 ## 📝 Version History
 
-| Version | Date       | Changes                                  |
-|---------|------------|------------------------------------------|
-| 1.0.0   | 2025-11-20 | Initial CLAUDE.md creation               |
+| Version | Date       | Changes                                                                                          |
+|---------|------------|--------------------------------------------------------------------------------------------------|
+| 2.0.0   | 2025-11-20 | Major update with advanced features, optimization phases, troubleshooting examples               |
+| 1.0.0   | 2025-11-20 | Initial CLAUDE.md creation                                                                       |
+
+### Version 2.0.0 Changes
+
+**Added:**
+- ✅ **Advanced Features & Optimization** section with optimization phases (Phase 1-4, v2.1.1, v2.2.0)
+- ✅ **Priority Queue & Batch Operations** documentation with examples
+- ✅ **Log Throttling** guide to prevent log spam
+- ✅ **BLE Metrics & Performance Monitoring** complete reference
+- ✅ **RTC Timestamps** (Phase 3) integration guide
+- ✅ **MTU Negotiation State Machine** detailed explanation
+- ✅ **7 Comprehensive Troubleshooting Examples** with diagnosis steps:
+  - BLE connection hangs during MTU negotiation
+  - Memory exhaustion with large device configurations
+  - Modbus RTU device not responding
+  - Network failover oscillation
+  - MQTT messages not publishing
+  - High priority commands not executing first
+  - Log spam from failing devices
+
+**Improved:**
+- Updated with recent v2.2.0 changes (HTTP interval refactoring)
+- Added practical code examples for all advanced features
+- Enhanced troubleshooting with root cause analysis
+- Added prevention strategies for common issues
 
 ---
 
 **Made with ❤️ by SURIOTA R&D Team**
 *Empowering Industrial IoT Solutions*
+
+---
+
+## 🔍 Troubleshooting Examples
+
+### Example 1: BLE Connection Hangs During MTU Negotiation
+
+**Symptom:**
+- Mobile app shows "Connecting..." indefinitely
+- No response from gateway after 30+ seconds
+- Serial Monitor shows: `[BLE] MTU negotiation started...` but never completes
+
+**Root Cause:**
+MTU negotiation timeout (fixed in Phase 4 optimization)
+
+**Solution:**
+```cpp
+// Check MTU negotiation status
+MTUMetrics metrics = bleManager->getMTUMetrics();
+
+if (metrics.timeoutCount > 0) {
+    LOG_BLE_WARN("MTU negotiation timed out %d times", metrics.timeoutCount);
+    LOG_BLE_INFO("Using fallback MTU: %d bytes", metrics.mtuSize);
+}
+
+// If using older firmware, update to v2.2.0+ which includes Phase 4 fixes
+```
+
+**Prevention:**
+- Firmware v2.2.0+ automatically handles MTU timeouts
+- Falls back to 100-byte MTU after 2 retries (~15s total)
+- Mobile app continues with minimal MTU (slower but functional)
+
+### Example 2: Memory Exhaustion During Large Device Configuration
+
+**Symptom:**
+- Gateway crashes when loading 50+ devices
+- Serial Monitor shows: `[MEM] CRITICAL: Free DRAM below threshold`
+- System restarts unexpectedly
+
+**Root Cause:**
+Large JSON documents allocated in DRAM instead of PSRAM
+
+**Solution:**
+```cpp
+// Check memory allocation
+void diagnoseMemory() {
+    size_t dramFree = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    size_t psramFree = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
+    LOG_MEM_INFO("DRAM free: %d bytes", dramFree);
+    LOG_MEM_INFO("PSRAM free: %d bytes", psramFree);
+
+    if (dramFree < 50000) {
+        LOG_MEM_WARN("DRAM critically low! Moving allocations to PSRAM...");
+
+        // Force cache clear
+        configManager->refreshCache();
+
+        // Re-allocate large objects in PSRAM
+        // ConfigManager should already be in PSRAM (see Main.ino)
+    }
+}
+
+// Verify ConfigManager is in PSRAM
+void* cmPtr = (void*)configManager;
+if (heap_caps_get_allocated_size(cmPtr) == 0) {
+    LOG_MEM_ERROR("ConfigManager NOT in PSRAM!");
+    // Restart required to re-allocate properly
+}
+```
+
+**Prevention:**
+- Always use `SpiRamJsonDocument` for large JSON docs
+- Monitor memory with `MemoryRecovery::logMemoryStatus()`
+- Set appropriate thresholds in setup()
+
+### Example 3: Modbus RTU Device Not Responding
+
+**Symptom:**
+- Device configured correctly but no data
+- Serial Monitor shows: `[RTU] Device XXXXX read failed. Retry 1/3`
+- Device eventually disabled after max retries
+
+**Diagnosis Steps:**
+```cpp
+// 1. Check device configuration
+JsonDocument deviceDoc;
+configManager->readDevice("XXXXX", deviceDoc);
+
+LOG_RTU_DEBUG("Device config:");
+LOG_RTU_DEBUG("  Slave ID: %d", deviceDoc["slave_id"].as<int>());
+LOG_RTU_DEBUG("  Baud rate: %d", deviceDoc["baud_rate"].as<int>());
+LOG_RTU_DEBUG("  Serial port: %d", deviceDoc["serial_port"].as<int>());
+LOG_RTU_DEBUG("  Timeout: %d ms", deviceDoc["timeout"].as<int>());
+
+// 2. Check baudrate switching
+void ModbusRtuService::debugBaudrate() {
+    LOG_RTU_DEBUG("Current baudrate: %d", currentBaudRate);
+    LOG_RTU_DEBUG("Target baudrate: %d", device.baud_rate);
+
+    if (currentBaudRate != device.baud_rate) {
+        LOG_RTU_INFO("Switching baudrate: %d → %d",
+                     currentBaudRate, device.baud_rate);
+    }
+}
+
+// 3. Check hardware connections
+void testRS485Hardware() {
+    // Send test frame
+    Serial1.begin(9600, SERIAL_8N1, RTU1_RX, RTU1_TX);
+    Serial1.write(testFrame, sizeof(testFrame));
+
+    delay(100);
+
+    if (Serial1.available()) {
+        LOG_RTU_INFO("RS485 hardware responding");
+    } else {
+        LOG_RTU_ERROR("RS485 hardware NOT responding - check wiring");
+    }
+}
+```
+
+**Common Issues:**
+- **Wrong baudrate:** Ensure device baudrate matches gateway configuration
+- **Incorrect wiring:** Check A/B polarity on RS485
+- **Termination resistor:** Required on long cables (120Ω)
+- **Slave ID mismatch:** Verify device actual slave ID
+- **Timeout too short:** Increase timeout for slow devices
+
+### Example 4: Network Failover Oscillation
+
+**Symptom:**
+- Network constantly switching between Ethernet and WiFi
+- Serial Monitor shows rapid network change messages
+- MQTT disconnects frequently
+
+**Root Cause:**
+Hysteresis not enabled or too short
+
+**Solution:**
+```cpp
+// Check hysteresis configuration
+NetworkHysteresis *hysteresis = NetworkHysteresis::getInstance();
+
+bool enabled = hysteresis->isEnabled();
+uint32_t delayMs = hysteresis->getHysteresisDelay();
+bool canSwitch = hysteresis->canSwitchNetwork();
+
+LOG_NET_DEBUG("Hysteresis enabled: %s", enabled ? "YES" : "NO");
+LOG_NET_DEBUG("Hysteresis delay: %lu ms", delayMs);
+LOG_NET_DEBUG("Can switch now: %s", canSwitch ? "YES" : "NO");
+
+// Fix: Enable hysteresis with longer delay
+if (!enabled) {
+    hysteresis->setEnabled(true);
+    hysteresis->setHysteresisDelay(15000);  // 15 seconds minimum
+    LOG_NET_INFO("Hysteresis enabled with 15s delay");
+}
+
+// Check network stability
+unsigned long timeSinceSwitch = hysteresis->getTimeSinceLastSwitch();
+LOG_NET_INFO("Time since last switch: %lu ms", timeSinceSwitch);
+```
+
+**Prevention:**
+- Enable network hysteresis in `/network_config.json`
+- Set `hysteresis_ms` to at least 10000 (10 seconds)
+- Monitor network quality before allowing failover
+
+### Example 5: MQTT Messages Not Publishing
+
+**Symptom:**
+- Devices polling successfully
+- Queue shows data being added
+- But no messages appear on MQTT broker
+
+**Diagnosis:**
+```cpp
+// 1. Check MQTT connection status
+bool connected = mqttManager->isConnected();
+LOG_MQTT_INFO("MQTT connected: %s", connected ? "YES" : "NO");
+
+if (!connected) {
+    String broker = serverConfig->getMqttBrokerAddress();
+    int port = serverConfig->getMqttBrokerPort();
+    LOG_MQTT_ERROR("Not connected to broker %s:%d", broker.c_str(), port);
+
+    // Check network
+    if (!networkManager->isConnected()) {
+        LOG_MQTT_ERROR("Network not connected - MQTT cannot connect");
+    }
+}
+
+// 2. Check queue status
+QueueManager *queueMgr = QueueManager::getInstance();
+int queueSize = queueMgr->getSize();
+int queueCapacity = queueMgr->getCapacity();
+
+LOG_QUEUE_INFO("Queue: %d/%d items", queueSize, queueCapacity);
+
+if (queueSize > queueCapacity * 0.9) {
+    LOG_QUEUE_WARN("Queue near capacity! Possible publish bottleneck");
+}
+
+// 3. Check publish mode configuration
+JsonDocument serverConfigDoc = serverConfig->getConfig();
+String protocol = serverConfigDoc["protocol"].as<String>();
+
+if (protocol != "mqtt") {
+    LOG_MQTT_ERROR("Protocol is '%s', not 'mqtt'!", protocol.c_str());
+    LOG_MQTT_INFO("Update server_config to use MQTT protocol");
+}
+
+// 4. Test manual publish
+bool published = mqttManager->publish("test/topic", "{\"test\":\"data\"}");
+LOG_MQTT_INFO("Manual publish result: %s", published ? "SUCCESS" : "FAILED");
+```
+
+**Common Issues:**
+- Protocol set to "http" instead of "mqtt"
+- Wrong broker address/port
+- Network connectivity issues
+- Broker authentication required but not configured
+- QoS level too high for broker capabilities
+
+### Example 6: High Priority Command Not Executing First
+
+**Symptom:**
+- Emergency command sent with high priority
+- But normal priority commands execute first
+
+**Diagnosis:**
+```cpp
+// Check command priority in CRUDHandler
+BatchStats stats = crudHandler->getBatchStats();
+
+LOG_CRUD_INFO("Command queue statistics:");
+LOG_CRUD_INFO("  High priority: %d commands", stats.highPriorityCount);
+LOG_CRUD_INFO("  Normal priority: %d commands", stats.normalPriorityCount);
+LOG_CRUD_INFO("  Low priority: %d commands", stats.lowPriorityCount);
+LOG_CRUD_INFO("  Current queue depth: %d", stats.currentQueueDepth);
+LOG_CRUD_INFO("  Peak queue depth: %d", stats.queuePeakDepth);
+
+// Verify command includes priority field
+```
+
+**Solution:**
+```json
+{
+  "op": "update",
+  "type": "server_config",
+  "priority": "high",  // ← MUST include this field
+  "config": {
+    "protocol": "mqtt"
+  }
+}
+```
+
+**Priority Execution Order:**
+1. HIGH priority commands execute first (priority = 0)
+2. NORMAL priority commands execute next (priority = 1, default)
+3. LOW priority commands execute last (priority = 2)
+4. Within same priority: FIFO (first in, first out)
+
+### Example 7: Log Spam From Failing Device
+
+**Symptom:**
+- Serial Monitor flooded with repeated error messages
+- Difficult to see other important logs
+- Example: `[RTU] Device X timeout` repeated hundreds of times
+
+**Solution - Use Log Throttling:**
+```cpp
+// In ModbusRtuService.cpp
+LogThrottle deviceErrorThrottle(30000);  // 30 second interval
+
+void ModbusRtuService::pollDevice(Device &device) {
+    uint8_t result = modbus.readHoldingRegisters(address, quantity);
+
+    if (result != modbus.ku8MBSuccess) {
+        // Only log once every 30 seconds
+        if (deviceErrorThrottle.shouldLog()) {
+            LOG_RTU_ERROR("Device %s timeout (Slave:%d Port:%d)",
+                          device.device_id.c_str(),
+                          device.slave_id,
+                          device.serial_port);
+            // Will also log: "(suppressed N similar messages)"
+        }
+
+        handleDeviceFailure(device.device_id);
+        return;
+    }
+
+    // Success - reset throttle
+    deviceErrorThrottle.reset();
+}
+```
+
+**Result:**
+- Error logs once every 30 seconds instead of every poll cycle
+- Shows count of suppressed messages
+- Other log messages remain visible
 
 ---
 
