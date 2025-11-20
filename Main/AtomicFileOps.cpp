@@ -1,0 +1,434 @@
+/*
+ * Atomic File Operations Implementation
+ * Provides safe, transactional file writes for LittleFS
+ */
+
+#include "AtomicFileOps.h"
+
+const char *AtomicFileOps::WAL_FILE = "/.wal";
+
+AtomicFileOps::AtomicFileOps() : walMutex(nullptr), recoveryAttempted(false)
+{
+  // Create mutex for WAL synchronization
+  walMutex = xSemaphoreCreateMutex();
+  if (!walMutex)
+  {
+    Serial.println("[ATOMIC] ERROR: Failed to create WAL mutex");
+  }
+}
+
+AtomicFileOps::~AtomicFileOps()
+{
+  if (walMutex)
+  {
+    vSemaphoreDelete(walMutex);
+    walMutex = nullptr;
+  }
+  walLog.clear();
+}
+
+bool AtomicFileOps::begin()
+{
+  Serial.println("[ATOMIC] Initializing atomic file operations...");
+
+  // Perform recovery on startup
+  uint8_t recovered = recover();
+  if (recovered > 0)
+  {
+    Serial.printf("[ATOMIC] Recovered from %d incomplete operation(s)\n", recovered);
+  }
+
+  recoveryAttempted = true;
+  return true;
+}
+
+String AtomicFileOps::calculateChecksum(const JsonDocument &doc)
+{
+  // Calculate simple checksum from JSON serialization
+  String json = doc.as<String>();
+  uint32_t checksum = 0;
+
+  for (size_t i = 0; i < json.length(); i++)
+  {
+    // Simple rotating XOR checksum
+    checksum = ((checksum << 1) ^ json[i]) & 0xFFFFFFFF;
+  }
+
+  return String(checksum, HEX);
+}
+
+String AtomicFileOps::calculateFileChecksum(const String &filename)
+{
+  File file = LittleFS.open(filename, "r");
+  if (!file)
+  {
+    return "";
+  }
+
+  uint32_t checksum = 0;
+  const size_t CHUNK_SIZE = 512;
+  char buffer[CHUNK_SIZE];
+
+  while (file.available())
+  {
+    size_t bytesRead = file.read((uint8_t *)buffer, CHUNK_SIZE);
+    for (size_t i = 0; i < bytesRead; i++)
+    {
+      checksum = ((checksum << 1) ^ buffer[i]) & 0xFFFFFFFF;
+    }
+  }
+
+  file.close();
+  return String(checksum, HEX);
+}
+
+bool AtomicFileOps::verifyFileIntegrity(const String &filename)
+{
+  // Check if file exists and is readable
+  if (!LittleFS.exists(filename))
+  {
+    return false;
+  }
+
+  File file = LittleFS.open(filename, "r");
+  if (!file)
+  {
+    return false;
+  }
+
+  // Verify file is not empty
+  size_t fileSize = file.size();
+  file.close();
+
+  if (fileSize == 0)
+  {
+    Serial.printf("[ATOMIC] File %s is empty (possibly corrupted)\n", filename.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+void AtomicFileOps::appendToWAL(const WALEntry &entry)
+{
+  if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
+  {
+    Serial.println("[ATOMIC] ERROR: WAL mutex timeout");
+    return;
+  }
+
+  walLog.push_back(entry);
+  
+
+  xSemaphoreGive(walMutex);
+}
+
+void AtomicFileOps::markWALEntryCompleted(const String &filename)
+{
+  if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
+  {
+    return;
+  }
+
+  for (auto &entry : walLog)
+  {
+    if (entry.targetFile == filename)
+    {
+      entry.completed = true;
+      
+      break;
+    }
+  }
+
+  xSemaphoreGive(walMutex);
+}
+
+void AtomicFileOps::clearWAL()
+{
+  if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
+  {
+    return;
+  }
+
+  walLog.clear();
+  Serial.println("[ATOMIC] WAL cleared");
+
+  xSemaphoreGive(walMutex);
+}
+
+bool AtomicFileOps::writeAtomic(const String &filename, const JsonDocument &doc)
+{
+  if (!walMutex)
+  {
+    Serial.println("[ATOMIC] ERROR: WAL mutex not initialized");
+    return false;
+  }
+
+  // Step 1: Create WAL entry
+  WALEntry entry;
+  entry.operation = "write";
+  entry.targetFile = filename;
+  entry.tempFile = filename + ".tmp";
+  entry.timestamp = millis();
+  entry.checksum = calculateChecksum(doc);
+  entry.completed = false;
+
+  // Step 2: Add to WAL (before any file operations!)
+  appendToWAL(entry);
+
+  // Step 3: Write to temporary file
+  size_t tmpSize = 0;
+  {
+    File tmpFile = LittleFS.open(entry.tempFile, "w");
+    if (!tmpFile)
+    {
+      Serial.printf("[ATOMIC] ERROR: Cannot open temp file %s\n", entry.tempFile.c_str());
+      return false;
+    }
+
+    // Serialize JSON to file
+    serializeJson(doc, tmpFile);
+    tmpFile.flush();
+
+    // Verify temp file was written
+    tmpSize = tmpFile.size();
+    tmpFile.close();
+
+    if (tmpSize == 0)
+    {
+      Serial.printf("[ATOMIC] ERROR: Temp file write failed (size=0)\n");
+      LittleFS.remove(entry.tempFile);
+      return false;
+    }
+  }
+
+  // Step 4: Verify temp file integrity
+  if (!verifyFileIntegrity(entry.tempFile))
+  {
+    Serial.printf("[ATOMIC] ERROR: Temp file integrity check failed\n");
+    LittleFS.remove(entry.tempFile);
+    return false;
+  }
+
+  // Step 5: Atomic rename (this is the critical operation)
+  // LittleFS.rename() is atomic on LittleFS
+  {
+    // Remove old file if exists (on LittleFS, rename doesn't auto-replace)
+    if (LittleFS.exists(filename))
+    {
+      if (!LittleFS.remove(filename))
+      {
+        Serial.printf("[ATOMIC] ERROR: Cannot remove old file %s\n", filename.c_str());
+        LittleFS.remove(entry.tempFile);
+        return false;
+      }
+    }
+
+    // Perform atomic rename
+    if (!LittleFS.rename(entry.tempFile, filename))
+    {
+      Serial.printf("[ATOMIC] ERROR: Atomic rename failed\n");
+      LittleFS.remove(entry.tempFile);
+      return false;
+    }
+  }
+
+  // Step 6: Verify final file
+  if (!verifyFileIntegrity(filename))
+  {
+    Serial.printf("[ATOMIC] ERROR: Final file verification failed\n");
+    return false;
+  }
+
+  // Step 7: Mark WAL entry as completed
+  markWALEntryCompleted(filename);
+
+  Serial.printf("[ATOMIC] Write completed: %s (%d bytes)\n", filename.c_str(), tmpSize);
+  return true;
+}
+
+bool AtomicFileOps::deleteAtomic(const String &filename)
+{
+  if (!LittleFS.exists(filename))
+  {
+    Serial.printf("[ATOMIC] File not found for deletion: %s\n", filename.c_str());
+    return true; // Already deleted
+  }
+
+  // Create backup before deletion (optional, for safety)
+  String backupFile = filename + ".backup";
+
+  // Simple approach: just delete the file
+  // For production, consider keeping backups
+  if (!LittleFS.remove(filename))
+  {
+    Serial.printf("[ATOMIC] ERROR: Failed to delete %s\n", filename.c_str());
+    return false;
+  }
+
+  Serial.printf("[ATOMIC] File deleted successfully: %s\n", filename.c_str());
+  return true;
+}
+
+uint8_t AtomicFileOps::recover()
+{
+  if (!walMutex)
+  {
+    Serial.println("[ATOMIC] ERROR: WAL mutex not initialized");
+    return 0;
+  }
+
+  if (recoveryAttempted)
+  {
+    Serial.println("[ATOMIC] Recovery already attempted");
+    return 0;
+  }
+
+  Serial.println("[ATOMIC] Starting recovery from incomplete operations...");
+
+  uint8_t recovered = 0;
+
+  // Check for orphaned temp files (from interrupted writes)
+  // These are files with .tmp extension
+  // Using proper LittleFS API for directory listing
+  File root = LittleFS.open("/");
+  if (!root)
+  {
+    Serial.println("[ATOMIC] ERROR: Cannot open root directory");
+    return 0;
+  }
+
+  // Use file iteration compatible with LittleFS
+  File file = root.openNextFile();
+  while (file)
+  {
+    String fileName = file.name();
+
+    if (fileName.endsWith(".tmp"))
+    {
+      Serial.printf("[ATOMIC] Found orphaned temp file: %s\n", fileName.c_str());
+
+      file.close();
+
+      // Remove the orphaned temp file
+      if (LittleFS.remove(String("/") + fileName))
+      {
+        Serial.printf("[ATOMIC] Cleaned up temp file: %s\n", fileName.c_str());
+        recovered++;
+      }
+      else
+      {
+        Serial.printf("[ATOMIC] Failed to clean up temp file: %s\n", fileName.c_str());
+      }
+    }
+    else
+    {
+      file.close();
+    }
+
+    file = root.openNextFile();
+  }
+  root.close();
+
+  // Check WAL for incomplete operations
+  if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(2000)) == pdTRUE)
+  {
+    for (const auto &entry : walLog)
+    {
+      if (!entry.completed)
+      {
+        Serial.printf("[ATOMIC] Found incomplete WAL entry: %s on %s\n",
+                      entry.operation.c_str(), entry.targetFile.c_str());
+
+        if (entry.operation == "write")
+        {
+          // If temp file still exists, it means rename was interrupted
+          if (LittleFS.exists(entry.tempFile))
+          {
+            Serial.printf("[ATOMIC] Retrying rename: %s to %s\n",
+                          entry.tempFile.c_str(), entry.targetFile.c_str());
+
+            if (LittleFS.exists(entry.targetFile))
+            {
+              LittleFS.remove(entry.targetFile);
+            }
+
+            if (LittleFS.rename(entry.tempFile, entry.targetFile))
+            {
+              Serial.printf("[ATOMIC] Completed interrupted rename\n");
+              recovered++;
+            }
+            else
+            {
+              Serial.printf("[ATOMIC] Failed to complete rename\n");
+            }
+          }
+        }
+      }
+    }
+
+    xSemaphoreGive(walMutex);
+  }
+
+  Serial.printf("[ATOMIC] Recovery completed: %d operations recovered\n", recovered);
+  return recovered;
+}
+
+void AtomicFileOps::forceWALCleanup()
+{
+  Serial.println("[ATOMIC] Force cleanup of WAL...");
+  clearWAL();
+
+  // Remove all .tmp files
+  // Using proper LittleFS API for directory listing
+  File root = LittleFS.open("/");
+  if (!root)
+  {
+    Serial.println("[ATOMIC] ERROR: Cannot open root directory for cleanup");
+    return;
+  }
+
+  File file = root.openNextFile();
+  while (file)
+  {
+    String fileName = file.name();
+    if (fileName.endsWith(".tmp"))
+    {
+      file.close();
+      if (LittleFS.remove(String("/") + fileName))
+      {
+        Serial.printf("[ATOMIC] Removed: %s\n", fileName.c_str());
+      }
+    }
+    else
+    {
+      file.close();
+    }
+    file = root.openNextFile();
+  }
+  root.close();
+
+  Serial.println("[ATOMIC] Force cleanup completed");
+}
+
+void AtomicFileOps::printWALStatus()
+{
+  Serial.println("[ATOMIC] === WAL STATUS ===");
+  Serial.printf("WAL Entries: %d\n", walLog.size());
+
+  if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(1000)) == pdTRUE)
+  {
+    for (size_t i = 0; i < walLog.size(); i++)
+    {
+      const auto &entry = walLog[i];
+      Serial.printf("  [%d] %s on %s - %s\n",
+                    i,
+                    entry.operation.c_str(),
+                    entry.targetFile.c_str(),
+                    entry.completed ? "COMPLETED" : "INCOMPLETE");
+    }
+    xSemaphoreGive(walMutex);
+  }
+
+  Serial.println("[ATOMIC] ==================");
+}
