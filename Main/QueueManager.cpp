@@ -76,14 +76,32 @@ bool QueueManager::enqueue(const JsonObject &dataPoint)
     }
   }
 
-  // Allocate memory for string in PSRAM
+  // FIXED BUG #6: Add DRAM fallback if PSRAM allocation fails
+  // Previous code had NO fallback → DATA LOSS when PSRAM exhausted!
   char *jsonCopy = (char *)heap_caps_malloc(jsonString.length() + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
   if (jsonCopy == nullptr)
   {
-    // FIXED: Remove malloc() fallback - fail gracefully instead of mixing allocators
-    xSemaphoreGive(queueMutex);
-    Serial.println("[QUEUE] ERROR: PSRAM allocation failed - queue full");
-    return false;
+    // PSRAM exhausted - fallback to DRAM (internal heap)
+    jsonCopy = (char *)heap_caps_malloc(jsonString.length() + 1, MALLOC_CAP_8BIT);
+
+    if (jsonCopy == nullptr)
+    {
+      // Both PSRAM and DRAM exhausted - critical memory shortage
+      xSemaphoreGive(queueMutex);
+      Serial.println("[QUEUE] CRITICAL ERROR: Both PSRAM and DRAM allocation failed!");
+      return false;
+    }
+    else
+    {
+      // Fallback successful - log warning
+      static unsigned long lastWarning = 0;
+      if (millis() - lastWarning > 30000)  // Log max once per 30s to avoid spam
+      {
+        Serial.printf("[QUEUE] WARNING: PSRAM exhausted, using DRAM fallback (%d bytes)\n", jsonString.length());
+        lastWarning = millis();
+      }
+    }
   }
 
   strcpy(jsonCopy, jsonString.c_str());

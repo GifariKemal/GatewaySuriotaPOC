@@ -11,6 +11,18 @@
 #include "NetworkManager.h"
 #include "MQTTPersistentQueue.h" // Persistent queue for failed publishes
 
+// FIXED BUG #21: Define named constants for magic numbers
+// FIXED BUG #27: Increased BYTES_PER_REGISTER for accurate buffer sizing
+// FIXED BUG #28 + #29: Increased MQTT_TASK_STACK_SIZE for ArduinoJson v7 dynamic allocations
+namespace MqttConfig {
+  constexpr uint32_t MQTT_TASK_STACK_SIZE = 24576;     // 24KB stack for ArduinoJson v7 dynamic allocations (50+ registers)
+  constexpr uint16_t MIN_BUFFER_SIZE = 2048;           // 2KB minimum buffer
+  constexpr uint16_t MAX_BUFFER_SIZE = 16384;          // 16KB maximum (PubSubClient limit)
+  constexpr uint16_t DEFAULT_BUFFER_SIZE = 8192;       // 8KB conservative default
+  constexpr uint16_t BYTES_PER_REGISTER = 120;         // Realistic bytes per register (includes metadata, descriptions, JSON overhead)
+  constexpr uint16_t BUFFER_OVERHEAD = 500;            // JSON structure overhead (increased for safety)
+}
+
 class MqttManager
 {
 private:
@@ -69,6 +81,9 @@ private:
   void publishCustomizeMode(std::map<String, JsonDocument> &uniqueRegisters, unsigned long now);
   void debugNetworkConnectivity();
   bool isNetworkAvailable();
+
+  // FIXED BUG #15: Dynamic MQTT buffer sizing
+  uint16_t calculateOptimalBufferSize();
 
 public:
   static MqttManager *getInstance(ConfigManager *config = nullptr, ServerConfig *serverCfg = nullptr, NetworkMgr *netMgr = nullptr);

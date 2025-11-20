@@ -25,10 +25,11 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
   }
 
   // Create command processor task
+  // FIXED BUG #30: Increased stack size for large device operations
   xTaskCreatePinnedToCore(
       commandProcessorTask,
       "CRUD_PROCESSOR_TASK",
-      8192,
+      CRUDConfig::CRUD_TASK_STACK_SIZE,  // 24KB stack (was 8KB)
       this,
       2, // Medium priority
       &commandProcessorTaskHandle,
@@ -326,6 +327,7 @@ void CRUDHandler::setupCommandHandlers()
       (*response)["register_id"] = registerId;
 
       // Load device and find the created register
+      // BUG #31: Global PSRAM allocator handles all JsonDocument instances automatically
       JsonDocument deviceDoc;
       JsonObject device = deviceDoc.to<JsonObject>();
       if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
@@ -398,6 +400,7 @@ void CRUDHandler::setupCommandHandlers()
       (*response)["message"] = "Register updated";
 
       // Load device and find the updated register
+      // BUG #31: Global PSRAM allocator handles all JsonDocument instances automatically
       JsonDocument deviceDoc;
       JsonObject device = deviceDoc.to<JsonObject>();
       if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
@@ -500,6 +503,7 @@ void CRUDHandler::setupCommandHandlers()
     auto response = make_psram_unique<JsonDocument>();
 
     // Load device and find the register before deletion
+    // BUG #31: Global PSRAM allocator handles all JsonDocument instances automatically
     JsonDocument deviceDoc;
     JsonObject device = deviceDoc.to<JsonObject>();
     if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
