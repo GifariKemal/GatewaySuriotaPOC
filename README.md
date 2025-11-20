@@ -140,7 +140,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 | **GPIO 14, 21, 47, 48** | ETH_SPI    | W5500 SPI3 (MOSI/MISO/SCK/CS)   |
 | **GPIO 10-13**          | SD_SPI     | MicroSD card SPI (optional)     |
 
-**Complete GPIO mapping**: See [docs/HARDWARE.md](docs/HARDWARE.md) for all 25 GPIO assignments
+**Complete GPIO mapping**: See [Documentation/Technical_Guides/HARDWARE.md](Documentation/Technical_Guides/HARDWARE.md) for all 25 GPIO assignments
 
 ### Power Requirements
 
@@ -158,7 +158,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 - **Arduino IDE** 2.0 or later
 - **ESP32 Board Package** 2.0.11 or later
-- **Required Libraries** (see [LIBRARIES.md](docs/LIBRARIES.md))
+- **Required Libraries** (see [LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
 
 ### Installation
 
@@ -189,7 +189,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
    - OneButton (v2.0+) by Matthias Hertel
    ```
 
-   See [docs/LIBRARIES.md](docs/LIBRARIES.md) for detailed installation guide
+   See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for detailed installation guide
 
 4. **Configure Mode**
    - Open `Main/Main.ino`
@@ -245,7 +245,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 }
 ```
 
-See [docs/API.md](docs/API.md) for complete CRUD examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete CRUD examples.
 
 ---
 
@@ -387,7 +387,7 @@ graph LR
 
 ## 📚 Documentation
 
-Comprehensive documentation is available in the `Docs/` directory:
+Comprehensive documentation is available in the `Documentation/` directory:
 
 ### 🆕 What's New in v2.1.1
 
@@ -397,38 +397,38 @@ Comprehensive documentation is available in the `Docs/` directory:
 > - 🆕 **New API endpoint:** `devices_with_registers`
 > - 📊 **Performance monitoring** for large datasets
 
-**See:** [Docs/VERSION_HISTORY.md](Docs/VERSION_HISTORY.md) for complete changelog
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete changelog
 
 ### 📖 Core Documentation
 
-| Document                                                                                | Description                                   |
-| --------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [**VERSION_HISTORY.md**](Docs/VERSION_HISTORY.md) ⭐                                     | Changelog and migration guide (v2.1.1)        |
-| [**API.md**](Docs/API.md)                                                               | Complete BLE CRUD API reference with examples |
-| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Docs/MQTT_PUBLISH_MODES_DOCUMENTATION.md)     | MQTT Default & Customize modes                |
-| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Docs/REGISTER_CALIBRATION_DOCUMENTATION.md) | Scale & offset calibration guide              |
+| Document                                                                                                                      | Description                                   |
+| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md) ⭐                                                        | Changelog and migration guide (v2.1.1)        |
+| [**API.md**](Documentation/API_Reference/API.md)                                                                              | Complete BLE CRUD API reference with examples |
+| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)                 | MQTT Default & Customize modes                |
+| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)             | Scale & offset calibration guide              |
 
 ### 🔧 Technical Reference
 
-| Document                                            | Description                                    |
-| --------------------------------------------------- | ---------------------------------------------- |
-| [**MODBUS_DATATYPES.md**](Docs/MODBUS_DATATYPES.md) | 40+ Modbus data types with endianness variants |
-| [**PROTOCOL.md**](Docs/PROTOCOL.md)                 | BLE protocol, Modbus implementation details    |
-| [**LOGGING.md**](Docs/LOGGING.md)                   | Debug log reference and troubleshooting        |
+| Document                                                                         | Description                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [**MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md)   | 40+ Modbus data types with endianness variants |
+| [**PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                    | BLE protocol, Modbus implementation details    |
+| [**LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                      | Debug log reference and troubleshooting        |
 
 ### 🚀 Performance & Troubleshooting
 
-| Document                                              | Description                            |
-| ----------------------------------------------------- | -------------------------------------- |
-| [**CAPACITY_ANALYSIS.md**](Docs/CAPACITY_ANALYSIS.md) | Gateway capacity limits and benchmarks |
-| [**TROUBLESHOOTING.md**](Docs/TROUBLESHOOTING.md)     | Common issues and solutions            |
+| Document                                                                       | Description                            |
+| ------------------------------------------------------------------------------ | -------------------------------------- |
+| [**CAPACITY_ANALYSIS.md**](Documentation/Changelog/CAPACITY_ANALYSIS.md)      | Gateway capacity limits and benchmarks |
+| [**TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
 
 ### 🔌 Hardware & Setup
 
-| Document                              | Description                               |
-| ------------------------------------- | ----------------------------------------- |
-| [**HARDWARE.md**](Docs/HARDWARE.md)   | GPIO pinout, schematics, electrical specs |
-| [**LIBRARIES.md**](Docs/LIBRARIES.md) | Third-party libraries and dependencies    |
+| Document                                                               | Description                               |
+| ---------------------------------------------------------------------- | ----------------------------------------- |
+| [**HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)          | GPIO pinout, schematics, electrical specs |
+| [**LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md)        | Third-party libraries and dependencies    |
 
 ---
 
@@ -462,7 +462,7 @@ Comprehensive documentation is available in the `Docs/` directory:
 }
 ```
 
-See [docs/API.md](docs/API.md) for complete examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete examples.
 
 ---
 
@@ -496,7 +496,7 @@ See [docs/API.md](docs/API.md) for complete examples.
    [RTU] Polling device XXXXX (Slave:1 Port:1 Baud:9600)
    ```
 
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions.
+See [Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_Guides/TROUBLESHOOTING.md) for detailed solutions.
 
 ---
 
@@ -569,7 +569,7 @@ We welcome contributions from the community! Whether you're fixing bugs, adding 
 
 ### How to Contribute
 
-Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+Please read our [CONTRIBUTING.md](Documentation/Technical_Guides/CONTRIBUTING.md) for detailed guidelines on:
 
 - Setting up your development environment
 - Coding standards and conventions
@@ -633,7 +633,7 @@ For commercial support, custom development, or enterprise licensing inquiries, c
 
 ### Third-Party Libraries
 
-This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LIBRARIES.md) for complete attributions.
+This project uses several open-source libraries. See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for complete attributions.
 
 ### Special Thanks
 
@@ -685,7 +685,7 @@ This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LI
 - ✅ Archived 7 outdated streaming fix documents
 - ✅ All docs updated with v2.1.1, developer credits, and correct dates
 
-**See:** [Docs/VERSION_HISTORY.md](Docs/VERSION_HISTORY.md) for complete details
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
 
 ---
 
