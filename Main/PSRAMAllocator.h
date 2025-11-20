@@ -51,28 +51,40 @@ public:
   }
 
   void* reallocate(void* ptr, size_t new_size) override {
-    // Determine if pointer is in PSRAM or DRAM
-    void* new_ptr = nullptr;
-
-    if (heap_caps_get_allocated_size(ptr) > 0) {
-      // Try to reallocate in same memory type
-      if (esp_ptr_in_spiram(ptr)) {
-        new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-      } else {
-        new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_8BIT);
-      }
+    // Simplified: Always try PSRAM first (consistent with allocate())
+    // If ptr is null, just allocate new
+    if (!ptr) {
+      return allocate(new_size);
     }
 
-    if (!new_ptr && new_size > 0) {
-      // Realloc failed, try new allocation
-      new_ptr = allocate(new_size);
-      if (new_ptr && ptr) {
-        // Copy old data
-        size_t old_size = heap_caps_get_allocated_size(ptr);
-        size_t copy_size = (old_size < new_size) ? old_size : new_size;
-        memcpy(new_ptr, ptr, copy_size);
-        deallocate(ptr);
-      }
+    // If new_size is 0, deallocate
+    if (new_size == 0) {
+      deallocate(ptr);
+      return nullptr;
+    }
+
+    // Try to reallocate in PSRAM first (our preferred memory)
+    void* new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+    if (new_ptr) {
+      #ifdef DEBUG_PSRAM_ALLOCATOR
+      Serial.printf("[PSRAM_ALLOC] Reallocated to %u bytes in PSRAM\n", new_size);
+      #endif
+      return new_ptr;
+    }
+
+    // PSRAM realloc failed, try allocate new + copy + free old
+    new_ptr = allocate(new_size);
+    if (new_ptr && ptr) {
+      // Copy old data (use smaller of old/new size)
+      size_t old_size = heap_caps_get_allocated_size(ptr);
+      size_t copy_size = (old_size < new_size) ? old_size : new_size;
+      memcpy(new_ptr, ptr, copy_size);
+      deallocate(ptr);
+
+      #ifdef DEBUG_PSRAM_ALLOCATOR
+      Serial.printf("[PSRAM_ALLOC] Reallocated via copy (%u bytes)\n", new_size);
+      #endif
     }
 
     return new_ptr;
