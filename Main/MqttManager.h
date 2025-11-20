@@ -13,9 +13,9 @@
 
 // FIXED BUG #21: Define named constants for magic numbers
 // FIXED BUG #27: Increased BYTES_PER_REGISTER for accurate buffer sizing
-// FIXED BUG #28: Increased MQTT_TASK_STACK_SIZE to prevent stack overflow with 50+ registers
+// FIXED BUG #28 + #29: Increased MQTT_TASK_STACK_SIZE for ArduinoJson v7 dynamic allocations
 namespace MqttConfig {
-  constexpr uint32_t MQTT_TASK_STACK_SIZE = 16384;     // Stack size for MQTT task (doubled for large JSON documents)
+  constexpr uint32_t MQTT_TASK_STACK_SIZE = 24576;     // 24KB stack for ArduinoJson v7 dynamic allocations (50+ registers)
   constexpr uint16_t MIN_BUFFER_SIZE = 2048;           // 2KB minimum buffer
   constexpr uint16_t MAX_BUFFER_SIZE = 16384;          // 16KB maximum (PubSubClient limit)
   constexpr uint16_t DEFAULT_BUFFER_SIZE = 8192;       // 8KB conservative default

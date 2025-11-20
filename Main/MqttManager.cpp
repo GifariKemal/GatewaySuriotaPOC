@@ -298,8 +298,7 @@ bool MqttManager::connectToMqtt()
 
 void MqttManager::loadMqttConfig()
 {
-  // FIXED BUG #29: Explicit size limit to prevent stack overflow
-  JsonDocument configDoc(1024);  // 1KB for MQTT config (broker, topics, etc.)
+  JsonDocument configDoc;
   JsonObject mqttConfig = configDoc.to<JsonObject>();
 
   Serial.println("[MQTT] Loading MQTT configuration...");
@@ -498,8 +497,7 @@ void MqttManager::publishQueueData()
 
   while (uniqueRegisters.size() < 50)
   {
-    // FIXED BUG #29: Explicit size limit to prevent stack overflow
-    JsonDocument dataDoc(512);  // 512 bytes per register (sufficient for single data point)
+    JsonDocument dataDoc;
     JsonObject dataPoint = dataDoc.to<JsonObject>();
 
     if (!queueManager->dequeue(dataPoint))
@@ -539,8 +537,7 @@ void MqttManager::publishQueueData()
 void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegisters, unsigned long now)
 {
   // Batch all data into single payload grouped by device_id
-  // FIXED BUG #29: Explicit size limit to prevent stack overflow
-  JsonDocument batchDoc(8192);  // 8KB for full payload with 50+ registers
+  JsonDocument batchDoc;
 
   // Get formatted timestamp from RTC: DD/MM/YYYY HH:MM:SS
   RTCManager *rtcMgr = RTCManager::getInstance();
@@ -597,8 +594,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
       }
 
       // First time seeing this device in this batch - verify it exists in config
-      // FIXED BUG #29: Explicit size limit to prevent stack overflow
-      JsonDocument tempDoc(2048);  // 2KB for device config verification
+      JsonDocument tempDoc;
       JsonObject tempObj = tempDoc.to<JsonObject>();
       if (!configManager->readDevice(deviceId, tempObj))
       {
@@ -715,8 +711,7 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
     }
 
     // Filter registers for this topic
-    // FIXED BUG #29: Explicit size limit to prevent stack overflow
-    JsonDocument topicDoc(4096);  // 4KB per topic (customize mode has fewer registers per topic)
+    JsonDocument topicDoc;
     topicDoc["timestamp"] = now;
 
     JsonArray dataArray = topicDoc["data"].to<JsonArray>();
@@ -902,8 +897,7 @@ uint16_t MqttManager::calculateOptimalBufferSize()
 
   // Load all devices to count total registers
   // Use getAllDevicesWithRegisters() to get device data
-  // FIXED BUG #29: Explicit size limit to prevent stack overflow
-  JsonDocument devicesDoc(4096);  // 4KB explicit size for minimal device data
+  JsonDocument devicesDoc;  // Stack allocated
   JsonArray devices = devicesDoc.to<JsonArray>();
   configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
 
