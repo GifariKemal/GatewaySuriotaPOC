@@ -6,6 +6,7 @@
 #include "MqttManager.h"   //For calling updateDataTransmissionInterval()
 #include "HttpManager.h"   //For calling updateDataTransmissionInterval()
 #include "MemoryManager.h" // For make_psram_unique
+#include "PSRAMAllocator.h" // BUG #31: PSRAM allocator for JsonDocument
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;
@@ -327,7 +328,8 @@ void CRUDHandler::setupCommandHandlers()
       (*response)["register_id"] = registerId;
 
       // Load device and find the created register
-      JsonDocument deviceDoc;
+      // BUG #31: Use PSRAM allocator to prevent DRAM exhaustion
+      JsonDocument deviceDoc(ArduinoJson::PSRAMAllocator::instance());
       JsonObject device = deviceDoc.to<JsonObject>();
       if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
       {
@@ -399,7 +401,8 @@ void CRUDHandler::setupCommandHandlers()
       (*response)["message"] = "Register updated";
 
       // Load device and find the updated register
-      JsonDocument deviceDoc;
+      // BUG #31: Use PSRAM allocator to prevent DRAM exhaustion
+      JsonDocument deviceDoc(ArduinoJson::PSRAMAllocator::instance());
       JsonObject device = deviceDoc.to<JsonObject>();
       if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
       {
@@ -501,7 +504,8 @@ void CRUDHandler::setupCommandHandlers()
     auto response = make_psram_unique<JsonDocument>();
 
     // Load device and find the register before deletion
-    JsonDocument deviceDoc;
+    // BUG #31: Use PSRAM allocator to prevent DRAM exhaustion
+    JsonDocument deviceDoc(ArduinoJson::PSRAMAllocator::instance());
     JsonObject device = deviceDoc.to<JsonObject>();
     if (configManager->readDevice(deviceId, device) && device["registers"].is<JsonArray>())
     {
