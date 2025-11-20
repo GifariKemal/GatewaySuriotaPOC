@@ -1,11 +1,25 @@
 # Dokumentasi Tipe Data Modbus Gateway SURIOTA
 
+> **⚠️ ARCHIVED - October 2024**
+>
+> This document is archived and no longer reflects current Modbus data type support.
+>
+> **Archived From:** v2.0.0 data types documentation
+>
+> **Reason:** Replaced by comprehensive data types documentation with additional types and better organization
+>
+> **Current Documentation:** See [MODBUS_DATATYPES.md](../Technical_Guides/MODBUS_DATATYPES.md) for current data types
+>
+> **Archive Info:** [ARCHIVE_INFO.md](ARCHIVE_INFO.md)
+
 ---
+
 **Versi:** 2.0.0
 **Tanggal & Waktu:** Jumat, 24 Oktober 2025 10:00:00 WIB
 **Penulis:** Gifari Kemal Suryo (diperbarui oleh Gemini AI)
 **Tujuan:** Team R&D SURIOTA
 **Hak Cipta:** © 2025 PT Surya Inovasi Prioritas (SURIOTA). Hak cipta dilindungi undang-undang.
+
 ---
 
 Dokumen ini menguraikan tipe data Modbus yang didukung oleh firmware SURIOTA Gateway, termasuk berbagai varian endianness dan word swap untuk nilai multi-register. String `dataType` ini digunakan dalam konfigurasi register melalui BLE CRUD API.

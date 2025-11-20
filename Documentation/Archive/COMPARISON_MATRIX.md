@@ -1,5 +1,19 @@
 # 📊 DETAILED COMPARISON MATRIX
 
+> **⚠️ ARCHIVED - October 2024**
+>
+> This document is archived and no longer reflects the current firmware version.
+>
+> **Archived From:** v2.0.0 development phase
+>
+> **Reason:** Streaming data fix has been integrated into v2.0.0+
+>
+> **Current Documentation:** See [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue diagnostics
+>
+> **Archive Info:** [ARCHIVE_INFO.md](ARCHIVE_INFO.md)
+
+---
+
 ## Overview: Original vs Fixed Implementation
 
 ### Key Metrics

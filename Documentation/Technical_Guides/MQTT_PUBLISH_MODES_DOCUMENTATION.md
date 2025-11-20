@@ -2,25 +2,35 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > MQTT Publish Modes
+
 **Current Version:** v2.1.1
 **Developer:** Kemal
-**Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Last Updated:** November 20, 2025
+
+---
 
 ## Overview
 
-SRT-MGATE-1210 Firmware v2.1.1 mendukung 2 mode publikasi MQTT yang dapat dikonfigurasi:
-- **Default Mode**: Batch publishing - semua data dalam 1 payload
-- **Customize Mode**: Multi-topic publishing - data dikelompokkan per topic dengan interval berbeda
+SRT-MGATE-1210 Firmware v2.1.1 supports 2 configurable MQTT publishing modes:
+- **Default Mode**: Batch publishing - all data in 1 payload
+- **Customize Mode**: Multi-topic publishing - data grouped per topic with different intervals
 
 ---
 
 ## Table of Contents
+
 1. [Configuration Structure](#configuration-structure)
 2. [Default Mode](#default-mode)
 3. [Customize Mode](#customize-mode)
 4. [Payload Format](#payload-format)
 5. [API Examples](#api-examples)
 6. [Use Cases](#use-cases)
+7. [Mobile App Implementation Guide](#mobile-app-implementation-guide)
+8. [Testing Checklist](#testing-checklist)
+9. [Troubleshooting](#troubleshooting)
+10. [Migration Guide](#migration-guide)
+11. [Version History](#version-history)
 
 ---
 
@@ -112,13 +122,13 @@ SRT-MGATE-1210 Firmware v2.1.1 mendukung 2 mode publikasi MQTT yang dapat dikonf
 
 ### Register ID Mapping
 
-**PENTING:** Field `registers` pada custom topic menggunakan **register_id** (String), bukan address Modbus atau numeric index.
+**IMPORTANT:** The `registers` field in custom topics uses **register_id** (String), not Modbus address or numeric index.
 
-#### Apa itu register_id?
+#### What is register_id?
 
-`register_id` adalah **unique identifier** untuk setiap register yang di-generate saat register dibuat via BLE CRUD API. Format umumnya: `device_id + "_" + address` atau custom string yang user-defined.
+`register_id` is a **unique identifier** for each register that is generated when a register is created via the BLE CRUD API. The common format is: `device_id + "_" + address` or a custom user-defined string.
 
-**Contoh:**
+**Example:**
 ```json
 // DEVICE_001 - Temperature & Humidity Sensor (4 registers)
 {
@@ -186,13 +196,13 @@ SRT-MGATE-1210 Firmware v2.1.1 mendukung 2 mode publikasi MQTT yang dapat dikonf
 }
 ```
 
-**Penggunaan di Customize Mode:**
+**Usage in Customize Mode:**
 ```json
 {
   "custom_topics": [
     {
       "topic": "sensor/temperature",
-      "registers": ["temp_room_1", "temp_room_2"]  // Menggunakan register_id!
+      "registers": ["temp_room_1", "temp_room_2"]  // Using register_id!
     },
     {
       "topic": "power/meter",
@@ -202,35 +212,35 @@ SRT-MGATE-1210 Firmware v2.1.1 mendukung 2 mode publikasi MQTT yang dapat dikonf
 }
 ```
 
-Topic `sensor/temperature` akan publish data dari:
+Topic `sensor/temperature` will publish data from:
 - Register `temp_room_1` (Temperature Room 1, address 4001)
 - Register `temp_room_2` (Temperature Room 2, address 4002)
 
-Topic `power/meter` akan publish data dari:
+Topic `power/meter` will publish data from:
 - Register `voltage_l1` (Voltage L1, address 4112)
 - Register `current_l1` (Current L1, address 4114)
 - Register `power_total` (Total Power, address 4150)
 
 #### Key Benefits of Using register_id
 
-1. **Stable Identifier:** Tidak berubah saat register di-reorder atau delete
-2. **Human-Readable:** `voltage_l1` lebih jelas daripada angka `1`
-3. **Unique:** Tidak ada duplikasi antar devices
-4. **Backend-Friendly:** Mudah di-filter dan di-match di firmware
+1. **Stable Identifier:** Does not change when registers are reordered or deleted
+2. **Human-Readable:** `voltage_l1` is clearer than number `1`
+3. **Unique:** No duplication across devices
+4. **Backend-Friendly:** Easy to filter and match in firmware
 
 ---
 
 ## Default Mode
 
 ### Description
-Default mode mengumpulkan semua data register yang terbaca dan mengirimkannya dalam **satu payload** ke **satu topic** dengan interval tetap.
+Default mode collects all readable register data and sends it in **one payload** to **one topic** at a fixed interval.
 
 ### Characteristics
-- ✅ Simple configuration
-- ✅ Efficient bandwidth usage (1 message instead of N messages)
-- ✅ Single topic for all data
-- ✅ Fixed interval for all registers
-- ✅ Best for centralized data collection
+- Simple configuration
+- Efficient bandwidth usage (1 message instead of N messages)
+- Single topic for all data
+- Fixed interval for all registers
+- Best for centralized data collection
 
 ### Configuration Example
 
@@ -259,17 +269,17 @@ Default mode mengumpulkan semua data register yang terbaca dan mengirimkannya da
     {
       "name": "Temperature Sensor 1",
       "value": 25.5,
-      "description": "Suhu ruang server"
+      "description": "Server room temperature"
     },
     {
       "name": "Humidity Sensor 1",
       "value": 60.2,
-      "description": "Kelembaban ruang server"
+      "description": "Server room humidity"
     },
     {
       "name": "Pressure Sensor 1",
       "value": 1013.25,
-      "description": "Tekanan udara"
+      "description": "Air pressure"
     }
   ]
 }
@@ -298,14 +308,14 @@ Time: 15000ms → Publish 1 message with all data
 ## Customize Mode
 
 ### Description
-Customize mode memungkinkan pembuatan **multiple topics** dengan pemilihan register yang **fleksibel** dan **interval berbeda** per topic.
+Customize mode enables the creation of **multiple topics** with **flexible** register selection and **different intervals** per topic.
 
 ### Characteristics
-- ✅ Multiple topics
-- ✅ Flexible register selection per topic
-- ✅ Independent interval per topic
-- ✅ Registers can be included in multiple topics
-- ✅ Best for categorized data or different consumers
+- Multiple topics
+- Flexible register selection per topic
+- Independent interval per topic
+- Registers can be included in multiple topics
+- Best for categorized data or different consumers
 
 ### Configuration Example
 
@@ -350,17 +360,17 @@ Topic: `warehouse/temperature`
     {
       "name": "Temperature Sensor 1",
       "value": 25.5,
-      "description": "Suhu zona A"
+      "description": "Temperature zone A"
     },
     {
       "name": "Temperature Sensor 2",
       "value": 26.0,
-      "description": "Suhu zona B"
+      "description": "Temperature zone B"
     },
     {
       "name": "Temperature Sensor 3",
       "value": 24.8,
-      "description": "Suhu zona C"
+      "description": "Temperature zone C"
     }
   ]
 }
@@ -374,12 +384,12 @@ Topic: `warehouse/humidity`
     {
       "name": "Humidity Sensor 1",
       "value": 60.2,
-      "description": "Kelembaban zona A"
+      "description": "Humidity zone A"
     },
     {
       "name": "Humidity Sensor 2",
       "value": 58.5,
-      "description": "Kelembaban zona B"
+      "description": "Humidity zone B"
     }
   ]
 }
@@ -440,7 +450,7 @@ Registers can appear in multiple topics:
 
 ### Simplified Payload (6 Fields)
 
-Payload telah disederhanakan dari 7 fields menjadi 6 fields untuk efisiensi bandwidth dengan menambahkan field `unit` untuk measurement unit.
+The payload has been simplified from 7 fields to 6 fields for bandwidth efficiency by adding a `unit` field for measurement units.
 
 #### Old Payload Format (Deprecated)
 ```json
@@ -462,7 +472,7 @@ Payload telah disederhanakan dari 7 fields menjadi 6 fields untuk efisiensi band
   "name": "Temperature",
   "device_id": "DEVICE_001",
   "value": 25.5,
-  "description": "Suhu Ruangan",
+  "description": "Room Temperature",
   "unit": "°C"
 }
 ```
@@ -480,7 +490,7 @@ Payload telah disederhanakan dari 7 fields menjadi 6 fields untuk efisiensi band
 
 ### Calibration Formula
 
-Firmware menerapkan kalibrasi pada nilai raw Modbus **SETELAH** konversi data type menggunakan formula:
+The firmware applies calibration to raw Modbus values **AFTER** data type conversion using the formula:
 
 ```
 final_value = (raw_value × scale) + offset
@@ -491,7 +501,7 @@ final_value = (raw_value × scale) + offset
 - `offset` = 0.0
 - `unit` = ""
 
-**Contoh Penggunaan:**
+**Usage Examples:**
 
 #### Example 1: Voltage Divider (Scale Only)
 ```json
@@ -547,7 +557,7 @@ These fields are used internally for deduplication and routing:
 
 ### Register Configuration Changes
 
-**PENTING:** Field `refresh_rate_ms` per-register telah dihapus. Polling interval sekarang menggunakan **device-level** `refresh_rate_ms`:
+**IMPORTANT:** The per-register field `refresh_rate_ms` has been removed. Polling interval now uses **device-level** `refresh_rate_ms`:
 
 ```json
 {
@@ -562,7 +572,7 @@ These fields are used internally for deduplication and routing:
 }
 ```
 
-Semua register dalam device tersebut akan menggunakan interval polling yang sama (1000ms).
+All registers in that device will use the same polling interval (1000ms).
 
 ---
 
@@ -856,7 +866,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 
 ### Register Selection Widget (Hierarchical Device → Registers)
 
-**PENTING:** Register selection menggunakan **register_id** (String unique identifier), bukan register_index atau address Modbus.
+**IMPORTANT:** Register selection uses **register_id** (String unique identifier), not register_index or Modbus address.
 
 For register selection, you need a **hierarchical multi-select picker** that displays:
 
@@ -866,7 +876,7 @@ For register selection, you need a **hierarchical multi-select picker** that dis
 **Level 2: Register Selection**
 - Display registers grouped by selected device
 - Show **Register Name** (primary) + **register_id** (secondary)
-- *Optional: Address* (untuk referensi)
+- *Optional: Address* (for reference)
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -900,7 +910,7 @@ For register selection, you need a **hierarchical multi-select picker** that dis
 └─────────────────────────────────────────────┘
 ```
 
-**API untuk mendapatkan available registers grouped by device:**
+**API to get available registers grouped by device:**
 ```javascript
 // GET /api/devices
 // Response:
@@ -911,7 +921,7 @@ For register selection, you need a **hierarchical multi-select picker** that dis
       "device_name": "Temperature & Humidity Sensor",
       "registers": [
         {
-          "register_id": "temp_room_1",     // ← Gunakan ini untuk selection
+          "register_id": "temp_room_1",     // ← Use this for selection
           "register_name": "Temperature Room 1",
           "address": 4001
         },
@@ -1173,12 +1183,19 @@ client.on('message', (topic, message) => {
 
 ---
 
-## Support
+## Related Documentation
 
-For questions or issues:
-- Firmware Developer: Kemal
-- App Developer: [Your Contact]
-- Documentation: This file
+- [API Reference](../API_Reference/API.md) - Complete BLE CRUD API
+- [Network Configuration](NETWORK_CONFIGURATION.md) - Network setup and failover
+- [Protocol Documentation](PROTOCOL.md) - Communication protocols
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Problem solving
+- [Best Practices](../BEST_PRACTICES.md) - Recommended configurations
 
-**Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+---
+
+**Document Version:** 2.0 (Translated)
+**Last Updated:** November 20, 2025
+**Firmware Version:** v2.1.1
 **Developer:** Kemal
+
+[← Back to Technical Guides](README.md) | [↑ Top](#mqtt-publish-modes---documentation)
