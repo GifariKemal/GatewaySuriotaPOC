@@ -1,6 +1,7 @@
 #ifndef NETWORK_MANAGER_H
 #define NETWORK_MANAGER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include "WiFiManager.h"
 #include "EthernetManager.h"

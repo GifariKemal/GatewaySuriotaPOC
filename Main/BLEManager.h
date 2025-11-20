@@ -1,6 +1,7 @@
 #ifndef BLE_MANAGER_H
 #define BLE_MANAGER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>

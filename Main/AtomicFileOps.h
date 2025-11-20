@@ -17,6 +17,7 @@
 
 #include <Arduino.h>
 #include <LittleFS.h>
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <vector>
 #include <freertos/FreeRTOS.h>
