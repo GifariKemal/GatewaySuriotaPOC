@@ -1,11 +1,13 @@
-# 🔌 Hardware Specifications
+# Hardware Specifications
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 Hardware Reference Documentation
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Hardware Specifications
+
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [MCU Specifications](#mcu-specifications)
 - [GPIO Pinout](#gpio-pinout)
@@ -714,7 +716,15 @@ TP10: SPI MISO (W5500)
 
 ---
 
-## 📚 Additional Resources
+## Related Documentation
+
+- [Network Configuration](NETWORK_CONFIGURATION.md) - WiFi and Ethernet setup
+- [Protocol Documentation](PROTOCOL.md) - Communication protocols
+- [API Reference](../API_Reference/API.md) - Complete API documentation
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Hardware troubleshooting
+- [Best Practices](../BEST_PRACTICES.md) - Deployment guidelines
+
+### External Resources
 
 - [ESP32-S3 Datasheet](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf)
 - [W5500 Datasheet](https://www.wiznet.io/product-item/w5500/)
@@ -723,5 +733,8 @@ TP10: SPI MISO (W5500)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**Document Version:** 1.1 (Updated)
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
+
+[← Back to Technical Guides](README.md) | [↑ Top](#hardware-specifications)
