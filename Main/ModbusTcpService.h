@@ -6,6 +6,7 @@
 #include <freertos/task.h>
 #include "ConfigManager.h"
 #include "EthernetManager.h"
+#include "TCPClient.h"  // FIXED BUG #14: Required for connection pooling
 #include <vector>
 #include <queue>
 #include <atomic>
