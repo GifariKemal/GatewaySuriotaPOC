@@ -896,20 +896,23 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   }
 
   // Load all devices to count total registers
-  JsonDocument devicesDoc = configManager->loadDevices();
-  if (devicesDoc.isNull() || !devicesDoc.containsKey("devices"))
+  // Use getAllDevicesWithRegisters() to get device data
+  SpiRamJsonDocument devicesDoc(16384);  // 16KB for devices list
+  JsonArray devices = devicesDoc.to<JsonArray>();
+  configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
+
+  if (devices.size() == 0)
   {
-    return 4096;  // 4KB default
+    return 4096;  // 4KB default if no devices
   }
 
-  JsonObject devices = devicesDoc["devices"];
   uint32_t totalRegisters = 0;
   uint32_t maxDeviceRegisters = 0;
 
   // Count total and max registers
-  for (JsonPair devicePair : devices)
+  for (JsonVariant deviceVar : devices)
   {
-    JsonObject device = devicePair.value();
+    JsonObject device = deviceVar.as<JsonObject>();
     JsonArray registers = device["registers"];
     uint32_t deviceRegCount = registers.size();
 

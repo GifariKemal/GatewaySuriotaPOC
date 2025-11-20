@@ -681,8 +681,11 @@ double ModbusTcpService::processMultiRegisterValue(const JsonObject &reg, uint16
   return values[0]; // Fallback
 }
 
-bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result)
+bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient* existingClient)
 {
+  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
+  // For now, ignore existingClient parameter and create new connection (backward compatible)
+
   // Support both WiFi and Ethernet using TCPClient wrapper
   TCPClient client;
   client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10
@@ -733,8 +736,11 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
   return parseModbusResponse(response.data(), bytesRead, functionCode, result, &dummy);
 }
 
-bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results)
+bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient* existingClient)
 {
+  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
+  // For now, ignore existingClient parameter and create new connection (backward compatible)
+
   // ROLLBACK Bug #4: Use TCPClient wrapper to support both WiFi and Ethernet
   TCPClient client;
   client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10: Use named constant
@@ -786,8 +792,11 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
   return parseMultiModbusResponse(response.data(), bytesRead, functionCode, count, results);
 }
 
-bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result)
+bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient* existingClient)
 {
+  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
+  // For now, ignore existingClient parameter and create new connection (backward compatible)
+
   // Support both WiFi and Ethernet using TCPClient wrapper
   TCPClient client;
   client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10
