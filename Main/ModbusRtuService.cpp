@@ -590,14 +590,25 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   // COMPACT LOGGING: Add remaining items and print buffer atomically
   if (successCount > 0) {
     if (!compactLine.isEmpty()) {
-      // Remove trailing " | "
-      if (compactLine.endsWith(" | ")) {
-        compactLine = compactLine.substring(0, compactLine.length() - 3);
+      // Remove trailing " | " (BUG #31: manual check instead of endsWith())
+      size_t len = compactLine.length();
+      const char* str = compactLine.c_str();
+
+      char lineBuf[16];
+      snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber);
+      outputBuffer += lineBuf;
+
+      // Check if ends with " | " and remove it
+      if (len >= 3 && str[len-3] == ' ' && str[len-2] == '|' && str[len-1] == ' ') {
+        PSRAMString trimmed = compactLine.substring(0, len - 3);
+        outputBuffer += trimmed;
+      } else {
+        outputBuffer += compactLine;
       }
-      outputBuffer += "  L" + String(lineNumber) + ": " + compactLine + "\n";
+      outputBuffer += "\n";
     }
     // Print all at once (atomic - prevents interruption by other tasks)
-    Serial.print(outputBuffer);
+    Serial.print(outputBuffer.c_str());
   }
 
   // Handle device failure state based on read results
@@ -689,7 +700,8 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
 
   // OPTIMIZED: Use pre-fetched device_name (passed from readRtuDeviceData)
   // This avoids expensive getAllDevicesWithRegisters() call per register
-  if (!deviceName.isEmpty())
+  // BUG #31: deviceName is const char*, not String, so check for null/empty differently
+  if (deviceName && deviceName[0] != '\0')
   {
     dataPoint["device_name"] = deviceName;
   }
