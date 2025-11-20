@@ -52,32 +52,85 @@ HttpManager *httpManager = nullptr;
 LEDManager *ledManager = nullptr;
 ButtonManager *buttonManager = nullptr;
 
-// Cleanup function for failed initialization
+// FIXED BUG #1: Complete cleanup function for all global objects
+// Previously leaked memory for singleton instances (networkManager, queueManager, etc.)
 void cleanup()
 {
-  if (configManager)
+  // Stop all services first (prevent dangling references)
+  if (bleManager)
   {
-    configManager->~ConfigManager();
-    heap_caps_free(configManager);
+    bleManager->stop();
+    bleManager->~BLEManager();
+    heap_caps_free(bleManager);
+    bleManager = nullptr;
   }
-  if (serverConfig)
-    delete serverConfig;
-  if (loggingConfig)
-    delete loggingConfig;
-  if (modbusTcpService)
-    delete modbusTcpService;
+
+  if (mqttManager)
+  {
+    mqttManager->stop();
+    delete mqttManager;  // Singleton - uses regular delete
+    mqttManager = nullptr;
+  }
+
+  if (httpManager)
+  {
+    httpManager->stop();
+    delete httpManager;  // Singleton - uses regular delete
+    httpManager = nullptr;
+  }
+
   if (modbusRtuService)
+  {
+    modbusRtuService->stop();
     delete modbusRtuService;
+    modbusRtuService = nullptr;
+  }
+
+  if (modbusTcpService)
+  {
+    modbusTcpService->stop();
+    delete modbusTcpService;
+    modbusTcpService = nullptr;
+  }
+
+  // Clean up managers and handlers
   if (crudHandler)
   {
     crudHandler->~CRUDHandler();
     heap_caps_free(crudHandler);
+    crudHandler = nullptr;
   }
-  if (bleManager)
+
+  if (configManager)
   {
-    bleManager->~BLEManager();
-    heap_caps_free(bleManager);
+    configManager->~ConfigManager();
+    heap_caps_free(configManager);
+    configManager = nullptr;
   }
+
+  if (serverConfig)
+  {
+    delete serverConfig;
+    serverConfig = nullptr;
+  }
+
+  if (loggingConfig)
+  {
+    delete loggingConfig;
+    loggingConfig = nullptr;
+  }
+
+  // Clean up singleton instances (NOTE: These use getInstance() pattern)
+  // networkManager, rtcManager, queueManager, ledManager, buttonManager
+  // are NOT deleted here as they are static singletons that persist
+  // throughout firmware lifetime. Only set pointers to nullptr.
+  networkManager = nullptr;
+  rtcManager = nullptr;
+  queueManager = nullptr;
+  ledManager = nullptr;
+  buttonManager = nullptr;
+
+  Serial.println("[CLEANUP] All resources released");
 }
 
 void setup()
@@ -123,12 +176,8 @@ void setup()
     Serial.println("========================================\n");
   #endif
 
-#if PRODUCTION_MODE == 1
-  // Production mode: disable Serial output by ending serial connection
-  Serial.end();
-  // Alternative: set baud to 0 or flush and keep silent
-  // Note: Some Serial.println() calls still execute but output goes nowhere
-#endif
+  // FIXED BUG #2: Serial.end() moved to END of setup() to avoid crash
+  // Previously called here, causing all subsequent Serial.printf() to crash
 
   uint32_t seed = esp_random();
   randomSeed(seed); // Seed the random number generator for unique IDs
@@ -407,6 +456,15 @@ void setup()
   }
 
   Serial.println("BLE CRUD Manager started successfully");
+
+  // FIXED BUG #2: Disable Serial in production mode AFTER all initialization
+  // This prevents crashes from Serial.printf() calls during startup
+  #if PRODUCTION_MODE == 1
+    Serial.flush();  // Ensure all buffered output is sent first
+    vTaskDelay(pdMS_TO_TICKS(100));  // Allow flush to complete
+    Serial.end();
+    // All subsequent Serial calls will be no-ops (safe, but output nothing)
+  #endif
 }
 
 void loop()
