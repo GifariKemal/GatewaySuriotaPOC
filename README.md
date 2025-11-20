@@ -702,7 +702,7 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 **Performance & API Enhancement Release**
 
-**Developer:** Kemal | **Release Date:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Developer:** Kemal | **Release Date:** November 20, 2025 - WIB (GMT+7)
 
 #### 🚀 BLE Transmission Optimization (Critical Fix)
 - ✅ **28x faster BLE transmission** - Eliminates mobile app timeout issues
