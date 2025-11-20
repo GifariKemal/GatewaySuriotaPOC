@@ -1,0 +1,180 @@
+===============================================================================
+  SRT-MGATE-1210 - DEVICE TESTING FOLDER
+===============================================================================
+
+📂 FOLDER NAME: Device_Testing
+📍 LOCATION: SRT-MGATE-1210-Firmware/Device_Testing/
+
+🎯 PURPOSE:
+   Dedicated testing folder untuk create 1 TCP device dengan 5 registers
+   via BLE communication.
+
+   Folder ini KHUSUS untuk testing - tidak dicampur dengan file lain.
+
+===============================================================================
+📁 FOLDER CONTENTS (8 Files Total)
+===============================================================================
+
+🐍 PYTHON PROGRAMS (2 files):
+   ├── create_device_5_registers.py            [11 KB, 329 lines]
+   │   └─ Original version (based on working code)
+   │      IP: 192.168.1.8:502
+   │      Status: ✅ Proven working format
+   │
+   └── create_device_5_registers_corrected.py  [12 KB, 339 lines]
+       └─ API v2.2.0 compliant version
+          IP: 192.168.1.8:502
+          Status: ✅ 100% API compliant
+
+📚 DOCUMENTATION (5 files):
+   ├── 00_START_HERE.txt          [7.2 KB] ← START HERE!
+   │   └─ Overview, quick start, recommendations
+   │
+   ├── DOCUMENTATION.md            [7.7 KB] ← Main documentation
+   │   └─ Complete guide (replaces README.md)
+   │      Includes: setup, usage, API reference
+   │
+   ├── QUICK_START.txt             [3.4 KB] ← Quick reference
+   │   └─ 3-step guide to get started
+   │
+   ├── PAYLOAD_VALIDATION.md       [4.3 KB] ← Technical validation
+   │   └─ Payload validation against API.md v2.2.0
+   │      Field-by-field analysis
+   │
+   └── VERSION_COMPARISON.md       [3.3 KB] ← Version differences
+       └─ Comparison between Original & Corrected versions
+          Recommendations for which to use
+
+🔧 CONFIGURATION (1 file):
+   └── requirements.txt            [273 B]
+       └─ Python dependencies (bleak>=0.21.0)
+
+📊 METADATA (1 file):
+   └── FOLDER_INFO.txt             [This file]
+       └─ Folder structure & information
+
+TOTAL: 8 files, ~49 KB, 1,602 lines of code/docs
+
+===============================================================================
+🔧 DEVICE CONFIGURATION
+===============================================================================
+
+Creates:
+  📡 1 Modbus TCP Device
+     ├─ Name:       TCP_Device_Test
+     ├─ Protocol:   Modbus TCP
+     ├─ IP:         192.168.1.8
+     ├─ Port:       502
+     ├─ Slave ID:   1
+     ├─ Timeout:    3000 ms
+     ├─ Retry:      3
+     └─ Refresh:    5000 ms
+
+  📊 5 Input Registers (INT16)
+     ├─ Register 1: Temperature (Address: 0) - °C
+     ├─ Register 2: Humidity (Address: 1) - %
+     ├─ Register 3: Pressure (Address: 2) - Pa
+     ├─ Register 4: Voltage (Address: 3) - V
+     └─ Register 5: Current (Address: 4) - A
+
+===============================================================================
+🚀 HOW TO USE
+===============================================================================
+
+1. READ:    00_START_HERE.txt (overview)
+2. INSTALL: pip install -r requirements.txt
+3. SETUP:   Activate BLE on ESP32-S3 (button >8s, LED ON)
+4. RUN:     python create_device_5_registers.py
+5. VERIFY:  Check success indicators in output
+
+Duration: ~30-40 seconds
+
+===============================================================================
+📂 FOLDER ISOLATION
+===============================================================================
+
+✅ This is a DEDICATED FOLDER:
+   - No mixing with other testing files
+   - Clean and organized
+   - Single purpose: Device + Register creation
+   - All documentation self-contained
+
+❌ NOT included in this folder:
+   - Other testing programs (HTTP, MQTT, etc.)
+   - Legacy test files
+   - Unrelated scripts
+
+===============================================================================
+🔗 RELATED FOLDERS
+===============================================================================
+
+Parent Folders:
+  C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\
+  ├── Main\              → Firmware source code
+  ├── Docs\              → API documentation
+  ├── Pyhton Testing\    → Other testing programs (separate)
+  └── Device_Testing\    → THIS FOLDER (isolated)
+
+Related Documentation:
+  ../Docs/API.md                              → BLE CRUD API Reference
+  ../Docs/MQTT_PUBLISH_MODES_DOCUMENTATION.md → MQTT modes
+  ../Docs/NETWORK_CONFIGURATION.md            → Network setup
+  ../Docs/TROUBLESHOOTING.md                  → Troubleshooting
+
+===============================================================================
+📊 FILE SIZE BREAKDOWN
+===============================================================================
+
+Category          Files    Size      Lines
+─────────────────────────────────────────
+Programs          2        23 KB     668
+Documentation     5        25 KB     ~930
+Configuration     1        273 B     4
+─────────────────────────────────────────
+TOTAL             8        ~49 KB    1,602
+
+===============================================================================
+✅ QUALITY CHECKLIST
+===============================================================================
+
+✅ Clean folder structure (no mixed files)
+✅ 2 program versions (Original + Corrected)
+✅ Complete documentation (5 docs)
+✅ IP address updated (192.168.1.8)
+✅ No README.md (using DOCUMENTATION.md)
+✅ Self-contained and ready to use
+✅ Payload validation included
+✅ Version comparison included
+✅ Quick start guide included
+✅ Dependencies specified
+
+===============================================================================
+📝 CHANGE LOG
+===============================================================================
+
+2025-11-14 - Initial Creation
+  - Created dedicated Device_Testing folder
+  - Added 2 program versions (Original + Corrected)
+  - Added 5 documentation files
+  - IP address: 192.168.1.8
+  - README.md renamed to DOCUMENTATION.md
+  - Folder isolated from other testing files
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+📧 support@suriota.com
+🌐 https://suriota.com
+
+===============================================================================
+
+Last Updated: 2025-11-14
+Folder Version: 1.0
+Status: ✅ Ready for Testing
+
+===============================================================================
+© 2025 PT Surya Inovasi Prioritas (SURIOTA) - All Rights Reserved
+===============================================================================

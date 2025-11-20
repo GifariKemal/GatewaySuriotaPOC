@@ -1,0 +1,115 @@
+===============================================================================
+  SRT-MGATE-1210 Device Testing - QUICK START GUIDE
+===============================================================================
+
+📂 FOLDER: Device_Testing
+📌 PURPOSE: Dedicated testing for create 1 device + 5 registers via BLE
+
+===============================================================================
+🚀 HOW TO RUN (3 STEPS)
+===============================================================================
+
+STEP 1: Install Dependencies
+-----------------------------
+    pip install -r requirements.txt
+
+
+STEP 2: Activate BLE on ESP32-S3
+---------------------------------
+1. Press button >8 seconds
+2. LED turns ON (steady)
+3. Device advertises as "SURIOTA GW"
+
+
+STEP 3: Run Program
+-------------------
+    python create_device_5_registers.py
+
+
+===============================================================================
+📊 PROGRAM OVERVIEW
+===============================================================================
+
+Creates:
+  - 1 Modbus TCP Device
+    IP: 192.168.1.8:502
+    Slave ID: 1
+
+  - 5 Input Registers (INT16):
+    1. Temperature (Address 0) - °C
+    2. Humidity (Address 1) - %
+    3. Pressure (Address 2) - Pa
+    4. Voltage (Address 3) - V
+    5. Current (Address 4) - A
+
+Duration: ~30-40 seconds
+
+
+===============================================================================
+✅ SUCCESS INDICATORS
+===============================================================================
+
+[SCAN] Scanning for 'SURIOTA GW'...
+[FOUND] SURIOTA GW (XX:XX:XX:XX:XX:XX)
+[SUCCESS] Connected to SURIOTA GW
+
+[COMMAND] Creating TCP Device: TCP_Device_Test
+[RESPONSE] {"status":"ok","device_id":"DXXXXXX"}
+[CAPTURE] Device ID: DXXXXXX
+
+[COMMAND] Creating Register 1/5: Temperature
+[RESPONSE] {"status":"ok","register_id":"RXXXXXX"}
+...
+
+[SUCCESS] Program completed successfully
+
+
+===============================================================================
+🐛 TROUBLESHOOTING
+===============================================================================
+
+Problem: "Service 'SURIOTA GW' not found"
+─────────────────────────────────────────
+  1. Press button >8s on ESP32-S3
+  2. Check LED is ON (steady)
+  3. Enable Bluetooth on PC
+
+
+Problem: "Connection failed"
+────────────────────────────
+  1. Restart ESP32-S3
+  2. Wait 5 seconds
+  3. Run again
+
+
+Problem: "bleak not found"
+──────────────────────────
+  pip install bleak
+
+
+===============================================================================
+📚 DOCUMENTATION
+===============================================================================
+
+DOCUMENTATION.md           → Complete guide
+PAYLOAD_VALIDATION.md      → Payload validation
+VERSION_COMPARISON.md      → Version differences
+00_START_HERE.txt          → Overview
+
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+📧 support@suriota.com
+
+
+===============================================================================
+
+Ready to start? Run: python create_device_5_registers.py
+
+Good luck! 🚀
+
+===============================================================================

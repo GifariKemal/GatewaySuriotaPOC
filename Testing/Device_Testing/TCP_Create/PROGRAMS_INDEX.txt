@@ -1,0 +1,213 @@
+===============================================================================
+  SRT-MGATE-1210 - DEVICE TESTING PROGRAMS INDEX
+===============================================================================
+
+FOLDER: Device_Testing
+DATE: 2025-11-14
+TOTAL PROGRAMS: 10 programs (5-50 registers)
+
+===============================================================================
+AVAILABLE TESTING PROGRAMS
+===============================================================================
+
+Program Name                           Registers  File Size  Description
+--------------------------------------------------------------------------------
+create_device_5_registers.py                5     11 KB      Original test program
+create_device_5_registers_corrected.py      5     12 KB      API v2.2.0 compliant
+create_device_10_registers.py              10      8.6 KB    10 registers test
+create_device_15_registers.py              15      8.6 KB    15 registers test
+create_device_20_registers.py              20      9.0 KB    20 registers test
+create_device_25_registers.py              25      9.5 KB    25 registers test
+create_device_30_registers.py              30     10 KB      30 registers test
+create_device_35_registers.py              35     11 KB      35 registers test
+create_device_40_registers.py              40     11 KB      40 registers test
+create_device_45_registers.py              45     12 KB      45 registers test
+create_device_50_registers.py              50     12 KB      50 registers test (max)
+
+===============================================================================
+DEVICE CONFIGURATION (ALL PROGRAMS)
+===============================================================================
+
+Protocol:         Modbus TCP
+IP Address:       192.168.1.8
+Port:             502
+Slave ID:         1
+Timeout:          3000 ms
+Retry Count:      3
+Refresh Rate:     1000 ms (device level only)
+
+BLE Service:      SURIOTA GW
+BLE UUID:         00001830-0000-1000-8000-00805f9b34fb
+
+===============================================================================
+REGISTER CONFIGURATION (ALL PROGRAMS)
+===============================================================================
+
+Type:             Input Registers
+Function Code:    4
+Data Type:        INT16
+Address Range:    0 to (N-1) where N = number of registers
+Scale:            1.0
+Offset:           0.0
+
+Register Naming:  Register_1, Register_2, ..., Register_N
+Description:      Data Point 1, Data Point 2, ..., Data Point N
+Unit:             unit
+
+===============================================================================
+USAGE
+===============================================================================
+
+1. Choose program based on number of registers needed (5-50)
+2. Ensure gateway is in BLE Development mode
+3. Run program:
+
+   python create_device_10_registers.py
+
+   (Replace 10 with desired register count: 5, 15, 20, 25, 30, 35, 40, 45, 50)
+
+4. Wait for device and registers creation
+5. Verify on gateway that device ID is captured
+6. Test with Modbus slave simulator
+
+===============================================================================
+TESTING WORKFLOW
+===============================================================================
+
+Step 1: Start Modbus Slave Simulator
+        cd ../Modbus_Slave_Simulator
+        python modbus_slave_5_registers.py
+
+Step 2: Run Device Creation Program
+        cd ../Device_Testing
+        python create_device_15_registers.py  (example)
+
+Step 3: Verify Connection
+        - Check simulator logs for gateway connection
+        - Verify gateway is polling registers
+        - Monitor data updates
+
+Step 4: Test Data Flow
+        - Simulator updates every 10 seconds
+        - Gateway polls every 1 second
+        - Data should flow: Simulator -> Gateway -> MQTT/HTTP
+
+===============================================================================
+PROGRAM SELECTION GUIDE
+===============================================================================
+
+Choose based on your testing needs:
+
+Small Scale Testing (5-15 registers):
+  - Quick connection tests
+  - Basic functionality verification
+  - Initial development testing
+
+Medium Scale Testing (20-30 registers):
+  - Performance testing
+  - Multiple data points simulation
+  - Standard production scenarios
+
+Large Scale Testing (35-50 registers):
+  - Stress testing
+  - Maximum capacity verification
+  - Performance benchmarking
+  - Memory usage testing
+
+===============================================================================
+GENERATED PROGRAMS
+===============================================================================
+
+Programs for 15-50 registers were auto-generated using:
+  _generate_programs.py
+
+All programs follow the same structure as create_device_10_registers.py:
+  1. BLE connection and discovery
+  2. Device creation with TCP configuration
+  3. Register creation (sequential addresses 0 to N-1)
+  4. Summary and verification
+
+===============================================================================
+FILE LOCATIONS
+===============================================================================
+
+Programs:         C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing\
+Simulator:        C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator\
+Documentation:    DOCUMENTATION.md, QUICK_START.txt
+Requirements:     requirements.txt (bleak>=0.21.0)
+
+===============================================================================
+COMPATIBILITY
+===============================================================================
+
+Firmware:         SRT-MGATE-1210 v2.2.0
+Python:           3.8+
+BLE Library:      bleak 0.21.0+
+Platform:         Windows / Linux / Mac
+
+Tested on:        Windows 11
+Author:           Kemal - SURIOTA R&D Team
+
+===============================================================================
+NOTES
+===============================================================================
+
+- All programs use IP 192.168.1.8 (not 192.168.1.100)
+- refresh_rate_ms is ONLY at device level (not register level)
+- Maximum tested: 50 registers
+- Each program creates unique device name (e.g., TCP_Device_15_Regs)
+- Programs are independent - run one at a time
+- Device ID is auto-captured after device creation
+- All registers are Input Registers (Function Code 4)
+
+===============================================================================
+TROUBLESHOOTING
+===============================================================================
+
+Issue: BLE device not found
+Fix:   - Check gateway is powered on
+       - Verify BLE Development mode is active
+       - LED should be ON (steady)
+
+Issue: Device creation fails
+Fix:   - Check JSON payload in debug output
+       - Verify gateway firmware version (v2.2.0)
+       - Check BLE connection stability
+
+Issue: Register creation fails
+Fix:   - Ensure device ID was captured
+       - Check address range (0 to N-1)
+       - Verify no duplicate register names
+
+Issue: Too many registers
+Fix:   - Use smaller program (e.g., 10 or 15 registers)
+       - Check gateway memory capacity
+       - Monitor gateway performance
+
+===============================================================================
+RELATED DOCUMENTATION
+===============================================================================
+
+DOCUMENTATION.md          - Complete testing guide
+QUICK_START.txt           - Quick reference
+PAYLOAD_VALIDATION.md     - Payload verification
+FOLDER_INFO.txt           - Folder structure
+00_START_HERE.txt         - Getting started
+
+../Docs/API.md            - BLE CRUD API reference
+../Docs/MODBUS_DATATYPES.md - Modbus data types
+
+===============================================================================
+SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+
+Email:   support@suriota.com
+Website: https://suriota.com
+
+===============================================================================
+Last Updated: 2025-11-14
+Status: All programs created and ready for testing
+===============================================================================

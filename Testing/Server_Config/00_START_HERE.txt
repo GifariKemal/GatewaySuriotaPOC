@@ -1,0 +1,114 @@
+================================================================================
+🚀 START HERE - Server Configuration Update
+================================================================================
+
+Welcome! This folder contains a ready-to-run Python program that will update
+your SRT-MGATE-1210 gateway's server configuration via Bluetooth (BLE).
+
+================================================================================
+📋 WHAT THIS DOES
+================================================================================
+
+Running this program will configure your gateway with:
+
+✅ Ethernet Mode (DHCP - gets IP automatically)
+✅ WiFi Enabled (SSID: KOWI, Password: @Kremi201)
+✅ MQTT Enabled (broker.hivemq.com, every 20 seconds)
+❌ HTTP Disabled
+
+Your gateway will AUTOMATICALLY RESTART after configuration is applied.
+
+================================================================================
+⚡ QUICK START (3 STEPS)
+================================================================================
+
+1️⃣  INSTALL PYTHON LIBRARY
+
+   Open terminal/command prompt and run:
+
+   pip install bleak
+
+2️⃣  CHECK YOUR GATEWAY
+
+   Make sure:
+   • Gateway is powered ON
+   • BLE Development Mode is active
+   • You're within Bluetooth range (~5 meters)
+
+3️⃣  RUN THE PROGRAM
+
+   python update_server_config.py
+
+That's it! The program will:
+• Find your gateway
+• Connect via Bluetooth
+• Send the configuration
+• Wait for confirmation
+• Device will restart automatically
+
+================================================================================
+📁 FILES IN THIS FOLDER
+================================================================================
+
+update_server_config.py  ← RUN THIS! Main program
+00_START_HERE.txt        ← You are reading this
+QUICK_START.txt          ← Detailed instructions
+CONFIG_REFERENCE.md      ← Full configuration documentation
+requirements.txt         ← Python dependencies
+
+================================================================================
+⚙️ WANT TO CHANGE THE CONFIGURATION?
+================================================================================
+
+Open update_server_config.py and modify the "server_config" dictionary.
+
+Examples:
+
+• Change WiFi Password:
+  "password": "YourNewPassword"
+
+• Change MQTT Interval (from 20s to 30s):
+  "interval": 30
+
+• Change Ethernet to Static IP:
+  "use_dhcp": false,
+  "static_ip": "192.168.1.100",
+  "gateway": "192.168.1.1",
+  "subnet": "255.255.255.0"
+
+See CONFIG_REFERENCE.md for complete documentation.
+
+================================================================================
+❓ NEED HELP?
+================================================================================
+
+Read QUICK_START.txt for:
+• Detailed step-by-step guide
+• Testing instructions
+• Troubleshooting tips
+
+================================================================================
+⚠️ IMPORTANT REMINDERS
+================================================================================
+
+• Device WILL restart automatically (wait ~10 seconds)
+• Make sure Ethernet cable is plugged in
+• WiFi must be 2.4GHz (ESP32 doesn't support 5GHz)
+• All existing server config will be replaced
+
+================================================================================
+✅ AFTER RUNNING
+================================================================================
+
+1. Wait for device to restart (~10 seconds)
+2. Check Ethernet connection (LED should indicate status)
+3. Verify MQTT data on broker.hivemq.com
+4. Data should arrive every 20 seconds on topic: v1/devices/me/telemetry
+
+================================================================================
+
+Ready? Let's go! Run:
+
+    python update_server_config.py
+
+================================================================================

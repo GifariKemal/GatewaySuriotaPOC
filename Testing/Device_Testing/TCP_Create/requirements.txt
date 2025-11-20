@@ -1,0 +1,7 @@
+# Python Dependencies for SRT-MGATE-1210 Device Testing
+# ============================================================
+# Install with: pip install -r requirements.txt
+# ============================================================
+
+# BLE Communication Library
+bleak>=0.21.0

@@ -1,0 +1,193 @@
+# ============================================================================
+# BLE COMMANDS - QUICK REFERENCE
+# ============================================================================
+# Copy-paste commands ini ke ble_test.py interactive mode
+# Format: Single-line JSON (no line breaks)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# READ OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Read all devices (summary only)
+{"op":"read","type":"devices_summary"}
+
+# Read all devices with registers (MINIMAL mode - recommended for >10 registers)
+{"op":"read","type":"devices_with_registers","minimal":true}
+
+# Read all devices with registers (FULL mode - only for small datasets)
+{"op":"read","type":"devices_with_registers","minimal":false}
+
+# Read specific device (MINIMAL mode)
+{"op":"read","type":"device","device_id":"device_1","minimal":true}
+
+# Read specific device (FULL mode)
+{"op":"read","type":"device","device_id":"device_1","minimal":false}
+
+# Read registers for device
+{"op":"read","type":"registers","device_id":"device_1"}
+
+# Read registers summary (minimal fields only)
+{"op":"read","type":"registers_summary","device_id":"device_1"}
+
+# Read server config (MQTT/HTTP settings)
+{"op":"read","type":"server_config"}
+
+# Read logging config
+{"op":"read","type":"logging_config"}
+
+# ----------------------------------------------------------------------------
+# CREATE OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Create new RTU device
+{"op":"create","type":"device","config":{"device_name":"RTU Sensor 1","slave_id":1,"baud_rate":9600,"protocol":"RTU","enabled":true}}
+
+# Create new TCP device
+{"op":"create","type":"device","config":{"device_name":"TCP Sensor 1","ip":"192.168.1.100","port":502,"protocol":"TCP","enabled":true}}
+
+# Create INT16 register
+{"op":"create","type":"register","device_id":"device_1","config":{"register_name":"Temperature","address":4112,"function_code":3,"data_type":"INT16","scale":1.0,"offset":0.0,"unit":"°C"}}
+
+# Create UINT16 register
+{"op":"create","type":"register","device_id":"device_1","config":{"register_name":"Humidity","address":4113,"function_code":3,"data_type":"UINT16","scale":0.1,"offset":0.0,"unit":"%"}}
+
+# Create FLOAT32 register (2 registers)
+{"op":"create","type":"register","device_id":"device_1","config":{"register_name":"Power","address":4114,"function_code":3,"data_type":"FLOAT32","endianness":"BE","scale":1.0,"offset":0.0,"unit":"kW"}}
+
+# Create INT32 register (2 registers)
+{"op":"create","type":"register","device_id":"device_1","config":{"register_name":"Energy","address":4116,"function_code":3,"data_type":"INT32","endianness":"BE","scale":1.0,"offset":0.0,"unit":"kWh"}}
+
+# ----------------------------------------------------------------------------
+# UPDATE OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Update device (disable)
+{"op":"update","type":"device","device_id":"device_1","config":{"enabled":false}}
+
+# Update device (enable)
+{"op":"update","type":"device","device_id":"device_1","config":{"enabled":true}}
+
+# Update device (change baud rate)
+{"op":"update","type":"device","device_id":"device_1","config":{"baud_rate":19200}}
+
+# Update register (calibration)
+{"op":"update","type":"register","device_id":"device_1","register_id":"register_1","config":{"scale":0.1,"offset":-50.0}}
+
+# Update register (change name)
+{"op":"update","type":"register","device_id":"device_1","register_id":"register_1","config":{"register_name":"New Name"}}
+
+# Update server config (MQTT)
+{"op":"update","type":"server_config","config":{"mqtt_enabled":true,"mqtt_broker":"broker.hivemq.com","mqtt_port":1883,"mqtt_username":"","mqtt_password":"","data_transmission_interval":60000}}
+
+# Update server config (HTTP)
+{"op":"update","type":"server_config","config":{"http_enabled":true,"http_url":"http://192.168.1.100/api/data","http_method":"POST","data_transmission_interval":60000}}
+
+# ----------------------------------------------------------------------------
+# DELETE OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Delete device (WARNING: Deletes all registers too!)
+{"op":"delete","type":"device","device_id":"device_1"}
+
+# Delete register
+{"op":"delete","type":"register","device_id":"device_1","register_id":"register_1"}
+
+# ----------------------------------------------------------------------------
+# BATCH OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Batch: Read multiple configs
+{"op":"batch","mode":"sequential","commands":[{"op":"read","type":"devices_summary"},{"op":"read","type":"server_config"}]}
+
+# Batch: Create device + registers (atomic)
+{"op":"batch","mode":"atomic","commands":[{"op":"create","type":"device","config":{"device_name":"Batch Device","slave_id":10,"baud_rate":9600,"protocol":"RTU","enabled":true}},{"op":"create","type":"register","device_id":"device_10","config":{"register_name":"Temp","address":4112,"function_code":3,"data_type":"INT16","scale":1.0,"offset":0.0,"unit":"°C"}}]}
+
+# ----------------------------------------------------------------------------
+# SPECIAL OPERATIONS
+# ----------------------------------------------------------------------------
+
+# Start data streaming for device
+{"op":"read","type":"data","device_id":"device_1"}
+
+# Stop data streaming
+{"op":"read","type":"data","device_id":"stop"}
+
+# ----------------------------------------------------------------------------
+# TESTING SCENARIOS
+# ----------------------------------------------------------------------------
+
+# Test Scenario 1: Minimal Mode Comparison
+# Step 1: Full mode (large payload)
+{"op":"read","type":"device","device_id":"device_1","minimal":false}
+# Step 2: Minimal mode (small payload)
+{"op":"read","type":"device","device_id":"device_1","minimal":true}
+
+# Test Scenario 2: CRUD Lifecycle
+# Step 1: Create
+{"op":"create","type":"device","config":{"device_name":"Test Device","slave_id":99,"baud_rate":9600,"protocol":"RTU","enabled":true}}
+# Step 2: Read (use device_id from create response)
+{"op":"read","type":"device","device_id":"device_99"}
+# Step 3: Update
+{"op":"update","type":"device","device_id":"device_99","config":{"enabled":false}}
+# Step 4: Delete
+{"op":"delete","type":"device","device_id":"device_99"}
+
+# Test Scenario 3: Batch Performance
+{"op":"batch","mode":"sequential","commands":[{"op":"read","type":"devices_summary"},{"op":"read","type":"server_config"},{"op":"read","type":"logging_config"}]}
+
+# ----------------------------------------------------------------------------
+# DATA TYPES REFERENCE
+# ----------------------------------------------------------------------------
+
+# Single Register (16-bit):
+# - INT16   : Signed integer (-32768 to 32767)
+# - UINT16  : Unsigned integer (0 to 65535)
+# - BINARY  : Binary value (0 or 1)
+
+# Multi Register (32-bit):
+# - INT32   : Signed integer (2 registers)
+# - UINT32  : Unsigned integer (2 registers)
+# - FLOAT32 : Floating point (2 registers)
+
+# Multi Register (64-bit):
+# - DOUBLE64: Double precision (4 registers)
+# - STRING  : String value (variable registers)
+
+# ----------------------------------------------------------------------------
+# ENDIANNESS VARIANTS (for multi-register types)
+# ----------------------------------------------------------------------------
+
+# BE      : Big Endian (ABCD) - default
+# LE      : Little Endian (DCBA)
+# BE_BS   : Big Endian + Byte Swap (BADC)
+# LE_BS   : Little Endian + Word Swap (CDAB)
+
+# ----------------------------------------------------------------------------
+# FUNCTION CODES
+# ----------------------------------------------------------------------------
+
+# 3 (0x03) : Read Holding Registers (most common)
+# 4 (0x04) : Read Input Registers
+
+# ----------------------------------------------------------------------------
+# COMMON ERRORS & FIXES
+# ----------------------------------------------------------------------------
+
+# Error: "Payload too large"
+# Fix: Use minimal mode
+{"op":"read","type":"device","device_id":"device_1","minimal":true}
+
+# Error: "Device not found"
+# Fix: Check device_id is correct
+{"op":"read","type":"devices_summary"}
+
+# Error: "Invalid JSON"
+# Fix: Ensure valid JSON format (use double quotes, no trailing commas)
+
+# Error: "Connection timeout"
+# Fix: Check BLE connection, restart device if needed
+
+# ============================================================================
+# END OF QUICK REFERENCE
+# ============================================================================

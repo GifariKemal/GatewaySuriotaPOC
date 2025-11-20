@@ -1,0 +1,208 @@
+===============================================================================
+  SRT-MGATE-1210 DEVICE TESTING - START HERE
+===============================================================================
+
+📂 FOLDER: Device_Testing
+📌 TUJUAN: Dedicated testing folder untuk create 1 device + 5 registers
+
+===============================================================================
+📁 FILES IN THIS FOLDER
+===============================================================================
+
+✅ Testing Programs (2 versions):
+   1. create_device_5_registers.py           → Original (RECOMMENDED FIRST)
+   2. create_device_5_registers_corrected.py → API v2.2.0 100% compliant
+
+📚 Documentation:
+   3. DOCUMENTATION.md         → Complete guide (replaces README.md)
+   4. QUICK_START.txt          → Quick reference (read this!)
+   5. PAYLOAD_VALIDATION.md    → Payload validation report
+   6. VERSION_COMPARISON.md    → Version comparison
+   7. 00_START_HERE.txt        → This file
+
+🔧 Configuration:
+   8. requirements.txt         → Python dependencies
+
+
+===============================================================================
+🚀 QUICK START (3 STEPS)
+===============================================================================
+
+STEP 1: Install Dependencies
+-----------------------------
+pip install -r requirements.txt
+
+
+STEP 2: Activate BLE on ESP32-S3
+---------------------------------
+1. Press button >8 seconds
+2. LED turns ON (steady)
+3. Device advertises as "SURIOTA GW"
+
+
+STEP 3: Run Program
+-------------------
+python create_device_5_registers.py
+
+
+===============================================================================
+❓ WHICH VERSION TO USE?
+===============================================================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  📋 RECOMMENDATION: Test Original Version First                    │
+│                                                                     │
+│  WHY?                                                               │
+│  ✅ Based on proven working code                                    │
+│  ✅ Already tested and confirmed working                            │
+│  ✅ Backward compatible                                             │
+│                                                                     │
+│  COMMAND:                                                           │
+│  python create_device_5_registers.py                               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+📊 DEVICE CONFIGURATION
+===============================================================================
+
+Device Details:
+  Name:         TCP_Device_Test
+  Protocol:     Modbus TCP
+  IP Address:   192.168.1.8
+  Port:         502
+  Slave ID:     1
+  Timeout:      3000 ms
+  Retry:        3
+  Refresh:      5000 ms
+
+Registers (5 total):
+  1. Temperature (0) - °C
+  2. Humidity (1) - %
+  3. Pressure (2) - Pa
+  4. Voltage (3) - V
+  5. Current (4) - A
+
+Duration: ~30-40 seconds
+
+
+===============================================================================
+📖 VERSION DIFFERENCES
+===============================================================================
+
+Original Version:
+  Device:    "ip": "192.168.1.8"
+  Register:  "function_code": 4 (integer)
+  Status:    ✅ Proven working
+
+Corrected Version:
+  Device:    "ip_address": "192.168.1.8"
+  Register:  "function_code": "input" (string)
+  Status:    ✅ 100% API v2.2.0 compliant
+
+Read VERSION_COMPARISON.md for details.
+
+
+===============================================================================
+✅ SUCCESS INDICATORS
+===============================================================================
+
+[SCAN] Scanning for 'SURIOTA GW'...
+[FOUND] SURIOTA GW (XX:XX:XX:XX:XX:XX)
+[SUCCESS] Connected to SURIOTA GW
+
+>>> STEP 1: Creating TCP Device...
+[RESPONSE] {"status":"ok","device_id":"DXXXXXX"}
+[CAPTURE] Device ID: DXXXXXX
+
+>>> STEP 2: Creating 5 Registers...
+[RESPONSE] {"status":"ok","register_id":"RXXXXXX"}
+...
+
+[SUCCESS] Program completed successfully
+
+
+===============================================================================
+🐛 TROUBLESHOOTING
+===============================================================================
+
+Problem: "Service 'SURIOTA GW' not found"
+─────────────────────────────────────────
+  1. Press button >8s on ESP32-S3
+  2. Check LED is ON (steady)
+  3. Enable Bluetooth on PC
+
+
+Problem: "Connection failed"
+────────────────────────────
+  1. Restart ESP32-S3
+  2. Wait 5 seconds
+  3. Try again
+
+
+Problem: "bleak not found"
+──────────────────────────
+  pip install bleak
+
+
+===============================================================================
+📚 DOCUMENTATION GUIDE
+===============================================================================
+
+Read in order:
+
+1. QUICK_START.txt          → Quick reference (5 min)
+2. DOCUMENTATION.md         → Complete guide (15 min)
+3. VERSION_COMPARISON.md    → Version differences (10 min)
+4. PAYLOAD_VALIDATION.md    → Technical validation
+
+
+===============================================================================
+📂 FOLDER LOCATION
+===============================================================================
+
+Full Path:
+C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing
+
+Navigate:
+cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing"
+
+
+===============================================================================
+⚡ QUICK COMMANDS
+===============================================================================
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run Original (recommended first)
+python create_device_5_registers.py
+
+# Run Corrected (API v2.2.0)
+python create_device_5_registers_corrected.py
+
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+📧 support@suriota.com
+🌐 https://suriota.com
+
+
+===============================================================================
+
+This is a DEDICATED TESTING FOLDER - no other files mixed in.
+Clean, organized, and ready to use.
+
+Ready to start? Run: python create_device_5_registers.py
+
+Good luck! 🚀
+
+===============================================================================
+© 2025 PT Surya Inovasi Prioritas (SURIOTA) - All Rights Reserved
+===============================================================================

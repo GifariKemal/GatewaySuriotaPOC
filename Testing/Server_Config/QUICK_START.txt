@@ -1,0 +1,205 @@
+================================================================================
+SRT-MGATE-1210 Server Configuration Update - QUICK START GUIDE
+================================================================================
+
+This folder contains a Python program to update the server configuration
+of your SRT-MGATE-1210 gateway via BLE.
+
+================================================================================
+CONFIGURATION APPLIED
+================================================================================
+
+When you run this program, it will configure your gateway with:
+
+✅ ETHERNET MODE (DHCP - Automatic IP)
+   • The gateway will use Ethernet as the primary connection
+   • IP address will be obtained automatically from your router
+
+✅ WIFI ENABLED (Backup/Alternative)
+   • SSID: KOWI
+   • Password: @Kremi201
+   • WiFi will be available but Ethernet is primary
+
+✅ MQTT ENABLED (Default Mode)
+   • Broker: broker.hivemq.com
+   • Port: 1883
+   • Publish Topic: v1/devices/me/telemetry
+   • Subscribe Topic: v1/devices/me/rpc
+   • Interval: 20 seconds
+   • Client ID: SuriotaGateway-001
+   • No TLS encryption
+
+❌ HTTP DISABLED
+   • HTTP telemetry is turned off
+
+================================================================================
+REQUIREMENTS
+================================================================================
+
+1. Python 3.7 or higher
+2. Bleak library (BLE for Python)
+
+Install dependencies:
+    pip install bleak
+
+================================================================================
+HOW TO RUN
+================================================================================
+
+1. Make sure your gateway is:
+   • Powered ON
+   • In BLE Development Mode
+   • LED is ON (steady or blinking)
+
+2. Make sure your computer has Bluetooth enabled
+
+3. Open terminal/command prompt in this folder
+
+4. Run the program:
+
+   python update_server_config.py
+
+5. Wait for the program to:
+   • Scan for "SURIOTA GW"
+   • Connect via BLE
+   • Send configuration
+   • Receive confirmation
+
+6. The gateway will AUTOMATICALLY RESTART in 5 seconds
+   • This is normal behavior for server_config updates
+   • Wait for the device to reboot completely (~10 seconds)
+
+================================================================================
+WHAT HAPPENS AFTER
+================================================================================
+
+After the device restarts:
+
+1. ETHERNET CONNECTION
+   • Device will obtain IP address via DHCP
+   • Check your router to find the assigned IP
+   • LED should indicate network connection
+
+2. MQTT CONNECTION
+   • Device will connect to broker.hivemq.com
+   • Data will be published every 20 seconds
+   • Subscribe to topic: v1/devices/me/telemetry
+
+3. WIFI STANDBY
+   • WiFi credentials are saved
+   • You can switch to WiFi mode if needed
+   • SSID "KOWI" should be accessible
+
+================================================================================
+TESTING YOUR CONFIGURATION
+================================================================================
+
+Test MQTT Connection:
+   1. Use MQTT client (MQTT Explorer, mosquitto_sub, etc.)
+   2. Connect to: broker.hivemq.com:1883
+   3. Subscribe to: v1/devices/me/telemetry
+   4. You should see data every 20 seconds
+
+Test Ethernet:
+   1. Check router DHCP client list
+   2. Look for device named "SuriotaGateway" or similar
+   3. Note the assigned IP address
+
+Test WiFi:
+   1. Check WiFi network list
+   2. You should see "KOWI" network
+   3. Password: @Kremi201
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: "Service 'SURIOTA GW' not found"
+Solution:
+   • Make sure gateway is powered on
+   • Enable BLE Development Mode on the gateway
+   • Move closer to the gateway (within 5 meters)
+   • Check if Bluetooth is enabled on your computer
+
+Problem: "Device will restart in 5s" but nothing happens
+Solution:
+   • Wait 15 seconds total
+   • Power cycle the device manually if needed
+   • Check LED status after restart
+
+Problem: MQTT not working
+Solution:
+   • Verify internet connection on gateway (Ethernet cable)
+   • Check if broker.hivemq.com is accessible
+   • Try pinging broker.hivemq.com from your network
+   • Check MQTT client credentials
+
+Problem: WiFi not connecting
+Solution:
+   • Verify password: @Kremi201 (case sensitive)
+   • Check if SSID "KOWI" exists and is broadcasting
+   • Verify WiFi is 2.4GHz (ESP32 doesn't support 5GHz)
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+⚠️  Device ALWAYS restarts after server_config update
+    This is firmware behavior and cannot be disabled
+
+⚠️  All existing server config will be replaced
+    Any previous MQTT/HTTP settings will be overwritten
+
+⚠️  Make sure Ethernet cable is connected before running
+    Otherwise device won't have network after restart
+
+✅  Configuration is saved to flash memory
+    It will persist even after power cycle
+
+✅  You can run this program multiple times
+    Each run will apply the same configuration
+
+================================================================================
+MODIFYING THE CONFIGURATION
+================================================================================
+
+To change the configuration settings:
+
+1. Open: update_server_config.py
+2. Find the "server_config" dictionary (around line 195)
+3. Modify the values:
+
+   Example - Change MQTT interval to 30 seconds:
+   "interval": 30,  # Changed from 20
+
+   Example - Change WiFi SSID and password:
+   "ssid": "YourNetwork",
+   "password": "YourPassword",
+
+   Example - Enable HTTP instead of MQTT:
+   "protocol": "http",
+   "mqtt_config": { "enabled": False, ... },
+   "http_config": { "enabled": True, ... },
+
+4. Save and run again
+
+================================================================================
+SUPPORT
+================================================================================
+
+For technical support or questions:
+   • Check API.md for complete API reference
+   • Contact: SURIOTA R&D Team
+   • Email: support@suriota.com
+
+================================================================================
+FILE STRUCTURE
+================================================================================
+
+Server_Config_Testing/
+├── update_server_config.py  ← Main program (run this!)
+├── QUICK_START.txt          ← This file
+├── requirements.txt         ← Python dependencies
+└── CONFIG_REFERENCE.md      ← Detailed config explanation
+
+================================================================================

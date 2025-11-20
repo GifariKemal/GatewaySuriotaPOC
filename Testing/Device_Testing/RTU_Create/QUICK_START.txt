@@ -1,0 +1,148 @@
+================================================================================
+SRT-MGATE-1210 - RTU Testing Quick Start Guide
+================================================================================
+
+PREREQUISITES
+-------------
+1. Hardware:
+   ✓ SRT-MGATE-1210 Gateway (BLE mode ON)
+   ✓ RS485 USB Adapter connected to PC (COM8)
+   ✓ Modbus Slave Simulator running
+
+2. Software:
+   ✓ Python 3.8+ installed
+   ✓ Bluetooth enabled on PC
+   ✓ Modbus Slave Simulator installed
+
+SETUP MODBUS SLAVE SIMULATOR
+-----------------------------
+1. Open Modbus Slave Simulator
+
+2. Connection Setup → Configure:
+   Serial Port:  COM8
+   Baud Rate:    9600
+   Data Bits:    8
+   Parity:       None
+   Stop Bits:    1
+   Mode:         RTU (checked)
+   Flow Control: RTS Toggle (checked, 1ms delay)
+
+3. Click "OK"
+
+4. Add Slave:
+   - Slave ID: 1
+   - Add 5 Input Registers:
+     Address 0: Temperature (value: 250 = 25.0°C)
+     Address 1: Humidity (value: 650 = 65.0%)
+     Address 2: Pressure (value: 1013 = 1013 Pa)
+     Address 3: Voltage (value: 220 = 220V)
+     Address 4: Current (value: 50 = 5.0A)
+
+5. Click "Start" to run simulator
+
+RUNNING THE TEST
+-----------------
+Option 1: Double-click run_test.bat
+
+Option 2: Command line
+   cd C:\Users\Administrator\Pictures\SRT-MGATE-1210\Testing\Device_Testing\RTU
+   python create_device_5_registers.py
+
+EXPECTED OUTPUT
+---------------
+[SCAN] Scanning for 'SURIOTA GW'...
+[FOUND] SURIOTA GW (XX:XX:XX:XX:XX:XX)
+[SUCCESS] Connected to SURIOTA GW
+
+>>> STEP 1: Creating RTU Device...
+[RESPONSE] {
+  "status": "ok",
+  "device_id": "device_XXXXX",
+  "message": "Device created successfully"
+}
+
+>>> STEP 2: Creating 5 Registers for Device ID: device_XXXXX
+[COMMAND] Creating Register 1/5: Temperature (Address: 0)
+[COMMAND] Creating Register 2/5: Humidity (Address: 1)
+[COMMAND] Creating Register 3/5: Pressure (Address: 2)
+[COMMAND] Creating Register 4/5: Voltage (Address: 3)
+[COMMAND] Creating Register 5/5: Current (Address: 4)
+
+SUMMARY
+-------
+Device Name:      RTU_Device_Test
+Device ID:        device_XXXXX
+Protocol:         Modbus RTU
+Serial Port:      COM8 (Port 1)
+Baud Rate:        9600
+Slave ID:         1
+Registers:        5 (Temperature, Humidity, Pressure, Voltage, Current)
+
+[SUCCESS] Program completed successfully
+
+VERIFICATION
+------------
+1. Check Gateway Serial Monitor:
+   [RTU] Polling device RTU_Device_Test (Slave:1 Port:1 Baud:9600)
+   [DATA] device_XXXXX:
+     L1: Temperature:25.0°C | Humidity:65.0% | Pressure:1013.0Pa | ...
+   [BATCH] Device device_XXXXX COMPLETE (5 success, 0 failed, 5/5 total, took 1500 ms)
+   [MQTT] Publishing device device_XXXXX (payload: 1.8KB)
+   [MQTT] Publish successful
+
+2. Check Modbus Slave Simulator:
+   - Should show read requests from Slave ID 1
+   - Function Code 4 (Read Input Registers)
+   - Addresses 0-4 being polled
+
+TROUBLESHOOTING
+----------------
+Issue: "Service 'SURIOTA GW' not found"
+Fix:   - Gateway mode harus Development (BLE ON)
+       - LED steady ON (bukan blinking)
+       - Tekan tombol MODE jika perlu
+
+Issue: "COM8 not found"
+Fix:   - Cek Device Manager → Ports (COM & LPT)
+       - RS485 adapter harus terdeteksi
+       - Update driver jika perlu
+
+Issue: RTU polling timeout
+Fix:   - Pastikan serial config match (9600, 8N1, RTU)
+       - RTS Toggle harus enabled
+       - Slave ID harus 1
+       - Cek koneksi RS485 (A to A, B to B)
+
+Issue: "bleak module not found"
+Fix:   pip install bleak
+
+SERIAL PORT MAPPING
+-------------------
+Gateway:  serial_port: 1 → ESP32-S3 Serial1 (hardware)
+PC:       COM8 → RS485 USB Adapter
+Protocol: RS485 differential (A/B lines)
+
+Connection:
+  Gateway Serial1 <--RS485--> USB Adapter <--USB--> PC (COM8)
+
+NEXT STEPS
+----------
+1. Monitor Gateway logs for RTU polling activity
+2. Check MQTT broker for published data
+3. Verify all 5 registers are being read correctly
+4. Test with 50 registers (create_device_50_registers.py)
+
+FILES CREATED
+-------------
+/RTU/
+├── create_device_5_registers.py  ← Main test script
+├── requirements.txt              ← Python dependencies
+├── README.md                     ← Detailed documentation
+├── run_test.bat                  ← Windows launcher
+└── QUICK_START.txt               ← This file
+
+================================================================================
+Author: Kemal - SURIOTA R&D Team
+Date: 2025-11-17
+Firmware: SRT-MGATE-1210 v2.2.0
+================================================================================

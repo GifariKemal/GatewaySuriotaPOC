@@ -1,0 +1,210 @@
+================================================================================
+FOLDER: Server_Config_Testing
+================================================================================
+
+Purpose: Update SRT-MGATE-1210 gateway server configuration via BLE
+
+This folder contains a complete, ready-to-run Python program for configuring
+your gateway's network and telemetry settings through Bluetooth Low Energy.
+
+================================================================================
+FOLDER CONTENTS
+================================================================================
+
+📄 00_START_HERE.txt
+   → Quick reference - Read this first!
+   → 3-step quick start guide
+   → File overview
+
+📄 QUICK_START.txt
+   → Detailed step-by-step instructions
+   → What the configuration does
+   → Testing procedures
+   → Troubleshooting guide
+
+📄 CONFIG_REFERENCE.md
+   → Complete configuration documentation
+   → All available settings explained
+   → Modification examples
+   → API v2.2.0 reference
+
+📄 requirements.txt
+   → Python dependencies (bleak)
+   → Install with: pip install -r requirements.txt
+
+🐍 update_server_config.py
+   → Main executable program
+   → Pre-configured with your settings
+   → Just run: python update_server_config.py
+
+================================================================================
+CONFIGURATION APPLIED BY THIS PROGRAM
+================================================================================
+
+Network:
+  • Mode: Ethernet (Primary)
+  • Ethernet: DHCP (Automatic IP)
+  • WiFi: Enabled (SSID: KOWI, Password: @Kremi201)
+
+Telemetry:
+  • MQTT: Enabled
+    - Broker: broker.hivemq.com:1883
+    - Mode: Default (all registers in one topic)
+    - Interval: 20 seconds
+    - Topic: v1/devices/me/telemetry
+  • HTTP: Disabled
+
+================================================================================
+HOW TO USE
+================================================================================
+
+1. Install dependencies:
+   pip install bleak
+
+2. Make sure gateway is:
+   • Powered on
+   • In BLE Development Mode
+   • Within Bluetooth range
+
+3. Run the program:
+   python update_server_config.py
+
+4. Wait for:
+   • BLE connection
+   • Configuration upload
+   • Automatic device restart (~10 seconds)
+
+5. Verify:
+   • Ethernet connection established
+   • MQTT data flowing every 20 seconds
+
+================================================================================
+CUSTOMIZATION
+================================================================================
+
+To modify the configuration:
+1. Open update_server_config.py in a text editor
+2. Find the "server_config" dictionary (line ~195)
+3. Modify the values as needed
+4. See CONFIG_REFERENCE.md for all options
+5. Save and run again
+
+Common changes:
+• WiFi credentials → "ssid" and "password" fields
+• MQTT interval → "interval" field in default_mode
+• Static IP → set "use_dhcp" to false, fill IP fields
+• Enable HTTP → set "protocol" to "http" or "both"
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+⚠️  Device ALWAYS restarts after server_config update
+    • This is normal firmware behavior
+    • Wait ~10 seconds for reboot to complete
+    • All configuration is saved to flash memory
+
+⚠️  All previous server config is replaced
+    • Any existing MQTT/HTTP settings will be overwritten
+    • Make sure your configuration is correct before running
+
+✅  Configuration persists across power cycles
+    • Saved permanently to device flash memory
+    • No need to reconfigure after power loss
+
+✅  Can be run multiple times
+    • Safe to execute repeatedly
+    • Each run applies the same configuration
+
+================================================================================
+RELATED FOLDERS
+================================================================================
+
+../Device_Testing/
+  → Programs for creating devices and registers
+  → 5, 10, 15, 20... register configurations
+
+../Modbus_Slave_Simulator/
+  → Modbus TCP slave simulator for testing
+  → Simulates 5 registers without physical hardware
+
+../Docs/
+  → API.md - Complete API reference
+  → MQTT_PUBLISH_MODES_DOCUMENTATION.md
+  → Network configuration guides
+
+../Main/
+  → Actual firmware source code
+
+================================================================================
+TESTING WORKFLOW
+================================================================================
+
+Typical testing sequence:
+
+1. Run this program (update_server_config.py)
+   → Configure network and MQTT settings
+
+2. Wait for device restart (~10 seconds)
+   → Device connects to network via Ethernet
+   → MQTT connection established
+
+3. Run device creation program
+   → ../Device_Testing/create_device_5_registers.py
+   → Creates Modbus TCP device + 5 registers
+
+4. Run Modbus slave simulator (optional)
+   → ../Modbus_Slave_Simulator/modbus_slave_5_registers.py
+   → Simulates register values for testing
+
+5. Verify MQTT data
+   → Subscribe to: v1/devices/me/telemetry
+   → Should see data every 20 seconds
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+See QUICK_START.txt for detailed troubleshooting.
+
+Quick fixes:
+
+"SURIOTA GW not found"
+  → Check gateway power and BLE mode
+  → Move closer (within 5 meters)
+  → Enable Bluetooth on your computer
+
+"Configuration update failed"
+  → Check payload in program matches API.md
+  → Verify all required fields are present
+  → Try disconnecting and reconnecting
+
+"Device not restarting"
+  → Wait 15 seconds total
+  → Manually power cycle if needed
+  → Check serial logs if available
+
+"MQTT not working"
+  → Verify Ethernet cable connected
+  → Check internet connectivity
+  → Ping broker.hivemq.com
+  → Verify topic subscription
+
+================================================================================
+SUPPORT & REFERENCES
+================================================================================
+
+Documentation:
+  • API.md - Complete API documentation
+  • CONFIG_REFERENCE.md - This folder's config guide
+  • QUICK_START.txt - Detailed instructions
+
+Contact:
+  • SURIOTA R&D Team
+  • Email: support@suriota.com
+
+Firmware Version: 2.2.0
+Created: 2025-11-15
+Author: Kemal
+
+================================================================================
