@@ -13,8 +13,9 @@
 #include <freertos/semphr.h>
 
 // FIXED BUG #30: Define CRUD task stack size constant
+// Updated: 24KB insufficient for 26+ registers, increased to 32KB
 namespace CRUDConfig {
-  constexpr uint32_t CRUD_TASK_STACK_SIZE = 24576;  // 24KB stack for large device operations (50+ registers)
+  constexpr uint32_t CRUD_TASK_STACK_SIZE = 32768;  // 32KB stack for CREATE operations with 50+ registers
 }
 
 // Forward declarations to avoid circular dependencies
