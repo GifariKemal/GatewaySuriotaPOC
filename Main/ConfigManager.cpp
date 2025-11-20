@@ -558,7 +558,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
   for (JsonPair kv : devicesObj)
   {
-    String deviceId = kv.key().c_str();
+    const char* deviceId = kv.key().c_str();  // BUG #31: const char* instead of String (zero allocation!)
     JsonObject device = kv.value();
     JsonObject deviceWithRegs = result.add<JsonObject>();
 
@@ -584,7 +584,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
       if (deviceRegisters.size() == 0)
       {
-        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has empty registers array\n", deviceId.c_str());
+        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has empty registers array\n", deviceId);  // BUG #31: removed .c_str()
       }
 
       for (JsonObject reg : deviceRegisters)
@@ -611,11 +611,11 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
     }
     else
     {
-      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has no registers array\n", deviceId.c_str());
+      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has no registers array\n", deviceId);  // BUG #31: removed .c_str()
     }
 
     Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Added device %s with %d registers\n",
-                  deviceId.c_str(), registers.size());
+                  deviceId, registers.size());  // BUG #31: removed .c_str()
   }
 
   Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Total devices: %d\n", result.size());
