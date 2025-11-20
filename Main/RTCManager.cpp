@@ -234,31 +234,37 @@ bool RTCManager::checkInternetConnectivity()
 
   String currentMode = networkMgr->getCurrentMode();
 
-  // Try to resolve Google DNS (8.8.8.8) to check internet connectivity
-  IPAddress testIP;
-
   if (currentMode == "WIFI")
   {
     // Try DNS lookup via WiFi
-    int result = WiFi.hostByName("google.com", testIP);
+    IPAddress testIP;
+    int result = WiFi.hostByName("pool.ntp.org", testIP);
     if (result == 1)
     {
       Serial.println("[RTC] Internet connectivity confirmed via WiFi");
       return true;
     }
+    Serial.println("[RTC] Internet connectivity check failed via WiFi");
+    return false;
   }
   else if (currentMode == "ETH")
   {
-    // Try DNS lookup via Ethernet
-    int result = Ethernet.hostByName("google.com", testIP);
-    if (result == 1)
+    // For Ethernet, try to connect to Google DNS (8.8.8.8:53) to verify internet
+    EthernetClient testClient;
+    IPAddress googleDNS(8, 8, 8, 8);
+
+    if (testClient.connect(googleDNS, 53))
     {
+      testClient.stop();
       Serial.println("[RTC] Internet connectivity confirmed via Ethernet");
       return true;
     }
+
+    Serial.println("[RTC] Internet connectivity check failed via Ethernet");
+    return false;
   }
 
-  Serial.printf("[RTC] Internet connectivity check failed via %s\n", currentMode.c_str());
+  Serial.printf("[RTC] Unknown network mode: %s\n", currentMode.c_str());
   return false;
 }
 
