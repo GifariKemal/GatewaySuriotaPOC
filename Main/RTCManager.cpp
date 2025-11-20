@@ -4,7 +4,7 @@
 RTCManager *RTCManager::instance = nullptr;
 
 RTCManager::RTCManager()
-    : initialized(false), syncRunning(false), syncTaskHandle(nullptr), lastNtpSync(0) {}
+    : initialized(false), syncRunning(false), syncTaskHandle(nullptr), lastNtpSync(0), ntpClient(nullptr) {}
 
 RTCManager *RTCManager::getInstance()
 {
@@ -54,17 +54,11 @@ bool RTCManager::init()
   initialized = true;
   Serial.println("RTC initialized successfully");
 
-  // Force NTP sync on boot to get accurate time from network
-  if (syncWithNTP())
-  {
-    lastNtpSync = millis();
-    Serial.println("Initial NTP sync successful");
-  }
-  else
-  {
-    Serial.println("Initial NTP sync failed - using RTC time");
-    updateSystemTime(rtcTime);
-  }
+  // Update system time from RTC immediately
+  updateSystemTime(rtcTime);
+
+  // NTP sync will be handled by startSync() task
+  // This prevents blocking during boot if network is not ready
 
   return true;
 }
@@ -107,23 +101,27 @@ void RTCManager::timeSyncLoop()
 {
   while (syncRunning)
   {
-    if (millis() - lastNtpSync > 1800000 || lastNtpSync == 0)
+    unsigned long now = millis();
+
+    // Check if it's time to sync (first run or after interval)
+    if (lastNtpSync == 0 || (now - lastNtpSync >= ntpUpdateInterval))
     {
       if (syncWithNTP())
       {
-        lastNtpSync = millis();
-        Serial.println("NTP sync successful");
-        vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 minutes
+        lastNtpSync = now;
+        Serial.println("[RTC] NTP sync successful");
+        vTaskDelay(pdMS_TO_TICKS(ntpUpdateInterval)); // Wait full interval
       }
       else
       {
-        Serial.println("NTP sync failed, retrying in 1 minute");
-        vTaskDelay(pdMS_TO_TICKS(60000)); // 1 minute
+        Serial.println("[RTC] NTP sync failed, retrying in 1 minute");
+        vTaskDelay(pdMS_TO_TICKS(60000)); // Retry in 1 minute
       }
     }
     else
     {
-      vTaskDelay(pdMS_TO_TICKS(10000)); // Check every 10 seconds
+      // Check every 10 seconds if it's time to sync
+      vTaskDelay(pdMS_TO_TICKS(10000));
     }
   }
 }
@@ -131,56 +129,136 @@ void RTCManager::timeSyncLoop()
 bool RTCManager::syncWithNTP()
 {
   NetworkMgr *networkMgr = NetworkMgr::getInstance();
-  if (!networkMgr->isAvailable())
+  if (!networkMgr || !networkMgr->isAvailable())
   {
     Serial.println("[RTC] No network available for NTP sync");
     return false;
   }
 
-  // Reset system time to epoch before NTP sync
-  struct timeval tv_reset;
-  tv_reset.tv_sec = 0;
-  tv_reset.tv_usec = 0;
-  settimeofday(&tv_reset, NULL);
-
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer, "time.nist.gov", "time.google.com");
-  vTaskDelay(pdMS_TO_TICKS(2000));  // Reduced from 3s to 2s
-
-  struct tm timeinfo = {0};
-  int attempts = 0;
-  bool timeValid = false;
-
-  while (attempts < 10)  // Reduced from 20 to 10 attempts (faster startup)
+  // Check internet connectivity before attempting NTP sync
+  if (!checkInternetConnectivity())
   {
-    if (getLocalTime(&timeinfo))
-    {
-      if (timeinfo.tm_year + 1900 >= 2024)
-      {
-        timeValid = true;
-        break;
-      }
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    attempts++;
-  }
-
-  if (!timeValid)
-  {
-    Serial.printf("[RTC] NTP sync failed after %d attempts\n", attempts);
+    Serial.println("[RTC] No internet connectivity, skipping NTP sync");
     return false;
   }
 
-  DateTime ntpTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                   timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  String currentMode = networkMgr->getCurrentMode();
+  Serial.printf("[RTC] Attempting NTP sync via %s\n", currentMode.c_str());
 
+  // Clean up previous NTP client if exists
+  if (ntpClient)
+  {
+    delete ntpClient;
+    ntpClient = nullptr;
+  }
+
+  // Create NTP client based on active network mode
+  if (currentMode == "WIFI")
+  {
+    ntpClient = new NTPClient(wifiUdp, ntpServer, gmtOffset_sec, 60000);
+  }
+  else if (currentMode == "ETH")
+  {
+    ntpClient = new NTPClient(ethernetUdp, ntpServer, gmtOffset_sec, 60000);
+  }
+  else
+  {
+    Serial.println("[RTC] Unknown network mode, cannot sync NTP");
+    return false;
+  }
+
+  // Start NTP client
+  ntpClient->begin();
+
+  // Try to update with timeout
+  unsigned long startTime = millis();
+  bool success = false;
+
+  while (millis() - startTime < ntpTimeout)
+  {
+    if (ntpClient->forceUpdate())
+    {
+      success = true;
+      break;
+    }
+    vTaskDelay(pdMS_TO_TICKS(500)); // Check every 500ms
+  }
+
+  if (!success)
+  {
+    Serial.printf("[RTC] NTP sync timeout after %lums via %s\n", ntpTimeout, currentMode.c_str());
+    ntpClient->end();
+    delete ntpClient;
+    ntpClient = nullptr;
+    return false;
+  }
+
+  // Get NTP time (already adjusted with GMT+7 offset by NTPClient)
+  unsigned long epochTime = ntpClient->getEpochTime();
+
+  // NTPClient already applies timeOffset, so epochTime is already in GMT+7
+  // Convert directly to DateTime using epoch time
+  DateTime ntpTime(epochTime);
+
+  // Update RTC and system time
   rtc.adjust(ntpTime);
   updateSystemTime(ntpTime);
 
-  Serial.printf("[RTC] NTP sync: %04d-%02d-%02d %02d:%02d:%02d (WIB/GMT+7)\n",
+  Serial.printf("[RTC] NTP sync: %04d-%02d-%02d %02d:%02d:%02d (WIB/GMT+7) via %s\n",
                 ntpTime.year(), ntpTime.month(), ntpTime.day(),
-                ntpTime.hour(), ntpTime.minute(), ntpTime.second());
+                ntpTime.hour(), ntpTime.minute(), ntpTime.second(),
+                currentMode.c_str());
+
+  // Clean up NTP client
+  ntpClient->end();
+  delete ntpClient;
+  ntpClient = nullptr;
 
   return true;
+}
+
+bool RTCManager::checkInternetConnectivity()
+{
+  NetworkMgr *networkMgr = NetworkMgr::getInstance();
+  if (!networkMgr || !networkMgr->isAvailable())
+  {
+    return false;
+  }
+
+  String currentMode = networkMgr->getCurrentMode();
+
+  if (currentMode == "WIFI")
+  {
+    // Try DNS lookup via WiFi
+    IPAddress testIP;
+    int result = WiFi.hostByName("pool.ntp.org", testIP);
+    if (result == 1)
+    {
+      Serial.println("[RTC] Internet connectivity confirmed via WiFi");
+      return true;
+    }
+    Serial.println("[RTC] Internet connectivity check failed via WiFi");
+    return false;
+  }
+  else if (currentMode == "ETH")
+  {
+    // For Ethernet, try to connect to Google DNS (8.8.8.8:53) to verify internet
+    EthernetClient testClient;
+    IPAddress googleDNS(8, 8, 8, 8);
+
+    if (testClient.connect(googleDNS, 53))
+    {
+      testClient.stop();
+      Serial.println("[RTC] Internet connectivity confirmed via Ethernet");
+      return true;
+    }
+
+    Serial.println("[RTC] Internet connectivity check failed via Ethernet");
+    return false;
+  }
+
+  Serial.printf("[RTC] Unknown network mode: %s\n", currentMode.c_str());
+  return false;
 }
 
 void RTCManager::updateSystemTime(DateTime rtcTime)
@@ -247,4 +325,12 @@ void RTCManager::getStatus(JsonObject &status)
 RTCManager::~RTCManager()
 {
   stopSync();
+
+  // Clean up NTP client
+  if (ntpClient)
+  {
+    ntpClient->end();
+    delete ntpClient;
+    ntpClient = nullptr;
+  }
 }

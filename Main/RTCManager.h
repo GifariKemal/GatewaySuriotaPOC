@@ -4,7 +4,10 @@
 #include <Wire.h>
 #include <RTClib.h>
 #include <WiFi.h>
-#include <time.h>
+#include <Ethernet.h>
+#include <WiFiUdp.h>
+#include <EthernetUdp.h>
+#include <NTPClient.h>
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -22,13 +25,20 @@ private:
   // NTP settings
   const char *ntpServer = "pool.ntp.org";
   const long gmtOffset_sec = 7 * 3600;  // GMT+7 (WIB - Waktu Indonesia Barat)
-  const int daylightOffset_sec = 0;
+  const unsigned long ntpUpdateInterval = 1800000; // 30 minutes
+  const unsigned long ntpTimeout = 5000; // 5 seconds timeout for NTP sync
+
+  // Separate UDP clients for WiFi and Ethernet
+  WiFiUDP wifiUdp;
+  EthernetUDP ethernetUdp;
+  NTPClient *ntpClient;
 
   RTCManager();
 
   static void timeSyncTask(void *parameter);
   void timeSyncLoop();
   bool syncWithNTP();
+  bool checkInternetConnectivity();
   void updateSystemTime(DateTime rtcTime);
 
 public:

@@ -148,24 +148,52 @@ String ConfigManager::generateId(const String &prefix)
 
 bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
 {
-  // Mutex protection for file I/O
-  if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(5000)) != pdTRUE)
+  // FIXED BUG #5: Reduce critical section to prevent deadlock/watchdog timeout
+  // Previous code held fileMutex during entire atomic write (could be >5s on slow FS)
+  // New approach: Serialize JSON OUTSIDE mutex, then quick file write
+
+  // Step 1: Serialize JSON to String (no mutex needed - doc is const reference)
+  String jsonStr;
+  size_t jsonSize = serializeJson(doc, jsonStr);
+
+  if (jsonSize == 0)
   {
-    Serial.printf("[CONFIG] ERROR: saveJson(%s) - mutex timeout\n", filename.c_str());
+    Serial.printf("[CONFIG] ERROR: Failed to serialize JSON for %s\n", filename.c_str());
     return false;
   }
 
-  // Use atomic write instead of direct write
+  // Step 2: Acquire mutex with REDUCED timeout (2s instead of 5s)
+  // This reduces watchdog risk - if file system is stuck, fail faster
+  if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
+  {
+    Serial.printf("[CONFIG] ERROR: saveJson(%s) - mutex timeout (2s)\n", filename.c_str());
+    return false;
+  }
+
+  // Step 3: Fast file write with pre-serialized string
   bool success = false;
 
   if (atomicFileOps)
   {
-    // Use atomic write for data integrity
-    success = atomicFileOps->writeAtomic(filename, doc);
+    // AtomicFileOps has its own internal mutex (walMutex)
+    // So we can release fileMutex before calling it to reduce contention
+    xSemaphoreGive(fileMutex);
+
+    // Create temporary JsonDocument from pre-serialized string
+    JsonDocument tempDoc;
+    DeserializationError error = deserializeJson(tempDoc, jsonStr);
+
+    if (error != DeserializationError::Ok)
+    {
+      Serial.printf("[CONFIG] ERROR: Re-deserialization failed: %s\n", error.c_str());
+      return false;
+    }
+
+    success = atomicFileOps->writeAtomic(filename, tempDoc);
   }
   else
   {
-    // Fallback to direct write if atomic ops not available (shouldn't happen)
+    // Fallback: direct write (still holding fileMutex)
     Serial.println("[CONFIG] WARNING: AtomicFileOps not available, using direct write");
 
     File file = LittleFS.open(filename, "w");
@@ -175,12 +203,14 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
       return false;
     }
 
-    serializeJson(doc, file);
+    // Write pre-serialized string (faster than serializeJson to file)
+    file.print(jsonStr);
     file.close();
     success = true;
+
+    xSemaphoreGive(fileMutex);
   }
 
-  xSemaphoreGive(fileMutex);
   return success;
 }
 
@@ -949,11 +979,24 @@ bool ConfigManager::loadDevicesCache()
     return false;
   }
 
-  // If cache is already loaded and valid, do nothing.
+  // FIXED BUG #16: Check cache TTL before returning cached data
+  // Previous code only checked devicesCacheValid, ignoring TTL expiration
   if (devicesCacheValid)
   {
-    xSemaphoreGive(cacheMutex);
-    return true;
+    // Check if cache has expired (TTL = 10 minutes)
+    unsigned long now = millis();
+    if ((now - lastDevicesCacheTime) >= CACHE_TTL_MS)
+    {
+      Serial.printf("[CACHE] Devices cache expired (%lu ms old, TTL: %lu ms). Reloading...\n",
+                    (now - lastDevicesCacheTime), CACHE_TTL_MS);
+      devicesCacheValid = false;  // Invalidate and reload
+    }
+    else
+    {
+      // Cache still valid
+      xSemaphoreGive(cacheMutex);
+      return true;
+    }
   }
 
   Serial.println("[CACHE] Loading devices cache from file...");

@@ -2,21 +2,23 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-**Current Version:** v2.1.1
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Register Calibration
+
+**Current Version:** v2.2.0
 **Developer:** Kemal
-**Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Last Updated:** November 20, 2025
 
 ## Overview
 
-SRT-MGATE-1210 Firmware v2.1.1 mendukung **kalibrasi otomatis** pada nilai register Modbus menggunakan formula **scale & offset**. Fitur ini memungkinkan konversi nilai raw Modbus ke unit pengukuran yang sesuai tanpa perlu post-processing di sisi subscriber.
+SRT-MGATE-1210 Firmware v2.2.0 supports **automatic calibration** for Modbus register values using the **scale & offset** formula. This feature enables conversion of raw Modbus values to appropriate measurement units without requiring post-processing on the subscriber side.
 
-**Fitur Utama:**
-- ✅ Kalibrasi otomatis dengan formula: `final_value = (raw_value × scale) + offset`
-- ✅ Support unit pengukuran custom (°C, V, A, PSI, bar, dll.)
-- ✅ Nilai negatif diperbolehkan untuk scale & offset
-- ✅ Default values untuk backward compatibility
-- ✅ Auto-migration untuk register yang sudah ada
-- ✅ Device-level polling interval (bukan per-register)
+**Key Features:**
+- ✅ Automatic calibration with formula: `final_value = (raw_value × scale) + offset`
+- ✅ Support for custom measurement units (°C, V, A, PSI, bar, etc.)
+- ✅ Negative values allowed for scale & offset
+- ✅ Default values for backward compatibility
+- ✅ Auto-migration for existing registers
+- ✅ Device-level polling interval (not per-register)
 
 ---
 
@@ -36,15 +38,15 @@ SRT-MGATE-1210 Firmware v2.1.1 mendukung **kalibrasi otomatis** pada nilai regis
 
 ### Field Descriptions
 
-| Field    | Type   | Required | Default | Description                                |
-| -------- | ------ | -------- | ------- | ------------------------------------------ |
-| `scale`  | float  | No       | 1.0     | Multiplier untuk kalibrasi (bisa negatif)  |
-| `offset` | float  | No       | 0.0     | Offset untuk kalibrasi (bisa negatif)      |
-| `unit`   | string | No       | ""      | Unit pengukuran (°C, V, A, PSI, bar, dll.) |
+| Field    | Type   | Required | Default | Description                                  |
+| -------- | ------ | -------- | ------- | -------------------------------------------- |
+| `scale`  | float  | No       | 1.0     | Multiplier for calibration (can be negative) |
+| `offset` | float  | No       | 0.0     | Offset for calibration (can be negative)     |
+| `unit`   | string | No       | ""      | Measurement unit (°C, V, A, PSI, bar, etc.)  |
 
 ### Default Values
 
-Jika field tidak diberikan saat membuat register, firmware akan menggunakan nilai default:
+If fields are not provided when creating a register, the firmware will use default values:
 
 ```json
 {
@@ -54,15 +56,15 @@ Jika field tidak diberikan saat membuat register, firmware akan menggunakan nila
 }
 ```
 
-Dengan default values ini:
+With these default values:
 - `final_value = (raw_value × 1.0) + 0.0 = raw_value`
-- Tidak ada perubahan nilai (backward compatible)
+- No value change (backward compatible)
 
 ### Value Constraints
 
-- **scale**: Dapat bernilai positif, negatif, atau nol
-- **offset**: Dapat bernilai positif, negatif, atau nol
-- **unit**: String bebas (maksimal 50 karakter)
+- **scale**: Can be positive, negative, or zero
+- **offset**: Can be positive, negative, or zero
+- **unit**: Free-form string (maximum 50 characters)
 
 ---
 
@@ -74,14 +76,14 @@ Dengan default values ini:
 final_value = (raw_value × scale) + offset
 ```
 
-### Urutan Eksekusi
+### Execution Order
 
-1. **Baca nilai raw dari Modbus** (16-bit atau 32-bit register)
-2. **Konversi data type** (int16, uint16, float, int32, uint32)
-3. **Terapkan kalibrasi** menggunakan scale & offset
-4. **Publish ke MQTT** dengan nilai yang sudah dikalibrasi
+1. **Read raw value from Modbus** (16-bit or 32-bit register)
+2. **Convert data type** (int16, uint16, float, int32, uint32)
+3. **Apply calibration** using scale & offset
+4. **Publish to MQTT** with calibrated value
 
-### Diagram Flow
+### Flow Diagram
 
 ```
 ┌─────────────┐      ┌──────────────┐      ┌─────────────┐      ┌──────────┐
@@ -97,7 +99,7 @@ final_value = (raw_value × scale) + offset
 
 ### Example 1: Basic Register (No Calibration)
 
-Register tanpa kalibrasi (menggunakan default values):
+Register without calibration (using default values):
 
 ```json
 {
@@ -109,12 +111,12 @@ Register tanpa kalibrasi (menggunakan default values):
     "address": 40001,
     "function_code": 3,
     "data_type": "uint16",
-    "description": "Kelembaban ruangan"
+    "description": "Room humidity"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 65 → Final value: **65** (no unit)
 - MQTT payload:
 ```json
@@ -123,14 +125,14 @@ Register tanpa kalibrasi (menggunakan default values):
   "name": "Humidity Sensor",
   "device_id": "DEVICE_001",
   "value": 65,
-  "description": "Kelembaban ruangan",
+  "description": "Room humidity",
   "unit": ""
 }
 ```
 
 ### Example 2: Voltage Divider (Scale Only)
 
-Sensor tegangan dengan voltage divider 1:100 (raw value dalam centivolts):
+Voltage sensor with 1:100 voltage divider (raw value in centivolts):
 
 ```json
 {
@@ -145,12 +147,12 @@ Sensor tegangan dengan voltage divider 1:100 (raw value dalam centivolts):
     "scale": 0.01,
     "offset": 0.0,
     "unit": "V",
-    "description": "Tegangan baterai utama"
+    "description": "Main battery voltage"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 2456 → Calibrated: (2456 × 0.01) + 0 = **24.56 V**
 - MQTT payload:
 ```json
@@ -159,14 +161,14 @@ Sensor tegangan dengan voltage divider 1:100 (raw value dalam centivolts):
   "name": "Battery Voltage",
   "device_id": "DEVICE_001",
   "value": 24.56,
-  "description": "Tegangan baterai utama",
+  "description": "Main battery voltage",
   "unit": "V"
 }
 ```
 
 ### Example 3: Current Sensor with Offset
 
-Sensor arus yang membutuhkan offset correction:
+Current sensor requiring offset correction:
 
 ```json
 {
@@ -181,17 +183,17 @@ Sensor arus yang membutuhkan offset correction:
     "scale": 1.0,
     "offset": -0.15,
     "unit": "A",
-    "description": "Arus beban total"
+    "description": "Total load current"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 5.35 A → Calibrated: (5.35 × 1.0) - 0.15 = **5.20 A**
 
 ### Example 4: Temperature Sensor (Offset Correction)
 
-Sensor suhu yang perlu dikalibrasi karena bias +2.5°C:
+Temperature sensor needing calibration due to +2.5°C bias:
 
 ```json
 {
@@ -206,17 +208,17 @@ Sensor suhu yang perlu dikalibrasi karena bias +2.5°C:
     "scale": 1.0,
     "offset": -2.5,
     "unit": "°C",
-    "description": "Suhu ruang server"
+    "description": "Server room temperature"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 27.5°C → Calibrated: (27.5 × 1.0) - 2.5 = **25.0°C**
 
 ### Example 5: Fahrenheit to Celsius Conversion
 
-Sensor suhu dalam Fahrenheit yang ingin dikonversi ke Celsius:
+Temperature sensor in Fahrenheit to be converted to Celsius:
 
 **Formula:** `°C = (°F - 32) × 5/9 = (°F × 0.5556) - 17.778`
 
@@ -233,17 +235,17 @@ Sensor suhu dalam Fahrenheit yang ingin dikonversi ke Celsius:
     "scale": 0.5556,
     "offset": -17.778,
     "unit": "°C",
-    "description": "Suhu outdoor (converted from F)"
+    "description": "Outdoor temperature (converted from F)"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 77°F → Calibrated: (77 × 0.5556) - 17.778 ≈ **25.0°C**
 
 ### Example 6: Pressure Sensor (PSI to Bar)
 
-Sensor tekanan dalam PSI yang ingin dikonversi ke bar:
+Pressure sensor in PSI to be converted to bar:
 
 **Formula:** `1 PSI = 0.06895 bar`
 
@@ -260,17 +262,17 @@ Sensor tekanan dalam PSI yang ingin dikonversi ke bar:
     "scale": 0.06895,
     "offset": 0.0,
     "unit": "bar",
-    "description": "Tekanan hidrolik sistem"
+    "description": "System hydraulic pressure"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 100 PSI → Calibrated: (100 × 0.06895) + 0 = **6.895 bar**
 
 ### Example 7: Percentage with Divider
 
-Sensor yang memberikan nilai 0-10000 untuk representasi 0-100%:
+Sensor providing 0-10000 values representing 0-100%:
 
 ```json
 {
@@ -285,17 +287,17 @@ Sensor yang memberikan nilai 0-10000 untuk representasi 0-100%:
     "scale": 0.01,
     "offset": 0.0,
     "unit": "%",
-    "description": "Level tangki air"
+    "description": "Water tank level"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 8550 → Calibrated: (8550 × 0.01) + 0 = **85.50%**
 
 ### Example 8: Negative Scale (Inverting)
 
-Sensor dengan nilai yang perlu dibalik (inverting):
+Sensor with values that need to be inverted:
 
 ```json
 {
@@ -310,12 +312,12 @@ Sensor dengan nilai yang perlu dibalik (inverting):
     "scale": -1.0,
     "offset": 0.0,
     "unit": "m/s",
-    "description": "Kecepatan aliran (inverted)"
+    "description": "Flow velocity (inverted)"
   }
 }
 ```
 
-**Hasil:**
+**Result:**
 - Raw Modbus: 50 → Calibrated: (50 × -1.0) + 0 = **-50 m/s**
 
 ---
@@ -324,24 +326,24 @@ Sensor dengan nilai yang perlu dibalik (inverting):
 
 ### Use Case 1: Industrial Monitoring - Mixed Units
 
-**Scenario:** Pabrik dengan sensor dalam berbagai unit (V, A, PSI, °F) yang ingin distandarisasi ke unit SI.
+**Scenario:** Factory with sensors in various units (V, A, PSI, °F) that need to be standardized to SI units.
 
-**Solution:** Gunakan scale & offset untuk konversi otomatis:
+**Solution:** Use scale & offset for automatic conversion:
 - Voltage: Raw centivolt → Volt (scale: 0.01)
 - Current: Raw milliampere → Ampere (scale: 0.001)
 - Pressure: Raw PSI → bar (scale: 0.06895)
 - Temperature: Raw Fahrenheit → Celsius (scale: 0.5556, offset: -17.778)
 
 **Benefits:**
-- Subscriber tidak perlu konversi manual
-- Data langsung siap untuk analisis
-- Konsistensi unit di seluruh sistem
+- Subscribers don't need manual conversion
+- Data is immediately ready for analysis
+- Unit consistency across the entire system
 
 ### Use Case 2: Sensor Calibration - Offset Correction
 
-**Scenario:** Sensor suhu yang sudah lama dan memiliki bias +3°C.
+**Scenario:** Aging temperature sensor with +3°C bias.
 
-**Solution:** Gunakan offset untuk koreksi:
+**Solution:** Use offset for correction:
 ```json
 {
   "scale": 1.0,
@@ -351,15 +353,15 @@ Sensor dengan nilai yang perlu dibalik (inverting):
 ```
 
 **Benefits:**
-- Tidak perlu ganti sensor
-- Kalibrasi bisa diupdate dari mobile app
-- Historical data tetap valid
+- No need to replace sensor
+- Calibration can be updated from mobile app
+- Historical data remains valid
 
 ### Use Case 3: Multi-Range Sensors
 
-**Scenario:** Sensor yang bisa dibaca dalam 2 range berbeda (0-5V untuk 0-100°C).
+**Scenario:** Sensor that can be read in 2 different ranges (0-5V for 0-100°C).
 
-**Solution:** Konfigurasi 2 register dengan kalibrasi berbeda:
+**Solution:** Configure 2 registers with different calibrations:
 
 **Register 1 - Raw Voltage:**
 ```json
@@ -385,9 +387,9 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 
 ### Use Case 4: Legacy System Integration
 
-**Scenario:** Integrasi dengan PLC lama yang mengirim nilai dalam format proprietary.
+**Scenario:** Integration with old PLC sending values in proprietary format.
 
-**Solution:** Reverse-engineer formula PLC dan terapkan di gateway:
+**Solution:** Reverse-engineer PLC formula and apply at gateway:
 ```json
 {
   "scale": 0.0625,
@@ -397,9 +399,9 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Benefits:**
-- Tidak perlu update PLC programming
-- Gateway bertindak sebagai translator
-- Mudah update kalibrasi tanpa downtime
+- No need to update PLC programming
+- Gateway acts as translator
+- Easy calibration updates without downtime
 
 ---
 
@@ -431,9 +433,9 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 **Required Fields:**
 - `op`: "create"
 - `type`: "register"
-- `device_id`: Device ID yang sudah dibuat sebelumnya
-- `config.register_name`: Nama register
-- `config.address`: Alamat register Modbus
+- `device_id`: Previously created device ID
+- `config.register_name`: Register name
+- `config.address`: Modbus register address
 - `config.function_code`: Modbus function code (3, 4, etc.)
 - `config.data_type`: "int16", "uint16", "int32", "uint32", "float"
 
@@ -461,9 +463,9 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Notes:**
-- Hanya field yang ingin diupdate yang perlu dikirim
+- Only fields to be updated need to be sent
 - `register_id` format: `{device_id}_{address}`
-- Update akan langsung diterapkan pada polling berikutnya
+- Update will be applied immediately on next polling cycle
 
 ### List Registers (Check Current Calibration)
 
@@ -491,7 +493,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
       "scale": 0.01,
       "offset": 0.0,
       "unit": "V",
-      "description": "Tegangan baterai"
+      "description": "Battery voltage"
     }
   ]
 }
@@ -503,11 +505,11 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 
 ### Automatic Migration
 
-Firmware secara otomatis melakukan migration saat boot untuk register yang sudah ada:
+Firmware automatically performs migration on boot for existing registers:
 
 #### Migration 1: Add Default Calibration Values
 
-Jika register tidak memiliki field `scale`, `offset`, atau `unit`, firmware akan menambahkan:
+If a register does not have `scale`, `offset`, or `unit` fields, firmware will add them:
 
 ```
 [MIGRATION] Added scale=1.0 to register DEVICE_001_40001
@@ -517,7 +519,7 @@ Jika register tidak memiliki field `scale`, `offset`, atau `unit`, firmware akan
 
 #### Migration 2: Remove Old `refresh_rate_ms`
 
-Field `refresh_rate_ms` per-register telah deprecated dan dihapus otomatis:
+The `refresh_rate_ms` per-register field has been deprecated and is automatically removed:
 
 ```
 [MIGRATION] Removed refresh_rate_ms from register DEVICE_001_40001 (now using device-level polling)
@@ -525,7 +527,7 @@ Field `refresh_rate_ms` per-register telah deprecated dan dihapus otomatis:
 
 #### Migration 3: Auto-Save
 
-Setelah migration, `devices.json` akan disimpan otomatis:
+After migration, `devices.json` is automatically saved:
 
 ```
 [MIGRATION] Saving devices.json with calibration fields and removed refresh_rate_ms...
@@ -533,20 +535,20 @@ Setelah migration, `devices.json` akan disimpan otomatis:
 
 ### Backward Compatibility
 
-- ✅ Register lama tanpa calibration akan tetap berfungsi (scale=1.0, offset=0.0)
-- ✅ Nilai yang dipublish tidak berubah untuk register tanpa kalibrasi
-- ✅ MQTT payload format tetap konsisten (6 fields)
+- ✅ Old registers without calibration will continue to work (scale=1.0, offset=0.0)
+- ✅ Published values remain unchanged for registers without calibration
+- ✅ MQTT payload format remains consistent (6 fields)
 
 ### Manual Migration (Optional)
 
-Jika ingin update kalibrasi untuk register yang sudah ada:
+To update calibration for existing registers:
 
-1. **List register yang ada:**
+1. **List existing registers:**
 ```json
 {"op": "list", "type": "register", "device_id": "DEVICE_001"}
 ```
 
-2. **Update setiap register dengan kalibrasi yang sesuai:**
+2. **Update each register with appropriate calibration:**
 ```json
 {
   "op": "update",
@@ -567,11 +569,11 @@ Jika ingin update kalibrasi untuk register yang sudah ada:
 
 ### Overview
 
-**PENTING:** Polling interval sekarang menggunakan **device-level** `refresh_rate_ms`, bukan per-register.
+**IMPORTANT:** Polling interval now uses **device-level** `refresh_rate_ms`, not per-register.
 
 ### Configuration
 
-Set polling interval di device config:
+Set polling interval in device config:
 
 ```json
 {
@@ -584,27 +586,27 @@ Set polling interval di device config:
 }
 ```
 
-**Efek:**
-- Semua register dalam `DEVICE_001` akan di-poll setiap 1000ms (1 detik)
-- Tidak ada polling interval individual per-register
+**Effect:**
+- All registers in `DEVICE_001` will be polled every 1000ms (1 second)
+- No individual polling interval per-register
 
 ### Rationale
 
-**Mengapa device-level polling?**
+**Why device-level polling?**
 
-1. **Efisiensi Modbus:**
-   - Modbus adalah protokol serial/sequential
-   - Membaca multiple register dalam satu cycle lebih efisien
-   - Mengurangi overhead komunikasi
+1. **Modbus Efficiency:**
+   - Modbus is a serial/sequential protocol
+   - Reading multiple registers in one cycle is more efficient
+   - Reduces communication overhead
 
 2. **Consistency:**
-   - Semua data dari device di-read pada waktu yang sama
-   - Timestamp yang konsisten untuk semua register
-   - Lebih mudah untuk data correlation
+   - All device data is read at the same time
+   - Consistent timestamps for all registers
+   - Easier for data correlation
 
 3. **Simplified Configuration:**
-   - User hanya perlu set 1 interval per device
-   - Lebih mudah dipahami dan dikonfigurasi
+   - User only needs to set 1 interval per device
+   - Easier to understand and configure
 
 ### Example Configuration
 
@@ -647,9 +649,9 @@ Set polling interval di device config:
 
 ### Default Refresh Rate
 
-Jika `refresh_rate_ms` tidak diset, firmware menggunakan default:
-- **TCP:** 1000ms (1 detik)
-- **RTU:** 1000ms (1 detik)
+If `refresh_rate_ms` is not set, firmware uses defaults:
+- **TCP:** 1000ms (1 second)
+- **RTU:** 1000ms (1 second)
 
 ---
 
@@ -657,7 +659,7 @@ Jika `refresh_rate_ms` tidak diset, firmware menggunakan default:
 
 ### Payload Structure
 
-Setiap data point yang dipublish ke MQTT memiliki format:
+Each data point published to MQTT has the following format:
 
 ```json
 {
@@ -665,30 +667,30 @@ Setiap data point yang dipublish ke MQTT memiliki format:
   "name": "Battery Voltage",
   "device_id": "DEVICE_001",
   "value": 24.56,
-  "description": "Tegangan baterai utama",
+  "description": "Main battery voltage",
   "unit": "V"
 }
 ```
 
 ### Field Details
 
-| Field         | Type      | Source           | Description                                |
-| ------------- | --------- | ---------------- | ------------------------------------------ |
-| `time`        | integer   | RTC              | Unix timestamp saat data dibaca            |
-| `name`        | string    | `register_name`  | Nama register dari konfigurasi             |
-| `device_id`   | string    | Device config    | ID device Modbus                           |
-| `value`       | float/int | Calibrated value | Nilai SETELAH kalibrasi scale & offset     |
-| `description` | string    | Register config  | Deskripsi opsional dari BLE config         |
-| `unit`        | string    | Register config  | Unit pengukuran (°C, V, A, PSI, bar, dll.) |
+| Field         | Type      | Source           | Description                             |
+| ------------- | --------- | ---------------- | --------------------------------------- |
+| `time`        | integer   | RTC              | Unix timestamp when data was read       |
+| `name`        | string    | `register_name`  | Register name from configuration        |
+| `device_id`   | string    | Device config    | Modbus device ID                        |
+| `value`       | float/int | Calibrated value | Value AFTER scale & offset calibration  |
+| `description` | string    | Register config  | Optional description from BLE config    |
+| `unit`        | string    | Register config  | Measurement unit (°C, V, A, PSI, bar, etc.) |
 
 ### Internal Fields (Not Published)
 
-Field ini digunakan internal untuk deduplication dan routing, TIDAK dipublish ke MQTT:
+These fields are used internally for deduplication and routing, NOT published to MQTT:
 
 | Field            | Type    | Purpose                                    |
 | ---------------- | ------- | ------------------------------------------ |
-| `register_id`    | string  | Unique identifier untuk deduplication      |
-| `register_index` | integer | Index untuk customize mode topic filtering |
+| `register_id`    | string  | Unique identifier for deduplication        |
+| `register_index` | integer | Index for customize mode topic filtering   |
 
 ---
 
@@ -767,7 +769,7 @@ Field ini digunakan internal untuk deduplication dan routing, TIDAK dipublish ke
 
 **Serial Monitor Output:**
 
-Saat register dibaca, firmware akan log:
+When a register is read, firmware will log:
 
 ```
 [TCP] Reading register: Test Voltage (address: 40001)
@@ -884,44 +886,44 @@ offset: 0.0
 
 ## Troubleshooting
 
-### Issue 1: Nilai Tidak Berubah Setelah Set Calibration
+### Issue 1: Value Not Changing After Setting Calibration
 
-**Gejala:** Setelah update scale/offset, nilai MQTT masih sama seperti raw value.
+**Symptoms:** After updating scale/offset, MQTT values remain the same as raw values.
 
-**Penyebab:**
-- Config belum tersimpan ke `devices.json`
-- Cache belum refresh
+**Causes:**
+- Config not saved to `devices.json`
+- Cache not refreshed
 
-**Solusi:**
-1. Restart gateway untuk force reload config
-2. Check `devices.json` apakah scale/offset sudah tersimpan
-3. Pastikan tidak ada error di Serial Monitor saat update
+**Solution:**
+1. Restart gateway to force config reload
+2. Check `devices.json` to verify scale/offset are saved
+3. Ensure no errors in Serial Monitor during update
 
-### Issue 2: Nilai Kalibrasi Tidak Akurat
+### Issue 2: Calibration Values Not Accurate
 
-**Gejala:** Hasil kalibrasi berbeda dengan yang diharapkan.
+**Symptoms:** Calibration results differ from expected values.
 
-**Penyebab:**
-- Formula salah
-- Data type konversi belum benar
-- Offset terbalik (positif/negatif)
+**Causes:**
+- Incorrect formula
+- Data type conversion not correct
+- Offset sign reversed (positive/negative)
 
-**Solusi:**
-1. Cek formula menggunakan kalkulator manual
-2. Pastikan data type sesuai dengan sensor
-3. Coba dengan scale=1.0, offset=0.0 untuk lihat raw value
-4. Debug menggunakan Serial Monitor
+**Solution:**
+1. Check formula using manual calculator
+2. Ensure data type matches sensor
+3. Try with scale=1.0, offset=0.0 to view raw value
+4. Debug using Serial Monitor
 
-### Issue 3: Unit Tidak Muncul di MQTT
+### Issue 3: Unit Not Appearing in MQTT
 
-**Gejala:** Field `unit` kosong atau tidak ada.
+**Symptoms:** `unit` field is empty or missing.
 
-**Penyebab:**
-- Register dibuat sebelum firmware update
-- Field `unit` tidak di-set saat create
+**Causes:**
+- Register created before firmware update
+- `unit` field not set during creation
 
-**Solusi:**
-1. Update register dengan field `unit`:
+**Solution:**
+1. Update register with `unit` field:
 ```json
 {
   "op": "update",
@@ -934,42 +936,42 @@ offset: 0.0
 }
 ```
 
-### Issue 4: Migration Tidak Jalan
+### Issue 4: Migration Not Running
 
-**Gejala:** Register lama tidak mendapat default calibration values.
+**Symptoms:** Old registers not receiving default calibration values.
 
-**Penyebab:**
-- File `devices.json` corrupt
+**Causes:**
+- Corrupted `devices.json` file
 - SPIFFS/LittleFS full
 
-**Solusi:**
-1. Check Serial Monitor untuk migration logs
+**Solution:**
+1. Check Serial Monitor for migration logs
 2. Check SPIFFS usage: `/info` endpoint
-3. Backup dan reset `devices.json` jika perlu
+3. Backup and reset `devices.json` if necessary
 
 ---
 
 ## Best Practices
 
-### 1. Set Unit Konsisten
+### 1. Set Units Consistently
 
-Selalu set unit untuk setiap register:
+Always set units for every register:
 ```json
 {
   "unit": "V"  // GOOD
 }
 ```
 
-Jangan biarkan kosong:
+Don't leave empty:
 ```json
 {
-  "unit": ""  // BAD - sulit dibedakan di dashboard
+  "unit": ""  // BAD - difficult to distinguish in dashboard
 }
 ```
 
-### 2. Dokumentasikan Formula
+### 2. Document Formulas
 
-Gunakan field `description` untuk dokumentasi formula:
+Use `description` field to document formulas:
 ```json
 {
   "register_name": "Voltage L1",
@@ -980,26 +982,26 @@ Gunakan field `description` untuk dokumentasi formula:
 }
 ```
 
-### 3. Test di Development Dulu
+### 3. Test in Development First
 
-- Test kalibrasi dengan nilai known/reference
-- Validasi formula menggunakan kalkulator
-- Check serial monitor untuk debug output
+- Test calibration with known/reference values
+- Validate formula using calculator
+- Check serial monitor for debug output
 
-### 4. Backup Config Sebelum Update
+### 4. Backup Config Before Updates
 
-Sebelum update calibration values:
+Before updating calibration values:
 1. Export `devices.json` via BLE
-2. Simpan backup
-3. Baru lakukan update
+2. Save backup
+3. Then perform update
 
-### 5. Gunakan Nilai Presisi Tinggi
+### 5. Use High Precision Values
 
-Untuk scale yang kecil, gunakan presisi tinggi:
+For small scales, use high precision:
 ```json
 {
   "scale": 0.06895,  // GOOD - 5 decimal places
-  "scale": 0.07      // BAD - kurang presisi
+  "scale": 0.07      // BAD - insufficient precision
 }
 ```
 
@@ -1007,7 +1009,7 @@ Untuk scale yang kecil, gunakan presisi tinggi:
 
 ## Appendix A: Complete Example
 
-### Scenario: Power Meter dengan 8 Registers
+### Scenario: Power Meter with 8 Registers
 
 **Device Configuration:**
 ```json
@@ -1267,8 +1269,8 @@ File: `test_calibration.py`
 ```python
 #!/usr/bin/env python3
 """
-Test script untuk kalibrasi register
-Menguji berbagai scenario kalibrasi menggunakan BLE
+Test script for register calibration
+Tests various calibration scenarios using BLE
 """
 
 import asyncio
@@ -1308,7 +1310,7 @@ async def test_calibration():
     async with BleakClient(gateway.address) as client:
         print("Connected!")
 
-        # Test 1: Create register dengan voltage divider
+        # Test 1: Create register with voltage divider
         print("\n=== Test 1: Voltage Divider (cV to V) ===")
         cmd = {
             "op": "create",
@@ -1327,7 +1329,7 @@ async def test_calibration():
         }
         await send_command(client, cmd)
 
-        # Test 2: Create register dengan temperature offset
+        # Test 2: Create register with temperature offset
         print("\n=== Test 2: Temperature with Offset ===")
         cmd = {
             "op": "create",
@@ -1365,7 +1367,7 @@ async def test_calibration():
         }
         await send_command(client, cmd)
 
-        # List registers untuk verify
+        # List registers to verify
         print("\n=== Verifying Configuration ===")
         cmd = {
             "op": "list",
@@ -1375,7 +1377,7 @@ async def test_calibration():
         await send_command(client, cmd)
 
         print("\nCalibration test completed!")
-        print("Check Serial Monitor untuk melihat hasil kalibrasi saat polling.")
+        print("Check Serial Monitor to view calibration results during polling.")
 
 if __name__ == "__main__":
     asyncio.run(test_calibration())
@@ -1385,17 +1387,35 @@ if __name__ == "__main__":
 
 ## Support
 
-Untuk pertanyaan atau issue terkait kalibrasi register:
+For questions or issues related to register calibration:
 
-1. **Check Serial Monitor** untuk debug output
-2. **Verify Config** menggunakan BLE list command
-3. **Test Formula** menggunakan kalkulator manual
-4. **Contact Support** jika masih ada masalah
+1. **Check Serial Monitor** for debug output
+2. **Verify Config** using BLE list command
+3. **Test Formula** using manual calculator
+4. **Contact Support** if issues persist
 
 ---
 
-**Document Version:** 1.1
-**Firmware Version:** v2.1.1
+## Related Documentation
+
+- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference
+- **[PROTOCOL.md](PROTOCOL.md)** - Communication protocols
+- **[MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)** - Modbus data type reference
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Troubleshooting guide
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
+- **[Best Practices](../BEST_PRACTICES.md)** - Production deployment guidelines
+- **[FAQ](../FAQ.md)** - Frequently asked questions
+
+---
+
+**Document Version:** 1.2 (Updated)
+**Firmware Version:** v2.2.0
 **Developer:** Kemal
-**Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
-**Author:** SRT Engineering Team
+**Last Updated:** November 20, 2025
+
+[← Back to Technical Guides](README.md) | [↑ Top](#register-calibration---documentation)
+
+---
+
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
+*For technical support: support@suriota.com*

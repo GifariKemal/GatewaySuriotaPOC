@@ -1,3 +1,10 @@
+# ============================================
+# SRT-MGATE-1210 Gateway Project .gitignore
+# ============================================
+
+# ---------------------------------------------
+# C/C++ Compiled Files
+# ---------------------------------------------
 # Prerequisites
 *.d
 
@@ -37,5 +44,277 @@
 *.out
 *.app
 
-# debug information files
+# Debug information files
 *.dwo
+
+# ---------------------------------------------
+# Arduino/ESP32 Build Files
+# ---------------------------------------------
+# Arduino build directory
+build/
+.build/
+
+# ESP32 binary and hex files
+*.bin
+*.hex
+*.elf
+*.map
+
+# Partition tables
+partitions*.bin
+
+# Bootloader binaries
+bootloader*.bin
+
+# Flash download config
+flash_download*.log
+
+# ---------------------------------------------
+# IDE and Editor Files
+# ---------------------------------------------
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs (CLion, IntelliJ IDEA, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+cmake-build-*/
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw?
+Session.vim
+
+# Emacs
+*~
+\#*\#
+.\#*
+.emacs.desktop
+.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+
+# Atom
+.atom/
+
+# Eclipse
+.cproject
+.project
+.settings/
+.metadata/
+
+# ---------------------------------------------
+# Operating System Files
+# ---------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ---------------------------------------------
+# Temporary and Backup Files
+# ---------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.log
+*.cache
+
+# Backup files with timestamp
+*_backup_*
+*_old_*
+
+# Patch files
+*.patch
+*.diff
+*.rej
+
+# ---------------------------------------------
+# Environment and Configuration
+# ---------------------------------------------
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Secret keys and certificates
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# Configuration overrides (keep template files)
+config.local.*
+settings.local.*
+
+# ---------------------------------------------
+# Documentation Build Files
+# ---------------------------------------------
+# Generated documentation
+docs/_build/
+docs/.doctrees/
+site/
+
+# Doxygen
+html/
+latex/
+Doxyfile.bak
+
+# ---------------------------------------------
+# Testing and Coverage
+# ---------------------------------------------
+# Test results
+test-results/
+*.test
+*.testlog
+
+# Coverage reports
+coverage/
+*.gcov
+*.gcda
+*.gcno
+lcov.info
+
+# ---------------------------------------------
+# Package Manager
+# ---------------------------------------------
+# Node modules (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Python (if using any Python tools)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ---------------------------------------------
+# Project Specific
+# ---------------------------------------------
+# SD card test files
+SD_test/
+sdcard_test/
+
+# Compiled firmware variants
+firmware_*.bin
+firmware_backup/
+
+# Local testing data
+test_data/
+mock_devices/
+
+# Serial monitor logs
+serial_log_*.txt
+monitor_output_*.log
+
+# PlatformIO (if used)
+.pio/
+.pioenvs/
+.piolibdeps/
+lib/
+.clang_complete
+.gcc-flags.json
+
+# Arduino IDE cache
+*.sketch/
+
+# ---------------------------------------------
+# Git and Version Control
+# ---------------------------------------------
+# Git files that shouldn't be tracked
+*.orig
+
+# Merge tool backup files
+*.BACKUP.*
+*.BASE.*
+*.LOCAL.*
+*.REMOTE.*
+*_BACKUP_*.txt
+*_BASE_*.txt
+*_LOCAL_*.txt
+*_REMOTE_*.txt
+
+# ---------------------------------------------
+# Claude AI Context (Keep this!)
+# ---------------------------------------------
+# !.claude.md  # Uncomment to force-include if needed
+
+# ---------------------------------------------
+# Archive and Compressed Files (Optional)
+# ---------------------------------------------
+# *.zip
+# *.tar.gz
+# *.rar
+# *.7z
+
+# ---------------------------------------------
+# Custom Exclusions
+# ---------------------------------------------
+# Add any project-specific files to ignore below:
+

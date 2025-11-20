@@ -3,6 +3,8 @@
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 Debug and Log Message Documentation
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Logging Reference
+
 ---
 
 ## 📋 Table of Contents
@@ -857,12 +859,23 @@ tail -f /dev/ttyUSB0
 
 ---
 
-## 📚 Additional Resources
+## Related Documentation
 
-- [API.md](API.md) - BLE API reference
-- [PROTOCOL.md](PROTOCOL.md) - Communication protocols
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Issue diagnosis
-- [HARDWARE.md](HARDWARE.md) - Hardware specifications
+- **[Documentation Index](../README.md)** - Main documentation hub
+- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference (including log level commands)
+- **[PROTOCOL.md](PROTOCOL.md)** - Communication protocols
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Issue diagnosis using logs
+- **[HARDWARE.md](HARDWARE.md)** - Hardware specifications
+- **[Best Practices](../BEST_PRACTICES.md)** - Production logging recommendations
+- **[Optimization Documentation](../Optimizing/README.md)** - Log system implementation history
+
+---
+
+**Document Version:** 1.0
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
+
+[← Back to Technical Guides](README.md) | [↑ Top](#-logging-reference)
 
 ---
 

@@ -13,13 +13,27 @@ uint32_t MemoryRecovery::criticalEventCount = 0;
 bool MemoryRecovery::recoveryInProgress = false;
 bool MemoryRecovery::autoRecoveryEnabled = true;
 
+// FIXED BUG #7: Add recursion guard to prevent infinite recursion
+// Previous code could recurse if logging functions called checkAndRecover()
+static bool inRecoveryCall = false;
+
 // ============================================
 // CORE FUNCTIONS IMPLEMENTATION
 // ============================================
 
 RecoveryAction MemoryRecovery::checkAndRecover() {
+  // FIXED BUG #7: Recursion guard - prevent infinite recursion
+  // If already in recovery call (e.g., from logging), return immediately
+  if (inRecoveryCall) {
+    return RECOVERY_NONE;
+  }
+
+  // Set guard flag
+  inRecoveryCall = true;
+
   // Auto-recovery disabled - skip check
   if (!autoRecoveryEnabled) {
+    inRecoveryCall = false;  // Release guard
     return RECOVERY_NONE;
   }
 
@@ -27,6 +41,7 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
 
   // Throttle memory checks to avoid overhead
   if (now - lastMemoryCheck < memoryCheckInterval) {
+    inRecoveryCall = false;  // Release guard before return
     return RECOVERY_NONE;
   }
   lastMemoryCheck = now;
@@ -56,6 +71,7 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
     recovered |= forceRecovery(RECOVERY_CLEAR_MQTT_PERSISTENT);
     recovered |= forceRecovery(RECOVERY_FORCE_GARBAGE_COLLECT);
 
+    inRecoveryCall = false;  // Release guard
     return recovered ? RECOVERY_FORCE_GARBAGE_COLLECT : RECOVERY_NONE;
   }
 
@@ -71,18 +87,22 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
       // 5 consecutive critical events - escalate to emergency
       LOG_MEM_ERROR("CRITICAL: 5+ consecutive events - escalating to emergency restart\n");
       criticalEventCount = 3; // Trigger restart on next check
+      inRecoveryCall = false;  // Release guard
       return RECOVERY_NONE;
     }
 
     // Try aggressive recovery
     if (forceRecovery(RECOVERY_FLUSH_OLD_QUEUE)) {
+      inRecoveryCall = false;  // Release guard
       return RECOVERY_FLUSH_OLD_QUEUE;
     }
 
     if (forceRecovery(RECOVERY_CLEAR_MQTT_PERSISTENT)) {
+      inRecoveryCall = false;  // Release guard
       return RECOVERY_CLEAR_MQTT_PERSISTENT;
     }
 
+    inRecoveryCall = false;  // Release guard
     return RECOVERY_NONE;
   }
 
@@ -96,9 +116,11 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
 
     // Proactive cleanup - clear expired messages
     if (forceRecovery(RECOVERY_CLEAR_MQTT_PERSISTENT)) {
+      inRecoveryCall = false;  // Release guard
       return RECOVERY_CLEAR_MQTT_PERSISTENT;
     }
 
+    inRecoveryCall = false;  // Release guard
     return RECOVERY_NONE;
   }
 
@@ -125,6 +147,8 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
     }
   }
 
+  // Release recursion guard before exit
+  inRecoveryCall = false;
   return RECOVERY_NONE;
 }
 

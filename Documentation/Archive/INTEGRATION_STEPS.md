@@ -1,5 +1,19 @@
 # 🔧 STEP-BY-STEP INTEGRATION GUIDE
 
+> **⚠️ ARCHIVED - October 2024**
+>
+> This document is archived and no longer applicable to current firmware.
+>
+> **Archived From:** v2.0.0 streaming fix integration guide
+>
+> **Reason:** Integration steps completed and changes merged into v2.0.0+
+>
+> **Current Documentation:** See [API Reference](../API_Reference/API.md) for current integration guidelines
+>
+> **Archive Info:** [ARCHIVE_INFO.md](ARCHIVE_INFO.md)
+
+---
+
 ## 📋 Quick Summary
 
 | Item | Status | File |
