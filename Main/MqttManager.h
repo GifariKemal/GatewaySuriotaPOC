@@ -70,6 +70,9 @@ private:
   void debugNetworkConnectivity();
   bool isNetworkAvailable();
 
+  // FIXED BUG #15: Dynamic MQTT buffer sizing
+  uint16_t calculateOptimalBufferSize();
+
 public:
   static MqttManager *getInstance(ConfigManager *config = nullptr, ServerConfig *serverCfg = nullptr, NetworkMgr *netMgr = nullptr);
 
