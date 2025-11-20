@@ -897,7 +897,7 @@ uint16_t MqttManager::calculateOptimalBufferSize()
 
   // Load all devices to count total registers
   // Use getAllDevicesWithRegisters() to get device data
-  SpiRamJsonDocument devicesDoc(16384);  // 16KB for devices list
+  JsonDocument devicesDoc;  // Stack allocated
   JsonArray devices = devicesDoc.to<JsonArray>();
   configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
 
