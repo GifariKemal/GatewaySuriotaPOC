@@ -84,9 +84,9 @@ bool BLEManager::begin()
 
   // FIXED BUG #12: Use conservative MTU for better compatibility
   // Previous: Hardcoded 517 bytes - not all clients support this (especially iOS)
-  // New: Start with 247 (safe for all devices), negotiate higher if supported
-  BLEDevice::setMTU(247);  // Conservative MTU for maximum compatibility
-  Serial.println("[BLE] MTU set to 247 bytes (safe default, will negotiate higher if supported)");
+  // New: Start with BLE_MTU_SAFE_DEFAULT (safe for all devices), negotiate higher if supported
+  BLEDevice::setMTU(BLE_MTU_SAFE_DEFAULT);  // Conservative MTU for maximum compatibility
+  Serial.printf("[BLE] MTU set to %d bytes (safe default, will negotiate higher if supported)\n", BLE_MTU_SAFE_DEFAULT);
 
   // Create BLE Server
   pServer = BLEDevice::createServer();
@@ -385,15 +385,16 @@ void BLEManager::sendResponse(const JsonDocument &data)
   size_t estimatedSize = measureJson(data);
 
   // Early size check to prevent DRAM exhaustion
-  if (estimatedSize > 10240)
+  if (estimatedSize > MAX_RESPONSE_SIZE_BYTES)
   {
     // Payload too large - send simplified error WITHOUT creating full response
-    Serial.printf("[BLE] ERROR: Response too large (%u bytes > 10KB). Sending error.\n", estimatedSize);
+    Serial.printf("[BLE] ERROR: Response too large (%u bytes > %d KB). Sending error.\n",
+                  estimatedSize, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Create minimal error response (< 200 bytes, safe)
     const char* errorMsg = "{\"status\":\"error\",\"message\":\"Response too large\",\"size\":";
-    char buffer[256];
-    snprintf(buffer, sizeof(buffer), "%s%u,\"max\":10240}", errorMsg, estimatedSize);
+    char buffer[ERROR_BUFFER_SIZE];
+    snprintf(buffer, sizeof(buffer), "%s%u,\"max\":%d}", errorMsg, estimatedSize, MAX_RESPONSE_SIZE_BYTES);
 
     pResponseChar->setValue(buffer);
     pResponseChar->notify();
@@ -448,17 +449,18 @@ void BLEManager::sendFragmented(const String &data)
     return; // Abort immediately without any heap operations
   }
 
-  // CRITICAL FIX: Reject payloads that are too large (>10KB)
+  // CRITICAL FIX: Reject payloads that are too large (>MAX_RESPONSE_SIZE_BYTES)
   // ESP32-S3 String class has memory limits, especially when fragmenting
-  if (data.length() > 10240) {
-    Serial.printf("[BLE] ERROR: Payload too large (%d bytes > 10KB limit). Truncating to 10KB.\n", data.length());
+  if (data.length() > MAX_RESPONSE_SIZE_BYTES) {
+    Serial.printf("[BLE] ERROR: Payload too large (%d bytes > %d KB limit). Truncating to %d KB.\n",
+                  data.length(), MAX_RESPONSE_SIZE_BYTES / 1024, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Send error response instead
     JsonDocument errorDoc;
     errorDoc["status"] = "error";
     errorDoc["message"] = "Response too large for BLE transmission";
     errorDoc["payload_size"] = data.length();
-    errorDoc["max_size"] = 10240;
+    errorDoc["max_size"] = MAX_RESPONSE_SIZE_BYTES;
     errorDoc["suggestion"] = "Use 'minimal':true parameter or query specific register";
 
     String errorResponse;
@@ -491,15 +493,15 @@ void BLEManager::sendFragmented(const String &data)
   }
 
   // CRITICAL FIX: Adaptive chunk size based on payload size
-  // Large payloads (>5KB) use smaller chunks to prevent BLE stack malloc failures
+  // Large payloads (>LARGE_PAYLOAD_THRESHOLD) use smaller chunks to prevent BLE stack malloc failures
   int adaptiveChunkSize = CHUNK_SIZE;
   int adaptiveDelay = FRAGMENT_DELAY_MS;
 
-  if (data.length() > 5120) { // >5KB payload
-    adaptiveChunkSize = 100;  // Further reduced from 120 to 100 bytes for safety
-    adaptiveDelay = 20;       // Increased delay to 20ms for stability
-    Serial.printf("[BLE] Large payload detected (%d bytes), using adaptive chunks (size:%d, delay:%dms)\n",
-                  data.length(), adaptiveChunkSize, adaptiveDelay);
+  if (data.length() > LARGE_PAYLOAD_THRESHOLD) { // >5KB payload
+    adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // Reduced chunk size for safety
+    adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;        // Increased delay for stability
+    Serial.printf("[BLE] Large payload detected (%d bytes > %d KB), using adaptive chunks (size:%d, delay:%dms)\n",
+                  data.length(), LARGE_PAYLOAD_THRESHOLD / 1024, adaptiveChunkSize, adaptiveDelay);
   }
 
   // CRITICAL FIX: Use const char* direct access instead of substring()
@@ -660,7 +662,7 @@ void BLEManager::logMTUNegotiation()
   uint16_t effectiveMTU = (actualMTU > 3) ? (actualMTU - 3) : 20;  // Subtract ATT header (3 bytes)
 
   mtuMetrics.mtuSize = effectiveMTU;
-  mtuMetrics.maxMTUSize = 512;  // Our maximum supported MTU (from setMTU(517))
+  mtuMetrics.maxMTUSize = BLE_MTU_MAX_SUPPORTED;  // Our maximum supported MTU
   mtuMetrics.lastNegotiationTime = millis();
   mtuMetrics.negotiationAttempts++;
 

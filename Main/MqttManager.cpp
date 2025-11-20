@@ -86,7 +86,7 @@ void MqttManager::start()
   BaseType_t result = xTaskCreatePinnedToCore(
       mqttTask,
       "MQTT_TASK",
-      8192,
+      MqttConfig::MQTT_TASK_STACK_SIZE,
       this,
       1,
       &taskHandle,
@@ -924,27 +924,23 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   }
 
   // Calculate buffer size based on total registers
-  // Formula: (totalRegisters * 70 bytes per register) + 300 bytes overhead
+  // Formula: (totalRegisters * BYTES_PER_REGISTER) + BUFFER_OVERHEAD
   // - Each register: ~50-70 bytes (name, value, unit, timestamp, device_id)
   // - Batch overhead: ~300 bytes (JSON structure, device metadata)
-  uint32_t calculatedSize = (totalRegisters * 70) + 300;
+  uint32_t calculatedSize = (totalRegisters * MqttConfig::BYTES_PER_REGISTER) + MqttConfig::BUFFER_OVERHEAD;
 
   // Apply constraints
-  const uint16_t MIN_BUFFER_SIZE = 2048;   // 2KB minimum
-  const uint16_t MAX_BUFFER_SIZE = 16384;  // 16KB maximum (PubSubClient limit)
-  const uint16_t DEFAULT_BUFFER_SIZE = 8192;  // 8KB conservative default
+  uint16_t optimalSize = MqttConfig::DEFAULT_BUFFER_SIZE;
 
-  uint16_t optimalSize = DEFAULT_BUFFER_SIZE;
-
-  if (calculatedSize < MIN_BUFFER_SIZE)
+  if (calculatedSize < MqttConfig::MIN_BUFFER_SIZE)
   {
-    optimalSize = MIN_BUFFER_SIZE;
+    optimalSize = MqttConfig::MIN_BUFFER_SIZE;
   }
-  else if (calculatedSize > MAX_BUFFER_SIZE)
+  else if (calculatedSize > MqttConfig::MAX_BUFFER_SIZE)
   {
-    optimalSize = MAX_BUFFER_SIZE;
+    optimalSize = MqttConfig::MAX_BUFFER_SIZE;
     Serial.printf("[MQTT] WARNING: Calculated buffer (%lu bytes) exceeds max (%u bytes)\n",
-                  calculatedSize, MAX_BUFFER_SIZE);
+                  calculatedSize, MqttConfig::MAX_BUFFER_SIZE);
     Serial.printf("[MQTT] Consider reducing devices/registers or enabling payload splitting\n");
   }
   else
@@ -953,7 +949,7 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   }
 
   Serial.printf("[MQTT] Buffer calculation: %u registers → %u bytes (min: %u, max: %u)\n",
-                totalRegisters, optimalSize, MIN_BUFFER_SIZE, MAX_BUFFER_SIZE);
+                totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
 
   return optimalSize;
 }
