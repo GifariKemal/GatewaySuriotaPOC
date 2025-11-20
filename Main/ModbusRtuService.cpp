@@ -348,20 +348,42 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
           batchMgr->incrementEnqueued(deviceId);
         }
 
-        // COMPACT LOGGING: Collect reading to buffer
-        String unit = reg["unit"] | "";
-        unit.replace("°", "deg");  // Replace UTF-8 degree symbol with ASCII "deg"
-
-        // Add header on first success
-        if (successCount == 0) {
-          outputBuffer += "[DATA] " + deviceId + ":\n";
+        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
+        const char* unit = reg["unit"] | "";
+        char unitBuf[32];
+        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
+        unitBuf[sizeof(unitBuf) - 1] = '\0';
+        // Replace degree symbol with "deg"
+        char* degPos = strstr(unitBuf, "°");
+        if (degPos) {
+          size_t remaining = strlen(degPos + 2);
+          memmove(degPos + 3, degPos + 2, remaining + 1);
+          memcpy(degPos, "deg", 3);
         }
 
-        compactLine += registerName + ":" + String(value, 1) + unit;
+        // Add header on first success (sequential appends to avoid temp objects)
+        if (successCount == 0) {
+          outputBuffer += "[DATA] ";
+          outputBuffer += deviceId;
+          outputBuffer += ":\n";
+        }
+
+        // Build compact line with individual appends to avoid temp String objects
+        char valueBuf[16];
+        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
+        compactLine += registerName;
+        compactLine += ":";
+        compactLine += valueBuf;
+        compactLine += unitBuf;
+
         successCount++;
         if (successCount % 6 == 0) {
-          outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
-          compactLine = "";
+          char lineBuf[16];
+          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
+          outputBuffer += lineBuf;
+          outputBuffer += compactLine;
+          outputBuffer += "\n";
+          compactLine.clear();
         } else {
           compactLine += " | ";
         }
@@ -371,7 +393,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -395,20 +417,42 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
           batchMgr->incrementEnqueued(deviceId);
         }
 
-        // COMPACT LOGGING: Collect reading to buffer
-        String unit = reg["unit"] | "";
-        unit.replace("°", "deg");  // Replace UTF-8 degree symbol with ASCII "deg"
-
-        // Add header on first success
-        if (successCount == 0) {
-          outputBuffer += "[DATA] " + deviceId + ":\n";
+        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
+        const char* unit = reg["unit"] | "";
+        char unitBuf[32];
+        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
+        unitBuf[sizeof(unitBuf) - 1] = '\0';
+        // Replace degree symbol with "deg"
+        char* degPos = strstr(unitBuf, "°");
+        if (degPos) {
+          size_t remaining = strlen(degPos + 2);
+          memmove(degPos + 3, degPos + 2, remaining + 1);
+          memcpy(degPos, "deg", 3);
         }
 
-        compactLine += registerName + ":" + String(value, 1) + unit;
+        // Add header on first success (sequential appends to avoid temp objects)
+        if (successCount == 0) {
+          outputBuffer += "[DATA] ";
+          outputBuffer += deviceId;
+          outputBuffer += ":\n";
+        }
+
+        // Build compact line with individual appends to avoid temp String objects
+        char valueBuf[16];
+        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
+        compactLine += registerName;
+        compactLine += ":";
+        compactLine += valueBuf;
+        compactLine += unitBuf;
+
         successCount++;
         if (successCount % 6 == 0) {
-          outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
-          compactLine = "";
+          char lineBuf[16];
+          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
+          outputBuffer += lineBuf;
+          outputBuffer += compactLine;
+          outputBuffer += "\n";
+          compactLine.clear();
         } else {
           compactLine += " | ";
         }
@@ -418,7 +462,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -430,25 +474,35 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     }
     else if (functionCode == 3 || functionCode == 4)
     {
-      String dataType = reg["data_type"] | "INT16";
-      dataType.toUpperCase();
-      int registerCount = 1;
-      String baseType = dataType;
-      String endianness_variant = "";
+      // BUG #31: Use PSRAMString for data type parsing (was String)
+      PSRAMString dataType = reg["data_type"] | "INT16";
 
-      int underscoreIndex = dataType.indexOf('_');
-      if (underscoreIndex != -1)
+      // Manual uppercase conversion (PSRAMString doesn't have toUpperCase() yet)
+      char dataTypeBuf[64];
+      strncpy(dataTypeBuf, dataType.c_str(), sizeof(dataTypeBuf) - 1);
+      dataTypeBuf[sizeof(dataTypeBuf) - 1] = '\0';
+      for (int i = 0; dataTypeBuf[i]; i++) {
+        dataTypeBuf[i] = toupper(dataTypeBuf[i]);
+      }
+
+      int registerCount = 1;
+      const char* baseType = dataTypeBuf;
+      const char* endianness_variant = "";
+
+      char* underscorePos = strchr(dataTypeBuf, '_');
+      if (underscorePos != NULL)
       {
-        baseType = dataType.substring(0, underscoreIndex);
-        endianness_variant = dataType.substring(underscoreIndex + 1);
+        *underscorePos = '\0';  // Split string at underscore
+        baseType = dataTypeBuf;
+        endianness_variant = underscorePos + 1;
       }
 
       // Determine register count based on base type
-      if (baseType == "INT32" || baseType == "UINT32" || baseType == "FLOAT32")
+      if (strcmp(baseType, "INT32") == 0 || strcmp(baseType, "UINT32") == 0 || strcmp(baseType, "FLOAT32") == 0)
       {
         registerCount = 2;
       }
-      else if (baseType == "INT64" || baseType == "UINT64" || baseType == "DOUBLE64")
+      else if (strcmp(baseType, "INT64") == 0 || strcmp(baseType, "UINT64") == 0 || strcmp(baseType, "DOUBLE64") == 0)
       {
         registerCount = 4;
       }
@@ -457,7 +511,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       if (address > (65535 - registerCount + 1))
       {
         Serial.printf("[RTU] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
-                      registerName.c_str(), address, registerCount, address + registerCount - 1);
+                      registerName, address, registerCount, address + registerCount - 1);  // BUG #31: removed .c_str()
         failedRegisterCount++;
         continue; // Skip this register
       }
@@ -474,20 +528,42 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
           batchMgr->incrementEnqueued(deviceId);
         }
 
-        // COMPACT LOGGING: Collect reading to buffer
-        String unit = reg["unit"] | "";
-        unit.replace("°", "deg");  // Replace UTF-8 degree symbol with ASCII "deg"
-
-        // Add header on first success
-        if (successCount == 0) {
-          outputBuffer += "[DATA] " + deviceId + ":\n";
+        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
+        const char* unit = reg["unit"] | "";
+        char unitBuf[32];
+        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
+        unitBuf[sizeof(unitBuf) - 1] = '\0';
+        // Replace degree symbol with "deg"
+        char* degPos = strstr(unitBuf, "°");
+        if (degPos) {
+          size_t remaining = strlen(degPos + 2);
+          memmove(degPos + 3, degPos + 2, remaining + 1);
+          memcpy(degPos, "deg", 3);
         }
 
-        compactLine += registerName + ":" + String(value, 1) + unit;
+        // Add header on first success (sequential appends to avoid temp objects)
+        if (successCount == 0) {
+          outputBuffer += "[DATA] ";
+          outputBuffer += deviceId;
+          outputBuffer += ":\n";
+        }
+
+        // Build compact line with individual appends to avoid temp String objects
+        char valueBuf[16];
+        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
+        compactLine += registerName;
+        compactLine += ":";
+        compactLine += valueBuf;
+        compactLine += unitBuf;
+
         successCount++;
         if (successCount % 6 == 0) {
-          outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
-          compactLine = "";
+          char lineBuf[16];
+          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
+          outputBuffer += lineBuf;
+          outputBuffer += compactLine;
+          outputBuffer += "\n";
+          compactLine.clear();
         } else {
           compactLine += " | ";
         }
@@ -497,7 +573,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName.c_str());
+        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
 
         // CRITICAL FIX: Track failed register read
@@ -549,22 +625,30 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
 
 double ModbusRtuService::processRegisterValue(const JsonObject &reg, uint16_t rawValue)
 {
-  String dataType = reg["data_type"];
-  dataType.toUpperCase();
+  // BUG #31: Use const char* and manual uppercase (was String)
+  const char* dataType = reg["data_type"] | "UINT16";
+  char dataTypeBuf[32];
+  strncpy(dataTypeBuf, dataType, sizeof(dataTypeBuf) - 1);
+  dataTypeBuf[sizeof(dataTypeBuf) - 1] = '\0';
 
-  if (dataType == "INT16")
+  // Manual uppercase conversion
+  for (int i = 0; dataTypeBuf[i]; i++) {
+    dataTypeBuf[i] = toupper(dataTypeBuf[i]);
+  }
+
+  if (strcmp(dataTypeBuf, "INT16") == 0)
   {
     return (int16_t)rawValue;
   }
-  else if (dataType == "UINT16")
+  else if (strcmp(dataTypeBuf, "UINT16") == 0)
   {
     return rawValue;
   }
-  else if (dataType == "BOOL")
+  else if (strcmp(dataTypeBuf, "BOOL") == 0)
   {
     return rawValue != 0 ? 1.0 : 0.0;
   }
-  else if (dataType == "BINARY")
+  else if (strcmp(dataTypeBuf, "BINARY") == 0)
   {
     return rawValue;
   }
@@ -620,19 +704,15 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
   // Add to message queue
   queueMgr->enqueue(dataPoint);
 
-  // Check if this device is being streamed
-  String streamId = "";
-  bool crudHandlerAvailable = (crudHandler != nullptr);
-
-  if (crudHandler)
+  // Check if this device is being streamed (BUG #31: Optimized String usage)
+  if (crudHandler && queueMgr)
   {
-    streamId = crudHandler->getStreamDeviceId();
-  }
-
-  if (!streamId.isEmpty() && streamId == deviceId && queueMgr)
-  {
-    Serial.printf("[RTU] Streaming data for device %s to BLE\n", deviceId);
-    queueMgr->enqueueStream(dataPoint);
+    String streamIdStr = crudHandler->getStreamDeviceId();  // CRUDHandler returns String
+    if (!streamIdStr.isEmpty() && strcmp(streamIdStr.c_str(), deviceId) == 0)
+    {
+      Serial.printf("[RTU] Streaming data for device %s to BLE\n", deviceId);
+      queueMgr->enqueueStream(dataPoint);
+    }
   }
 }
 
