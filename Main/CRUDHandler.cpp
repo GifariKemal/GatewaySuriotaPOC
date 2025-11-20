@@ -25,10 +25,11 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
   }
 
   // Create command processor task
+  // FIXED BUG #30: Increased stack size for large device operations
   xTaskCreatePinnedToCore(
       commandProcessorTask,
       "CRUD_PROCESSOR_TASK",
-      8192,
+      CRUDConfig::CRUD_TASK_STACK_SIZE,  // 24KB stack (was 8KB)
       this,
       2, // Medium priority
       &commandProcessorTaskHandle,

@@ -12,6 +12,11 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
+// FIXED BUG #30: Define CRUD task stack size constant
+namespace CRUDConfig {
+  constexpr uint32_t CRUD_TASK_STACK_SIZE = 24576;  // 24KB stack for large device operations (50+ registers)
+}
+
 // Forward declarations to avoid circular dependencies
 class BLEManager;
 class MqttManager;
