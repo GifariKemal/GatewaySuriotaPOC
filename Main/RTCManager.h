@@ -1,6 +1,7 @@
 #ifndef RTC_MANAGER_H
 #define RTC_MANAGER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <Wire.h>
 #include <RTClib.h>
 #include <WiFi.h>
