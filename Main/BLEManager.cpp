@@ -522,13 +522,13 @@ void BLEManager::sendFragmented(const char* data, size_t length)
 
   // CRITICAL FIX: Adaptive chunk size based on payload size
   // Large payloads (>LARGE_PAYLOAD_THRESHOLD) use smaller chunks to prevent BLE stack malloc failures
-  int adaptiveChunkSize = CHUNK_SIZE;
+  size_t adaptiveChunkSize = CHUNK_SIZE;
   int adaptiveDelay = FRAGMENT_DELAY_MS;
 
   if (length > LARGE_PAYLOAD_THRESHOLD) { // >5KB payload
     adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // Reduced chunk size for safety
     adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;        // Increased delay for stability
-    Serial.printf("[BLE] Large payload detected (%u bytes > %d KB), using adaptive chunks (size:%d, delay:%dms)\n",
+    Serial.printf("[BLE] Large payload detected (%u bytes > %d KB), using adaptive chunks (size:%zu, delay:%dms)\n",
                   length, LARGE_PAYLOAD_THRESHOLD / 1024, adaptiveChunkSize, adaptiveDelay);
   }
 
@@ -543,7 +543,7 @@ void BLEManager::sendFragmented(const char* data, size_t length)
 
   while (i < dataLen)
   {
-    int chunkLen = min(adaptiveChunkSize, dataLen - i);
+    size_t chunkLen = min(adaptiveChunkSize, dataLen - i);
 
     // SAFETY: Ensure chunk size doesn't exceed buffer
     if (chunkLen > 255) {
