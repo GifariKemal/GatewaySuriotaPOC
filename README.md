@@ -158,7 +158,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 - **Arduino IDE** 2.0 or later
 - **ESP32 Board Package** 2.0.11 or later
-- **Required Libraries** (see [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
+- **Required Libraries** (see [LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
 
 ### Installation
 
@@ -246,8 +246,6 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 ```
 
 See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete CRUD examples.
-
-For a comprehensive quick start guide, see **[Documentation/QUICKSTART.md](Documentation/QUICKSTART.md)** - Get configured in 5 minutes!
 
 ---
 
@@ -391,8 +389,6 @@ graph LR
 
 Comprehensive documentation is available in the `Documentation/` directory:
 
-### 🆕 What's New in v2.2.0
-
 > **Latest Update:** November 20, 2025 by Kemal
 > - 📚 **Complete documentation overhaul** - 100% English with consistent navigation
 > - 🗂️ **New documentation hub** - Central README with role-based navigation
@@ -405,47 +401,38 @@ Comprehensive documentation is available in the `Documentation/` directory:
 
 **See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete changelog
 
-### 📖 Getting Started
-
-| Document                                                  | Description                                  |
-| --------------------------------------------------------- | -------------------------------------------- |
-| [**Documentation/README.md**](Documentation/README.md) ⭐ | Main documentation hub - Start here!         |
-| [**QUICKSTART.md**](Documentation/QUICKSTART.md)         | Get your gateway running in 5 minutes        |
-| [**FAQ.md**](Documentation/FAQ.md)                       | 60+ frequently asked questions               |
-| [**GLOSSARY.md**](Documentation/GLOSSARY.md)             | A-Z technical terminology reference          |
-| [**BEST_PRACTICES.md**](Documentation/BEST_PRACTICES.md) | Production deployment and security guidelines |
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete changelog
 
 ### 📖 Core Documentation
 
-| Document                                                                                                                                | Description                                   |
-| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [**Changelog/VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md)                                                         | Changelog and migration guide (v2.2.0)        |
-| [**API_Reference/API.md**](Documentation/API_Reference/API.md)                                                                         | Complete BLE CRUD API reference with examples |
-| [**Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)         | MQTT Default & Customize modes                |
-| [**Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)     | Scale & offset calibration guide              |
+| Document                                                                                                                      | Description                                   |
+| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md) ⭐                                                        | Changelog and migration guide (v2.1.1)        |
+| [**API.md**](Documentation/API_Reference/API.md)                                                                              | Complete BLE CRUD API reference with examples |
+| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)                 | MQTT Default & Customize modes                |
+| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)             | Scale & offset calibration guide              |
 
 ### 🔧 Technical Reference
 
-| Document                                                                                        | Description                                    |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [**Technical_Guides/MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md) | 40+ Modbus data types with endianness variants |
-| [**Technical_Guides/PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                 | BLE protocol, Modbus implementation details    |
-| [**Technical_Guides/LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                   | Debug log reference and troubleshooting        |
-| [**Technical_Guides/NETWORK_CONFIGURATION.md**](Documentation/Technical_Guides/NETWORK_CONFIGURATION.md) | Dual network interface and failover guide |
+| Document                                                                         | Description                                    |
+| -------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [**MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md)   | 40+ Modbus data types with endianness variants |
+| [**PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                    | BLE protocol, Modbus implementation details    |
+| [**LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                      | Debug log reference and troubleshooting        |
 
 ### 🚀 Performance & Troubleshooting
 
-| Document                                                                                        | Description                            |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------- |
-| [**Technical_Guides/CAPACITY_ANALYSIS.md**](Documentation/Technical_Guides/CAPACITY_ANALYSIS.md) | Gateway capacity limits and benchmarks |
-| [**Technical_Guides/TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
+| Document                                                                       | Description                            |
+| ------------------------------------------------------------------------------ | -------------------------------------- |
+| [**CAPACITY_ANALYSIS.md**](Documentation/Changelog/CAPACITY_ANALYSIS.md)      | Gateway capacity limits and benchmarks |
+| [**TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
 
 ### 🔌 Hardware & Setup
 
-| Document                                                                            | Description                               |
-| ----------------------------------------------------------------------------------- | ----------------------------------------- |
-| [**Technical_Guides/HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)     | GPIO pinout, schematics, electrical specs |
-| [**Technical_Guides/LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md)   | Third-party libraries and dependencies    |
+| Document                                                               | Description                               |
+| ---------------------------------------------------------------------- | ----------------------------------------- |
+| [**HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)          | GPIO pinout, schematics, electrical specs |
+| [**LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md)        | Third-party libraries and dependencies    |
 
 ---
 
@@ -586,7 +573,7 @@ We welcome contributions from the community! Whether you're fixing bugs, adding 
 
 ### How to Contribute
 
-Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines on:
+Please read our [CONTRIBUTING.md](Documentation/Technical_Guides/CONTRIBUTING.md) for detailed guidelines on:
 
 - Setting up your development environment
 - Coding standards and conventions
@@ -742,6 +729,14 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 - ✅ Processing time monitoring for large datasets
 - ✅ Warning system for slow operations (>10s)
 - ✅ Register count logging for diagnostics
+
+#### 📚 Documentation Updates
+- ✅ Complete VERSION_HISTORY.md with migration guide
+- ✅ Updated API.md with new response formats
+- ✅ Enhanced CAPACITY_ANALYSIS.md with BLE benchmarks
+- ✅ Updated TROUBLESHOOTING.md with timeout solutions
+- ✅ Archived 7 outdated streaming fix documents
+- ✅ All docs updated with v2.1.1, developer credits, and correct dates
 
 **See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
 

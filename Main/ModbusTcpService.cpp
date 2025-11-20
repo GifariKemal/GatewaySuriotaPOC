@@ -290,12 +290,26 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   uint8_t slaveId = deviceConfig["slave_id"] | 1;
   JsonArray registers = deviceConfig["registers"];
 
-  // FIXED Bug #9: Trim whitespace before isEmpty() check to avoid false assumption
-  // isEmpty() only checks length==0, not validity. "   " would pass isEmpty() check!
+  // FIXED BUG #8: Validate IP address format before use
+  // Previous code only checked isEmpty() → invalid IPs like "999.999.999.999" passed!
   ip.trim();
   if (ip.isEmpty() || registers.size() == 0)
   {
     return;
+  }
+
+  // Validate IP address format using IPAddress::fromString()
+  IPAddress validatedIP;
+  if (!validatedIP.fromString(ip))
+  {
+    static unsigned long lastWarning = 0;
+    if (millis() - lastWarning > 30000)  // Log max once per 30s per device
+    {
+      Serial.printf("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId.c_str(), ip.c_str());
+      Serial.println("[TCP] HINT: IP must be in format A.B.C.D where 0 <= A,B,C,D <= 255");
+      lastWarning = millis();
+    }
+    return;  // Skip device with invalid IP
   }
 
   // Determine network type for log
