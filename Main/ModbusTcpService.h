@@ -1,6 +1,7 @@
 #ifndef MODBUS_TCP_SERVICE_H
 #define MODBUS_TCP_SERVICE_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>

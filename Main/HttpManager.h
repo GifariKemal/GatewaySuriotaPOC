@@ -1,6 +1,7 @@
 #ifndef HTTP_MANAGER_H
 #define HTTP_MANAGER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
