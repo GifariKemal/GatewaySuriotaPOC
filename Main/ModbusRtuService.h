@@ -1,6 +1,7 @@
 #ifndef MODBUS_RTU_SERVICE_H
 #define MODBUS_RTU_SERVICE_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <HardwareSerial.h>
 #include <freertos/FreeRTOS.h>

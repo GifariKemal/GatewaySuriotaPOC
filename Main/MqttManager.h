@@ -1,6 +1,7 @@
 #ifndef MQTT_MANAGER_H
 #define MQTT_MANAGER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>

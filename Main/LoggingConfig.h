@@ -1,6 +1,7 @@
 #ifndef LOGGING_CONFIG_H
 #define LOGGING_CONFIG_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 

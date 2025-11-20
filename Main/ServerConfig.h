@@ -1,6 +1,7 @@
 #ifndef SERVER_CONFIG_H
 #define SERVER_CONFIG_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <esp_heap_caps.h>

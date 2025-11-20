@@ -1,6 +1,7 @@
 #ifndef CRUD_HANDLER_H
 #define CRUD_HANDLER_H
 
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include "ConfigManager.h"
 #include "ServerConfig.h"
