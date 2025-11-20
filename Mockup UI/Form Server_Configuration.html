@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>COMPLETE - Gateway Server Config (v2.2 Structure)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT: '#2f6f64',
+              dark: '#1e4a42',
+              light: '#3d8b7e',
+              ink: '#e7f3f0'
+            }
+          },
+          boxShadow: {
+            soft: '0 10px 30px rgba(2,8,20,.08)',
+            glow: '0 0 20px rgba(47,111,100,.2)',
+            "inner-brand": 'inset 0 2px 4px 0 rgba(47, 111, 100, 0.2)'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-down': 'slideDown 0.3s ease-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'scale-in': 'scaleIn 0.2s ease-out',
+            'shake': 'shake 0.5s ease-in-out'
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideDown: { '0%': { transform: 'translateY(-10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            scaleIn: { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+            shake: { '0%, 100%': { transform: 'translateX(0)' }, '25%': { transform: 'translateX(-5px)' }, '75%': { transform: 'translateX(5px)' } }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100%{ background-position: 0% 50%; } }
+    .gradient-animate { background: linear-gradient(-45deg, #2f6f64, #3d8b7e, #2f6f64, #1e4a42); background-size: 400% 400%; animation: gradient 8s ease infinite; }
+    .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+    input:focus, select:focus { transform: scale(1.01); transition: all 0.2s ease; }
+    .btn-primary { background: linear-gradient(135deg, #2f6f64 0%, #3d8b7e 100%); transition: all 0.3s ease; }
+    .btn-primary:hover { background: linear-gradient(135deg, #1e4a42 0%, #2f6f64 100%); transform: translateY(-2px); box-shadow: 0 10px 20px rgba(47,111,100,.3); }
+    .btn-primary:active { transform: translateY(0); }
+    .topic-card { transition: all 0.3s ease; }
+    .topic-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0,0,0,.1); }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #2f6f64; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #1e4a42; }
+    .device-card .device-registers { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+    .device-card .device-registers:not(.hidden) { max-height: 1000px; }
+    .device-header { user-select: none; }
+    input:invalid { border-color: #ef4444; animation: shake 0.5s ease-in-out; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 min-h-screen">
+  <header class="gradient-animate text-brand-ink sticky top-0 z-50 shadow-lg">
+    <div class="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-base sm:text-xl font-bold tracking-tight flex items-center gap-2">
+            <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Gateway Config
+          </h1>
+          <p class="mt-1 text-[10px] sm:text-xs opacity-90">Full Server Configuration (MQTT, HTTP & Internet)</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-6">
+    <div class="glass-effect rounded-2xl sm:rounded-3xl p-3 sm:p-6 shadow-soft space-y-3 sm:space-y-5 animate-fade-in">
+
+      <section class="rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+        <header class="flex items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-gradient-to-r from-slate-50 to-gray-50">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11.992a.75.75 0 01.656-.693l3.28.328a.75.75 0 00.68.1l1.838-.54a.75.75 0 01.86.32l1.59 2.268a.75.75 0 001.278 0l1.59-2.268a.75.75 0 01.86-.32l1.838.54a.75.75 0 00.68-.1l3.28-.328a.75.75 0 01.656.693A9.003 9.003 0 0112 21a9.003 9.003 0 01-8.945-9.008zM12 12a3 3 0 100-6 3 3 0 000 6z"/></svg>
+              <h2 class="text-xs sm:text-sm font-bold text-slate-800">Internet & Network</h2>
+            </div>
+            <p class="text-[10px] sm:text-xs text-slate-500 mt-0.5">Mode, WiFi, and Ethernet</p>
+          </div>
+          <button data-toggle="internet" class="group inline-flex items-center gap-1.5 sm:gap-2 rounded-lg bg-sky-50 px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-sky-900 hover:bg-sky-100 transition-all active:scale-95">
+            <svg class="size-3 sm:size-4 transition-transform duration-300 group-data-[open=true]:-rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
+            <span data-label="internet">Hide</span>
+          </button>
+        </header>
+
+        <div id="panel-internet" class="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 border-t border-slate-100 animate-slide-down">
+          <div class="pt-3 sm:pt-4">
+            <h3 class="text-xs sm:text-sm font-semibold mb-2 text-slate-700">Main Communication Mode</h3>
+            <div class="flex flex-wrap gap-3" role="radiogroup" aria-label="Communication Mode">
+              <label class="flex-1 min-w-[120px] cursor-pointer">
+                <input type="radio" name="mode" value="ETH" class="peer sr-only" checked />
+                <div class="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 shadow-sm transition-all peer-checked:border-brand peer-checked:shadow-glow peer-checked:shadow-brand/30">
+                  <svg class="size-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <span class="text-xs sm:text-sm font-medium">Ethernet (Wired)</span>
+                </div>
+              </label>
+              <label class="flex-1 min-w-[120px] cursor-pointer">
+                <input type="radio" name="mode" value="WIFI" class="peer sr-only" />
+                <div class="flex items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 shadow-sm transition-all peer-checked:border-brand peer-checked:shadow-glow peer-checked:shadow-brand/30">
+                  <svg class="size-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071a10 10 0 0114.142 0M1.394 8.929a15 15 0 0121.213 0"/></svg>
+                  <span class="text-xs sm:text-sm font-medium">WiFi (Wireless)</span>
+                </div>
+              </label>
+            </div>
+            <div class="mt-2">
+              <span id="modeBadge" class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900">
+                Mode: ETH | Method: Automatic
+              </span>
+            </div>
+          </div>
+
+          <div id="wifiSection" class="hidden">
+            <fieldset class="rounded-xl border border-dashed border-slate-200 p-3 sm:p-4">
+              <legend class="px-2 text-xs font-medium text-slate-500">WiFi Configuration</legend>
+              <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                <input id="wifiEnabled" type="checkbox" class="peer sr-only" checked />
+                <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+                <span class="text-xs sm:text-sm font-medium">WiFi Enabled</span>
+              </label>
+              <div id="wifiFields" class="mt-3 grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-2">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">SSID</span>
+                  <input id="ssid" type="text" placeholder="WiFi Name"
+                    class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Password</span>
+                  <input id="wifipass" type="password" placeholder="WiFi Password"
+                    class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                </label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div id="ethSection">
+            <fieldset class="rounded-xl border border-dashed border-slate-200 p-3 sm:p-4">
+              <legend class="px-2 text-xs font-medium text-slate-500">Ethernet Configuration</legend>
+              <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                <input id="ethEnabled" type="checkbox" class="peer sr-only" checked />
+                <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+                <span class="text-xs sm:text-sm font-medium">Ethernet Enabled</span>
+              </label>
+
+              <div class="mt-3">
+                <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                  <input id="useDhcp" type="checkbox" class="peer sr-only" checked />
+                  <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+                  <span class="text-xs sm:text-sm font-medium">Use DHCP (Automatic IP)</span>
+                </label>
+              </div>
+
+              <div id="staticFields" class="mt-3 grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-3 hidden">
+                <label class="block">
+                  <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Static IP</span>
+                  <input id="static_ip" type="text" placeholder="192.168.1.177"
+                    pattern="^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+                    class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Gateway</span>
+                  <input id="gateway" type="text" placeholder="192.168.1.1"
+                    pattern="^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+                    class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                </label>
+                <label class="block">
+                  <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Subnet</span>
+                  <input id="subnet" type="text" placeholder="255.255.255.0"
+                    pattern="^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$"
+                    class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                </label>
+              </div>
+              <p id="ipErr" class="mt-2 hidden text-xs text-red-600 animate-shake">Invalid IP/Gateway/Subnet format. Example: 192.168.1.1</p>
+            </fieldset>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+        <header class="flex items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-gradient-to-r from-teal-50 to-emerald-50">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+              <h2 class="text-xs sm:text-sm font-bold text-slate-800">Telemetry – MQTT</h2>
+            </div>
+            <p class="text-[10px] sm:text-xs text-slate-500 mt-0.5">Send data via MQTT protocol</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="inline-flex cursor-pointer select-none items-center gap-2">
+              <input id="mqttEnabled" type="checkbox" class="peer sr-only" checked />
+              <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+              <span class="text-[10px] sm:text-xs font-semibold hidden sm:inline">Enabled</span>
+            </label>
+            <button data-toggle="mqtt" class="group inline-flex items-center gap-1.5 sm:gap-2 rounded-lg bg-emerald-50 px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-emerald-900 hover:bg-emerald-100 transition-all active:scale-95">
+              <svg class="size-3 sm:size-4 transition-transform duration-300 group-data-[open=true]:-rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
+              <span data-label="mqtt">Hide</span>
+            </button>
+          </div>
+        </header>
+
+        <div id="panel-mqtt" class="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 border-t border-slate-100 animate-slide-down">
+          <div id="mqttFields" class="pt-3 sm:pt-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mb-4">
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Broker Address</span>
+                <input id="broker" type="text" value="broker.hivemq.com" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Broker Port</span>
+                <input id="brokerPort" type="number" value="1883" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Client ID</span>
+                <input id="clientId" type="text" value="SuriotaGateway-001" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Username</span>
+                <input id="mqttUser" type="text" value="mqtt_user" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Password</span>
+                <input id="mqttPass" type="password" value="mqtt_password" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Keep Alive (seconds)</span>
+                <input id="keepAlive" type="number" value="60" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+            </div>
+            <div class="mb-4 flex flex-wrap gap-3 sm:gap-4">
+              <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                <input id="cleanSession" type="checkbox" class="peer sr-only" checked />
+                <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+                <span class="text-xs sm:text-sm font-medium">Clean Session</span>
+              </label>
+              <label class="inline-flex cursor-pointer select-none items-center gap-2">
+                <input id="useTls" type="checkbox" class="peer sr-only" />
+                <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+                <span class="text-xs sm:text-sm font-medium">Use TLS</span>
+              </label>
+            </div>
+
+            <div class="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl sm:rounded-2xl border-2 border-blue-200 shadow-sm">
+              <h3 class="text-xs sm:text-sm font-bold mb-3 flex items-center gap-2 text-blue-900"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>MQTT Publish Mode</h3>
+              <div class="mb-3 p-3 sm:p-4 bg-white rounded-xl border-2 border-slate-200 shadow-sm transition-all hover:shadow-md">
+                <div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-xs sm:text-sm font-bold text-slate-800">Default Mode</span></div><label class="inline-flex cursor-pointer select-none items-center gap-2"><input id="defaultModeEnabled" type="checkbox" class="peer sr-only" checked /><div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-indigo-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div><span class="text-[10px] sm:text-xs font-semibold text-slate-700"><span class="peer-checked:hidden">OFF</span><span class="hidden peer-checked:inline text-blue-600">ON</span></span></label></div>
+                <p class="text-[10px] sm:text-xs text-slate-600 leading-relaxed">All registers are sent to 1 topic in a single batch payload.</p>
+              </div>
+              <div class="p-3 sm:p-4 bg-white rounded-xl border-2 border-slate-200 shadow-sm transition-all hover:shadow-md">
+                <div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg><span class="text-xs sm:text-sm font-bold text-slate-800">Customize Mode</span></div><label class="inline-flex cursor-pointer select-none items-center gap-2"><input id="customizeModeEnabled" type="checkbox" class="peer sr-only" /><div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-pink-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div><span class="text-[10px] sm:text-xs font-semibold text-slate-700"><span class="peer-checked:hidden">OFF</span><span class="hidden peer-checked:inline text-purple-600">ON</span></span></label></div>
+                <p class="text-[10px] sm:text-xs text-slate-600 leading-relaxed">Multiple topics with flexible register selection and different intervals per topic.</p>
+              </div>
+              <div class="mt-3 p-2 sm:p-3 bg-white/70 rounded-lg border border-blue-100"><p id="modeStatus" class="text-[10px] sm:text-xs text-slate-700 leading-relaxed font-medium flex items-center gap-2"><span class="inline-flex h-2 w-2 rounded-full bg-blue-500"></span><strong>Active Mode:</strong> <span id="activeModeName">Default Mode</span></p></div>
+            </div>
+
+            <div id="defaultModeFields" class="mt-4 animate-slide-down">
+              <div class="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-200 shadow-sm">
+                <h4 class="text-xs sm:text-sm font-bold mb-3 flex items-center gap-2 text-blue-900"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Default Mode Configuration</h4>
+                <div class="grid grid-cols-1 gap-3">
+                  <label class="block">
+                    <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Topic Publish</span>
+                    <input id="topicPub" type="text" value="v1/devices/me/telemetry" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" placeholder="Example: v1/devices/me/telemetry" />
+                  </label>
+                  <label class="block">
+                    <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Topic Subscribe (Optional)</span>
+                    <input id="topicSub" type="text" value="v1/devices/me/rpc" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" placeholder="Example: device/control" />
+                  </label>
+                  
+                  <div class="block sm:col-span-2">
+                    <span class="mb-1 flex items-center gap-1.5 text-[10px] sm:text-xs font-medium text-slate-700">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                      Publish Interval
+                    </span>
+                    <div class="flex gap-2">
+                      <input id="defaultIntervalValue" type="number" value="5" min="1" class="flex-1 rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                      <select id="defaultIntervalUnit" class="rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm">
+                        <option value="ms">ms</option>
+                        <option value="s" selected>s</option>
+                        <option value="m">m</option>
+                      </select>
+                    </div>
+                    <p class="mt-1 text-[9px] sm:text-[10px] text-slate-500">
+                      💡 ms = milliseconds, s = seconds, m = minutes
+                    </p>
+                  </div>
+                  
+                </div>
+              </div>
+            </div>
+
+            <div id="customizeModeFields" class="mt-4 hidden animate-slide-down">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2"><svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Custom Publish Topics</h4>
+                <button type="button" id="addCustomTopic" class="btn-primary inline-flex items-center gap-1.5 sm:gap-2 rounded-lg px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold text-white shadow-md active:scale-95"><svg class="size-3 sm:size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Add Topic</button>
+              </div>
+              <label class="block mb-3">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Topic Subscribe (Optional)</span>
+                <input id="topicSubCustomize" type="text" value="v1/devices/me/rpc" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" placeholder="Example: v1/devices/me/rpc" />
+              </label>
+              <div class="mb-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl shadow-sm"><p class="text-[10px] sm:text-xs text-amber-900 font-medium mb-1">📊 <strong>Available Registers (by Device):</strong></p><div id="availableRegistersInfo" class="space-y-1 text-[10px] text-amber-800"></div><p class="text-[10px] text-amber-700 mt-2">💡 The same register can be used in multiple different topics.</p></div>
+              <div id="customTopicsList" class="space-y-3 custom-scrollbar max-h-[600px] overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-xl sm:rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+        <header class="flex items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-gradient-to-r from-slate-50 to-gray-50">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+              <h2 class="text-xs sm:text-sm font-bold text-slate-800">Telemetry – HTTP</h2>
+            </div>
+            <p class="text-[10px] sm:text-xs text-slate-500 mt-0.5">Send data via HTTP/HTTPS API</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="inline-flex cursor-pointer select-none items-center gap-2">
+              <input id="httpEnabled" type="checkbox" class="peer sr-only" />
+              <div class="relative h-6 w-11 rounded-full bg-slate-300 transition-all peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner"><span class="absolute left-1 top-1 size-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span></div>
+              <span class="text-[10px] sm:text-xs font-semibold hidden sm:inline">Enabled</span>
+            </label>
+            <button data-toggle="http" class="group inline-flex items-center gap-1.5 sm:gap-2 rounded-lg bg-emerald-50 px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-semibold text-emerald-900 hover:bg-emerald-100 transition-all active:scale-95">
+              <svg class="size-3 sm:size-4 transition-transform duration-300 group-data-[open=true]:-rotate-180" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"/></svg>
+              <span data-label="http">Show</span>
+            </button>
+          </div>
+        </header>
+
+        <div id="panel-http" class="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 border-t border-slate-100 hidden animate-slide-down">
+          <div id="httpFields" class="pt-3 sm:pt-4">
+            <div class="grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-2">
+              <label class="block sm:col-span-2">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Endpoint URL</span>
+                <input id="endpoint" type="url" value="https://api.example.com/data" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">HTTP Method</span>
+                <select id="httpMethod" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm">
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Body Format</span>
+                <select id="bodyFormat" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm">
+                  <option value="json">JSON</option>
+                  <option value="form">Form-data</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Timeout (ms)</span>
+                <input id="httpTimeout" type="number" value="5000" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              <label class="block">
+                <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Max Retry</span>
+                <input id="httpRetry" type="number" value="3" class="w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+              </label>
+              
+              <div class="block sm:col-span-2">
+                <span class="mb-1 flex items-center gap-1.5 text-[10px] sm:text-xs font-medium text-slate-700">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Publish Interval
+                </span>
+                <div class="flex gap-2">
+                  <input id="httpIntervalValue" type="number" value="5" min="1" class="flex-1 rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" />
+                  <select id="httpIntervalUnit" class="rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm">
+                    <option value="ms">ms</option>
+                    <option value="s" selected>s</option>
+                    <option value="m">m</option>
+                  </select>
+                </div>
+                <p class="mt-1 text-[9px] sm:text-[10px] text-slate-500">
+                  💡 ms = milliseconds, s = seconds, m = minutes
+                </p>
+              </div>
+              
+            </div>
+            <div class="mt-4">
+              <div class="mb-2 flex items-center justify-between">
+                <span class="text-xs sm:text-sm font-medium text-slate-700">Custom Headers</span>
+                <button type="button" id="addHeader" class="btn-primary inline-flex items-center gap-1.5 sm:gap-2 rounded-lg px-3 sm:px-4 py-2 text-[10px] sm:text-xs font-bold text-white shadow-md active:scale-95"><svg class="size-3 sm:size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>Add Header</button>
+              </div>
+              <div id="headersList" class="space-y-2"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="rounded-xl sm:rounded-2xl border-2 border-slate-200 p-3 sm:p-4 space-y-3 sm:space-y-4 bg-white shadow-sm">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+          <button id="btnBuild" class="btn-primary inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-md active:scale-95"><svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Build Config</button>
+          <button id="btnReset" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-slate-200 to-slate-300 px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-slate-700 shadow-md hover:from-slate-300 hover:to-slate-400 transition-all active:scale-95"><svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Reset</button>
+          <button id="btnCopy" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-md hover:from-emerald-600 hover:to-teal-600 transition-all active:scale-95"><svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy JSON</button>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-2"><h3 class="text-[10px] sm:text-xs font-bold text-slate-600 flex items-center gap-2"><span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>LIVE PREVIEW JSON</h3></div>
+          <pre id="preview" class="custom-scrollbar overflow-auto rounded-xl sm:rounded-2xl border-2 border-slate-300 bg-slate-900 p-3 sm:p-4 text-[10px] sm:text-xs text-emerald-400 shadow-inner font-mono leading-relaxed" style="max-height:600px"></pre>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="mt-6 pb-6 text-center">
+    <p class="text-xs text-slate-500">
+      Full Mockup (v2.2 Firmware Structure)
+    </p>
+  </footer>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+
+    // --- ELEMEN INTERNET ---
+    const modeBadge = $('#modeBadge'), wifiSection = $('#wifiSection'), ethSection = $('#ethSection');
+    const wifiEnabled = $('#wifiEnabled'), wifiFields = $('#wifiFields'), ssid = $('#ssid'), wifipass = $('#wifipass');
+    const ethEnabled = $('#ethEnabled'), useDhcp = $('#useDhcp'), staticFields = $('#staticFields');
+    const ip = $('#static_ip'), gw = $('#gateway'), mask = $('#subnet'), ipErr = $('#ipErr');
+    
+    // --- ELEMEN MQTT ---
+    const mqttEnabled = $('#mqttEnabled'), mqttFields = $('#mqttFields');
+    const broker = $('#broker'), brokerPort = $('#brokerPort'), clientId = $('#clientId');
+    const mqttUser = $('#mqttUser'), mqttPass = $('#mqttPass'), keepAlive = $('#keepAlive');
+    const cleanSession = $('#cleanSession'), useTls = $('#useTls');
+    const topicPub = $('#topicPub'), topicSub = $('#topicSub');
+    
+    // --- ELEMEN MQTT MODE ---
+    const defaultModeEnabled = $('#defaultModeEnabled');
+    const customizeModeEnabled = $('#customizeModeEnabled');
+    const defaultModeFields = $('#defaultModeFields');
+    const customizeModeFields = $('#customizeModeFields');
+    const customTopicsList = $('#customTopicsList');
+    const addCustomTopicBtn = $('#addCustomTopic');
+    const modeStatus = $('#modeStatus');
+    const activeModeName = $('#activeModeName');
+    const topicSubCustomize = $('#topicSubCustomize');
+    const defaultIntervalValue = $('#defaultIntervalValue');
+    const defaultIntervalUnit = $('#defaultIntervalUnit');
+
+    // --- ELEMEN HTTP ---
+    const httpEnabled = $('#httpEnabled'), httpFields = $('#httpFields');
+    const endpoint = $('#endpoint'), httpMethod = $('#httpMethod'), bodyFormat = $('#bodyFormat');
+    const httpTimeout = $('#httpTimeout'), httpRetry = $('#httpRetry'), headersList = $('#headersList');
+    const httpIntervalValue = $('#httpIntervalValue');
+    const httpIntervalUnit = $('#httpIntervalUnit');
+
+    // --- ELEMEN PREVIEW & ACTIONS ---
+    const preview = $('#preview');
+    const btnBuild = $('#btnBuild'), btnReset = $('#btnReset'), btnCopy = $('#btnCopy');
+
+    // --- STATE ---
+    let customTopicsData = [];
+    let topicCounter = 1;
+    let devicesWithRegisters = [
+      { device_id: "DEVICE_001", device_name: "Temp & Humidity Sensor", registers: [
+          { register_id: "temp_room_1", name: "Temperature Room 1", description: "Suhu ruangan 1" },
+          { register_id: "humidity_room_1", name: "Humidity Room 1", description: "Kelembaban 1" }
+      ]},
+      { device_id: "DEVICE_002", device_name: "Power Meter (3-Phase)", registers: [
+          { register_id: "voltage_l1", name: "Voltage L1", description: "Tegangan fase L1" },
+          { register_id: "current_l1", name: "Current L1", description: "Arus fase L1" },
+          { register_id: "power_active_l1", name: "Active Power L1", description: "Daya aktif L1" },
+          { register_id: "power_total", name: "Total Power", description: "Total daya" },
+          { register_id: "frequency", name: "Frequency", description: "Frekuensi sistem" }
+      ]}
+    ];
+
+    // --- FUNGSI UTAMA ---
+
+    function initToggle(name, defaultOpen = true){
+      const btn = $(`[data-toggle="${name}"]`);
+      if (!btn) return;
+      const panel = $(`#panel-${name}`);
+      const label = $(`[data-label="${name}"]`);
+      let isOpen = defaultOpen;
+      
+      function update(){
+        panel.classList.toggle('hidden', !isOpen);
+        btn.setAttribute('data-open', isOpen);
+        label.textContent = isOpen ? 'Hide' : 'Show';
+      }
+      
+      btn.addEventListener('click', ()=>{
+        isOpen = !isOpen;
+        if(isOpen) {
+          panel.classList.remove('hidden');
+          panel.style.animation = 'slideDown 0.3s ease-out';
+        } else {
+          panel.style.animation = 'slideUp 0.3s ease-out';
+          setTimeout(() => panel.classList.add('hidden'), 250);
+        }
+        update();
+      });
+      update();
+    }
+
+    function setDim(container, on){
+      container.classList.toggle('opacity-50', !on);
+      container.classList.toggle('pointer-events-none', !on);
+      container.querySelectorAll('input,select,button').forEach(el => {
+        if(el.closest('header')) return;
+        el.disabled = !on;
+      });
+    }
+
+    function updateVisibility(){
+      // --- INTERNET ---
+      const modeVal = document.querySelector('input[name="mode"]:checked').value;
+      modeBadge.textContent = `Mode: ${modeVal} | Method: Automatic`;
+      wifiSection.classList.toggle('hidden', modeVal !== 'WIFI');
+      ethSection.classList.toggle('hidden', modeVal !== 'ETH');
+      setDim(wifiFields, wifiEnabled.checked);
+      setDim(ethSection.querySelector('fieldset'), ethEnabled.checked);
+      staticFields.classList.toggle('hidden', useDhcp.checked);
+
+      // --- MQTT & HTTP ---
+      setDim(mqttFields, mqttEnabled.checked);
+      setDim(httpFields, httpEnabled.checked);
+
+      // --- MQTT MODES ---
+      const defaultEnabled = defaultModeEnabled.checked;
+      const customizeEnabled = customizeModeEnabled.checked;
+      if(defaultEnabled){
+        defaultModeFields.classList.remove('hidden');
+        customizeModeFields.classList.add('hidden');
+        activeModeName.textContent = 'Default Mode';
+        modeStatus.querySelector('.inline-flex').className = 'inline-flex h-2 w-2 rounded-full bg-blue-500';
+      } else if (customizeEnabled) {
+        defaultModeFields.classList.add('hidden');
+        customizeModeFields.classList.remove('hidden');
+        activeModeName.textContent = 'Customize Mode';
+        modeStatus.querySelector('.inline-flex').className = 'inline-flex h-2 w-2 rounded-full bg-purple-500';
+      }
+    }
+
+    // --- FUNGSI MQTT CUSTOMIZE ---
+    function addCustomTopic(topicName = '', selectedRegs = [], interval = 5, intervalUnit = 's'){
+      const topicId = topicCounter++;
+      const topicDiv = document.createElement('div');
+      topicDiv.className = 'topic-card p-3 sm:p-4 border-2 border-slate-200 rounded-xl sm:rounded-2xl bg-white shadow-sm animate-scale-in';
+      topicDiv.setAttribute('data-topic-id', topicId);
+
+      topicDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand to-brand-light text-white text-xs font-bold">${topicId}</span>
+            <h5 class="text-xs sm:text-sm font-bold text-slate-700">Publish Topic ${topicId}</h5>
+          </div>
+          <button type="button" class="remove-topic inline-flex items-center gap-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold text-white shadow-md hover:from-red-600 hover:to-red-700 transition-all active:scale-95">
+            <svg class="size-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <span class="hidden sm:inline">Remove</span>
+          </button>
+        </div>
+        <div class="space-y-3">
+          <label class="block">
+            <span class="mb-1 block text-[10px] sm:text-xs font-medium text-slate-700">Publish Topic Name</span>
+            <input type="text" class="topic-name w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm"
+              placeholder="example: sensor/temperature" value="${topicName}" />
+          </label>
+          <div class="block">
+            <span class="mb-1 flex items-center gap-1.5 text-[10px] sm:text-xs font-medium text-slate-700"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Publish Interval</span>
+            <div class="flex gap-2">
+              <input type="number" class="topic-interval flex-1 rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm" min="1" step="1" value="${interval}" />
+              <select class="topic-interval-unit rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 sm:py-2.5 text-xs sm:text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm">
+                <option value="ms" ${intervalUnit === 'ms' ? 'selected' : ''}>ms</option>
+                <option value="s" ${intervalUnit === 's' ? 'selected' : ''}>s</option>
+                <option value="m" ${intervalUnit === 'm' ? 'selected' : ''}>m</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <span class="mb-2 block text-[10px] sm:text-xs font-medium text-slate-700">Select Registers by Device</span>
+            <div class="device-accordion space-y-2">
+              ${devicesWithRegisters.map(device => {
+                const deviceSelectedCount = device.registers.filter(r => selectedRegs.includes(r.register_id)).length;
+                const deviceTotalCount = device.registers.length;
+                return `
+                  <div class="device-card border-2 border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden" data-device-id="${device.device_id}">
+                    <button type="button" class="device-header w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-all" data-device-id="${device.device_id}">
+                      <div class="flex items-center gap-2"><span class="text-base">📦</span>
+                        <div class="text-left">
+                          <p class="text-[11px] sm:text-xs font-bold text-slate-800">${device.device_id}</p>
+                          <p class="text-[9px] sm:text-[10px] text-slate-500">${device.device_name}</p>
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <span class="selection-badge px-2 py-1 rounded-full text-[9px] sm:text-[10px] font-bold ${deviceSelectedCount > 0 ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600'}">${deviceSelectedCount}/${deviceTotalCount}</span>
+                        <svg class="chevron size-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                      </div>
+                    </button>
+                    <div class="device-registers hidden animate-slide-down p-3 bg-slate-50 border-t border-slate-200">
+                      <div class="flex flex-wrap gap-2 mb-3">
+                        ${device.registers.map(reg => `
+                          <label class="cursor-pointer">
+                            <input type="checkbox" class="register-checkbox peer sr-only" value="${reg.register_id}" data-register-name="${reg.name}" data-device-id="${device.device_id}" ${selectedRegs.includes(reg.register_id) ? 'checked' : ''} />
+                            <div class="inline-flex flex-col items-start gap-0.5 rounded-lg border-2 border-slate-200 bg-white px-2 py-1.5 text-[10px] transition-all hover:bg-slate-50 peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white peer-checked:shadow-md active:scale-95 min-w-[100px]">
+                              <div class="flex items-center gap-1 w-full"><svg class="size-3 flex-shrink-0 hidden peer-checked:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg><span class="font-bold text-[9px] truncate" title="${reg.name}">${reg.name}</span></div>
+                              <span class="text-[8px] opacity-60 truncate w-full" title="${reg.register_id}">${reg.register_id}</span>
+                            </div>
+                          </label>
+                        `).join('')}
+                      </div>
+                      <div class="p-2 bg-white rounded-lg border border-slate-200">
+                        <p class="text-[9px] sm:text-[10px] text-slate-600"><strong>✓ Selected from ${device.device_id}:</strong> <span class="device-selected-list font-bold text-brand">${deviceSelectedCount > 0 ? device.registers.filter(r => selectedRegs.includes(r.register_id)).map(r => r.name).join(', ') : 'None'}</span></p>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+          <div class="p-2 sm:p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <p class="text-[10px] sm:text-xs text-blue-900 mb-1"><strong>✓ All Selected Registers:</strong></p>
+            <p class="selected-registers text-[9px] sm:text-xs font-bold text-blue-700">${selectedRegs.length > 0 ? getSelectedRegisterNames(topicDiv.querySelectorAll('.register-checkbox')).join(', ') : 'No registers selected yet'}</p>
+          </div>
+        </div>
+      `;
+
+      // --- Add event listeners for new elements ---
+      const removeBtn = topicDiv.querySelector('.remove-topic');
+      removeBtn.addEventListener('click', () => {
+        topicDiv.style.animation = 'slideUp 0.2s ease-out';
+        setTimeout(() => {
+          topicDiv.remove();
+          customTopicsData = customTopicsData.filter(t => t.id !== topicId);
+          renderPreview();
+        }, 150);
+      });
+
+      const topicInput = topicDiv.querySelector('.topic-name');
+      const intervalInput = topicDiv.querySelector('.topic-interval');
+      const intervalUnitInput = topicDiv.querySelector('.topic-interval-unit');
+      const checkboxes = topicDiv.querySelectorAll('.register-checkbox');
+      const selectedSpan = topicDiv.querySelector('.selected-registers');
+      const deviceHeaders = topicDiv.querySelectorAll('.device-header');
+
+      function updateTopicData() {
+        const selected = getSelectedRegisters(checkboxes);
+        updateCustomTopicData(topicId, topicInput.value, selected, parseInt(intervalInput.value) || 5, intervalUnitInput.value);
+        renderPreview();
+      }
+
+      topicInput.addEventListener('input', updateTopicData);
+      intervalInput.addEventListener('input', updateTopicData);
+      intervalUnitInput.addEventListener('change', updateTopicData);
+
+      deviceHeaders.forEach(header => {
+        header.addEventListener('click', function(e) { e.preventDefault(); const deviceCard = this.closest('.device-card'); const registers = deviceCard.querySelector('.device-registers'); const chevron = this.querySelector('.chevron'); const isOpen = !registers.classList.contains('hidden'); if (isOpen) { registers.classList.add('hidden'); chevron.style.transform = 'rotate(0deg)'; } else { registers.classList.remove('hidden'); chevron.style.transform = 'rotate(180deg)'; } });
+      });
+
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+          const deviceId = cb.dataset.deviceId;
+          const deviceCard = topicDiv.querySelector(`.device-card[data-device-id="${deviceId}"]`);
+          const deviceCheckboxes = deviceCard.querySelectorAll('.register-checkbox');
+          const selectedInDevice = Array.from(deviceCheckboxes).filter(ch => ch.checked).length;
+          const totalInDevice = deviceCheckboxes.length;
+          const badge = deviceCard.querySelector('.selection-badge');
+          badge.textContent = `${selectedInDevice}/${totalInDevice}`;
+          badge.className = selectedInDevice > 0 ? 'selection-badge px-2 py-1 rounded-full text-[9px] sm:text-[10px] font-bold bg-brand text-white' : 'selection-badge px-2 py-1 rounded-full text-[9px] sm:text-[10px] font-bold bg-slate-100 text-slate-600';
+          const deviceSelectedList = deviceCard.querySelector('.device-selected-list');
+          const selectedRegisterNames = Array.from(deviceCheckboxes).filter(ch => ch.checked).map(ch => ch.dataset.registerName);
+          deviceSelectedList.textContent = selectedRegisterNames.length > 0 ? selectedRegisterNames.join(', ') : 'None';
+          const allSelectedNames = getSelectedRegisterNames(checkboxes);
+          selectedSpan.textContent = allSelectedNames.length > 0 ? allSelectedNames.join(', ') : 'No registers selected yet';
+          updateTopicData();
+        });
+      });
+
+      customTopicsList.appendChild(topicDiv);
+      updateCustomTopicData(topicId, topicName, selectedRegs, interval, intervalUnit);
+      
+      const firstDevice = topicDiv.querySelector('.device-card');
+      if (firstDevice) {
+        firstDevice.querySelector('.device-registers').classList.remove('hidden');
+        firstDevice.querySelector('.chevron').style.transform = 'rotate(180deg)';
+      }
+      
+      renderPreview();
+    }
+
+    function getSelectedRegisters(checkboxes){ return Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value); }
+    function getSelectedRegisterNames(checkboxes){ return Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.registerName); }
+
+    function updateCustomTopicData(topicId, topicName, registers, interval, intervalUnit){
+      const index = customTopicsData.findIndex(t => t.id === topicId);
+      const data = { id: topicId, topic: topicName, registers, interval, intervalUnit };
+      if(index >= 0) { customTopicsData[index] = data; } else { customTopicsData.push(data); }
+    }
+
+    function updateAvailableRegistersInfo() {
+      const infoDiv = $('#availableRegistersInfo');
+      if (!infoDiv) return;
+      infoDiv.innerHTML = devicesWithRegisters.map(device => `
+        <div class="flex items-center justify-between py-1">
+          <span class="font-medium">📦 ${device.device_id}:</span>
+          <span class="font-bold">${device.registers.length} registers</span>
+        </div>`).join('');
+    }
+
+    // --- FUNGSI HTTP HEADERS ---
+    function headersFromUI(){
+      const rows = [...headersList.querySelectorAll('[data-row]')];
+      const obj = {};
+      for(const row of rows){
+        const k = row.querySelector('[data-k]').value.trim();
+        const v = row.querySelector('[data-v]').value;
+        if(k) obj[k] = v;
+      }
+      return obj;
+    }
+
+    function addHeaderRow(k = '', v = ''){
+      const row = document.createElement('div');
+      row.setAttribute('data-row', '');
+      row.className = 'grid grid-cols-12 gap-2 animate-scale-in';
+      row.innerHTML = `
+        <input data-k type="text" placeholder="Header Name" value="${k}"
+          class="col-span-5 w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm"/>
+        <input data-v type="text" placeholder="Header Value" value="${v}"
+          class="col-span-6 w-full rounded-lg sm:rounded-xl border-2 border-slate-200 px-3 py-2 text-xs outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition-all bg-white shadow-sm"/>
+        <button type="button" class="col-span-1 rounded-lg bg-gradient-to-r from-red-500 to-red-600 px-2 text-xs font-semibold text-white shadow-md hover:from-red-600 hover:to-red-700 transition-all active:scale-95">X</button>
+      `;
+      row.querySelector('button').addEventListener('click', () => {
+        row.style.animation = 'slideUp 0.2s ease-out';
+        setTimeout(() => { row.remove(); renderPreview(); }, 150);
+      });
+      row.querySelectorAll('input').forEach(el => el.addEventListener('input', renderPreview));
+      headersList.appendChild(row);
+    }
+
+    // --- FUNGSI UTAMA JSON PAYLOAD ---
+    
+    function protocolValue(){
+      const m = mqttEnabled.checked, h = httpEnabled.checked;
+      if(m && h) return 'both';
+      if(m) return 'mqtt';
+      if(h) return 'http';
+      return 'none';
+    }
+
+    function payloadFromForm(){
+      const modeVal = document.querySelector('input[name="mode"]:checked').value;
+      const mqttMode = defaultModeEnabled.checked ? 'default' : 'customize';
+      
+      let mqttConfig = {
+        enabled: mqttEnabled.checked,
+        broker_address: broker.value || "",
+        broker_port: Number(brokerPort.value) || 0,
+        client_id: clientId.value || "",
+        username: mqttUser.value || "",
+        password: mqttPass.value || "",
+        topic_publish: topicPub.value || "",
+        topic_subscribe: topicSub.value || "",
+        keep_alive: Number(keepAlive.value) || 0,
+        clean_session: cleanSession.checked,
+        use_tls: useTls.checked,
+        publish_mode: mqttMode
+      };
+
+      if(mqttMode === 'default'){
+        mqttConfig.default_mode = {
+          enabled: true,
+          topic_publish: topicPub.value || "",
+          topic_subscribe: topicSub.value || "",
+          interval: Number(defaultIntervalValue.value) || 5,
+          interval_unit: defaultIntervalUnit.value
+        };
+        mqttConfig.customize_mode = {
+          enabled: false,
+          custom_topics: []
+        };
+      } else {
+        mqttConfig.default_mode = {
+          enabled: false,
+          topic_publish: topicPub.value || "",
+          topic_subscribe: topicSub.value || "",
+          interval: Number(defaultIntervalValue.value) || 5,
+          interval_unit: defaultIntervalUnit.value
+        };
+        mqttConfig.customize_mode = {
+          enabled: true,
+          topic_subscribe: topicSubCustomize.value || "",
+          custom_topics: customTopicsData.map(t => ({
+            topic: t.topic,
+            registers: t.registers,
+            interval: t.interval,
+            interval_unit: t.intervalUnit
+          }))
+        };
+      }
+      
+      return {
+        op: "update",
+        type: "server_config",
+        config: {
+          communication: { mode: modeVal },
+          wifi: {
+            enabled: wifiEnabled.checked,
+            ssid: ssid.value || "",
+            password: wifipass.value || ""
+          },
+          ethernet: {
+            enabled: ethEnabled.checked,
+            use_dhcp: useDhcp.checked,
+            static_ip: ip.value || "",
+            gateway: gw.value || "",
+            subnet: mask.value || ""
+          },
+          protocol: protocolValue(),
+          
+          // data_interval DIHAPUS DARI SINI
+          
+          mqtt_config: mqttConfig,
+          
+          http_config: {
+            enabled: httpEnabled.checked,
+            endpoint_url: endpoint.value || "",
+            method: httpMethod.value,
+            body_format: bodyFormat.value,
+            timeout: Number(httpTimeout.value) || 0,
+            retry: Number(httpRetry.value) || 0,
+            interval: Number(httpIntervalValue.value) || 5,
+            interval_unit: httpIntervalUnit.value,
+            headers: headersFromUI()
+          }
+        }
+      };
+    }
+
+    function validateIPs(){
+      ipErr.classList.add('hidden');
+      if(!ethEnabled.checked || (ethEnabled.checked && useDhcp.checked)){
+        return true;
+      }
+      
+      let allValid = true;
+      for(const el of [ip, gw, mask]){
+        if(!el.value || !el.checkValidity()){
+          el.classList.add('border-red-500', 'animate-shake');
+          allValid = false;
+        } else {
+          el.classList.remove('border-red-500', 'animate-shake');
+        }
+      }
+      if (!allValid) {
+         ipErr.classList.remove('hidden');
+      }
+      return allValid;
+    }
+
+    function renderPreview(){
+      preview.textContent = JSON.stringify(payloadFromForm(), null, 2);
+    }
+    
+    // --- INISIALISASI & EVENT LISTENERS ---
+    addHeaderRow('Authorization', 'Bearer TOKEN_ANDA');
+    addHeaderRow('Content-Type', 'application/json');
+    initToggle('internet', true);
+    initToggle('mqtt', true);
+    initToggle('http', false);
+    $('#addHeader').addEventListener('click', () => addHeaderRow());
+    addCustomTopicBtn.addEventListener('click', () => addCustomTopic());
+    
+    defaultModeEnabled.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            customizeModeEnabled.checked = false;
+        } else if (!customizeModeEnabled.checked) {
+            e.target.checked = true;
+        }
+        updateVisibility();
+        renderPreview();
+    });
+    customizeModeEnabled.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            defaultModeEnabled.checked = false;
+        } else if (!defaultModeEnabled.checked) {
+            e.target.checked = true;
+        }
+        updateVisibility();
+        renderPreview();
+    });
+
+    document.querySelectorAll('input, select').forEach(el => {
+      el.addEventListener('input', () => {
+        updateVisibility();
+        if (el.type !== 'password') renderPreview();
+      });
+      el.addEventListener('change', () => {
+        updateVisibility();
+        renderPreview();
+      });
+    });
+
+    btnBuild.addEventListener('click', () => {
+      if(validateIPs()) {
+        renderPreview();
+        btnBuild.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Built!';
+        setTimeout(() => btnBuild.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Build Config', 1200);
+      } else {
+        btnBuild.innerHTML = '❌ Check Errors';
+        setTimeout(() => btnBuild.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Build Config', 1200);
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      if(!confirm('Are you sure you want to reset all fields to default?')) return;
+      
+      document.querySelector('input[name="mode"][value="ETH"]').checked = true;
+      wifiEnabled.checked = true;
+      ssid.value = "MyWiFi";
+      wifipass.value = "MyPassword";
+      ethEnabled.checked = true;
+      useDhcp.checked = true;
+      ip.value = "";
+      gw.value = "";
+      mask.value = "";
+      
+      defaultIntervalValue.value = 5;
+      defaultIntervalUnit.value = 's';
+      httpIntervalValue.value = 5;
+      httpIntervalUnit.value = 's';
+      
+      mqttEnabled.checked = true;
+      broker.value = "broker.hivemq.com";
+      brokerPort.value = 1883;
+      clientId.value = "SuriotaGateway-001";
+      mqttUser.value = "mqtt_user";
+      mqttPass.value = "mqtt_password";
+      topicPub.value = "v1/devices/me/telemetry";
+      topicSub.value = "v1/devices/me/rpc";
+      keepAlive.value = 60;
+      cleanSession.checked = true;
+      useTls.checked = false;
+      defaultModeEnabled.checked = true;
+      customizeModeEnabled.checked = false;
+      topicSubCustomize.value = "v1/devices/me/rpc";
+      
+      httpEnabled.checked = false;
+      endpoint.value = "https://api.example.com/data";
+      httpMethod.value = "POST";
+      bodyFormat.value = "json";
+      httpTimeout.value = 5000;
+      httpRetry.value = 3;
+      
+      headersList.innerHTML = '';
+      addHeaderRow('Authorization', 'Bearer YOUR_TOKEN');
+      addHeaderRow('Content-Type', 'application/json');
+      
+      customTopicsList.innerHTML = '';
+      customTopicsData = [];
+      topicCounter = 1;
+      
+      updateVisibility();
+      renderPreview();
+    });
+
+    btnCopy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(preview.textContent);
+        btnCopy.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Copied!';
+        setTimeout(() => btnCopy.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg> Copy JSON', 1200);
+      } catch {
+        btnCopy.textContent = '❌ Copy Failed';
+        setTimeout(() => btnCopy.innerHTML = '<svg class="size-4 sm:size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg> Copy JSON', 1200);
+      }
+    });
+
+    // --- Init UI ---
+    updateAvailableRegistersInfo();
+    addCustomTopic('sensor/temperature', ['temp_room_1', 'humidity_room_1'], 5, 's');
+    addCustomTopic('power/meter/total', ['power_total', 'frequency'], 10, 's');
+    
+    updateVisibility();
+    renderPreview();
+    
+    initToggle('internet', true);
+    initToggle('mqtt', true);
+    initToggle('http', false);
+  </script>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup Device Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
+      }}
+    }
+  </script>
+  <style>
+    @keyframes pulse-bg { 50% { background-color: #10b981; } }
+    .live-dot { animation: pulse-bg 2s infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="#" class="font-semibold text-slate-900 flex items-center gap-1 hover:text-brand">
+        <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        Back
+      </a>
+      <div class="flex gap-2">
+        <button id="btnEdit" title="Edit Device" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
+          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+        <button id="btnDelete" title="Delete Device" class="p-2 rounded-full hover:bg-red-50 text-slate-500 hover:text-red-600">
+          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397M4.125 4.5h15.75" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-2xl mx-auto p-4 space-y-4">
+    <!-- Device card -->
+    <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+      <h2 id="devName" class="text-xl font-semibold text-brand">Main Power Meter</h2>
+      <div class="mt-2 grid grid-cols-1 gap-1 text-sm text-slate-700 sm:grid-cols-2">
+        <p><strong>Device ID:</strong> <span id="devId">D4A5F1</span></p>
+        <p><strong>Protocol:</strong> <span id="devProto">RTU</span></p>
+        <p><strong>Slave ID:</strong> <span id="devSlave">1</span></p>
+        <p><strong>Baud Rate:</strong> <span id="devBaud">9600</span></p>
+        <p><strong>Serial Port:</strong> <span id="devPort">1</span></p>
+        <p><strong>Refresh Rate:</strong> <span id="devRefresh">5000</span> ms</p>
+      </div>
+    </section>
+
+    <!-- Live toggle -->
+    <section class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <label for="streamToggle" class="font-medium">Live Data Stream</label>
+          <p id="statusText" class="text-xs text-slate-500">Status: idle</p>
+        </div>
+        <label class="inline-flex cursor-pointer select-none items-center gap-3">
+          <input id="streamToggle" type="checkbox" class="peer sr-only" />
+          <span class="relative h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500">
+            <span class="absolute left-1 top-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Live panel -->
+      <div id="livePanel" class="mt-3 hidden">
+        <div class="mb-2 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-emerald-700">
+            <span class="live-dot size-3 rounded-full bg-emerald-500"></span>
+            <span class="text-sm">Streaming data… <span class="text-slate-500">(paket <span class="font-mono text-slate-700">{ "status":"data", … }</span>)</span></span>
+          </div>
+          <div class="flex items-center gap-2 text-xs text-slate-500">
+            <span id="pktCount">0 pkt</span>
+            <button id="btnClearFeed" class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-emerald-50">Clear</button>
+          </div>
+        </div>
+        <pre id="sentPreview" class="mb-2 max-h-24 overflow-auto rounded-lg bg-slate-900 p-2 text-[12px] text-emerald-100"></pre>
+        <div id="liveFeed" class="max-h-80 overflow-auto space-y-2 pr-1"></div>
+      </div>
+    </section>
+
+    <!-- Registers header -->
+    <section>
+      <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-3">
+          <h2 class="font-semibold text-slate-700">Registers</h2>
+          <span id="regCount" class="text-sm text-slate-500">0 registers</span>
+        </div>
+        <div class="flex gap-2">
+          <div class="relative">
+            <input id="regSearch" type="text" placeholder="Cari register…"
+                   class="w-44 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+            <svg class="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          </div>
+          <select id="regSort" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+            <option value="name">Sort: Name</option>
+            <option value="addr">Sort: Address</option>
+            <option value="type">Sort: Type</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div id="regList" class="space-y-2"></div>
+
+      <!-- Empty -->
+      <div id="regEmpty" class="hidden rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-500">
+        Tidak ada register yang cocok.
+      </div>
+    </section>
+  </main>
+
+  <!-- FAB -->
+  <button title="Add New Register" class="fixed bottom-6 right-6 size-14 rounded-full bg-brand text-white shadow-lg transition hover:brightness-110 active:scale-95">
+    <svg class="size-7 mx-auto" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+  </button>
+
+  <!-- Modal register detail -->
+  <div id="modal" class="fixed inset-0 z-20 hidden">
+    <div class="absolute inset-0 bg-black/40" data-close></div>
+    <div class="relative mx-auto mt-20 w-[92%] max-w-md rounded-2xl bg-white p-4 shadow-soft">
+      <h3 class="text-base font-semibold text-slate-900">Register Detail</h3>
+      <div class="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-700">
+        <p><b>Name:</b> <span id="mdName"></span></p>
+        <p><b>ID:</b> <span id="mdId"></span></p>
+        <p><b>Address:</b> <span id="mdAddr"></span></p>
+        <p><b>Function Code:</b> <span id="mdFc"></span></p>
+        <p><b>Data Type:</b> <span id="mdType"></span></p>
+        <p><b>Description:</b> <span id="mdDesc"></span></p>
+      </div>
+      <div class="mt-4 flex justify-end">
+        <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm" data-close>Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $  = (q)=>document.querySelector(q);
+    const $$ = (q)=>document.querySelectorAll(q);
+
+    /* ======== Seed device & registers (contoh) ======== */
+    const device = {
+      name: 'Main Power Meter',
+      id:   'D4A5F1',
+      proto:'RTU',
+      slave: 1,
+      baud:  9600,
+      port:  1,
+      refresh_ms: 5000
+    };
+
+    const registers = [
+      { name:'Voltage L1',  reg_id:'R12345', addr:40001, fc:3, type:'FLOAT32_LE_BS', desc:'Tegangan Phase 1' },
+      { name:'Frequency',   reg_id:'R67890', addr:40010, fc:3, type:'INT16',         desc:'Frekuensi' },
+      { name:'Power Factor',reg_id:'R11111', addr:40020, fc:3, type:'FLOAT32_LE_BS', desc:'PF total' },
+      { name:'Current L1',  reg_id:'R22222', addr:40030, fc:3, type:'FLOAT32_LE_BS', desc:'Arus Phase 1' },
+      { name:'Total kWH',   reg_id:'R33333', addr:40040, fc:3, type:'FLOAT32_LE_BS', desc:'Energi kumulatif' },
+    ];
+
+    /* ======== Populate device card ======== */
+    $('#devName').textContent   = device.name;
+    $('#devId').textContent     = device.id;
+    $('#devProto').textContent  = device.proto;
+    $('#devSlave').textContent  = device.slave;
+    $('#devBaud').textContent   = device.baud;
+    $('#devPort').textContent   = device.port;
+    $('#devRefresh').textContent= device.refresh_ms;
+
+    /* ======== Registers render / search / sort ======== */
+    let q = '';
+    let sortBy = 'name';
+
+    const regList = $('#regList');
+    const regEmpty = $('#regEmpty');
+    const regCount = $('#regCount');
+
+    function renderRegisters(){
+      let rows = registers.slice();
+
+      // filter
+      if(q){
+        const qq = q.toLowerCase();
+        rows = rows.filter(r =>
+          r.name.toLowerCase().includes(qq) ||
+          r.reg_id.toLowerCase().includes(qq) ||
+          String(r.addr).includes(qq) ||
+          r.type.toLowerCase().includes(qq)
+        );
+      }
+
+      // sort
+      rows.sort((a,b)=>{
+        if(sortBy==='addr') return a.addr - b.addr;
+        if(sortBy==='type') return a.type.localeCompare(b.type);
+        return a.name.localeCompare(b.name);
+      });
+
+      // render
+      regList.innerHTML = rows.map(r => `
+        <div class="reg-card bg-white p-3 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md transition"
+             data-id="${r.reg_id}">
+          <div class="flex justify-between items-center">
+            <span class="font-semibold text-sm text-slate-800">${r.name}</span>
+            <span class="text-xs text-slate-500">ID: ${r.reg_id}</span>
+          </div>
+          <div class="mt-1 flex justify-between text-xs text-slate-500">
+            <span>Addr: ${r.addr} (FC ${r.fc})</span>
+            <span>Type: ${r.type}</span>
+          </div>
+        </div>
+      `).join('');
+
+      regCount.textContent = `${rows.length} register${rows.length!==1?'s':''}`;
+      regEmpty.classList.toggle('hidden', rows.length>0);
+
+      // click -> modal detail
+      regList.querySelectorAll('.reg-card').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const id = el.dataset.id;
+          const r = registers.find(x=>x.reg_id===id);
+          if(!r) return;
+          $('#mdName').textContent = r.name;
+          $('#mdId').textContent   = r.reg_id;
+          $('#mdAddr').textContent = r.addr;
+          $('#mdFc').textContent   = r.fc;
+          $('#mdType').textContent = r.type;
+          $('#mdDesc').textContent = r.desc || '-';
+          openModal();
+        });
+      });
+    }
+
+    $('#regSearch').addEventListener('input', (e)=>{ q = e.target.value.trim(); renderRegisters(); });
+    $('#regSort').addEventListener('change', (e)=>{ sortBy = e.target.value; renderRegisters(); });
+
+    /* ======== Modal ======== */
+    const modal = $('#modal');
+    function openModal(){ modal.classList.remove('hidden'); }
+    function closeModal(){ modal.classList.add('hidden'); }
+    modal.addEventListener('click', (e)=>{ if(e.target.dataset.close!==undefined) closeModal(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+
+    /* ======== Streaming (mock) ======== */
+    const streamToggle  = $('#streamToggle');
+    const livePanel     = $('#livePanel');
+    const statusText    = $('#statusText');
+    const liveFeed      = $('#liveFeed');
+    const pktCountEl    = $('#pktCount');
+    const sentPreview   = $('#sentPreview');
+    const btnClearFeed  = $('#btnClearFeed');
+
+    let streamInterval = null;
+    let pktCount = 0;
+
+    const metrics = ['Voltage L1','Current L1','Frequency','Power Factor','Total kWH'];
+
+    function sendPayload(payload){
+      // Di integrasi nyata: kirim via BLE/WebSocket/HTTP
+      sentPreview.textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function addFeedItem(){
+      const name  = metrics[Math.floor(Math.random()*metrics.length)];
+      const value = (Math.random()*(250-5)+5).toFixed(2);
+      const time  = new Date().toLocaleTimeString();
+
+      const row = document.createElement('div');
+      row.className = 'p-3 rounded-lg bg-emerald-50 flex justify-between items-center border border-emerald-100';
+      row.innerHTML = `
+        <div>
+          <span class="font-medium text-brand">${name}</span>
+          <span class="block text-[11px] text-slate-500">time: ${time}</span>
+        </div>
+        <span class="text-xl font-mono text-brand">${value}</span>
+      `;
+      liveFeed.prepend(row);
+      if(liveFeed.children.length>60) liveFeed.removeChild(liveFeed.lastChild);
+      pktCount++; pktCountEl.textContent = `${pktCount} pkt`;
+    }
+
+    function startStream(){
+      if(streamInterval){ clearInterval(streamInterval); streamInterval = null; }
+      const payloadStart = { op:'read', type:'data', device_id: device.id };
+      sendPayload(payloadStart);
+
+      livePanel.classList.remove('hidden');
+      statusText.textContent = 'Status: running';
+      liveFeed.innerHTML = '';
+      pktCount = 0; pktCountEl.textContent = '0 pkt';
+
+      streamInterval = setInterval(addFeedItem, 1500);
+    }
+
+    function stopStream(){
+      const payloadStop = { op:'read', type:'data', device_id:'stop' };
+      sendPayload(payloadStop);
+
+      if(streamInterval){ clearInterval(streamInterval); streamInterval = null; }
+      livePanel.classList.add('hidden');
+      statusText.textContent = 'Status: idle';
+    }
+
+    streamToggle.addEventListener('change', ()=>{ streamToggle.checked ? startStream() : stopStream(); });
+    btnClearFeed.addEventListener('click', ()=>{ liveFeed.innerHTML=''; pktCount=0; pktCountEl.textContent='0 pkt'; });
+
+    // Actions header (placeholder)
+    $('#btnEdit').addEventListener('click', ()=> alert('Edit Device: wire ke form edit.'));
+    $('#btnDelete').addEventListener('click', ()=> confirm('Hapus device ini?'));
+
+    /* ======== Init ======== */
+    renderRegisters();
+  </script>
+</body>
+</html>

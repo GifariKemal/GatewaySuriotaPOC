@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup Device List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
+      }}
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto px-4 py-4 flex justify-between items-center">
+      <h1 class="text-lg font-semibold text-slate-900">Suriota Gateway</h1>
+      <button id="btnSettings" title="Settings" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800">
+        <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.055l.737-.417c.47-.268 1.02-.014 1.147.448l.548 1.096c.126.251.01.563-.24.72l-.737.417c-.35.197-.52.563-.52.94 0 .377.17.743.52.94l.737.417c.25.157.366.47.24.72l-.548 1.096c-.128.463-.678.717-1.147.448l-.737-.417c-.35-.197-.807-.22-1.205-.055a.996.996 0 0 0-.78.93l-.149.894c-.09.542-.56.94-1.11.94h-1.093c-.55 0-1.02-.398-1.11-.94l-.149-.894a.996.996 0 0 0-.78-.93c-.398-.164-.855-.142-1.205.055l-.737.417c-.47.268-1.02.014-1.147-.448l-.548-1.096c-.126-.251-.01-.563.24-.72l.737-.417c.35-.197.807-.22 1.205-.055a.996.996 0 0 0 .78-.93l.149-.894Z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-2xl mx-auto p-4 space-y-4">
+    <!-- Controls -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex-1">
+        <label class="sr-only" for="search">Search</label>
+        <div class="relative">
+          <input id="search" type="text" placeholder="Cari device / ID…"
+                 class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+          <svg class="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button data-filter="ALL" class="flt active rounded-full px-3 py-1.5 text-xs font-semibold border border-emerald-200 bg-emerald-50 text-brand hover:bg-emerald-100">All</button>
+        <button data-filter="RTU" class="flt rounded-full px-3 py-1.5 text-xs font-semibold border border-emerald-200 text-emerald-700 hover:bg-emerald-50">RTU</button>
+        <button data-filter="TCP" class="flt rounded-full px-3 py-1.5 text-xs font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50">TCP</button>
+      </div>
+    </div>
+
+    <!-- Header Row -->
+    <div class="flex justify-between items-center">
+      <h2 class="font-semibold text-slate-700">Configured Devices</h2>
+      <span id="devCount" class="text-sm text-slate-500">0 devices</span>
+    </div>
+
+    <!-- Device list -->
+    <section id="list" class="space-y-3"></section>
+
+    <!-- Empty state -->
+    <div id="empty" class="hidden rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-500">
+      Belum ada device yang cocok. Tambah device baru dengan tombol di kanan bawah.
+    </div>
+  </main>
+
+  <!-- FAB Add -->
+  <button id="btnAdd" title="Add New Device"
+          class="fixed bottom-6 right-6 size-14 rounded-full bg-brand text-white shadow-lg transition hover:brightness-110 active:scale-95">
+    <svg class="size-7 mx-auto" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+  </button>
+
+  <!-- Modal Add Device -->
+  <div id="modal" class="fixed inset-0 z-20 hidden">
+    <div class="absolute inset-0 bg-black/40" data-close></div>
+    <div class="relative mx-auto mt-20 w-[92%] max-w-md rounded-2xl bg-white p-4 shadow-soft">
+      <h3 class="text-base font-semibold text-slate-900">Add Device</h3>
+      <div class="mt-3 grid grid-cols-1 gap-3">
+        <label class="text-sm">Device Name
+          <input id="mName" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200" placeholder="Main Power Meter" />
+        </label>
+        <label class="text-sm">Device ID
+          <input id="mId" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200" placeholder="D4A5F1" />
+        </label>
+        <label class="text-sm">Protocol
+          <select id="mProto" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+            <option>RTU</option><option>TCP</option>
+          </select>
+        </label>
+        <label class="text-sm">Registers
+          <input id="mRegs" type="number" min="0" value="0" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200" />
+        </label>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm" data-close>Cancel</button>
+        <button id="mSave" class="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+    const $$ = (q)=>document.querySelectorAll(q);
+
+    // Seed data
+    let devices = [
+      { name:'Main Power Meter', id:'D4A5F1', proto:'RTU', regs:5 },
+      { name:'VFD Pump 1',       id:'D6B8C2', proto:'TCP', regs:2 },
+    ];
+
+    // State
+    let filter = 'ALL';
+    let query  = '';
+
+    // Elements
+    const list = $('#list');
+    const empty = $('#empty');
+    const devCount = $('#devCount');
+    const search = $('#search');
+
+    function badge(proto){
+      const isRTU = proto === 'RTU';
+      const bg = isRTU ? 'bg-emerald-100 text-emerald-900' : 'bg-blue-100 text-blue-900';
+      return `<span class="px-2 py-0.5 rounded-full ${bg} text-xs font-medium">${proto}</span>`;
+    }
+
+    function card(dev){
+      const borderHover = dev.proto === 'RTU' ? 'hover:border-emerald-500' : 'hover:border-blue-500';
+      return `
+        <div class="card bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md ${borderHover} transition" data-id="${dev.id}">
+          <div class="flex justify-between items-center">
+            <h3 class="font-semibold ${dev.proto==='RTU' ? 'text-emerald-800' : 'text-blue-800'}">${dev.name}</h3>
+            ${badge(dev.proto)}
+          </div>
+          <div class="mt-2 flex justify-between text-sm text-slate-500">
+            <span>ID: ${dev.id}</span>
+            <span>${dev.regs} Registers</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function render(){
+      const filtered = devices.filter(d=>{
+        const f1 = (filter==='ALL') || d.proto===filter;
+        const f2 = !query || (d.name.toLowerCase().includes(query) || d.id.toLowerCase().includes(query));
+        return f1 && f2;
+      });
+
+      list.innerHTML = filtered.map(card).join('');
+      devCount.textContent = `${filtered.length} device${filtered.length!==1?'s':''}`;
+      empty.classList.toggle('hidden', filtered.length>0);
+
+      // click -> flash highlight (placeholder for navigation)
+      list.querySelectorAll('.card').forEach(cardEl=>{
+        cardEl.addEventListener('click', ()=>{
+          cardEl.classList.add('ring-2','ring-brand');
+          setTimeout(()=>cardEl.classList.remove('ring-2','ring-brand'), 350);
+          // TODO: navigate to device detail page
+        });
+      });
+    }
+
+    // Search
+    search.addEventListener('input', ()=>{
+      query = search.value.trim().toLowerCase();
+      render();
+    });
+
+    // Filters
+    $$('.flt').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.flt').forEach(b=>b.classList.remove('active','bg-emerald-50','text-brand','border-emerald-200'));
+        btn.classList.add('active','bg-emerald-50','text-brand','border-emerald-200');
+        filter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    // Modal
+    const modal = $('#modal');
+    const openModal = ()=> modal.classList.remove('hidden');
+    const closeModal = ()=> modal.classList.add('hidden');
+
+    $('#btnAdd').addEventListener('click', openModal);
+    modal.addEventListener('click', (e)=>{ if(e.target.dataset.close!==undefined) closeModal(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+
+    $('#mSave').addEventListener('click', ()=>{
+      const name = $('#mName').value.trim() || 'New Device';
+      const id   = $('#mId').value.trim()   || Math.random().toString(16).slice(2,8).toUpperCase();
+      const proto= $('#mProto').value;
+      const regs = Math.max(0, Number($('#mRegs').value)||0);
+
+      // prevent duplicate ID
+      if(devices.some(d=>d.id===id)){ alert('Device ID sudah terdaftar.'); return; }
+
+      devices.push({ name, id, proto, regs });
+      // reset form
+      $('#mName').value=''; $('#mId').value=''; $('#mRegs').value='0'; $('#mProto').value='RTU';
+      closeModal();
+      render();
+    });
+
+    // Init
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup Streaming</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64', ink:'#0b2a24' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
+      }}
+    }
+  </script>
+  <style>
+    @keyframes pulse-bg { 50% { background-color: #10b981; } }
+    .live-dot { animation: pulse-bg 2s infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 p-4 font-sans">
+  <div class="max-w-xl mx-auto rounded-2xl bg-white shadow-soft overflow-hidden border border-slate-200">
+    <!-- Header -->
+    <div class="p-4 bg-brand text-white">
+      <h1 class="text-lg font-semibold">Main Power Meter</h1>
+      <p class="text-sm/6 text-emerald-100">Device ID:
+        <input id="deviceId" type="text" value="Dca4cf"
+               class="ml-2 w-36 rounded-md border border-emerald-200 bg-white/10 px-2 py-0.5 text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+               placeholder="D4A5F1" />
+      </p>
+    </div>
+
+    <!-- Toggle Bar -->
+    <div class="p-4 bg-emerald-50/60 flex items-center justify-between gap-3">
+      <div class="min-w-0">
+        <label for="streamToggle" class="font-medium text-brand">Live Data Stream</label>
+        <p id="statusText" class="text-xs text-slate-600">Status: idle</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="pktCount" class="text-xs text-slate-600">0 pkt</span>
+        <label class="inline-flex cursor-pointer select-none items-center gap-3" title="Start/Stop Stream">
+          <input id="streamToggle" type="checkbox" class="peer sr-only" />
+          <span class="relative h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500">
+            <span class="absolute left-1 top-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Payload preview (what we send) -->
+    <div class="px-4 pt-3">
+      <p class="text-xs text-slate-600">Payload terakhir dikirim:</p>
+      <pre id="sentPreview" class="mt-1 max-h-24 overflow-auto rounded-lg bg-slate-900 p-2 text-[12px] text-emerald-100"></pre>
+    </div>
+
+    <!-- Live Panel -->
+    <div id="liveDataPanel" class="p-4 space-y-3 hidden">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-emerald-700">
+          <span class="live-dot size-3 rounded-full bg-emerald-500"></span>
+          <span class="text-sm">Streaming data… <span class="text-slate-500">(menerima paket <span class="font-mono text-slate-700">{ "status": "data", … }</span>)</span></span>
+        </div>
+        <button id="btnClear" class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-emerald-50">Clear Feed</button>
+      </div>
+
+      <div id="liveFeed" class="max-h-72 overflow-auto space-y-2 pr-1">
+        <!-- items injected here -->
+      </div>
+    </div>
+
+    <!-- Placeholder Panel -->
+    <div id="placeholderPanel" class="p-6 text-center text-slate-600">
+      <p>Aktifkan toggle untuk memulai streaming data dari device ini.</p>
+      <p class="text-xs mt-2">
+        (Akan mengirim:
+        <span class="font-mono text-brand bg-emerald-50 px-1 py-0.5 rounded">
+          { "op":"read", "type":"data", "device_id":"&lt;ID&gt;" }
+        </span>)
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+
+    const deviceIdInput   = $('#deviceId');
+    const streamToggle     = $('#streamToggle');
+    const liveDataPanel    = $('#liveDataPanel');
+    const placeholderPanel = $('#placeholderPanel');
+    const liveFeed         = $('#liveFeed');
+    const statusText       = $('#statusText');
+    const pktCountEl       = $('#pktCount');
+    const btnClear         = $('#btnClear');
+    const sentPreview      = $('#sentPreview');
+
+    let streamInterval = null;
+    let pktCount = 0;
+
+    // contoh metrik
+    const registers = ['Voltage L1','Current L1','Frequency','Power Factor','Total kWH'];
+
+    function sendPayload(payload){
+      // preview payload yang "dikirim"
+      sentPreview.textContent = JSON.stringify(payload, null, 2);
+      // di implementasi nyata, kirim via BLE/WebSocket/HTTP sesuai arsitektur
+      // console.log('SEND', JSON.stringify(payload));
+    }
+
+    function addFeedItem() {
+      const name  = registers[Math.floor(Math.random() * registers.length)];
+      const value = (Math.random() * (250 - 5) + 5).toFixed(2);
+      const time  = new Date().toLocaleTimeString();
+
+      const item = document.createElement('div');
+      item.className = 'p-3 rounded-lg bg-emerald-50 flex justify-between items-center border border-emerald-100';
+      item.innerHTML = `
+        <div>
+          <span class="font-medium text-brand">${name}</span>
+          <span class="block text-[11px] text-slate-500">time: ${time}</span>
+        </div>
+        <span class="text-xl font-mono text-brand">${value}</span>
+      `;
+
+      // newest at top
+      liveFeed.prepend(item);
+      if (liveFeed.children.length > 50) {
+        liveFeed.removeChild(liveFeed.lastChild);
+      }
+      pktCount++;
+      pktCountEl.textContent = `${pktCount} pkt`;
+    }
+
+    function startStream() {
+      // clear interval lama
+      if (streamInterval) { clearInterval(streamInterval); streamInterval = null; }
+
+      const devId = (deviceIdInput.value || '').trim() || 'UNKNOWN';
+      const payloadStart = { op:'read', type:'data', device_id: devId };
+      sendPayload(payloadStart);
+
+      liveDataPanel.classList.remove('hidden');
+      placeholderPanel.classList.add('hidden');
+      liveFeed.innerHTML = '';
+      pktCount = 0;
+      pktCountEl.textContent = '0 pkt';
+      statusText.textContent = 'Status: running';
+
+      // simulasi data masuk
+      streamInterval = setInterval(addFeedItem, 1500);
+    }
+
+    function stopStream() {
+      const payloadStop = { op:'read', type:'data', device_id:'stop' };
+      sendPayload(payloadStop);
+
+      if (streamInterval) { clearInterval(streamInterval); streamInterval = null; }
+      liveDataPanel.classList.add('hidden');
+      placeholderPanel.classList.remove('hidden');
+      statusText.textContent = 'Status: idle';
+    }
+
+    // Toggle handler
+    streamToggle.addEventListener('change', () => {
+      if (streamToggle.checked) startStream();
+      else stopStream();
+    });
+
+    // Clear feed
+    if (btnClear) {
+      btnClear.addEventListener('click', () => {
+        liveFeed.innerHTML = '';
+        pktCount = 0;
+        pktCountEl.textContent = '0 pkt';
+      });
+    }
+
+    // seed preview kosong
+    sentPreview.textContent = '';
+  </script>
+</body>
+</html>

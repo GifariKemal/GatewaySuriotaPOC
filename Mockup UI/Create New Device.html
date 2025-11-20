@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Device Form – RTU/TCP + Serial Mode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64', ink:'#e7f3f0' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
+      }}
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <main class="mx-auto max-w-xl p-4">
+    <div class="rounded-2xl bg-white p-4 shadow-soft sm:p-6">
+      <h1 class="text-base font-semibold">Device Settings</h1>
+      <p class="mt-1 text-xs text-slate-500">Pilih protokol RTU atau TCP, lalu atur parameter serial (mis. 8N1). JSON pratinjau muncul otomatis.</p>
+
+      <!-- Device Name -->
+      <label for="dev_name" class="mt-4 block text-sm">Device Name</label>
+      <input id="dev_name" type="text" placeholder="e.g., Main Power Meter"
+             class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+
+      <!-- Protocol -->
+      <label for="dev_proto" class="mt-4 block text-sm">Protocol</label>
+      <select id="dev_proto"
+              class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+        <option selected>RTU</option>
+        <option>TCP</option>
+      </select>
+
+      <!-- RTU Settings -->
+      <fieldset id="rtu_fs" class="mt-4 rounded-xl border border-slate-200 p-4">
+        <legend class="px-1 text-xs text-slate-500">RTU Settings</legend>
+
+        <label for="dev_slave_id" class="mt-2 block text-sm">Slave ID</label>
+        <input id="dev_slave_id" type="number" value="10"
+               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+
+        <label for="dev_baud" class="mt-4 block text-sm">Baud Rate</label>
+        <select id="dev_baud"
+                class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+          <option>9600</option><option selected>19200</option><option>38400</option><option>57600</option><option>115200</option>
+        </select>
+
+        <label for="dev_mode" class="mt-4 block text-sm">Serial Mode</label>
+        <select id="dev_mode"
+                class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+          <option selected>8N1</option>
+          <option>8E1</option>
+          <option>8O1</option>
+          <option>7E1</option>
+          <option>7O1</option>
+        </select>
+        <p class="mt-1 text-xs text-slate-500">Format: <b>Data bits</b><span class="font-mono"> (8/7)</span> + <b>Parity</b> (N=None, E=Even, O=Odd) + <b>Stop bits</b> (1)</p>
+
+        <label for="dev_port" class="mt-4 block text-sm">Serial Port (1 or 2)</label>
+        <input id="dev_port" type="number" value="2" min="1" max="2"
+               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+        <p id="port_err" class="mt-1 hidden text-xs text-red-600">Serial Port harus 1 atau 2.</p>
+      </fieldset>
+
+      <!-- TCP Settings -->
+      <fieldset id="tcp_fs" class="mt-4 hidden rounded-xl border border-slate-200 p-4">
+        <legend class="px-1 text-xs text-slate-500">TCP Settings</legend>
+
+        <label for="dev_ip" class="mt-2 block text-sm">IP Address</label>
+        <input id="dev_ip" type="text" placeholder="192.168.1.55"
+               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+        <p id="ip_err" class="mt-1 hidden text-xs text-red-600">IP harus IPv4 valid, mis. 192.168.1.55</p>
+
+        <label for="dev_tcp_port" class="mt-4 block text-sm">Port</label>
+        <input id="dev_tcp_port" type="number" value="502"
+               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+
+        <label for="dev_tcp_slave" class="mt-4 block text-sm">Slave ID</label>
+        <input id="dev_tcp_slave" type="number" value="1"
+               class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+      </fieldset>
+
+      <!-- Refresh Rate -->
+      <label for="dev_refresh" class="mt-4 block text-sm">Refresh Rate (ms)</label>
+      <input id="dev_refresh" type="number" value="10000" min="1"
+             class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200"/>
+
+      <!-- Actions -->
+      <div class="mt-5 flex flex-wrap gap-3">
+        <button id="btnSave"
+                class="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110 active:scale-95">
+          Save Device
+        </button>
+        <button id="btnCopy"
+                class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-95">
+          Copy JSON
+        </button>
+      </div>
+
+      <!-- Preview -->
+      <div class="mt-4">
+        <h3 class="text-sm font-semibold">Preview JSON (read-only)</h3>
+        <pre id="preview" class="mt-2 max-h-80 overflow-auto rounded-xl bg-slate-900 p-3 text-[12px] leading-5 text-slate-100"></pre>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+
+    const proto = $('#dev_proto');
+    const rtuFs = $('#rtu_fs');
+    const tcpFs = $('#tcp_fs');
+    const port = $('#dev_port');
+    const portErr = $('#port_err');
+    const ip = $('#dev_ip');
+    const ipErr = $('#ip_err');
+    const preview = $('#preview');
+
+    function toggleFieldsets(){
+      const isTCP = proto.value === 'TCP';
+      tcpFs.classList.toggle('hidden', !isTCP);
+      rtuFs.classList.toggle('hidden',  isTCP);
+    }
+
+    function validSerialPort(){
+      const v = Number(port.value);
+      const ok = Number.isFinite(v) && v >= 1 && v <= 2;
+      portErr.classList.toggle('hidden', ok);
+      return ok;
+    }
+
+    function validIPv4(str){
+      const re = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+      return re.test(str);
+    }
+
+    function checkIP(){
+      if(proto.value !== 'TCP'){ ipErr.classList.add('hidden'); return true; }
+      const ok = validIPv4(ip.value.trim());
+      ipErr.classList.toggle('hidden', ok);
+      return ok;
+    }
+
+    function buildPayload(){
+      const protocol = proto.value;
+      return {
+        device: {
+          name: $('#dev_name').value || '',
+          protocol,
+          rtu: {
+            slave_id: Number($('#dev_slave_id').value) || 0,
+            baud_rate: Number($('#dev_baud').value) || 0,
+            serial_mode: $('#dev_mode').value,
+            serial_port: Number($('#dev_port').value) || 0
+          },
+          tcp: {
+            ip_address: $('#dev_ip').value || '',
+            port: Number($('#dev_tcp_port').value) || 0,
+            slave_id: Number($('#dev_tcp_slave').value) || 0
+          },
+          refresh_ms: Number($('#dev_refresh').value) || 0
+        }
+      };
+    }
+
+    function render(){
+      if(!validSerialPort()) return;
+      if(!checkIP()) return;
+      preview.textContent = JSON.stringify(buildPayload(), null, 2);
+    }
+
+    document.querySelectorAll('input, select').forEach(el=>{
+      el.addEventListener('input', ()=>{ toggleFieldsets(); render(); });
+      el.addEventListener('change', ()=>{ toggleFieldsets(); render(); });
+    });
+
+    $('#btnSave').addEventListener('click', (e)=>{ e.preventDefault(); render(); });
+    $('#btnCopy').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{
+        await navigator.clipboard.writeText(preview.textContent);
+        e.target.textContent = 'Copied!';
+        setTimeout(()=> e.target.textContent='Copy JSON', 1000);
+      }catch{
+        e.target.textContent = 'Gagal Copy';
+        setTimeout(()=> e.target.textContent='Copy JSON', 1000);
+      }
+    });
+
+    toggleFieldsets(); render();
+  </script>
+</body>
+</html>

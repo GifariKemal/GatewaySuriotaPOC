@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mockup Lainnya – Interactive</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
+      }}
+    }
+  </script>
+</head>
+<body class="bg-slate-100 p-4 space-y-8 text-slate-800">
+
+  <!-- Logging Config Card -->
+  <div class="max-w-md mx-auto rounded-xl bg-white shadow-soft overflow-hidden border border-slate-200">
+    <header class="bg-white border-b border-slate-200">
+      <div class="px-4 py-4 flex justify-between items-center">
+        <a href="#" class="font-semibold text-slate-900 flex items-center gap-1 hover:text-brand">
+          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+          Back
+        </a>
+        <h1 class="text-lg font-semibold text-slate-900">Logging Config</h1>
+        <div class="size-5"></div>
+      </div>
+    </header>
+
+    <div class="p-4 space-y-4">
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Logging Retention</span>
+        <select id="retention" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+          <option value="1w" selected>1 Minggu (1w)</option>
+          <option value="1m">1 Bulan (1m)</option>
+          <option value="3m">3 Bulan (3m)</option>
+        </select>
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-sm font-medium text-slate-700">Logging Interval</span>
+        <select id="interval" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
+          <option value="5m" selected>5 Menit (5m)</option>
+          <option value="10m">10 Menit (10m)</option>
+          <option value="30m">30 Menit (30m)</option>
+        </select>
+      </label>
+
+      <div>
+        <p class="text-xs text-slate-500">Preview Payload (read-only)</p>
+        <pre id="preview" class="mt-1 max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-[12px] text-emerald-100"></pre>
+      </div>
+
+      <button id="btnSave"
+        class="w-full rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow transition hover:brightness-110 active:scale-95 disabled:opacity-60">
+        Save Logging Config
+      </button>
+    </div>
+  </div>
+
+  <!-- Delete Device Dialog (modal style card) -->
+  <div class="max-w-md mx-auto rounded-xl bg-white shadow-soft overflow-hidden border border-slate-200 p-6">
+    <div class="text-center">
+      <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-red-100">
+        <svg class="size-6 text-red-600" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+      </div>
+      <h3 class="mt-4 text-lg font-semibold text-slate-900">Delete Device?</h3>
+      <p id="delText" class="mt-2 text-sm text-slate-500">
+        Are you sure you want to delete "<b>Main Power Meter</b>"? All 5 of its registers will also be permanently deleted. This action cannot be undone.
+      </p>
+    </div>
+    <div class="mt-6 grid grid-cols-2 gap-3">
+      <button id="btnCancel" class="w-full rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-300 active:scale-95">
+        Cancel
+      </button>
+      <button id="btnDelete" class="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95">
+        Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden">
+    <div class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm shadow-lg"></div>
+  </div>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+
+    // --- Helpers ---
+    function mapRetention(raw){
+      // 1w ~ 7 days, 1m ~ 30 days, 3m ~ 90 days (approx)
+      const map = { '1w':7, '1m':30, '3m':90 };
+      return { raw, days: map[raw] ?? 7 };
+    }
+    function mapInterval(raw){
+      // minutes
+      const map = { '5m':5, '10m':10, '30m':30 };
+      return { raw, minutes: map[raw] ?? 5 };
+    }
+    function buildPayload(){
+      const retention = mapRetention($('#retention').value);
+      const interval  = mapInterval($('#interval').value);
+      return {
+        logging: {
+          retention,
+          interval
+        },
+        updated_at: new Date().toISOString()
+      };
+    }
+    function showToast(msg){
+      const box = $('#toast');
+      box.querySelector('div').textContent = msg;
+      box.classList.remove('hidden');
+      setTimeout(()=> box.classList.add('hidden'), 1400);
+    }
+
+    // --- Logging Config interactions ---
+    const preview = $('#preview');
+    function renderPreview(){ preview.textContent = JSON.stringify(buildPayload(), null, 2); }
+    ['change','input'].forEach(ev=>{
+      $('#retention').addEventListener(ev, renderPreview);
+      $('#interval').addEventListener(ev, renderPreview);
+    });
+    renderPreview();
+
+    $('#btnSave').addEventListener('click', async ()=>{
+      const btn = $('#btnSave');
+      btn.disabled = true;
+      // Simpan ke localStorage sebagai simulasi persistensi
+      const payload = buildPayload();
+      try{
+        localStorage.setItem('suriota_logging_config', JSON.stringify(payload));
+        renderPreview(); // refresh timestamp
+        showToast('Logging config saved.');
+      }catch(e){
+        showToast('Failed to save.');
+      }finally{
+        setTimeout(()=> btn.disabled = false, 600);
+      }
+    });
+
+    // --- Delete Device interactions ---
+    // Kamu bisa ubah ini sesuai data runtime
+    const device = { name:'Main Power Meter', registers:5, id:'D4A5F1' };
+    $('#delText').innerHTML = `Are you sure you want to delete "<b>${device.name}</b>"? All ${device.registers} of its registers will also be permanently deleted. This action cannot be undone.`;
+
+    $('#btnCancel').addEventListener('click', ()=>{
+      showToast('Deletion canceled.');
+    });
+
+    $('#btnDelete').addEventListener('click', ()=>{
+      // Hook ke backend di sini. Untuk demo, kita hanya tampilkan toast.
+      // Misal: fetch('/api/devices/'+device.id, { method:'DELETE' })
+      showToast(`Device "${device.name}" deleted.`);
+    });
+  </script>
+</body>
+</html>
