@@ -1,15 +1,17 @@
-# 🌐 Network Configuration Guide
+# Network Configuration Guide
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 Dual Network Interface Configuration & Failover
 
+[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Network Configuration
+
 **Current Version:** v2.2.0
 **Developer:** Kemal
-**Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Last Updated:** November 20, 2025
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#-overview)
 - [Network Interfaces](#-network-interfaces)
@@ -807,16 +809,20 @@ graph TD
 
 ---
 
-## 📚 Related Documentation
+## Related Documentation
 
-- [API.md](API.md) - Complete API reference
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Network troubleshooting
-- [HARDWARE.md](HARDWARE.md) - GPIO pinout and hardware specs
-- [VERSION_HISTORY.md](VERSION_HISTORY.md) - Firmware changelog
+- [API Reference](../API_Reference/API.md) - Complete API reference
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Network troubleshooting
+- [Hardware Specifications](HARDWARE.md) - GPIO pinout and hardware specs
+- [Version History](../Changelog/VERSION_HISTORY.md) - Firmware changelog
+- [Best Practices](../BEST_PRACTICES.md) - Network deployment guidelines
+- [Quick Start Guide](../QUICKSTART.md) - Network setup in 5 minutes
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1 (Updated)
 **Firmware Version:** v2.2.0
-**Created:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Last Updated:** November 20, 2025
 **Author:** Kemal
+
+[← Back to Technical Guides](README.md) | [↑ Top](#network-configuration-guide)

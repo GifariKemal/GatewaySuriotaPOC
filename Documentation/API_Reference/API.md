@@ -1,27 +1,29 @@
-# 📖 API Reference
+# API Reference
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 BLE CRUD API Documentation
 
-**📌 Version:** 2.2.0 (November 14, 2025)
+[Home](../../README.md) > [Documentation](../README.md) > API Reference
+
+**Version:** 2.2.0 (November 14, 2025)
 **Developer:** Kemal
-**Timezone:** WIB (GMT+7)
+**Last Updated:** November 14, 2025
 
 > **What's New in v2.2.0:**
-> - 🔧 **Clean API Structure** - HTTP interval moved to `http_config` (breaking change)
-> - ⚠️ **Breaking Change:** `data_interval` removed from root level
-> - 📚 **New Documentation:** Complete Network Configuration guide
+> - Clean API Structure - HTTP interval moved to `http_config` (breaking change)
+> - Breaking Change: `data_interval` removed from root level
+> - New Documentation: Complete Network Configuration guide
 >
 > **Previous (v2.1.1):**
-> - 🚀 **28x faster BLE transmission** (21KB in 2.1s vs 58s)
-> - ✨ **Enhanced CRUD responses** with actual data
-> - 🆕 **New endpoint:** `devices_with_registers` (solves N+1 query problem)
+> - 28x faster BLE transmission (21KB in 2.1s vs 58s)
+> - Enhanced CRUD responses with actual data
+> - New endpoint: `devices_with_registers` (solves N+1 query problem)
 >
-> See [VERSION_HISTORY.md](VERSION_HISTORY.md) for migration guide.
+> See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for migration guide.
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Command Structure](#command-structure)
@@ -1825,15 +1827,24 @@ class SuriotaGateway {
 
 ---
 
-## 📚 Additional Resources
+## Related Documentation
 
-- [HARDWARE.md](HARDWARE.md) - GPIO pinout and electrical specs
-- [PROTOCOL.md](PROTOCOL.md) - BLE and Modbus protocol details
-- [MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md) - **MQTT publish modes (Default & Customize)**
-- [LOGGING.md](LOGGING.md) - Debug log reference
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
+- [Hardware Specifications](../Technical_Guides/HARDWARE.md) - GPIO pinout and electrical specs
+- [Protocol Documentation](../Technical_Guides/PROTOCOL.md) - BLE and Modbus protocol details
+- [MQTT Publish Modes](../Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT publish modes (Default & Customize)
+- [Logging System](../Technical_Guides/LOGGING.md) - Debug log reference
+- [Troubleshooting Guide](../Technical_Guides/TROUBLESHOOTING.md) - Common issues and solutions
+- [Best Practices](../BEST_PRACTICES.md) - Production deployment guidelines
+- [Quick Start Guide](../QUICKSTART.md) - Get started in 5 minutes
 
 ---
+
+**Document Version:** 1.1 (Updated)
+**Last Updated:** November 20, 2025
+**Firmware Version:** 2.2.0
+**Developer:** Kemal
+
+[← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)
 
 **© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
 *For technical support: support@suriota.com*
