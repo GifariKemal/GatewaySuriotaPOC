@@ -1,11 +1,14 @@
 /*
- * Global PSRAM Allocator for ArduinoJson v7
+ * PSRAM Allocator for ArduinoJson v7
  *
- * Overrides default allocator so ALL JsonDocument instances use PSRAM automatically
+ * Custom allocator that uses PSRAM instead of DRAM for JsonDocument allocations
  *
- * BUG #31: Comprehensive fix - ALL JsonDocument → PSRAM (not just 3 instances)
+ * BUG #31: ArduinoJson v7 doesn't allow overriding DefaultAllocator (class already defined in library).
+ *          Instead, we create a custom allocator and wrapper class.
  *
- * CRITICAL FIX: ArduinoJson v7 uses detail::DefaultAllocator, not DefaultAllocator!
+ * USAGE:
+ *   Instead of: JsonDocument doc;
+ *   Use:        SpiRamJsonDocument doc;
  */
 
 #ifndef JSON_DOCUMENT_PSRAM_H
@@ -16,13 +19,12 @@
 #include <esp_heap_caps.h>
 
 namespace ArduinoJson {
-namespace detail {  // CRITICAL: Must be in detail namespace for v7!
 
-// Override default allocator to use PSRAM
-class DefaultAllocator : public Allocator {
+// Custom PSRAM Allocator (different name to avoid redefinition error)
+class PSRAMAllocator : public Allocator {
 public:
   void* allocate(size_t size) override {
-    // Try PSRAM first (8MB available, plenty of space!)
+    // Try PSRAM first (8MB available)
     void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     if (ptr) {
@@ -36,7 +38,7 @@ public:
     if (ptr) {
       Serial.printf("[JSON] WARNING: Allocated %u bytes in DRAM (PSRAM failed!)\n", size);
     } else {
-      Serial.printf("[JSON] CRITICAL: Failed to allocate %u bytes (PSRAM and DRAM exhausted!)\n", size);
+      Serial.printf("[JSON] CRITICAL: Failed to allocate %u bytes\n", size);
     }
 
     return ptr;
@@ -57,7 +59,6 @@ public:
 
     // Try realloc in PSRAM
     void* new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
     if (new_ptr) return new_ptr;
 
     // Fallback: allocate new + copy + free old
@@ -72,16 +73,49 @@ public:
     return new_ptr;
   }
 
-  static DefaultAllocator* instance() {
-    static DefaultAllocator allocator;
+  static PSRAMAllocator* instance() {
+    static PSRAMAllocator allocator;
     return &allocator;
   }
 
 private:
-  DefaultAllocator() = default;
+  PSRAMAllocator() = default;
 };
 
-} // namespace detail
 } // namespace ArduinoJson
+
+// Wrapper class that uses PSRAM allocator by default
+class SpiRamJsonDocument : public ArduinoJson::JsonDocument {
+public:
+  SpiRamJsonDocument()
+    : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance()) {
+  }
+
+  // Copy constructor
+  SpiRamJsonDocument(const SpiRamJsonDocument& src)
+    : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance()) {
+    set(src);
+  }
+
+  // Move constructor
+  SpiRamJsonDocument(SpiRamJsonDocument&& src)
+    : ArduinoJson::JsonDocument(std::move(src)) {
+  }
+
+  // Assignment operators
+  SpiRamJsonDocument& operator=(const SpiRamJsonDocument& src) {
+    ArduinoJson::JsonDocument::operator=(src);
+    return *this;
+  }
+
+  SpiRamJsonDocument& operator=(SpiRamJsonDocument&& src) {
+    ArduinoJson::JsonDocument::operator=(std::move(src));
+    return *this;
+  }
+};
+
+// MACRO: Transparently replace JsonDocument with SpiRamJsonDocument
+// This allows existing code to use JsonDocument without changes
+#define JsonDocument SpiRamJsonDocument
 
 #endif // JSON_DOCUMENT_PSRAM_H
