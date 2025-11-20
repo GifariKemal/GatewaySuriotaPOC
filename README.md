@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)
+![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
@@ -9,7 +9,7 @@
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
 Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Developer:** Kemal | **Last Updated:** November 14, 2025 (Friday) - WIB (GMT+7)
+**Developer:** Kemal | **Last Updated:** November 20, 2025
 
 ---
 
@@ -140,7 +140,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 | **GPIO 14, 21, 47, 48** | ETH_SPI    | W5500 SPI3 (MOSI/MISO/SCK/CS)   |
 | **GPIO 10-13**          | SD_SPI     | MicroSD card SPI (optional)     |
 
-**Complete GPIO mapping**: See [docs/HARDWARE.md](docs/HARDWARE.md) for all 25 GPIO assignments
+**Complete GPIO mapping**: See [Documentation/Technical_Guides/HARDWARE.md](Documentation/Technical_Guides/HARDWARE.md) for all 25 GPIO assignments
 
 ### Power Requirements
 
@@ -158,14 +158,14 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 - **Arduino IDE** 2.0 or later
 - **ESP32 Board Package** 2.0.11 or later
-- **Required Libraries** (see [LIBRARIES.md](docs/LIBRARIES.md))
+- **Required Libraries** (see [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
 
 ### Installation
 
 1. **Clone Repository**
    ```bash
-   git clone https://github.com/suriota/SRT-MGATE-1210-Firmware.git
-   cd SRT-MGATE-1210-Firmware
+   git clone https://github.com/GifariKemal/GatewaySuriotaPOC.git
+   cd GatewaySuriotaPOC
    ```
 
 2. **Install ESP32 Board Support**
@@ -189,7 +189,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
    - OneButton (v2.0+) by Matthias Hertel
    ```
 
-   See [docs/LIBRARIES.md](docs/LIBRARIES.md) for detailed installation guide
+   See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for detailed installation guide
 
 4. **Configure Mode**
    - Open `Main/Main.ino`
@@ -245,7 +245,9 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 }
 ```
 
-See [docs/API.md](docs/API.md) for complete CRUD examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete CRUD examples.
+
+For a comprehensive quick start guide, see **[Documentation/QUICKSTART.md](Documentation/QUICKSTART.md)** - Get configured in 5 minutes!
 
 ---
 
@@ -387,48 +389,63 @@ graph LR
 
 ## 📚 Documentation
 
-Comprehensive documentation is available in the `Docs/` directory:
+Comprehensive documentation is available in the `Documentation/` directory:
 
-### 🆕 What's New in v2.1.1
+### 🆕 What's New in v2.2.0
 
-> **Latest Update:** November 14, 2025 (Friday) by Kemal
-> - 🚀 **28x faster BLE transmission** (21KB in 2.1s vs 58s)
-> - ✨ **Enhanced CRUD responses** with actual data
-> - 🆕 **New API endpoint:** `devices_with_registers`
-> - 📊 **Performance monitoring** for large datasets
+> **Latest Update:** November 20, 2025 by Kemal
+> - 📚 **Complete documentation overhaul** - 100% English with consistent navigation
+> - 🗂️ **New documentation hub** - Central README with role-based navigation
+> - ⚡ **Quick Start Guide** - Get configured in 5 minutes
+> - ❓ **FAQ** - 60+ frequently asked questions
+> - 📖 **Glossary** - A-Z technical terminology
+> - 🎯 **Best Practices** - Production deployment guidelines
+> - 🔗 **Cross-references** - Complete documentation linking
+> - 🧭 **Breadcrumb navigation** - Easy navigation across all docs
 
-**See:** [Docs/VERSION_HISTORY.md](Docs/VERSION_HISTORY.md) for complete changelog
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete changelog
+
+### 📖 Getting Started
+
+| Document                                                  | Description                                  |
+| --------------------------------------------------------- | -------------------------------------------- |
+| [**Documentation/README.md**](Documentation/README.md) ⭐ | Main documentation hub - Start here!         |
+| [**QUICKSTART.md**](Documentation/QUICKSTART.md)         | Get your gateway running in 5 minutes        |
+| [**FAQ.md**](Documentation/FAQ.md)                       | 60+ frequently asked questions               |
+| [**GLOSSARY.md**](Documentation/GLOSSARY.md)             | A-Z technical terminology reference          |
+| [**BEST_PRACTICES.md**](Documentation/BEST_PRACTICES.md) | Production deployment and security guidelines |
 
 ### 📖 Core Documentation
 
-| Document                                                                                | Description                                   |
-| --------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [**VERSION_HISTORY.md**](Docs/VERSION_HISTORY.md) ⭐                                     | Changelog and migration guide (v2.1.1)        |
-| [**API.md**](Docs/API.md)                                                               | Complete BLE CRUD API reference with examples |
-| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Docs/MQTT_PUBLISH_MODES_DOCUMENTATION.md)     | MQTT Default & Customize modes                |
-| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Docs/REGISTER_CALIBRATION_DOCUMENTATION.md) | Scale & offset calibration guide              |
+| Document                                                                                                                                | Description                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| [**Changelog/VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md)                                                         | Changelog and migration guide (v2.2.0)        |
+| [**API_Reference/API.md**](Documentation/API_Reference/API.md)                                                                         | Complete BLE CRUD API reference with examples |
+| [**Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)         | MQTT Default & Customize modes                |
+| [**Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)     | Scale & offset calibration guide              |
 
 ### 🔧 Technical Reference
 
-| Document                                            | Description                                    |
-| --------------------------------------------------- | ---------------------------------------------- |
-| [**MODBUS_DATATYPES.md**](Docs/MODBUS_DATATYPES.md) | 40+ Modbus data types with endianness variants |
-| [**PROTOCOL.md**](Docs/PROTOCOL.md)                 | BLE protocol, Modbus implementation details    |
-| [**LOGGING.md**](Docs/LOGGING.md)                   | Debug log reference and troubleshooting        |
+| Document                                                                                        | Description                                    |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [**Technical_Guides/MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md) | 40+ Modbus data types with endianness variants |
+| [**Technical_Guides/PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                 | BLE protocol, Modbus implementation details    |
+| [**Technical_Guides/LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                   | Debug log reference and troubleshooting        |
+| [**Technical_Guides/NETWORK_CONFIGURATION.md**](Documentation/Technical_Guides/NETWORK_CONFIGURATION.md) | Dual network interface and failover guide |
 
 ### 🚀 Performance & Troubleshooting
 
-| Document                                              | Description                            |
-| ----------------------------------------------------- | -------------------------------------- |
-| [**CAPACITY_ANALYSIS.md**](Docs/CAPACITY_ANALYSIS.md) | Gateway capacity limits and benchmarks |
-| [**TROUBLESHOOTING.md**](Docs/TROUBLESHOOTING.md)     | Common issues and solutions            |
+| Document                                                                                        | Description                            |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------- |
+| [**Technical_Guides/CAPACITY_ANALYSIS.md**](Documentation/Technical_Guides/CAPACITY_ANALYSIS.md) | Gateway capacity limits and benchmarks |
+| [**Technical_Guides/TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
 
 ### 🔌 Hardware & Setup
 
-| Document                              | Description                               |
-| ------------------------------------- | ----------------------------------------- |
-| [**HARDWARE.md**](Docs/HARDWARE.md)   | GPIO pinout, schematics, electrical specs |
-| [**LIBRARIES.md**](Docs/LIBRARIES.md) | Third-party libraries and dependencies    |
+| Document                                                                            | Description                               |
+| ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| [**Technical_Guides/HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)     | GPIO pinout, schematics, electrical specs |
+| [**Technical_Guides/LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md)   | Third-party libraries and dependencies    |
 
 ---
 
@@ -462,7 +479,7 @@ Comprehensive documentation is available in the `Docs/` directory:
 }
 ```
 
-See [docs/API.md](docs/API.md) for complete examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete examples.
 
 ---
 
@@ -496,7 +513,7 @@ See [docs/API.md](docs/API.md) for complete examples.
    [RTU] Polling device XXXXX (Slave:1 Port:1 Baud:9600)
    ```
 
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions.
+See [Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_Guides/TROUBLESHOOTING.md) for detailed solutions.
 
 ---
 
@@ -552,7 +569,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for detailed solutions.
 
 - **Email**: support@suriota.com
 - **Website**: [www.suriota.com](https://www.suriota.com)
-- **GitHub Issues**: [Report Bug](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues)
+- **GitHub Issues**: [Report Bug](https://github.com/GifariKemal/GatewaySuriotaPOC/issues)
 
 ### Documentation Updates
 
@@ -633,7 +650,7 @@ For commercial support, custom development, or enterprise licensing inquiries, c
 
 ### Third-Party Libraries
 
-This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LIBRARIES.md) for complete attributions.
+This project uses several open-source libraries. See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for complete attributions.
 
 ### Special Thanks
 
@@ -645,7 +662,56 @@ This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LI
 
 ## 📈 Changelog
 
-### Version 2.1.1 (2025-11-14) - Current ⭐
+### Version 2.2.0 (2025-11-20) - Current ⭐
+
+**Documentation Excellence Release**
+
+**Developer:** Kemal | **Release Date:** November 20, 2025
+
+#### 📚 Comprehensive Documentation Overhaul
+- ✅ **100% English documentation** - Complete translation from Indonesian
+- ✅ **Documentation hub** - New [Documentation/README.md](Documentation/README.md) with role-based navigation
+- ✅ **11 new documentation files** created:
+  - Documentation/README.md - Main documentation hub
+  - QUICKSTART.md - 5-minute setup guide
+  - FAQ.md - 60+ frequently asked questions
+  - GLOSSARY.md - A-Z technical terminology
+  - BEST_PRACTICES.md - Production deployment guidelines
+  - 4 subdirectory README files for easy navigation
+
+#### 🧭 Enhanced Navigation & Organization
+- ✅ **Breadcrumb navigation** - Added to all technical guides
+- ✅ **Footer navigation** - Back to index and top of page links
+- ✅ **Cross-references** - Comprehensive linking between documents
+- ✅ **Document metadata** - Version, date, firmware version on every page
+- ✅ **Standardized formatting** - Consistent structure across all docs
+
+#### 📝 Major Documentation Updates
+- ✅ **MQTT_PUBLISH_MODES_DOCUMENTATION.md** - Translated from 70% to 100% English
+- ✅ **REGISTER_CALIBRATION_DOCUMENTATION.md** - Complete 1,422-line translation
+- ✅ **NETWORK_CONFIGURATION.md** - Translation and formatting improvements
+- ✅ **PROTOCOL.md** - Added navigation and related docs
+- ✅ **MODBUS_DATATYPES.md** - Standardized footer and links
+- ✅ **TROUBLESHOOTING.md** - Enhanced with comprehensive references
+- ✅ **LOGGING.md** - Updated with navigation and cross-links
+
+#### 🗂️ Archive Management
+- ✅ **Deprecation warnings** - Added to 7 archived documents
+- ✅ **Archive README** - Explains archival policy and alternatives
+
+#### 🎯 User Experience Improvements
+- ✅ **Role-based navigation** - Start Here paths for different user types
+- ✅ **Quick references** - Common tasks and shortcuts
+- ✅ **Troubleshooting index** - Easy problem-solution lookup
+- ✅ **Related Documentation** - Context-aware suggestions
+
+**Migration:** No breaking changes. All existing functionality preserved.
+
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+
+---
+
+### Version 2.1.1 (2025-11-14)
 
 **Performance & API Enhancement Release**
 
@@ -677,15 +743,7 @@ This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LI
 - ✅ Warning system for slow operations (>10s)
 - ✅ Register count logging for diagnostics
 
-#### 📚 Documentation Updates
-- ✅ Complete VERSION_HISTORY.md with migration guide
-- ✅ Updated API.md with new response formats
-- ✅ Enhanced CAPACITY_ANALYSIS.md with BLE benchmarks
-- ✅ Updated TROUBLESHOOTING.md with timeout solutions
-- ✅ Archived 7 outdated streaming fix documents
-- ✅ All docs updated with v2.1.1, developer credits, and correct dates
-
-**See:** [Docs/VERSION_HISTORY.md](Docs/VERSION_HISTORY.md) for complete details
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
 
 ---
 
@@ -722,8 +780,12 @@ This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LI
 
 ## 🚦 Roadmap
 
-### Completed (v2.1.1 - Current)
+### Completed (v2.2.0 - Current)
 
+- [x] **Documentation Excellence**: Complete English docs with navigation (v2.2.0 - Kemal)
+- [x] **Documentation Hub**: Central README with role-based navigation (v2.2.0 - Kemal)
+- [x] **Quick Start Guide**: 5-minute setup guide (v2.2.0 - Kemal)
+- [x] **FAQ & Glossary**: 60+ Q&A and A-Z terminology (v2.2.0 - Kemal)
 - [x] **BLE Optimization**: 28x faster transmission (v2.1.1 - Kemal)
 - [x] **Enhanced CRUD API**: Full data responses (v2.1.1 - Kemal)
 - [x] **Hierarchical Data API**: devices_with_registers endpoint (v2.1.1 - Kemal)
@@ -743,7 +805,7 @@ This project uses several open-source libraries. See [docs/LIBRARIES.md](docs/LI
 
 ### Community Requests
 
-Submit feature requests via [GitHub Issues](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues) with tag `feature-request`.
+Submit feature requests via [GitHub Issues](https://github.com/GifariKemal/GatewaySuriotaPOC/issues) with tag `feature-request`.
 
 ---
 
