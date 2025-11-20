@@ -162,7 +162,7 @@ private:
   // Fragment handling
   void receiveFragment(const String &fragment);
   void handleCompleteCommand(const char *command);
-  void sendFragmented(const String &data);
+  void sendFragmented(const char* data, size_t length);
 
 public:
   BLEManager(const String &name, CRUDHandler *cmdHandler);
