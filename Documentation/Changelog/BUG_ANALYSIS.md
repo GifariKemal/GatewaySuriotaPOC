@@ -1,5 +1,21 @@
 # 🐛 Bug Analysis Report
 
+> **⚠️ ARCHIVED - October 2024**
+>
+> This document is archived and may contain outdated bug information.
+>
+> **Archived From:** v2.0.0 development and bug analysis
+>
+> **Reason:** Most bugs have been resolved in v2.1.0+ releases
+>
+> **Current Documentation:** See [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue diagnostics and [VERSION_HISTORY.md](VERSION_HISTORY.md) for resolved bugs
+>
+> **Archive Info:** See [Archive/ARCHIVE_INFO.md](../Archive/ARCHIVE_INFO.md) for more information
+>
+> **Note:** Bug status marked as "CONFIRMED" may have been fixed in subsequent versions. Check VERSION_HISTORY.md for fix status.
+
+---
+
 **SRT-MGATE-1210 Modbus IIoT Gateway - Firmware v2.0.0**
 
 Analisis mendalam terhadap bug kritis dan potensi masalah dalam firmware.
