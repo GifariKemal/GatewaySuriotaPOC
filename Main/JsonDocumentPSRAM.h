@@ -28,7 +28,8 @@ public:
     void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     if (ptr) {
-      Serial.printf("[JSON] Allocated %u bytes in PSRAM\n", size);
+      // Success - allocated in PSRAM (comment out to reduce log noise)
+      // Serial.printf("[JSON] Allocated %u bytes in PSRAM\n", size);
       return ptr;
     }
 
