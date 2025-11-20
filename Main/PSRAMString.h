@@ -308,8 +308,10 @@ public:
     // Memory diagnostics
     bool isInPSRAM() const {
         if (!buffer) return false;
-        return heap_caps_get_allocated_size(buffer) > 0 &&
-               esp_ptr_in_spiram(buffer);
+        // Check if pointer is in PSRAM address range (ESP32-S3 specific)
+        // PSRAM starts at 0x3C000000 for ESP32-S3
+        uintptr_t addr = (uintptr_t)buffer;
+        return (addr >= 0x3C000000 && addr < 0x3E000000);
     }
 
     size_t getCapacity() const {
