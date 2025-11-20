@@ -82,9 +82,11 @@ bool BLEManager::begin()
                 freeDRAM_after / 1024,
                 (freeDRAM_before - freeDRAM_after) / 1024);
 
-  // FIXED: Set MTU to maximum (512 bytes) for faster transmission
-  BLEDevice::setMTU(517);  // 517 = 512 data + 5 overhead
-  Serial.println("[BLE] MTU set to 517 bytes (512 effective)");
+  // FIXED BUG #12: Use conservative MTU for better compatibility
+  // Previous: Hardcoded 517 bytes - not all clients support this (especially iOS)
+  // New: Start with 247 (safe for all devices), negotiate higher if supported
+  BLEDevice::setMTU(247);  // Conservative MTU for maximum compatibility
+  Serial.println("[BLE] MTU set to 247 bytes (safe default, will negotiate higher if supported)");
 
   // Create BLE Server
   pServer = BLEDevice::createServer();

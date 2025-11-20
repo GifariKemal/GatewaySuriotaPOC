@@ -271,7 +271,10 @@ void setup()
     return;
   }
 
-  // Initialize network manager
+  // FIXED BUG #11: Proper handling of network init failure
+  // Previous code continued without network, causing MQTT/HTTP failures
+  bool networkInitialized = false;
+
   networkManager = NetworkMgr::getInstance();
   if (!networkManager)
   {
@@ -279,9 +282,17 @@ void setup()
     cleanup();
     return;
   }
+
   if (!networkManager->init(serverConfig))
   {
-    Serial.println("Failed to initialize NetworkManager");
+    Serial.println("[MAIN] WARNING: NetworkManager init failed - network services will be disabled");
+    Serial.println("[MAIN] System will continue in offline mode (BLE/Modbus RTU only)");
+    networkInitialized = false;
+  }
+  else
+  {
+    Serial.println("[MAIN] NetworkManager initialized successfully");
+    networkInitialized = true;
   }
 
   // Initialize RTC manager
@@ -350,56 +361,70 @@ void setup()
   String protocol = serverConfig->getProtocol();
   Serial.printf("Selected protocol: %s\n", protocol.c_str());
 
-  // Initialize MQTT Manager
-  mqttManager = MqttManager::getInstance(configManager, serverConfig, networkManager);
-  if (mqttManager && mqttManager->init())
+  // FIXED BUG #11: Initialize MQTT only if network is available
+  if (networkInitialized)
   {
-    // Link MQTT Manager to CRUD Handler for config change notifications
-    if (crudHandler)
+    mqttManager = MqttManager::getInstance(configManager, serverConfig, networkManager);
+    if (mqttManager && mqttManager->init())
     {
-      crudHandler->setMqttManager(mqttManager);
-      Serial.println("MQTT Manager linked to CRUD Handler");
-    }
+      // Link MQTT Manager to CRUD Handler for config change notifications
+      if (crudHandler)
+      {
+        crudHandler->setMqttManager(mqttManager);
+        Serial.println("MQTT Manager linked to CRUD Handler");
+      }
 
-    if (protocol == "mqtt")
-    {
-      mqttManager->start();
-      Serial.println("MQTT Manager started (active protocol)");
+      if (protocol == "mqtt")
+      {
+        mqttManager->start();
+        Serial.println("MQTT Manager started (active protocol)");
+      }
+      else
+      {
+        Serial.println("MQTT Manager initialized but not started (inactive protocol)");
+      }
     }
     else
     {
-      Serial.println("MQTT Manager initialized but not started (inactive protocol)");
+      Serial.println("Failed to initialize MQTT Manager");
     }
   }
   else
   {
-    Serial.println("Failed to initialize MQTT Manager");
+    Serial.println("[MAIN] Skipping MQTT Manager - network not initialized");
   }
 
-  // Initialize HTTP Manager
-  httpManager = HttpManager::getInstance(configManager, serverConfig, networkManager);
-  if (httpManager && httpManager->init())
+  // FIXED BUG #11: Initialize HTTP only if network is available
+  if (networkInitialized)
   {
-    // Link HTTP Manager to CRUD Handler for config change notifications
-    if (crudHandler)
+    httpManager = HttpManager::getInstance(configManager, serverConfig, networkManager);
+    if (httpManager && httpManager->init())
     {
-      crudHandler->setHttpManager(httpManager);
-      Serial.println("HTTP Manager linked to CRUD Handler");
-    }
+      // Link HTTP Manager to CRUD Handler for config change notifications
+      if (crudHandler)
+      {
+        crudHandler->setHttpManager(httpManager);
+        Serial.println("HTTP Manager linked to CRUD Handler");
+      }
 
-    if (protocol == "http")
-    {
-      httpManager->start();
-      Serial.println("HTTP Manager started (active protocol)");
+      if (protocol == "http")
+      {
+        httpManager->start();
+        Serial.println("HTTP Manager started (active protocol)");
+      }
+      else
+      {
+        Serial.println("HTTP Manager initialized but not started (inactive protocol)");
+      }
     }
     else
     {
-      Serial.println("HTTP Manager initialized but not started (inactive protocol)");
+      Serial.println("Failed to initialize HTTP Manager");
     }
   }
   else
   {
-    Serial.println("Failed to initialize HTTP Manager");
+    Serial.println("[MAIN] Skipping HTTP Manager - network not initialized");
   }
 
   // CRUDHandler already initialized above
