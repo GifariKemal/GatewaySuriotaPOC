@@ -4,6 +4,8 @@
  * Overrides default allocator so ALL JsonDocument instances use PSRAM automatically
  *
  * BUG #31: Comprehensive fix - ALL JsonDocument → PSRAM (not just 3 instances)
+ *
+ * CRITICAL FIX: ArduinoJson v7 uses detail::DefaultAllocator, not DefaultAllocator!
  */
 
 #ifndef JSON_DOCUMENT_PSRAM_H
@@ -14,6 +16,7 @@
 #include <esp_heap_caps.h>
 
 namespace ArduinoJson {
+namespace detail {  // CRITICAL: Must be in detail namespace for v7!
 
 // Override default allocator to use PSRAM
 class DefaultAllocator : public Allocator {
@@ -23,13 +26,16 @@ public:
     void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     if (ptr) {
+      Serial.printf("[JSON] Allocated %u bytes in PSRAM\n", size);
       return ptr;
     }
 
     // Fallback to DRAM only if PSRAM fails
     ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT);
 
-    if (!ptr) {
+    if (ptr) {
+      Serial.printf("[JSON] WARNING: Allocated %u bytes in DRAM (PSRAM failed!)\n", size);
+    } else {
       Serial.printf("[JSON] CRITICAL: Failed to allocate %u bytes (PSRAM and DRAM exhausted!)\n", size);
     }
 
@@ -75,6 +81,7 @@ private:
   DefaultAllocator() = default;
 };
 
+} // namespace detail
 } // namespace ArduinoJson
 
 #endif // JSON_DOCUMENT_PSRAM_H
