@@ -1,0 +1,275 @@
+===============================================================================
+  MODBUS RTU SIMULATORS FOLDER
+  SRT-MGATE-1210 Firmware Testing Tools
+===============================================================================
+
+FOLDER:      Testing/Modbus_Simulators/RTU/
+PURPOSE:     Modbus RTU Slave Simulators for testing SRT-MGATE-1210 Gateway
+PROTOCOL:    Modbus RTU (Serial RS-485/RS-232)
+CREATED:     2025-11-17
+AUTHOR:      Kemal - SURIOTA R&D Team
+
+===============================================================================
+  FOLDER CONTENTS
+===============================================================================
+
+📄 00_START_HERE.txt
+   Quick navigation guide and overview
+   → Read this first to understand folder structure
+
+📄 QUICK_START.txt
+   Quick setup and run guide (5 minutes)
+   → For users who want to start immediately
+
+📄 README.md
+   Complete documentation with examples
+   → Detailed installation, configuration, troubleshooting
+   → Hardware setup diagrams
+   → Testing workflows
+
+📄 requirements.txt
+   Python package dependencies
+   → pymodbus >= 2.5.0
+   → pyserial >= 3.5
+   → Install: pip install -r requirements.txt
+
+📄 FOLDER_INFO.txt (This file)
+   Folder contents and structure explanation
+
+🐍 modbus_slave_5_registers.py
+   Main Modbus RTU Slave Simulator
+   → 5 Input Registers (Temperature, Humidity, Pressure, Voltage, Current)
+   → Slave ID: 1
+   → Serial: COM8, 9600, 8N1
+   → Auto-updating values every 5 seconds
+   → Compatible with pymodbus 2.x and 3.x
+
+
+===============================================================================
+  AVAILABLE SIMULATORS
+===============================================================================
+
+Currently implemented:
+
+✓ modbus_slave_5_registers.py
+  - 5 Input Registers (INT16)
+  - Addresses: 0-4
+  - Function Code: 4 (Read Input Registers)
+  - Auto-update simulation
+  - Matches: Device_Testing/RTU/create_device_5_registers.py
+
+
+Future simulators (planned):
+
+⏳ modbus_slave_10_registers.py  (10 Input Registers)
+⏳ modbus_slave_20_registers.py  (20 Mixed Registers)
+⏳ modbus_slave_coils.py         (Digital I/O simulation)
+
+
+===============================================================================
+  COMPARISON WITH TCP SIMULATORS
+===============================================================================
+
+RTU Simulators (This folder):
+├─ Protocol:      Modbus RTU
+├─ Medium:        Serial (RS-485/RS-232)
+├─ Port:          COM8 (or /dev/ttyUSB0)
+├─ Framing:       RTU binary with CRC16
+├─ Speed:         9600 baud default
+└─ Hardware:      USB-to-RS485 adapter required
+
+TCP Simulators (../TCP/):
+├─ Protocol:      Modbus TCP
+├─ Medium:        Ethernet/WiFi
+├─ Port:          192.168.1.8:502
+├─ Framing:       TCP packets
+├─ Speed:         Network speed (Mbps)
+└─ Hardware:      Network connection only
+
+
+===============================================================================
+  MATCHING DEVICE_TESTING PROGRAMS
+===============================================================================
+
+This RTU simulator is designed to work with:
+
+Device_Testing/RTU/create_device_5_registers.py
+├─ Creates RTU device on gateway via BLE
+├─ Configures Serial Port 2 (COM8 equivalent)
+├─ Sets baud: 9600, format: 8N1
+├─ Registers 5 Input Registers (addresses 0-4)
+└─ Enables polling every 2 seconds
+
+
+===============================================================================
+  HARDWARE REQUIREMENTS
+===============================================================================
+
+Required Hardware:
+✓ PC/Laptop with available USB port
+✓ USB-to-RS485 adapter (FTDI, CH340, CP2102, etc.)
+✓ SRT-MGATE-1210 Gateway with Serial2 exposed
+✓ RS485 cable or wires (A+/A+, B-/B- connection)
+
+Optional Hardware:
+○ Logic analyzer for debugging communication
+○ USB-to-TTL for gateway serial monitoring
+
+
+===============================================================================
+  SOFTWARE REQUIREMENTS
+===============================================================================
+
+Python Environment:
+✓ Python 3.7+ (tested up to 3.13)
+✓ pip package manager
+
+Python Packages:
+✓ pymodbus >= 2.5.0 (Modbus protocol library)
+✓ pyserial >= 3.5   (Serial port communication)
+
+Operating System:
+✓ Windows 10/11 (COM ports)
+✓ Linux (e.g., Ubuntu, Raspberry Pi OS)
+✓ macOS (with USB-to-serial driver)
+
+
+===============================================================================
+  USAGE WORKFLOW
+===============================================================================
+
+Standard Testing Procedure:
+
+1. Hardware Setup
+   ├─ Connect USB-to-RS485 adapter to PC
+   ├─ Wire adapter to gateway Serial2 (A+/B-, GND)
+   └─ Power on gateway
+
+2. Software Setup
+   ├─ Install Python dependencies
+   ├─ Verify COM port (Device Manager on Windows)
+   └─ Configure port in script if needed
+
+3. Run Simulator
+   ├─ python modbus_slave_5_registers.py
+   ├─ Press Enter to start server
+   └─ Simulator listens on COM8
+
+4. Configure Gateway
+   ├─ Run create_device_5_registers.py
+   ├─ Device created via BLE
+   └─ Gateway starts polling every 2s
+
+5. Monitor & Verify
+   ├─ Simulator displays incoming requests
+   ├─ Gateway logs show RTU polling
+   └─ Data transmitted to MQTT/HTTP
+
+
+===============================================================================
+  TECHNICAL DETAILS
+===============================================================================
+
+Modbus RTU Frame Format:
+  [Slave ID] [Function] [Address] [Count/Data] [CRC16]
+  Example: 01 04 00 00 00 05 [CRC]
+  → Read 5 Input Registers from address 0
+
+Gateway Firmware Integration:
+  ├─ ModbusRtuService.cpp handles RTU communication
+  ├─ Serial2 (RX=17, TX=18) used for RS485
+  ├─ ModbusMaster library for client implementation
+  ├─ Configurable baud rate, parity, stop bits
+  └─ Exponential backoff retry on failure
+
+Simulator Features:
+  ├─ Thread-safe register updates
+  ├─ Auto-detection of pymodbus version (2.x/3.x)
+  ├─ Realistic sensor value simulation
+  ├─ Comprehensive error handling
+  ├─ Serial port auto-discovery
+  └─ Graceful shutdown on Ctrl+C
+
+
+===============================================================================
+  TROUBLESHOOTING REFERENCE
+===============================================================================
+
+Common Issues:
+
+❌ "Could not open port COM8"
+   → Close other programs using COM8
+   → Check Device Manager for correct port
+   → Run as Administrator
+   → Reconnect USB adapter
+
+❌ "pymodbus not installed"
+   → pip install pymodbus pyserial
+
+❌ "No data received by gateway"
+   → Check RS485 wiring (A+↔A+, B-↔B-)
+   → Verify baud rate matches (9600)
+   → Confirm Slave ID matches (1)
+   → Test with Modbus Poll software
+
+❌ "Import error: No module named serial"
+   → pip install pyserial
+
+
+===============================================================================
+  FILE MAINTENANCE
+===============================================================================
+
+Versioning:
+  v1.0.0 - Initial release (2025-11-17)
+  └─ modbus_slave_5_registers.py
+
+Update History:
+  2025-11-17: Initial creation of RTU simulator folder
+              - Created 5-register simulator
+              - Added comprehensive documentation
+              - Tested with pymodbus 2.5.3 and pyserial 3.5
+
+
+===============================================================================
+  RELATED FOLDERS
+===============================================================================
+
+../TCP/                          - Modbus TCP simulators
+../../Device_Testing/RTU/        - RTU device creation scripts
+../../Device_Testing/TCP/        - TCP device creation scripts
+../../../Main/                   - SRT-MGATE-1210 firmware source
+
+
+===============================================================================
+  SUPPORT & CONTACT
+===============================================================================
+
+For technical support:
+  1. Check QUICK_START.txt for common solutions
+  2. Read README.md for detailed documentation
+  3. Review TROUBLESHOOTING section
+  4. Contact: Kemal - SURIOTA R&D Team
+
+Documentation:
+  - Gateway API: See Documentation/API.md
+  - Firmware: See Main/*.cpp source files
+  - Testing: See Device_Testing/*/README.md
+
+
+===============================================================================
+  LICENSE & COPYRIGHT
+===============================================================================
+
+Part of SRT-MGATE-1210 Firmware Testing Suite
+Copyright © 2025 SURIOTA R&D Team
+All rights reserved.
+
+
+===============================================================================
+
+Last updated: 2025-11-17
+Author: Kemal - SURIOTA R&D Team
+Version: 1.0.0
+
+===============================================================================

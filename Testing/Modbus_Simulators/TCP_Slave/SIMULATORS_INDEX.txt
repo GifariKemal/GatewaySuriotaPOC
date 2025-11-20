@@ -1,0 +1,496 @@
+===============================================================================
+  SRT-MGATE-1210 - MODBUS SLAVE SIMULATORS INDEX
+===============================================================================
+
+FOLDER: Modbus_Slave_Simulator
+DATE: 2025-11-14
+TOTAL SIMULATORS: 10 programs (5-50 registers)
+
+===============================================================================
+AVAILABLE MODBUS SLAVE SIMULATORS
+===============================================================================
+
+Simulator Name                         Registers  File Size  Description
+--------------------------------------------------------------------------------
+modbus_slave_5_registers.py                5      13 KB      Original simulator
+modbus_slave_10_registers.py              10      13 KB      10 registers simulator
+modbus_slave_15_registers.py              15      14 KB      15 registers simulator
+modbus_slave_20_registers.py              20      14 KB      20 registers simulator
+modbus_slave_25_registers.py              25      15 KB      25 registers simulator
+modbus_slave_30_registers.py              30      16 KB      30 registers simulator
+modbus_slave_35_registers.py              35      16 KB      35 registers simulator
+modbus_slave_40_registers.py              40      17 KB      40 registers simulator
+modbus_slave_45_registers.py              45      18 KB      45 registers simulator
+modbus_slave_50_registers.py              50      18 KB      50 registers simulator (max)
+
+===============================================================================
+SLAVE CONFIGURATION (ALL SIMULATORS)
+===============================================================================
+
+Protocol:         Modbus TCP
+IP Address:       192.168.1.8
+Port:             502
+Slave ID:         1
+Function Code:    4 (Read Input Registers)
+Data Type:        INT16 (0-65535)
+Addressing:       0-based (0 to N-1)
+
+Auto-Update:      Enabled
+Update Interval:  10 seconds
+Update Behavior:  Realistic sensor variations (random walk)
+
+===============================================================================
+REGISTER TYPES (CYCLING PATTERN)
+===============================================================================
+
+All simulators use these 10 register types in a repeating pattern:
+
+[0] Temperature  - °C    (20-35)      Initial: 25
+[1] Humidity     - %     (40-80)      Initial: 60
+[2] Pressure     - Pa    (900-1100)   Initial: 1000
+[3] Voltage      - V     (220-240)    Initial: 230
+[4] Current      - A     (1-10)       Initial: 5
+[5] Power        - W     (0-2400)     Initial: 1200
+[6] Energy       - kWh   (0-1000)     Initial: 500
+[7] Frequency    - Hz    (48-52)      Initial: 50
+[8] Speed        - RPM   (0-3000)     Initial: 1500
+[9] Flow         - L/m   (0-100)      Initial: 50
+
+For simulators with >10 registers, the pattern repeats:
+  Register 10 = Temperature_2
+  Register 11 = Humidity_2
+  ... and so on
+
+===============================================================================
+REGISTER MAPPING EXAMPLES
+===============================================================================
+
+5 Registers Simulator:
+  [0] Temperature  [1] Humidity  [2] Pressure  [3] Voltage  [4] Current
+
+10 Registers Simulator:
+  [0] Temperature  [1] Humidity    [2] Pressure   [3] Voltage   [4] Current
+  [5] Power        [6] Energy      [7] Frequency  [8] Speed     [9] Flow
+
+15 Registers Simulator:
+  [0-9]   = First cycle (Temperature through Flow)
+  [10-14] = Second cycle (Temperature_2 through Current_2)
+
+50 Registers Simulator:
+  [0-9]   = Cycle 1
+  [10-19] = Cycle 2
+  [20-29] = Cycle 3
+  [30-39] = Cycle 4
+  [40-49] = Cycle 5
+
+===============================================================================
+USAGE
+===============================================================================
+
+1. Choose simulator based on number of registers needed (5-50)
+2. Run simulator:
+
+   python modbus_slave_25_registers.py
+
+   (Replace 25 with desired register count: 5, 10, 15, 20, 25, 30, 35, 40, 45, 50)
+
+3. Press Enter when prompted to start server
+4. Simulator listens on 192.168.1.8:502
+5. Run matching device creation program from Device_Testing folder
+
+===============================================================================
+TESTING WORKFLOW
+===============================================================================
+
+Complete Testing Flow:
+
+Step 1: Start Modbus Slave Simulator
+        cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator"
+        python modbus_slave_25_registers.py
+
+Step 2: Press Enter to start simulator
+        Server starts listening on 192.168.1.8:502
+
+Step 3: Run Device Creation Program (from another terminal)
+        cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing"
+        python create_device_25_registers.py
+
+Step 4: Verify Connection
+        - Simulator logs show gateway connection
+        - Device creation successful
+        - Gateway polling registers
+
+Step 5: Monitor Data Flow
+        - Simulator updates every 10 seconds
+        - Gateway polls every 1 second
+        - Check register value changes
+
+Step 6: Verify Data Transmission
+        - Data flows: Simulator -> Gateway -> MQTT/HTTP
+        - All registers readable
+        - Values within expected ranges
+
+===============================================================================
+SIMULATOR SELECTION GUIDE
+===============================================================================
+
+Choose based on your testing needs:
+
+Small Scale Testing (5-15 registers):
+  - Quick connection tests
+  - Basic functionality verification
+  - Initial development testing
+  - Fast startup and low resource usage
+
+Medium Scale Testing (20-30 registers):
+  - Performance testing
+  - Multiple data points simulation
+  - Standard production scenarios
+  - Realistic device simulation
+
+Large Scale Testing (35-50 registers):
+  - Stress testing
+  - Maximum capacity verification
+  - Performance benchmarking
+  - Memory usage testing
+  - Gateway throughput testing
+
+===============================================================================
+MATCHING WITH DEVICE CREATION PROGRAMS
+===============================================================================
+
+Each simulator MUST match with corresponding device creation program:
+
+Simulator                        <-->  Device Creation Program
+--------------------------------------------------------------------------------
+modbus_slave_5_registers.py      <-->  create_device_5_registers.py
+modbus_slave_10_registers.py     <-->  create_device_10_registers.py
+modbus_slave_15_registers.py     <-->  create_device_15_registers.py
+modbus_slave_20_registers.py     <-->  create_device_20_registers.py
+modbus_slave_25_registers.py     <-->  create_device_25_registers.py
+modbus_slave_30_registers.py     <-->  create_device_30_registers.py
+modbus_slave_35_registers.py     <-->  create_device_35_registers.py
+modbus_slave_40_registers.py     <-->  create_device_40_registers.py
+modbus_slave_45_registers.py     <-->  create_device_45_registers.py
+modbus_slave_50_registers.py     <-->  create_device_50_registers.py
+
+IMPORTANT: Number of registers MUST match between simulator and device program!
+
+===============================================================================
+EXPECTED OUTPUT
+===============================================================================
+
+Startup Banner:
+----------------------------------------------------------------------
+  MODBUS TCP SLAVE SIMULATOR
+  SRT-MGATE-1210 Testing - 25 Input Registers
+----------------------------------------------------------------------
+  Configuration:
+  - IP Address:     192.168.1.8
+  - Port:           502
+  - Slave ID:       1
+  - Registers:      25 Input Registers (Function Code 4)
+  - Auto Update:    Enabled
+  - Update Interval: 10.0s
+----------------------------------------------------------------------
+
+Initial Values:
+----------------------------------------------------------------------
+  INITIAL REGISTER VALUES (Input Registers)
+----------------------------------------------------------------------
+  Addr   Name            Value      Unit       Range
+----------------------------------------------------------------------
+  0      Temperature     25         °C         20-35
+  1      Humidity        60         %          40-80
+  2      Pressure        1000       Pa         900-1100
+  ...
+----------------------------------------------------------------------
+
+Auto-Update Output (every 10 seconds):
+----------------------------------------------------------------------
+  Update #0001 - Register Values:
+----------------------------------------------------------------------
+  [ 0] Temperature   :    26 °C
+  [ 1] Humidity      :    62 %
+  [ 2] Pressure      :  1003 Pa
+  ...
+----------------------------------------------------------------------
+
+===============================================================================
+AUTO-UPDATE BEHAVIOR
+===============================================================================
+
+Update Mechanism:
+  - Thread-based auto-update
+  - Updates every 10 seconds
+  - Random walk algorithm with bounds
+  - 5% variation per update (based on range)
+  - Values constrained to min/max limits
+  - Realistic sensor simulation
+
+Example Temperature Update:
+  Initial:  25°C
+  Update 1: 26°C (+1)
+  Update 2: 25°C (-1)
+  Update 3: 26°C (+1)
+  Update 4: 27°C (+1)
+  Always stays within: 20-35°C
+
+===============================================================================
+NETWORK CONFIGURATION
+===============================================================================
+
+IP Address Setup:
+
+Windows:
+  1. Control Panel -> Network and Sharing Center
+  2. Change adapter settings
+  3. Right-click adapter -> Properties
+  4. IPv4 -> Properties
+  5. Set IP: 192.168.1.8
+     Subnet: 255.255.255.0
+     Gateway: 192.168.1.1
+
+Linux:
+  sudo ifconfig eth0 192.168.1.8 netmask 255.255.255.0
+
+Mac:
+  System Preferences -> Network -> Configure IPv4 -> Manually
+  IP: 192.168.1.8
+
+Verify:
+  Windows: ipconfig
+  Linux/Mac: ifconfig
+
+Look for 192.168.1.8 in output.
+
+===============================================================================
+TROUBLESHOOTING
+===============================================================================
+
+Issue: Address already in use
+Cause: Port 502 is being used by another program
+Fix:   - Close other Modbus simulators
+       - Check for other programs using port 502
+       - Or change SERVER_PORT to 5020 (update gateway config too)
+
+Issue: Permission denied on port 502
+Cause: Port 502 requires administrator privileges
+Fix:   Windows: Run as administrator
+       Linux/Mac: sudo python modbus_slave_25_registers.py
+       Or: Change port to >1024 (e.g., 5020)
+
+Issue: pymodbus not found
+Fix:   pip install pymodbus
+
+Issue: Gateway cannot connect to simulator
+Check: - Simulator is running
+       - IP address is 192.168.1.8
+       - Port 502 is not blocked by firewall
+       - Computer and gateway on same network
+       - Try: ping 192.168.1.8
+
+Issue: Register values don't change
+Check: - AUTO_UPDATE = True (in simulator code)
+       - Check console for update logs
+       - UPDATE_INTERVAL = 10.0 (seconds)
+
+Issue: Wrong number of registers
+Fix:   - Match simulator with device creation program
+       - Use modbus_slave_25_registers.py with create_device_25_registers.py
+       - Numbers MUST match!
+
+===============================================================================
+WINDOWS FIREWALL CONFIGURATION
+===============================================================================
+
+If gateway cannot connect:
+
+1. Windows Defender Firewall
+2. Advanced settings
+3. Inbound Rules -> New Rule
+4. Port -> TCP -> 502
+5. Allow the connection
+6. Apply to all profiles
+7. Name: "Modbus TCP Simulator"
+
+Or:
+1. Allow an app through firewall
+2. Allow Python
+3. Check Private and Public networks
+
+===============================================================================
+GENERATED SIMULATORS
+===============================================================================
+
+Simulators for 10-50 registers were auto-generated using:
+  _generate_slave_simulators.py
+
+All simulators follow the same structure as modbus_slave_5_registers.py:
+  1. Configuration matching Device_Testing programs
+  2. Register definitions with realistic ranges
+  3. Auto-update thread with random walk
+  4. Detailed logging and status display
+  5. Graceful shutdown on Ctrl+C
+
+===============================================================================
+FILE LOCATIONS
+===============================================================================
+
+Simulators:       C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator\
+Device Programs:  C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing\
+Documentation:    DOCUMENTATION.md, QUICK_START.txt
+Requirements:     requirements.txt (pymodbus>=3.0.0)
+
+===============================================================================
+COMPATIBILITY
+===============================================================================
+
+Firmware:         SRT-MGATE-1210 v2.2.0
+Python:           3.8+
+Library:          pymodbus 3.x
+Protocol:         Modbus TCP (RFC standard)
+Platform:         Windows / Linux / Mac
+
+Tested on:        Windows 11
+Author:           Kemal - SURIOTA R&D Team
+
+===============================================================================
+TECHNICAL DETAILS
+===============================================================================
+
+Threading:
+  - Main thread: Modbus TCP server
+  - Update thread: Auto-update registers
+  - Thread-safe: pymodbus context API
+
+Memory Usage:
+  - Low footprint: ~10-15 MB RAM
+  - Minimal CPU usage
+  - Efficient data structures
+
+Performance:
+  - Supports multiple simultaneous connections
+  - Fast response to Modbus requests
+  - No blocking operations
+
+Data Types:
+  - INT16 (16-bit signed integer)
+  - Range: 0-65535 (unsigned interpretation)
+  - Big-endian byte order (Modbus standard)
+
+===============================================================================
+TESTING SCENARIOS
+===============================================================================
+
+Scenario 1: Basic Connectivity Test (5-10 registers)
+  1. Start small simulator (5 or 10 registers)
+  2. Create matching device
+  3. Verify connection established
+  4. Check register reads successful
+
+Scenario 2: Medium Scale Test (20-30 registers)
+  1. Start medium simulator
+  2. Create matching device
+  3. Monitor continuous polling
+  4. Verify all registers readable
+
+Scenario 3: Large Scale Test (40-50 registers)
+  1. Start large simulator
+  2. Create matching device
+  3. Monitor performance
+  4. Check memory usage
+  5. Verify no data loss
+
+Scenario 4: Auto-Update Test
+  1. Start any simulator
+  2. Create matching device
+  3. Monitor register values
+  4. Verify values change every 10s
+  5. Check values stay within bounds
+
+Scenario 5: Long-Running Test
+  1. Start simulator
+  2. Let run for 1+ hour
+  3. Monitor for:
+     - Memory leaks
+     - Connection stability
+     - Update consistency
+     - Performance degradation
+
+===============================================================================
+EXAMPLE USAGE
+===============================================================================
+
+Example 1: Test 25 Registers
+
+Terminal 1 - Start Simulator:
+  cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator"
+  python modbus_slave_25_registers.py
+  [Press Enter to start]
+
+Terminal 2 - Create Device:
+  cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Device_Testing"
+  python create_device_25_registers.py
+
+Result:
+  - Device created: TCP_Device_25_Regs
+  - 25 registers created (addresses 0-24)
+  - Gateway starts polling simulator
+  - Data updates every 10 seconds
+
+Example 2: Maximum Capacity Test (50 Registers)
+
+Terminal 1:
+  python modbus_slave_50_registers.py
+
+Terminal 2:
+  python create_device_50_registers.py
+
+Monitor:
+  - Check gateway performance
+  - Monitor memory usage
+  - Verify all 50 registers readable
+  - Check update consistency
+
+===============================================================================
+NOTES
+===============================================================================
+
+- All simulators use IP 192.168.1.8 (not 192.168.1.100)
+- Port 502 requires admin privileges on some systems
+- Auto-update uses realistic random walk algorithm
+- Register values always stay within defined min/max
+- Thread-safe implementation for concurrent access
+- Graceful shutdown with Ctrl+C
+- Compatible with all standard Modbus TCP clients
+- Tested with SRT-MGATE-1210 Gateway v2.2.0
+
+===============================================================================
+RELATED DOCUMENTATION
+===============================================================================
+
+DOCUMENTATION.md              - Complete simulator guide
+QUICK_START.txt               - Quick reference
+FOLDER_INFO.txt               - Folder structure
+00_START_HERE.txt             - Getting started
+
+../Device_Testing/            - Device creation programs
+../Docs/API.md                - BLE CRUD API
+../Docs/MODBUS_DATATYPES.md   - Modbus data types
+
+===============================================================================
+SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+
+Email:   support@suriota.com
+Website: https://suriota.com
+
+===============================================================================
+Last Updated: 2025-11-14
+Status: All simulators created and ready for testing
+Total: 10 simulators (5-50 registers)
+===============================================================================

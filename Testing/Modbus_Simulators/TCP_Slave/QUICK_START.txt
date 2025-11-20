@@ -1,0 +1,198 @@
+===============================================================================
+  MODBUS TCP SLAVE SIMULATOR - QUICK START GUIDE
+===============================================================================
+
+📂 FOLDER: Modbus_Slave_Simulator
+📌 PURPOSE: Simulate Modbus TCP slave for testing SRT-MGATE-1210 Gateway
+
+===============================================================================
+🚀 HOW TO RUN (3 STEPS)
+===============================================================================
+
+STEP 1: Install Dependencies
+-----------------------------
+    pip install -r requirements.txt
+
+    Or manually:
+    pip install pymodbus
+
+
+STEP 2: Configure Network
+--------------------------
+Make sure your computer has IP: 192.168.1.8
+(or change SERVER_IP in the script)
+
+Windows:
+    ipconfig
+
+Linux/Mac:
+    ifconfig
+
+
+STEP 3: Run Simulator
+----------------------
+    python modbus_slave_5_registers.py
+
+Press Enter when prompted to start server.
+
+
+===============================================================================
+📊 REGISTER CONFIGURATION
+===============================================================================
+
+Slave Configuration:
+  IP Address:      192.168.1.8
+  Port:            502
+  Slave ID:        1
+  Function Code:   4 (Read Input Registers)
+
+Registers (5 Input Registers):
+  [0] Temperature  - °C   (20-35)
+  [1] Humidity     - %    (40-80)
+  [2] Pressure     - Pa   (900-1100)
+  [3] Voltage      - V    (220-240)
+  [4] Current      - A    (1-10)
+
+Auto Update: Enabled (every 5 seconds)
+
+
+===============================================================================
+🔧 GATEWAY CONFIGURATION
+===============================================================================
+
+Use these settings in Device_Testing/create_device_5_registers.py:
+
+Device Config:
+  {
+    "device_name": "TCP_Device_Test",
+    "protocol": "TCP",
+    "slave_id": 1,
+    "timeout": 3000,
+    "retry_count": 3,
+    "refresh_rate_ms": 1000,
+    "ip": "192.168.1.8",
+    "port": 502
+  }
+
+Register Config (for each):
+  {
+    "type": "Input Registers",
+    "function_code": 4,
+    "data_type": "INT16"
+  }
+
+
+===============================================================================
+✅ SUCCESS INDICATORS
+===============================================================================
+
+When simulator runs successfully:
+
+[INFO] Server is starting...
+[INFO] Computer hostname: YOUR-PC
+[INFO] Local IP address: 192.168.1.8
+[INFO] Server listening on 192.168.1.8:502
+[INFO] Slave ID: 1
+[INFO] Ready for connections from SRT-MGATE-1210 Gateway
+
+Update logs:
+──────────────────────────────────────────────────────────────────────
+  Update #0001 - Register Values:
+──────────────────────────────────────────────────────────────────────
+  [0] Temperature :    25 °C
+  [1] Humidity    :    60 %
+  [2] Pressure    :  1000 Pa
+  [3] Voltage     :   230 V
+  [4] Current     :     5 A
+──────────────────────────────────────────────────────────────────────
+
+
+===============================================================================
+🐛 TROUBLESHOOTING
+===============================================================================
+
+Problem: "Address already in use"
+─────────────────────────────────
+  - Port 502 is already used
+  - Check if another program is using port 502
+  - Change SERVER_PORT in script to 5020
+  - Update gateway device config to match
+
+
+Problem: "pymodbus not found"
+──────────────────────────────
+  pip install pymodbus
+
+
+Problem: Gateway cannot connect
+────────────────────────────────
+  1. Check simulator is running
+  2. Verify IP address (192.168.1.8)
+  3. Check firewall settings
+  4. Ping 192.168.1.8 from gateway
+
+
+Problem: No data changes
+─────────────────────────
+  - Auto-update is enabled by default
+  - Values update every 5 seconds
+  - Check console output for updates
+
+
+===============================================================================
+📝 TESTING WORKFLOW
+===============================================================================
+
+1. START SIMULATOR
+   └─ python modbus_slave_5_registers.py
+
+2. CREATE GATEWAY DEVICE
+   └─ cd ../Device_Testing
+   └─ python create_device_5_registers.py
+
+3. VERIFY CONNECTION
+   └─ Check simulator console for connection logs
+   └─ Gateway should read register values
+
+4. MONITOR DATA
+   └─ Simulator auto-updates every 5 seconds
+   └─ Gateway polls every 1 second (refresh_rate_ms)
+
+
+===============================================================================
+🔍 NETWORK CONFIGURATION
+===============================================================================
+
+To set IP 192.168.1.8 on your computer:
+
+Windows:
+  1. Control Panel → Network Connections
+  2. Right-click adapter → Properties
+  3. IPv4 → Use the following IP address
+  4. IP: 192.168.1.8
+  5. Subnet: 255.255.255.0
+  6. Gateway: 192.168.1.1
+
+Linux:
+  sudo ifconfig eth0 192.168.1.8 netmask 255.255.255.0
+
+Mac:
+  System Preferences → Network → Configure IPv4 → Manually
+
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+📧 support@suriota.com
+
+
+===============================================================================
+
+Ready to start? Run: python modbus_slave_5_registers.py
+
+Good luck! 🚀
+
+===============================================================================

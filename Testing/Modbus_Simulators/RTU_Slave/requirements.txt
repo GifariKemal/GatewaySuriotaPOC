@@ -1,0 +1,24 @@
+# =============================================================================
+# Modbus RTU Slave Simulator Requirements
+# SRT-MGATE-1210 Testing Tools
+# =============================================================================
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# Or install individually:
+#   pip install pymodbus pyserial
+#
+# =============================================================================
+
+# Modbus Protocol Implementation
+# pymodbus 2.x or 3.x - Modbus library with RTU/TCP support
+# The script is compatible with both versions
+pymodbus>=2.5.0
+
+# Serial Communication
+# pyserial - Python serial port access library
+pyserial>=3.5
+
+# Optional: Enhanced debugging and logging
+# colorlog>=6.7.0  # Colored console logs (optional)

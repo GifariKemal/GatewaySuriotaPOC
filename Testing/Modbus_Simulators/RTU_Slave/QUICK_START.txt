@@ -1,0 +1,128 @@
+===============================================================================
+  MODBUS RTU SLAVE SIMULATOR - QUICK START GUIDE
+  SRT-MGATE-1210 Testing Tool - 5 Input Registers
+===============================================================================
+
+HARDWARE SETUP
+--------------
+1. Connect USB-to-RS485 adapter to PC (should appear as COM8)
+2. Wire RS485 A/B terminals:
+   - Adapter A+ → Gateway Serial2 A+
+   - Adapter B- → Gateway Serial2 B-
+   - GND → GND (recommended)
+
+3. Check COM port in Device Manager (Windows) or ls /dev/ttyUSB* (Linux)
+
+
+SOFTWARE INSTALLATION
+---------------------
+1. Navigate to simulator directory:
+   cd C:\Users\Administrator\Pictures\SRT-MGATE-1210\Testing\Modbus_Simulators\RTU
+
+2. Install dependencies:
+   pip install -r requirements.txt
+
+3. Verify installation:
+   python -c "import pymodbus, serial; print('OK')"
+
+
+CONFIGURATION
+-------------
+1. Edit modbus_slave_5_registers.py if COM port is NOT COM8:
+   SERIAL_PORT = 'COMx'  # Change to your port
+
+2. Default settings (should match gateway):
+   - Port: COM8
+   - Baud: 9600
+   - Format: 8N1 (8 data bits, No parity, 1 stop bit)
+   - Slave ID: 1
+   - Protocol: Modbus RTU
+   - Registers: 5 Input Registers (Address 0-4)
+
+
+RUN SIMULATOR
+-------------
+1. Start simulator:
+   python modbus_slave_5_registers.py
+
+2. Press Enter when prompted
+
+3. You should see:
+   [INFO] Server listening on COM8...
+   [INFO] Ready for connections from SRT-MGATE-1210 Gateway
+
+4. Simulator will auto-update register values every 5 seconds
+
+
+GATEWAY SETUP
+-------------
+1. Power on SRT-MGATE-1210 Gateway
+
+2. Run device creation script:
+   cd ..\..\..\Device_Testing\RTU
+   python create_device_5_registers.py
+
+3. Wait for BLE connection and device creation
+
+4. Gateway will start polling simulator every 2 seconds
+
+
+VERIFICATION
+------------
+✓ Simulator displays "Update #XXXX - Register Values"
+✓ USB-to-RS485 adapter LEDs blink during communication
+✓ Gateway serial logs show "Reading device: RTU_Device_Test"
+✓ Data appears in MQTT/HTTP (if server configured)
+
+
+REGISTER MAP
+------------
+Address | Name        | Unit | Range     | Initial
+--------|-------------|------|-----------|--------
+   0    | Temperature | °C   | 20-35     |   25
+   1    | Humidity    | %    | 40-80     |   60
+   2    | Pressure    | Pa   | 900-1100  | 1000
+   3    | Voltage     | V    | 220-240   |  230
+   4    | Current     | A    | 1-10      |    5
+
+
+TROUBLESHOOTING
+---------------
+Problem: "Could not open port COM8"
+→ Close other programs using COM8
+→ Run as Administrator
+→ Check COM port number in Device Manager
+
+Problem: "pymodbus not installed"
+→ pip install pymodbus pyserial
+
+Problem: No data received by gateway
+→ Check RS485 wiring (A+ to A+, B- to B-)
+→ Verify baud rate matches (9600)
+→ Confirm Slave ID matches (1)
+→ Test with Modbus Poll software first
+
+
+STOP SIMULATOR
+--------------
+Press Ctrl+C to stop the server gracefully
+
+
+TESTING CHECKLIST
+-----------------
+□ USB-to-RS485 adapter connected to COM8
+□ RS485 wiring correct (A+/A+, B-/B-)
+□ Simulator running without errors
+□ Gateway powered and BLE accessible
+□ Device created via create_device_5_registers.py
+□ Gateway polling visible in simulator logs
+□ Register values updating automatically
+□ Data transmitted to MQTT/HTTP (if configured)
+
+
+SUPPORT
+-------
+For detailed documentation, see README.md
+For issues, contact: Kemal - SURIOTA R&D Team
+
+===============================================================================

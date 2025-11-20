@@ -1,0 +1,293 @@
+===============================================================================
+  SRT-MGATE-1210 - MODBUS SLAVE SIMULATOR FOLDER
+===============================================================================
+
+📂 FOLDER NAME: Modbus_Slave_Simulator
+📍 LOCATION: SRT-MGATE-1210-Firmware/Modbus_Slave_Simulator/
+
+🎯 PURPOSE:
+   Dedicated folder untuk Modbus TCP slave simulator
+   Mensimulasikan perangkat Modbus untuk testing gateway
+   TANPA memerlukan perangkat fisik Modbus
+
+===============================================================================
+📁 FOLDER CONTENTS (5 Files Total)
+===============================================================================
+
+🐍 PYTHON PROGRAM (1 file):
+   └── modbus_slave_5_registers.py     [13 KB, 277 lines]
+       └─ Main simulator program
+          Function Code: 4 (Read Input Registers)
+          Registers: 5 (INT16)
+          Auto-update: Every 5 seconds
+
+📚 DOCUMENTATION (3 files):
+   ├── 00_START_HERE.txt               [8.7 KB] ← START HERE!
+   │   └─ Overview & quick guide
+   │
+   ├── QUICK_START.txt                 [6.1 KB] ← Quick reference
+   │   └─ 3-step guide
+   │
+   └── DOCUMENTATION.md                [9.7 KB] ← Complete docs
+       └─ Full documentation & troubleshooting
+
+🔧 CONFIGURATION (1 file):
+   └── requirements.txt                [266 B]
+       └─ Python dependencies (pymodbus)
+
+📊 METADATA (1 file):
+   └── FOLDER_INFO.txt                 [This file]
+       └─ Folder structure & information
+
+TOTAL: 5 files, ~38 KB, 1,152 lines
+
+
+===============================================================================
+📊 SIMULATOR CONFIGURATION
+===============================================================================
+
+Modbus TCP Slave:
+  ├─ IP Address:      192.168.1.8
+  ├─ Port:            502
+  ├─ Slave ID:        1
+  ├─ Protocol:        Modbus TCP
+  ├─ Function Code:   4 (Read Input Registers)
+  └─ Data Type:       INT16 (0-65535)
+
+5 Input Registers:
+  ├─ [0] Temperature  - °C   (20-35)   Initial: 25
+  ├─ [1] Humidity     - %    (40-80)   Initial: 60
+  ├─ [2] Pressure     - Pa   (900-1100) Initial: 1000
+  ├─ [3] Voltage      - V    (220-240) Initial: 230
+  └─ [4] Current      - A    (1-10)    Initial: 5
+
+Auto-Update:
+  ├─ Enabled:         Yes
+  ├─ Interval:        5 seconds
+  └─ Behavior:        Realistic sensor variations
+
+
+===============================================================================
+🔗 CONFIGURATION MATCH
+===============================================================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  This simulator MATCHES configuration from:                        │
+│  Device_Testing/create_device_5_registers.py                       │
+│                                                                     │
+│  Matching Parameters:                                               │
+│  ✅ IP Address:     192.168.1.8                                     │
+│  ✅ Port:           502                                             │
+│  ✅ Slave ID:       1                                               │
+│  ✅ Protocol:       TCP                                             │
+│  ✅ Registers:      5 Input Registers (addresses 0-4)              │
+│  ✅ Function Code:  4 (Read Input Registers)                        │
+│  ✅ Data Type:      INT16                                           │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+🚀 HOW TO USE
+===============================================================================
+
+1. INSTALL:  pip install -r requirements.txt
+2. RUN:      python modbus_slave_5_registers.py
+3. TEST:     cd ../Device_Testing
+             python create_device_5_registers.py
+4. VERIFY:   Gateway connects and reads data from simulator
+
+
+===============================================================================
+📂 FOLDER ISOLATION
+===============================================================================
+
+✅ This is a DEDICATED FOLDER:
+   - Separated from Device_Testing
+   - Separated from Main firmware
+   - Clean and organized
+   - Single purpose: Modbus slave simulation
+   - All documentation self-contained
+
+❌ NOT included in this folder:
+   - Gateway firmware code
+   - BLE testing programs
+   - Other testing scripts
+
+
+===============================================================================
+🔗 RELATED FOLDERS
+===============================================================================
+
+SRT-MGATE-1210-Firmware/
+├── Device_Testing/            → BLE device creation & testing
+├── Modbus_Slave_Simulator/    → THIS FOLDER (simulator)
+├── Main/                      → Firmware source code
+└── Docs/                      → API documentation
+
+
+Workflow:
+  1. Start simulator (Modbus_Slave_Simulator/)
+  2. Create device  (Device_Testing/)
+  3. Gateway polls simulator
+  4. Data flows: Simulator → Gateway → MQTT/HTTP
+
+
+===============================================================================
+📊 FILE SIZE BREAKDOWN
+===============================================================================
+
+Category          Files    Size      Lines
+─────────────────────────────────────────
+Program           1        13 KB     277
+Documentation     3        25 KB     ~840
+Configuration     1        266 B     7
+Metadata          1        ~6 KB     ~180
+─────────────────────────────────────────
+TOTAL             5        ~38 KB    1,152
+
+
+===============================================================================
+✅ QUALITY CHECKLIST
+===============================================================================
+
+✅ Clean folder structure (5 files only)
+✅ No README.md (using DOCUMENTATION.md)
+✅ Configuration matches Device_Testing exactly
+✅ Realistic sensor simulation
+✅ Auto-update with thread safety
+✅ Complete documentation included
+✅ Separated from other folders
+✅ IP address: 192.168.1.8 ✅
+✅ Port: 502 ✅
+✅ 5 registers: Temperature, Humidity, Pressure, Voltage, Current ✅
+
+
+===============================================================================
+📝 REGISTER DETAILS
+===============================================================================
+
+Register 0 - Temperature (°C):
+  Initial:    25
+  Range:      20-35
+  Variation:  ±1°C per update
+  Update:     Slow changes (realistic)
+
+Register 1 - Humidity (%):
+  Initial:    60
+  Range:      40-80
+  Variation:  ±2% per update
+  Update:     Moderate changes
+
+Register 2 - Pressure (Pa):
+  Initial:    1000
+  Range:      900-1100
+  Variation:  ±5 Pa per update
+  Update:     Small changes
+
+Register 3 - Voltage (V):
+  Initial:    230
+  Range:      220-240
+  Variation:  ±1V per update
+  Update:     Very stable
+
+Register 4 - Current (A):
+  Initial:    5
+  Range:      1-10
+  Variation:  ±1A per update
+  Update:     Changes
+
+All registers auto-update every 5 seconds with realistic variations.
+
+
+===============================================================================
+🔧 TECHNICAL SPECS
+===============================================================================
+
+Language:          Python 3.8+
+Library:           pymodbus 3.x
+Protocol:          Modbus TCP (RFC standard)
+Function Code:     4 (Read Input Registers)
+Threading:         Auto-update thread + main server
+Thread Safety:     Yes (using pymodbus context API)
+Memory:            Low footprint (~10MB RAM)
+CPU:               Minimal usage
+Platform:          Windows / Linux / Mac
+
+
+===============================================================================
+🎯 USE CASES
+===============================================================================
+
+✅ Test gateway WITHOUT physical Modbus devices
+✅ Develop and debug gateway configuration
+✅ Verify BLE device creation workflow
+✅ Test register polling and data collection
+✅ Simulate sensor data for MQTT/HTTP testing
+✅ Training and demonstration purposes
+✅ CI/CD testing pipeline
+
+
+===============================================================================
+📂 FOLDER LOCATION
+===============================================================================
+
+Full Path:
+C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator
+
+Navigate:
+cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator"
+
+
+===============================================================================
+⚡ QUICK COMMAND REFERENCE
+===============================================================================
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run simulator
+python modbus_slave_5_registers.py
+
+# Test with gateway (from Device_Testing folder)
+cd ../Device_Testing
+python create_device_5_registers.py
+
+# Check IP configuration
+ipconfig (Windows)
+ifconfig (Linux/Mac)
+
+# Test connectivity
+ping 192.168.1.8
+
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+
+📧 Email:   support@suriota.com
+🌐 Website: https://suriota.com
+📱 Phone:   [contact via email]
+
+
+===============================================================================
+
+Ready to start?
+
+1. Install: pip install -r requirements.txt
+2. Run:     python modbus_slave_5_registers.py
+3. Test:    cd ../Device_Testing && python create_device_5_registers.py
+
+Good luck! 🚀
+
+===============================================================================
+Last Updated: 2025-11-14
+Folder Version: 1.0
+Status: ✅ Ready for Testing
+===============================================================================
+© 2025 PT Surya Inovasi Prioritas (SURIOTA) - All Rights Reserved
+===============================================================================

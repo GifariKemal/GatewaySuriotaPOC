@@ -1,0 +1,185 @@
+===============================================================================
+  MODBUS RTU SLAVE SIMULATOR
+  SRT-MGATE-1210 Testing - 5 Input Registers
+  START HERE - Quick Navigation Guide
+===============================================================================
+
+AUTHOR:      Kemal - SURIOTA R&D Team
+DATE:        2025-11-17
+VERSION:     1.0.0
+FIRMWARE:    SRT-MGATE-1210 v2.2.0
+
+===============================================================================
+  FILE STRUCTURE
+===============================================================================
+
+RTU/
+├── 00_START_HERE.txt               ← YOU ARE HERE - Navigation guide
+├── QUICK_START.txt                 ← Quick setup and run guide (5 minutes)
+├── README.md                       ← Complete documentation (detailed)
+├── requirements.txt                ← Python dependencies list
+└── modbus_slave_5_registers.py     ← Main simulator program
+
+
+===============================================================================
+  CHOOSE YOUR PATH
+===============================================================================
+
+[1] I'M IN A HURRY - Just want to run it now!
+    → Read: QUICK_START.txt
+    → Time: 5 minutes
+    → Steps: Install → Configure → Run
+
+[2] I WANT TO UNDERSTAND EVERYTHING
+    → Read: README.md
+    → Time: 15 minutes
+    → Includes: Theory, troubleshooting, advanced config
+
+[3] I JUST NEED THE DEPENDENCIES
+    → File: requirements.txt
+    → Command: pip install -r requirements.txt
+
+
+===============================================================================
+  MINIMUM REQUIREMENTS
+===============================================================================
+
+✓ Python 3.7+ (you have Python 3.13.5 ✓)
+✓ pymodbus 2.5+ (you have 2.5.3 ✓)
+✓ pyserial 3.5+ (you have 3.5 ✓)
+✓ USB-to-RS485 adapter connected to COM8 (CHECK THIS!)
+✓ Gateway SRT-MGATE-1210 with Serial2 wired to adapter
+
+
+===============================================================================
+  CONFIGURATION SUMMARY
+===============================================================================
+
+Serial Port:      COM8 (Windows) / /dev/ttyUSB0 (Linux)
+Baud Rate:        9600
+Data Format:      8N1 (8 data bits, No parity, 1 stop bit)
+Protocol:         Modbus RTU
+Slave ID:         1
+Function Code:    4 (Read Input Registers)
+Registers:        5 Input Registers (Address 0-4)
+
+Register Map:
+  [0] Temperature  - °C   (20-35)
+  [1] Humidity     - %    (40-80)
+  [2] Pressure     - Pa   (900-1100)
+  [3] Voltage      - V    (220-240)
+  [4] Current      - A    (1-10)
+
+
+===============================================================================
+  QUICK RUN (For Impatient Users)
+===============================================================================
+
+Step 1: Install dependencies
+   pip install -r requirements.txt
+
+Step 2: Run simulator
+   python modbus_slave_5_registers.py
+
+Step 3: Press Enter when prompted
+
+Step 4: In another terminal, run device creation:
+   cd ..\..\Device_Testing\RTU
+   python create_device_5_registers.py
+
+DONE! Gateway should start polling the simulator every 2 seconds.
+
+
+===============================================================================
+  TROUBLESHOOTING
+===============================================================================
+
+Problem: "Could not open port COM8"
+→ Solution: Check Device Manager, close other programs using COM8
+
+Problem: "pymodbus not installed"
+→ Solution: pip install pymodbus pyserial
+
+Problem: No data from gateway
+→ Solution: Check RS485 wiring (A+ to A+, B- to B-)
+
+
+===============================================================================
+  TESTING WORKFLOW
+===============================================================================
+
+1. Start Simulator:
+   python modbus_slave_5_registers.py
+
+2. Verify simulator is listening on COM8
+
+3. Create device on gateway via BLE:
+   python create_device_5_registers.py
+
+4. Monitor simulator output for incoming Modbus requests
+
+5. Verify data transmission to MQTT/HTTP (if configured)
+
+
+===============================================================================
+  HARDWARE CONNECTION
+===============================================================================
+
+PC (COM8)  ←→  [USB-to-RS485]  ←→  ESP32-S3 Gateway (Serial2)
+               Adapter             (RX=17, TX=18)
+
+Wiring:
+  Adapter A+ → Gateway A+ (Serial2)
+  Adapter B- → Gateway B- (Serial2)
+  Adapter GND → Gateway GND (recommended)
+
+
+===============================================================================
+  COMPATIBILITY
+===============================================================================
+
+✓ PyModbus:  2.x and 3.x (auto-detected)
+✓ PySerial:  3.5+
+✓ Python:    3.7, 3.8, 3.9, 3.10, 3.11, 3.12, 3.13
+✓ OS:        Windows 10/11, Linux, Raspberry Pi
+
+
+===============================================================================
+  MATCHES CONFIGURATION FROM
+===============================================================================
+
+This simulator exactly matches:
+  → Device_Testing/RTU/create_device_5_registers.py
+  → Firmware: ModbusRtuService.cpp (Serial2, 9600, 8N1)
+
+
+===============================================================================
+  SUPPORT & DOCUMENTATION
+===============================================================================
+
+Quick Start:    QUICK_START.txt
+Full Docs:      README.md
+Dependencies:   requirements.txt
+Source Code:    modbus_slave_5_registers.py
+
+Contact:        Kemal - SURIOTA R&D Team
+Firmware:       SRT-MGATE-1210 v2.2.0
+
+
+===============================================================================
+  NEXT STEPS
+===============================================================================
+
+Recommended reading order:
+  1. This file (00_START_HERE.txt) ✓ YOU ARE HERE
+  2. QUICK_START.txt (for quick setup)
+  3. README.md (for detailed understanding)
+
+
+===============================================================================
+
+Ready to start? Open QUICK_START.txt or run:
+
+    python modbus_slave_5_registers.py
+
+===============================================================================

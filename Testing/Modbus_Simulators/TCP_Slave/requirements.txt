@@ -1,0 +1,7 @@
+# Python Dependencies for Modbus Slave Simulator
+# ============================================================
+# Install with: pip install -r requirements.txt
+# ============================================================
+
+# Modbus Protocol Library
+pymodbus>=3.0.0

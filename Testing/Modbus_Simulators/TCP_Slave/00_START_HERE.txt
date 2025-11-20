@@ -1,0 +1,244 @@
+===============================================================================
+  MODBUS TCP SLAVE SIMULATOR - START HERE
+===============================================================================
+
+📂 FOLDER: Modbus_Slave_Simulator
+📌 PURPOSE: Simulate Modbus TCP slave device for testing SRT-MGATE-1210
+
+===============================================================================
+📁 FILES IN THIS FOLDER
+===============================================================================
+
+🐍 SIMULATOR PROGRAM:
+   └── modbus_slave_5_registers.py    [Main simulator]
+
+📚 DOCUMENTATION:
+   ├── 00_START_HERE.txt              [This file - START HERE!]
+   ├── QUICK_START.txt                [Quick reference guide]
+   └── DOCUMENTATION.md               [Complete documentation]
+
+🔧 CONFIGURATION:
+   └── requirements.txt               [Python dependencies]
+
+
+===============================================================================
+🎯 WHAT IS THIS?
+===============================================================================
+
+This folder contains a Modbus TCP slave simulator that:
+
+✅ Simulates a real Modbus device
+✅ Matches the Device_Testing configuration exactly
+✅ Provides 5 Input Registers with realistic data
+✅ Auto-updates register values every 5 seconds
+✅ Allows gateway to connect and read data
+
+Perfect for testing WITHOUT physical Modbus devices!
+
+
+===============================================================================
+🚀 QUICK START (3 STEPS)
+===============================================================================
+
+STEP 1: Install
+---------------
+pip install -r requirements.txt
+
+
+STEP 2: Run Simulator
+---------------------
+python modbus_slave_5_registers.py
+
+(Press Enter when prompted)
+
+
+STEP 3: Test with Gateway
+--------------------------
+cd ../Device_Testing
+python create_device_5_registers.py
+
+Gateway will connect to simulator and read data!
+
+
+===============================================================================
+📊 CONFIGURATION MATCH
+===============================================================================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                     │
+│  This simulator is configured to match:                            │
+│  Device_Testing/create_device_5_registers.py                       │
+│                                                                     │
+│  Configuration:                                                     │
+│  ├─ IP:          192.168.1.8                                        │
+│  ├─ Port:        502                                                │
+│  ├─ Slave ID:    1                                                  │
+│  ├─ Protocol:    TCP                                                │
+│  └─ Registers:   5 Input Registers (INT16)                         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+📊 REGISTER DETAILS
+===============================================================================
+
+[0] Temperature  - °C   (Range: 20-35)   - Initial: 25
+[1] Humidity     - %    (Range: 40-80)   - Initial: 60
+[2] Pressure     - Pa   (Range: 900-1100) - Initial: 1000
+[3] Voltage      - V    (Range: 220-240) - Initial: 230
+[4] Current      - A    (Range: 1-10)    - Initial: 5
+
+Auto-Update: Every 5 seconds with realistic variations
+
+
+===============================================================================
+🔄 TESTING WORKFLOW
+===============================================================================
+
+1. START SIMULATOR (This folder)
+   ├─ cd Modbus_Slave_Simulator
+   ├─ python modbus_slave_5_registers.py
+   └─ Server listening on 192.168.1.8:502
+
+2. CREATE DEVICE (Device_Testing folder)
+   ├─ cd ../Device_Testing
+   ├─ python create_device_5_registers.py
+   └─ Creates device + 5 registers on gateway
+
+3. VERIFY CONNECTION
+   ├─ Simulator shows connection logs
+   └─ Gateway reads register values
+
+4. MONITOR DATA
+   ├─ Simulator auto-updates every 5s
+   └─ Gateway polls every 1s
+
+
+===============================================================================
+✅ SUCCESS INDICATORS
+===============================================================================
+
+Simulator Output:
+─────────────────
+[INFO] Server listening on 192.168.1.8:502
+[INFO] Ready for connections from SRT-MGATE-1210 Gateway
+
+Update #0001 - Register Values:
+  [0] Temperature :    25 °C
+  [1] Humidity    :    60 %
+  [2] Pressure    :  1000 Pa
+  [3] Voltage     :   230 V
+  [4] Current     :     5 A
+
+
+Gateway Output:
+───────────────
+[SUCCESS] Device created: TCP_Device_Test
+[SUCCESS] Registers created: 5
+[INFO] Gateway can now poll registers from simulator
+
+
+===============================================================================
+🐛 COMMON ISSUES
+===============================================================================
+
+Issue: "Address already in use"
+───────────────────────────────
+  → Port 502 already used
+  → Change SERVER_PORT in script
+
+
+Issue: "pymodbus not found"
+───────────────────────────
+  → pip install pymodbus
+
+
+Issue: Gateway cannot connect
+──────────────────────────────
+  → Check simulator is running
+  → Verify IP: 192.168.1.8
+  → Check firewall
+
+
+===============================================================================
+📚 DOCUMENTATION GUIDE
+===============================================================================
+
+Read in order:
+
+1. QUICK_START.txt      → Quick reference (5 min)
+2. DOCUMENTATION.md     → Complete guide (15 min)
+3. 00_START_HERE.txt    → This file (overview)
+
+
+===============================================================================
+🔗 RELATED FOLDERS
+===============================================================================
+
+SRT-MGATE-1210-Firmware/
+├── Device_Testing/             → Create device & registers
+├── Modbus_Slave_Simulator/     → THIS FOLDER (simulator)
+├── Main/                       → Firmware source code
+└── Docs/                       → API documentation
+
+
+===============================================================================
+💡 KEY POINTS
+===============================================================================
+
+✅ This folder is SEPARATE from Device_Testing
+✅ Simulator runs on YOUR COMPUTER (not ESP32)
+✅ Gateway connects to simulator like real device
+✅ Perfect for testing without physical hardware
+✅ Auto-updates provide realistic data simulation
+
+
+===============================================================================
+📂 FOLDER LOCATION
+===============================================================================
+
+Full Path:
+C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator
+
+Navigate:
+cd "C:\Users\Administrator\Pictures\SRT-MGATE-1210-Firmware\Modbus_Slave_Simulator"
+
+
+===============================================================================
+⚡ QUICK COMMANDS
+===============================================================================
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run simulator
+python modbus_slave_5_registers.py
+
+# Test with gateway (from Device_Testing folder)
+cd ../Device_Testing
+python create_device_5_registers.py
+
+
+===============================================================================
+📞 SUPPORT
+===============================================================================
+
+PT Surya Inovasi Prioritas (SURIOTA)
+R&D Team
+📧 support@suriota.com
+🌐 https://suriota.com
+
+
+===============================================================================
+
+This is a DEDICATED SIMULATOR FOLDER - separated from device testing.
+Clean, organized, and ready to use.
+
+Ready to start? Run: python modbus_slave_5_registers.py
+
+Good luck! 🚀
+
+===============================================================================
+© 2025 PT Surya Inovasi Prioritas (SURIOTA) - All Rights Reserved
+===============================================================================
