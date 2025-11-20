@@ -897,8 +897,8 @@ uint16_t MqttManager::calculateOptimalBufferSize()
 
   // Load all devices to count total registers
   // Use getAllDevicesWithRegisters() to get device data
-  // BUG #31: Use PSRAM JsonDocument instead of default (DRAM) JsonDocument
-  JsonDocument devicesDoc(8192);  // PSRAM allocation via JsonDocumentPSRAM.h override
+  // BUG #31: JsonDocument will use PSRAM via DefaultAllocator override (JsonDocumentPSRAM.h)
+  JsonDocument devicesDoc;  // Automatically uses PSRAM allocator from JsonDocumentPSRAM.h
   JsonArray devices = devicesDoc.to<JsonArray>();
   configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
 
