@@ -120,7 +120,7 @@ class DeviceCreationClient:
                 "slave_id": 1,
                 "timeout": 5000,
                 "retry_count": 3,
-                "refresh_rate_ms": 2000,
+                "refresh_rate_ms": 10000,
                 "serial_port": 2,
                 "baud_rate": 9600,
                 "data_bits": 8,

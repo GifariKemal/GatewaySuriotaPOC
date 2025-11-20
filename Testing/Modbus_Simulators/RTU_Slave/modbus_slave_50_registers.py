@@ -163,7 +163,7 @@ REGISTER_INFO = {
 
 # Auto-update configuration
 AUTO_UPDATE = True
-UPDATE_INTERVAL = 5.0  # Update every 5 seconds (gateway polls every 2s)
+UPDATE_INTERVAL = 1.0  # Update every 1 second (gateway polls every 2s)
 
 # =============================================================================
 # Logging Configuration
