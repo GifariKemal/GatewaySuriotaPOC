@@ -12,6 +12,7 @@
 
 #include "DebugConfig.h" // ← MUST BE FIRST (before all other includes)
 #include "MemoryRecovery.h" // Phase 2 optimization
+#include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
 
 #include "BLEManager.h"
 #include "CRUDHandler.h"
