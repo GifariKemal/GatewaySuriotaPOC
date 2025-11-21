@@ -234,6 +234,70 @@ void CRUDHandler::setupCommandHandlers()
     }
   };
 
+  readHandlers["full_config"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    Serial.println("[CRUD] Full config backup requested");
+    unsigned long startTime = millis();
+
+    // Allocate large PSRAM document for complete config
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+
+    // Backup metadata
+    JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
+    backupInfo["timestamp"] = millis();
+    backupInfo["firmware_version"] = "2.2.0";
+    backupInfo["device_name"] = "SURIOTA_GW";
+
+    // Get all configurations
+    JsonObject config = (*response)["config"].to<JsonObject>();
+
+    // 1. Devices + registers (complete structure)
+    JsonArray devices = config["devices"].to<JsonArray>();
+    configManager->getAllDevicesWithRegisters(devices, false);  // Full mode, not minimal
+
+    // 2. Server config (MQTT, HTTP, WiFi, Ethernet)
+    JsonObject serverCfg = config["server_config"].to<JsonObject>();
+    if (!serverConfig->getConfig(serverCfg))
+    {
+      Serial.println("[CRUD] WARNING: Failed to get server config");
+    }
+
+    // 3. Logging config
+    JsonObject loggingCfg = config["logging_config"].to<JsonObject>();
+    if (!loggingConfig->getConfig(loggingCfg))
+    {
+      Serial.println("[CRUD] WARNING: Failed to get logging config");
+    }
+
+    // Calculate statistics
+    int totalDevices = devices.size();
+    int totalRegisters = 0;
+    for (JsonObject dev : devices)
+    {
+      if (dev["registers"].is<JsonArray>())
+      {
+        totalRegisters += dev["registers"].size();
+      }
+    }
+
+    backupInfo["total_devices"] = totalDevices;
+    backupInfo["total_registers"] = totalRegisters;
+
+    unsigned long processingTime = millis() - startTime;
+    backupInfo["processing_time_ms"] = processingTime;
+
+    // Calculate approximate JSON size
+    String testOutput;
+    serializeJson(*response, testOutput);
+    backupInfo["backup_size_bytes"] = testOutput.length();
+
+    Serial.printf("[CRUD] Full config backup complete: %d devices, %d registers, %d bytes, %lu ms\n",
+                  totalDevices, totalRegisters, testOutput.length(), processingTime);
+
+    manager->sendResponse(*response);
+  };
+
   readHandlers["data"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     String device = command["device_id"] | "";
@@ -756,6 +820,133 @@ void CRUDHandler::setupCommandHandlers()
 
     // Perform factory reset
     performFactoryReset();
+  };
+
+  // Config Restore - Import full configuration from backup
+  systemHandlers["restore_config"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    Serial.println("");
+    Serial.println("========================================");
+    Serial.println("[CONFIG RESTORE] ⚠️  INITIATED by BLE client");
+    Serial.println("========================================");
+
+    // Validate that config object exists
+    if (!command["config"].is<JsonObject>())
+    {
+      Serial.println("[CONFIG RESTORE] ❌ ERROR: Missing 'config' object in payload");
+      manager->sendError("Missing 'config' object in restore payload");
+      return;
+    }
+
+    JsonObjectConst restoreConfig = command["config"];
+    int successCount = 0;
+    int failCount = 0;
+    JsonArray restoredConfigs;
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    restoredConfigs = (*response)["restored_configs"].to<JsonArray>();
+
+    // Step 1: Restore devices configuration
+    Serial.println("[CONFIG RESTORE] [1/3] Restoring devices configuration...");
+    if (restoreConfig["devices"].is<JsonArray>())
+    {
+      // Clear existing devices first
+      configManager->clearAllConfigurations();
+      Serial.println("[CONFIG RESTORE] Existing devices cleared");
+
+      // Restore each device
+      JsonArrayConst devices = restoreConfig["devices"];
+      int deviceCount = 0;
+      for (JsonObjectConst device : devices)
+      {
+        String deviceId = configManager->createDevice(device);
+        if (!deviceId.isEmpty())
+        {
+          deviceCount++;
+        }
+        else
+        {
+          Serial.printf("[CONFIG RESTORE] WARNING: Failed to restore device\n");
+        }
+      }
+
+      Serial.printf("[CONFIG RESTORE] Restored %d devices\n", deviceCount);
+      restoredConfigs.add("devices.json");
+      successCount++;
+    }
+    else
+    {
+      Serial.println("[CONFIG RESTORE] WARNING: No devices in backup");
+    }
+
+    // Step 2: Restore server configuration
+    Serial.println("[CONFIG RESTORE] [2/3] Restoring server configuration...");
+    if (restoreConfig["server_config"].is<JsonObject>())
+    {
+      JsonObjectConst serverCfg = restoreConfig["server_config"];
+      if (serverConfig->updateConfig(serverCfg))
+      {
+        Serial.println("[CONFIG RESTORE] Server config restored successfully");
+        restoredConfigs.add("server_config.json");
+        successCount++;
+      }
+      else
+      {
+        Serial.println("[CONFIG RESTORE] ERROR: Failed to restore server config");
+        failCount++;
+      }
+    }
+    else
+    {
+      Serial.println("[CONFIG RESTORE] WARNING: No server_config in backup");
+    }
+
+    // Step 3: Restore logging configuration
+    Serial.println("[CONFIG RESTORE] [3/3] Restoring logging configuration...");
+    if (restoreConfig["logging_config"].is<JsonObject>())
+    {
+      JsonObjectConst loggingCfg = restoreConfig["logging_config"];
+      if (loggingConfig->updateConfig(loggingCfg))
+      {
+        Serial.println("[CONFIG RESTORE] Logging config restored successfully");
+        restoredConfigs.add("logging_config.json");
+        successCount++;
+      }
+      else
+      {
+        Serial.println("[CONFIG RESTORE] ERROR: Failed to restore logging config");
+        failCount++;
+      }
+    }
+    else
+    {
+      Serial.println("[CONFIG RESTORE] WARNING: No logging_config in backup");
+    }
+
+    // Send response with restore summary
+    (*response)["success_count"] = successCount;
+    (*response)["fail_count"] = failCount;
+    (*response)["message"] = "Configuration restore completed. Device restart recommended.";
+    (*response)["requires_restart"] = true;
+
+    Serial.println("[CONFIG RESTORE] ========================================");
+    Serial.printf("[CONFIG RESTORE] Restore complete: %d succeeded, %d failed\n", successCount, failCount);
+    Serial.println("[CONFIG RESTORE] ⚠️  Device restart recommended to apply all changes");
+    Serial.println("[CONFIG RESTORE] ========================================");
+    Serial.println("");
+
+    manager->sendResponse(*response);
+
+    // Notify services of config changes
+    if (modbusRtuService)
+    {
+      modbusRtuService->notifyConfigChange();
+    }
+    if (modbusTcpService)
+    {
+      modbusTcpService->notifyConfigChange();
+    }
   };
 }
 
