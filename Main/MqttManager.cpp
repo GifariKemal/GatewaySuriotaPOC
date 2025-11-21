@@ -656,8 +656,13 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   // Publish single message with all data
   if (mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str()))
   {
-    LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB)\n",
-                  totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(), payload.length() / 1024.0);
+    // Calculate interval display (convert ms to seconds if needed)
+    uint32_t displayInterval = (defaultIntervalUnit == "ms") ? (defaultInterval / 1000) : defaultInterval;
+    const char* displayUnit = (defaultIntervalUnit == "ms") ? "s" : defaultIntervalUnit.c_str();
+
+    LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
+                  totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(),
+                  payload.length() / 1024.0, displayInterval, displayUnit);
     lastDefaultPublish = now;
 
     // CRITICAL FIX: Clear batch status after successful publish (once per device)
@@ -783,9 +788,13 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
 
       if (mqttClient.publish(customTopic.topic.c_str(), payload.c_str()))
       {
-        Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB, Interval: %ums)\n",
+        // Calculate interval display (convert ms to seconds if needed)
+        uint32_t displayInterval = (customTopic.intervalUnit == "ms") ? (customTopic.interval / 1000) : customTopic.interval;
+        const char* displayUnit = (customTopic.intervalUnit == "ms") ? "s" : customTopic.intervalUnit.c_str();
+
+        Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
-                      payload.length() / 1024.0, customTopic.interval);
+                      payload.length() / 1024.0, displayInterval, displayUnit);
         customTopic.lastPublish = now;
 
         if (ledManager)
