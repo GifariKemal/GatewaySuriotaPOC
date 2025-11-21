@@ -556,8 +556,8 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     batchDoc["timestamp"] = now; // Fallback to millis if RTC not available
   }
 
-  // OPTIMIZED: Create devices array instead of object for smaller payload size
-  JsonArray devicesArray = batchDoc["devices"].to<JsonArray>();
+  // NEW FORMAT: Create devices as nested object (device_id as keys)
+  JsonObject devicesObject = batchDoc["devices"].to<JsonObject>();
 
   // Map to track device objects: device_id -> JsonObject reference
   std::map<String, JsonObject> deviceObjects;
@@ -578,10 +578,11 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     }
 
     String deviceId = dataPoint["device_id"].as<String>();
+    String registerName = dataPoint["name"].as<String>();
 
-    if (deviceId.isEmpty())
+    if (deviceId.isEmpty() || registerName.isEmpty())
     {
-      continue; // Silent skip - empty device_id
+      continue; // Silent skip - empty device_id or register name
     }
 
     // Priority 3: Validate device still exists (not deleted) before publishing
@@ -605,34 +606,25 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
       }
     }
 
-    // Create device object in array if not exists
+    // Create device object with device_id as key if not exists
     if (deviceObjects.find(deviceId) == deviceObjects.end())
     {
-      JsonObject deviceObj = devicesArray.add<JsonObject>();
+      JsonObject deviceObj = devicesObject[deviceId].to<JsonObject>();
 
-      // OPTIMIZED: Minimal device info (device_id, device_name, data only)
-      deviceObj["device_id"] = deviceId;
-
+      // Add device_name at device level
       if (!dataPoint["device_name"].isNull())
       {
         deviceObj["device_name"] = dataPoint["device_name"];
       }
 
-      // Create data array for this device
-      deviceObj["data"].to<JsonArray>();
-
       // Store reference to this device object for grouping
       deviceObjects[deviceId] = deviceObj;
     }
 
-    // Get data array for this device
-    JsonArray dataArray = deviceObjects[deviceId]["data"].as<JsonArray>();
-
-    // OPTIMIZED: Add minimal register data (name, value, unit only - removed description)
-    JsonObject item = dataArray.add<JsonObject>();
-    item["name"] = dataPoint["name"];
-    item["value"] = dataPoint["value"];
-    item["unit"] = dataPoint["unit"];
+    // Add register as nested object: devices.{device_id}.{register_name} = {value, unit}
+    JsonObject registerObj = deviceObjects[deviceId][registerName].to<JsonObject>();
+    registerObj["value"] = dataPoint["value"];
+    registerObj["unit"] = dataPoint["unit"];
 
     totalRegisters++;
   }
@@ -665,7 +657,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   if (mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str()))
   {
     LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB)\n",
-                  totalRegisters, devicesArray.size(), defaultTopicPublish.c_str(), payload.length() / 1024.0);
+                  totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(), payload.length() / 1024.0);
     lastDefaultPublish = now;
 
     // CRITICAL FIX: Clear batch status after successful publish (once per device)
