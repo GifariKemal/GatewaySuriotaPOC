@@ -7,17 +7,24 @@
 #include <set>  // For std::set to track cleared devices
 
 // Helper function: Convert interval to milliseconds based on unit
+// Supports multiple unit variants for flexibility:
+// - Milliseconds: "ms", "millisecond", "milliseconds"
+// - Seconds: "s", "sec", "secs", "second", "seconds"
+// - Minutes: "m", "min", "mins", "minute", "minutes"
 static uint32_t convertToMilliseconds(uint32_t interval, const String &unit)
 {
-  if (unit == "ms" || unit.isEmpty())
+  String unitLower = unit;
+  unitLower.toLowerCase();
+
+  if (unitLower == "ms" || unitLower == "millisecond" || unitLower == "milliseconds" || unitLower.isEmpty())
   {
     return interval; // Already in milliseconds
   }
-  else if (unit == "s")
+  else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" || unitLower == "second" || unitLower == "seconds")
   {
     return interval * 1000; // Seconds to milliseconds
   }
-  else if (unit == "m")
+  else if (unitLower == "m" || unitLower == "min" || unitLower == "mins" || unitLower == "minute" || unitLower == "minutes")
   {
     return interval * 60000; // Minutes to milliseconds
   }
@@ -662,11 +669,15 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     uint32_t displayInterval;
     const char* displayUnit;
 
-    if (defaultIntervalUnit == "m") {
+    // Normalize unit for comparison (case-insensitive)
+    String unitLower = defaultIntervalUnit;
+    unitLower.toLowerCase();
+
+    if (unitLower == "m" || unitLower == "min" || unitLower == "mins" || unitLower == "minute" || unitLower == "minutes") {
       // Convert milliseconds to minutes
       displayInterval = defaultInterval / 60000;
-      displayUnit = "m";
-    } else if (defaultIntervalUnit == "s") {
+      displayUnit = "min";
+    } else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" || unitLower == "second" || unitLower == "seconds") {
       // Convert milliseconds to seconds
       displayInterval = defaultInterval / 1000;
       displayUnit = "s";
@@ -809,11 +820,15 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         uint32_t displayInterval;
         const char* displayUnit;
 
-        if (customTopic.intervalUnit == "m") {
+        // Normalize unit for comparison (case-insensitive)
+        String unitLower = customTopic.intervalUnit;
+        unitLower.toLowerCase();
+
+        if (unitLower == "m" || unitLower == "min" || unitLower == "mins" || unitLower == "minute" || unitLower == "minutes") {
           // Convert milliseconds to minutes
           displayInterval = customTopic.interval / 60000;
-          displayUnit = "m";
-        } else if (customTopic.intervalUnit == "s") {
+          displayUnit = "min";
+        } else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" || unitLower == "second" || unitLower == "seconds") {
           // Convert milliseconds to seconds
           displayInterval = customTopic.interval / 1000;
           displayUnit = "s";
