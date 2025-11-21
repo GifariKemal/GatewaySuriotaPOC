@@ -77,7 +77,7 @@ REGISTER_INFO = {
 
 # Auto-update configuration
 AUTO_UPDATE = True
-UPDATE_INTERVAL = 10.0  # Update every 10 seconds (matches gateway refresh_rate_ms: 1000ms)
+UPDATE_INTERVAL = 2.0  # Update every 10 seconds (matches gateway refresh_rate_ms: 1000ms)
 
 # =============================================================================
 # Logging Configuration
