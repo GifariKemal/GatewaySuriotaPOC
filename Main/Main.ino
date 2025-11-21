@@ -307,47 +307,6 @@ void setup()
     rtcManager->startSync();
   }
 
-  // ============================================
-  // CRITICAL: Wait for first NTP sync before starting data logging
-  // ============================================
-  // Ensures all logged data has accurate timestamps from start
-  if (networkInitialized && rtcManager)
-  {
-    Serial.println("[RTC] Waiting for first NTP sync to complete...");
-    int maxWaitSeconds = 30;  // Maximum 30 seconds wait
-    int waitedSeconds = 0;
-    bool ntpSynced = false;
-
-    while (waitedSeconds < maxWaitSeconds)
-    {
-      // Check if NTP sync completed by forcing a sync attempt
-      if (rtcManager->forceNtpSync())
-      {
-        ntpSynced = true;
-        Serial.printf("[RTC] NTP sync successful after %d seconds\n", waitedSeconds);
-        break;
-      }
-
-      vTaskDelay(pdMS_TO_TICKS(1000));  // Wait 1 second
-      waitedSeconds++;
-
-      if (waitedSeconds % 5 == 0)  // Log every 5 seconds
-      {
-        Serial.printf("[RTC] Still waiting for NTP sync... (%d/%ds)\n", waitedSeconds, maxWaitSeconds);
-      }
-    }
-
-    if (!ntpSynced)
-    {
-      Serial.println("[RTC] WARNING: NTP sync timeout - proceeding with RTC chip time");
-      Serial.println("[RTC] Timestamps may be inaccurate until background sync succeeds");
-    }
-  }
-  else if (!networkInitialized)
-  {
-    Serial.println("[RTC] Network unavailable - using RTC chip time (no NTP sync)");
-  }
-
   // Initialize Modbus TCP service (watchdog-safe implementation)
   EthernetManager *ethernetMgr = EthernetManager::getInstance();
   if (ethernetMgr)
