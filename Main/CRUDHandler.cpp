@@ -138,13 +138,13 @@ void CRUDHandler::setupCommandHandlers()
     // Warn if no data returned
     if (devices.size() == 0)
     {
-      Serial.println("[CRUD] ⚠️  WARNING: No devices returned! Check if devices are configured in devices.json");
+      Serial.println("[CRUD] WARNING: No devices returned! Check if devices are configured in devices.json");
     }
 
     // Warn if processing takes too long (>10 seconds)
     if (processingTime > 10000)
     {
-      Serial.printf("[CRUD] ⚠️  WARNING: Processing took %lu ms (>10s). Consider using minimal=true for large datasets.\n", processingTime);
+      Serial.printf("[CRUD] WARNING: Processing took %lu ms (>10s). Consider using minimal=true for large datasets.\n", processingTime);
     }
 
     manager->sendResponse(*response);
@@ -883,13 +883,13 @@ void CRUDHandler::setupCommandHandlers()
   {
     Serial.println("");
     Serial.println("========================================");
-    Serial.println("[CONFIG RESTORE] ⚠️  INITIATED by BLE client");
+    Serial.println("[CONFIG RESTORE] INITIATED by BLE client");
     Serial.println("========================================");
 
     // Validate that config object exists
     if (!command["config"].is<JsonObject>())
     {
-      Serial.println("[CONFIG RESTORE] ❌ ERROR: Missing 'config' object in payload");
+      Serial.println("[CONFIG RESTORE] ERROR: Missing 'config' object in payload");
       manager->sendError("Missing 'config' object in restore payload");
       return;
     }
@@ -988,7 +988,7 @@ void CRUDHandler::setupCommandHandlers()
 
     Serial.println("[CONFIG RESTORE] ========================================");
     Serial.printf("[CONFIG RESTORE] Restore complete: %d succeeded, %d failed\n", successCount, failCount);
-    Serial.println("[CONFIG RESTORE] ⚠️  Device restart recommended to apply all changes");
+    Serial.println("[CONFIG RESTORE] Device restart recommended to apply all changes");
     Serial.println("[CONFIG RESTORE] ========================================");
     Serial.println("");
 

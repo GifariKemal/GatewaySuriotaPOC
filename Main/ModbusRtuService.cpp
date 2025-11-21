@@ -226,7 +226,7 @@ void ModbusRtuService::readRtuDevicesLoop()
     if (ulTaskNotifyTake(pdTRUE, 0) > 0)
     {
       refreshDeviceList();
-      Serial.println("[RTU] Configuration changed, device list refreshed");
+      // Config refresh is silent to reduce log noise
     }
 
     JsonDocument devicesDoc;
@@ -926,7 +926,6 @@ void ModbusRtuService::getStatus(JsonObject &status)
 
 void ModbusRtuService::initializeDeviceFailureTracking()
 {
-  Serial.println("[RTU] Initializing device failure tracking...");
   deviceFailureStates.clear();
 
   for (const auto &device : rtuDevices)
@@ -952,14 +951,13 @@ void ModbusRtuService::initializeDeviceFailureTracking()
 
     state.maxRetries = 5;
     deviceFailureStates.push_back(state);
-
-    Serial.printf("[RTU] Initialized tracking for device %s (baudrate: %d)\n", device.deviceId, state.baudRate);
   }
+  // Concise summary log
+  Serial.printf("[RTU] Failure tracking init: %d devices\n", deviceFailureStates.size());
 }
 
 void ModbusRtuService::initializeDeviceTimeouts()
 {
-  Serial.println("[RTU] Initializing device timeout tracking...");
   deviceTimeouts.clear();
 
   for (const auto &device : rtuDevices)
@@ -971,10 +969,9 @@ void ModbusRtuService::initializeDeviceTimeouts()
     timeout.lastSuccessfulRead = millis();
     timeout.maxConsecutiveTimeouts = 3;
     deviceTimeouts.push_back(timeout);
-
-    Serial.printf("[RTU] Initialized timeout tracking for device: %s (timeout: %dms)\n",
-                  device.deviceId, timeout.timeoutMs);
   }
+  // Concise summary log
+  Serial.printf("[RTU] Timeout tracking init: %d devices\n", deviceTimeouts.size());
 }
 
 ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const char* deviceId)
@@ -1004,7 +1001,6 @@ ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const ch
 // NEW: Enhancement - Device Health Metrics Tracking
 void ModbusRtuService::initializeDeviceMetrics()
 {
-  Serial.println("[RTU] Initializing device health metrics tracking...");
   deviceMetrics.clear();
 
   for (const auto &device : rtuDevices)
@@ -1019,9 +1015,9 @@ void ModbusRtuService::initializeDeviceMetrics()
     metrics.maxResponseTimeMs = 0;
     metrics.lastResponseTimeMs = 0;
     deviceMetrics.push_back(metrics);
-
-    Serial.printf("[RTU] Initialized metrics tracking for device: %s\n", device.deviceId);
   }
+  // Concise summary log
+  Serial.printf("[RTU] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
 ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const char* deviceId)
