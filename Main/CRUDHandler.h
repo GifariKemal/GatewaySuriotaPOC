@@ -124,9 +124,13 @@ private:
   std::map<String, CommandHandler> updateHandlers;
   std::map<String, CommandHandler> deleteHandlers;
   std::map<String, CommandHandler> controlHandlers;  // NEW: Device control operations
+  std::map<String, CommandHandler> systemHandlers;   // NEW: System operations (factory reset, etc.)
 
   // Private method to populate the handler maps
   void setupCommandHandlers();
+
+  // Factory reset helper
+  void performFactoryReset();
 
   // Priority Queue and Batch Operations
   std::priority_queue<Command, std::vector<Command>, std::greater<Command>> commandQueue;
