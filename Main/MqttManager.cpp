@@ -258,6 +258,7 @@ bool MqttManager::connectToMqtt()
   uint16_t optimalBufferSize = calculateOptimalBufferSize();
   mqttClient.setBufferSize(optimalBufferSize, optimalBufferSize);
   Serial.printf("[MQTT] Buffer size set to %u bytes (dynamically calculated)\n", optimalBufferSize);
+  Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
   mqttClient.setKeepAlive(60);
   mqttClient.setSocketTimeout(5);  // Socket timeout in seconds
 
