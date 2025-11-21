@@ -741,16 +741,26 @@ void BLEManager::metricsMonitorTask(void *parameter)
 
   Serial.println("[BLE METRICS] Monitoring task started");
 
+  uint32_t lastMetricsPublish = 0;
+  const uint32_t METRICS_PUBLISH_INTERVAL = 60000;  // Publish metrics every 60s
+  const uint32_t MTU_CHECK_INTERVAL = 500;          // Check MTU timeout every 500ms
+
   while (true)
   {
-    // Check for MTU negotiation timeout (every 500ms for quick response)
+    // Check for MTU negotiation timeout frequently (every 500ms)
     manager->checkMTUNegotiationTimeout();
 
-    // Update queue metrics every 10 seconds
-    manager->updateQueueMetrics();
-    manager->publishMetrics();
+    // Update and publish queue metrics only every 60 seconds
+    uint32_t now = millis();
+    if (now - lastMetricsPublish >= METRICS_PUBLISH_INTERVAL)
+    {
+      manager->updateQueueMetrics();
+      manager->publishMetrics();
+      lastMetricsPublish = now;
+    }
 
-    vTaskDelay(pdMS_TO_TICKS(BLE_QUEUE_MONITOR_INTERVAL));
+    // Sleep for short interval to check MTU frequently
+    vTaskDelay(pdMS_TO_TICKS(MTU_CHECK_INTERVAL));
   }
 }
 
