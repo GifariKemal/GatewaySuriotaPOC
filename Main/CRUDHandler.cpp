@@ -12,8 +12,10 @@ extern ModbusRtuService *modbusRtuService;
 extern ModbusTcpService *modbusTcpService;
 
 CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, LoggingConfig *loggingCfg)
-    : configManager(config), serverConfig(serverCfg), loggingConfig(loggingCfg), mqttManager(nullptr), httpManager(nullptr), streamDeviceId(""),
-      commandIdCounter(0)
+    : configManager(config), serverConfig(serverCfg), loggingConfig(loggingCfg),
+      mqttManager(nullptr), httpManager(nullptr),
+      modbusRtuService(nullptr), modbusTcpService(nullptr),
+      streamDeviceId(""), commandIdCounter(0)
 {
   setupCommandHandlers();
 
@@ -539,6 +541,187 @@ void CRUDHandler::setupCommandHandlers()
       manager->sendError("Register deletion failed");
     }
   };
+
+  // === CONTROL HANDLERS (Device Enable/Disable/Status) ===
+
+  controlHandlers["enable_device"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    String deviceId = command["device_id"] | "";
+    bool clearMetrics = command["clear_metrics"] | false;
+
+    auto response = make_psram_unique<JsonDocument>();
+
+    if (deviceId.isEmpty())
+    {
+      manager->sendError("device_id is required");
+      return;
+    }
+
+    // Check device protocol to route to correct service
+    JsonDocument deviceDoc;
+    JsonObject device = deviceDoc.to<JsonObject>();
+    if (!configManager->readDevice(deviceId, device))
+    {
+      manager->sendError("Device not found");
+      return;
+    }
+
+    String protocol = device["protocol"] | "";
+    bool success = false;
+
+    if (protocol == "RTU" && modbusRtuService)
+    {
+      success = modbusRtuService->enableDeviceByCommand(deviceId.c_str(), clearMetrics);
+    }
+    else if (protocol == "TCP" && modbusTcpService)
+    {
+      success = modbusTcpService->enableDeviceByCommand(deviceId, clearMetrics);
+    }
+    else
+    {
+      manager->sendError("Invalid protocol or service not available");
+      return;
+    }
+
+    if (success)
+    {
+      (*response)["status"] = "ok";
+      (*response)["device_id"] = deviceId;
+      (*response)["message"] = "Device enabled";
+      (*response)["metrics_cleared"] = clearMetrics;
+      manager->sendResponse(*response);
+    }
+    else
+    {
+      manager->sendError("Failed to enable device");
+    }
+  };
+
+  controlHandlers["disable_device"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    String deviceId = command["device_id"] | "";
+    String reason = command["reason"] | "Manual disable via BLE";
+
+    auto response = make_psram_unique<JsonDocument>();
+
+    if (deviceId.isEmpty())
+    {
+      manager->sendError("device_id is required");
+      return;
+    }
+
+    // Check device protocol to route to correct service
+    JsonDocument deviceDoc;
+    JsonObject device = deviceDoc.to<JsonObject>();
+    if (!configManager->readDevice(deviceId, device))
+    {
+      manager->sendError("Device not found");
+      return;
+    }
+
+    String protocol = device["protocol"] | "";
+    bool success = false;
+
+    if (protocol == "RTU" && modbusRtuService)
+    {
+      success = modbusRtuService->disableDeviceByCommand(deviceId.c_str(), reason.c_str());
+    }
+    else if (protocol == "TCP" && modbusTcpService)
+    {
+      success = modbusTcpService->disableDeviceByCommand(deviceId, reason);
+    }
+    else
+    {
+      manager->sendError("Invalid protocol or service not available");
+      return;
+    }
+
+    if (success)
+    {
+      (*response)["status"] = "ok";
+      (*response)["device_id"] = deviceId;
+      (*response)["message"] = "Device disabled";
+      (*response)["reason"] = reason;
+      manager->sendResponse(*response);
+    }
+    else
+    {
+      manager->sendError("Failed to disable device");
+    }
+  };
+
+  controlHandlers["get_device_status"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    String deviceId = command["device_id"] | "";
+
+    auto response = make_psram_unique<JsonDocument>();
+
+    if (deviceId.isEmpty())
+    {
+      manager->sendError("device_id is required");
+      return;
+    }
+
+    // Check device protocol to route to correct service
+    JsonDocument deviceDoc;
+    JsonObject device = deviceDoc.to<JsonObject>();
+    if (!configManager->readDevice(deviceId, device))
+    {
+      manager->sendError("Device not found");
+      return;
+    }
+
+    String protocol = device["protocol"] | "";
+    bool success = false;
+
+    (*response)["status"] = "ok";
+    JsonObject statusInfo = (*response)["device_status"].to<JsonObject>();
+
+    if (protocol == "RTU" && modbusRtuService)
+    {
+      success = modbusRtuService->getDeviceStatusInfo(deviceId.c_str(), statusInfo);
+    }
+    else if (protocol == "TCP" && modbusTcpService)
+    {
+      success = modbusTcpService->getDeviceStatusInfo(deviceId, statusInfo);
+    }
+    else
+    {
+      manager->sendError("Invalid protocol or service not available");
+      return;
+    }
+
+    if (success)
+    {
+      manager->sendResponse(*response);
+    }
+    else
+    {
+      manager->sendError("Failed to get device status");
+    }
+  };
+
+  controlHandlers["get_all_device_status"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+
+    // Get RTU devices status
+    if (modbusRtuService)
+    {
+      JsonObject rtuStatus = (*response)["rtu_devices"].to<JsonObject>();
+      modbusRtuService->getAllDevicesStatus(rtuStatus);
+    }
+
+    // Get TCP devices status
+    if (modbusTcpService)
+    {
+      JsonObject tcpStatus = (*response)["tcp_devices"].to<JsonObject>();
+      modbusTcpService->getAllDevicesStatus(tcpStatus);
+    }
+
+    manager->sendResponse(*response);
+  };
 }
 
 // ============================================================================
@@ -657,6 +840,10 @@ void CRUDHandler::processPriorityQueue()
   else if (op == "delete" && deleteHandlers.count(type))
   {
     deleteHandlers[type](cmd.manager, *cmd.payload);
+  }
+  else if (op == "control" && controlHandlers.count(type))
+  {
+    controlHandlers[type](cmd.manager, *cmd.payload);
   }
 
   batchStats.totalCommandsProcessed++;
@@ -778,6 +965,11 @@ void CRUDHandler::executeBatchSequential(BLEManager *manager, const String &batc
       deleteHandlers[type](manager, *cmdDoc);
       success = true;
     }
+    else if (op == "control" && controlHandlers.count(type))
+    {
+      controlHandlers[type](manager, *cmdDoc);
+      success = true;
+    }
 
     if (success)
     {
@@ -845,6 +1037,10 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
     {
       handlerExists = deleteHandlers.count(type) > 0;
     }
+    else if (op == "control")
+    {
+      handlerExists = controlHandlers.count(type) > 0;
+    }
 
     if (!handlerExists)
     {
@@ -885,6 +1081,11 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
       else if (op == "delete" && deleteHandlers.count(type))
       {
         deleteHandlers[type](manager, *cmdDoc);
+        completed++;
+      }
+      else if (op == "control" && controlHandlers.count(type))
+      {
+        controlHandlers[type](manager, *cmdDoc);
         completed++;
       }
 

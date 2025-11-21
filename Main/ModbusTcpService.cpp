@@ -75,6 +75,25 @@ void ModbusTcpService::start()
   if (result == pdPASS)
   {
     Serial.println("Custom Modbus TCP service started successfully");
+
+    // Start auto-recovery task
+    BaseType_t recoveryResult = xTaskCreatePinnedToCore(
+        autoRecoveryTask,
+        "TCP_AUTO_RECOVERY",
+        4096,
+        this,
+        1,
+        &autoRecoveryTaskHandle,
+        1);
+
+    if (recoveryResult == pdPASS)
+    {
+      Serial.println("[TCP] Auto-recovery task started");
+    }
+    else
+    {
+      Serial.println("[TCP] WARNING: Failed to create auto-recovery task");
+    }
   }
   else
   {
@@ -87,12 +106,24 @@ void ModbusTcpService::start()
 void ModbusTcpService::stop()
 {
   running = false;
+
+  // Stop auto-recovery task
+  if (autoRecoveryTaskHandle)
+  {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelete(autoRecoveryTaskHandle);
+    autoRecoveryTaskHandle = nullptr;
+    Serial.println("[TCP] Auto-recovery task stopped");
+  }
+
+  // Stop main TCP task
   if (tcpTaskHandle)
   {
     vTaskDelay(pdMS_TO_TICKS(100)); // Allow task to exit gracefully
     vTaskDelete(tcpTaskHandle);
     tcpTaskHandle = nullptr;
   }
+
   Serial.println("Custom Modbus TCP service stopped");
 }
 
@@ -146,6 +177,11 @@ void ModbusTcpService::refreshDeviceList()
     }
   }
   Serial.printf("[TCP Task] Found %d TCP devices. Schedule rebuilt.\n", tcpDevices.size());
+
+  // Initialize device tracking after device list is loaded
+  initializeDeviceFailureTracking();
+  initializeDeviceTimeouts();
+  initializeDeviceMetrics();
 }
 
 void ModbusTcpService::readTcpDevicesTask(void *parameter)
@@ -1327,6 +1363,430 @@ void ModbusTcpService::closeAllConnections() {
   connectionPool.clear();
 
   xSemaphoreGive(poolMutex);
+}
+
+// ============================================
+// NEW: Enhancement - Device Failure and Metrics Management
+// ============================================
+
+void ModbusTcpService::initializeDeviceFailureTracking()
+{
+  Serial.println("[TCP] Initializing device failure tracking...");
+  deviceFailureStates.clear();
+
+  for (const auto &device : tcpDevices)
+  {
+    DeviceFailureState state;
+    state.deviceId = device.deviceId;
+    state.consecutiveFailures = 0;
+    state.retryCount = 0;
+    state.nextRetryTime = 0;
+    state.lastReadAttempt = 0;
+    state.lastSuccessfulRead = 0;
+    state.isEnabled = true;
+    state.maxRetries = 5;
+    state.disableReason = DeviceFailureState::NONE;
+    state.disableReasonDetail = "";
+    state.disabledTimestamp = 0;
+    deviceFailureStates.push_back(state);
+
+    Serial.printf("[TCP] Initialized tracking for device %s\n", device.deviceId.c_str());
+  }
+}
+
+void ModbusTcpService::initializeDeviceTimeouts()
+{
+  Serial.println("[TCP] Initializing device timeout tracking...");
+  deviceTimeouts.clear();
+
+  for (const auto &device : tcpDevices)
+  {
+    DeviceReadTimeout timeout;
+    timeout.deviceId = device.deviceId;
+    timeout.timeoutMs = 5000;
+    timeout.consecutiveTimeouts = 0;
+    timeout.lastSuccessfulRead = millis();
+    timeout.maxConsecutiveTimeouts = 3;
+    deviceTimeouts.push_back(timeout);
+
+    Serial.printf("[TCP] Initialized timeout tracking for device: %s (timeout: %dms)\n",
+                  device.deviceId.c_str(), timeout.timeoutMs);
+  }
+}
+
+void ModbusTcpService::initializeDeviceMetrics()
+{
+  Serial.println("[TCP] Initializing device health metrics tracking...");
+  deviceMetrics.clear();
+
+  for (const auto &device : tcpDevices)
+  {
+    DeviceHealthMetrics metrics;
+    metrics.deviceId = device.deviceId;
+    metrics.totalReads = 0;
+    metrics.successfulReads = 0;
+    metrics.failedReads = 0;
+    metrics.totalResponseTimeMs = 0;
+    metrics.minResponseTimeMs = 65535;
+    metrics.maxResponseTimeMs = 0;
+    metrics.lastResponseTimeMs = 0;
+    deviceMetrics.push_back(metrics);
+
+    Serial.printf("[TCP] Initialized metrics tracking for device: %s\n", device.deviceId.c_str());
+  }
+}
+
+ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(const String &deviceId)
+{
+  for (auto &state : deviceFailureStates)
+  {
+    if (state.deviceId == deviceId)
+    {
+      return &state;
+    }
+  }
+  return nullptr;
+}
+
+ModbusTcpService::DeviceReadTimeout *ModbusTcpService::getDeviceTimeout(const String &deviceId)
+{
+  for (auto &timeout : deviceTimeouts)
+  {
+    if (timeout.deviceId == deviceId)
+    {
+      return &timeout;
+    }
+  }
+  return nullptr;
+}
+
+ModbusTcpService::DeviceHealthMetrics *ModbusTcpService::getDeviceMetrics(const String &deviceId)
+{
+  for (auto &metrics : deviceMetrics)
+  {
+    if (metrics.deviceId == deviceId)
+    {
+      return &metrics;
+    }
+  }
+  return nullptr;
+}
+
+void ModbusTcpService::enableDevice(const String &deviceId, bool clearMetrics)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+    return;
+
+  state->isEnabled = true;
+  state->disableReason = DeviceFailureState::NONE;
+  state->disableReasonDetail = "";
+  state->disabledTimestamp = 0;
+  resetDeviceFailureState(deviceId);
+
+  DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
+  if (timeout)
+  {
+    timeout->consecutiveTimeouts = 0;
+    timeout->lastSuccessfulRead = millis();
+  }
+
+  if (clearMetrics)
+  {
+    DeviceHealthMetrics *metrics = getDeviceMetrics(deviceId);
+    if (metrics)
+    {
+      metrics->totalReads = 0;
+      metrics->successfulReads = 0;
+      metrics->failedReads = 0;
+      metrics->totalResponseTimeMs = 0;
+      metrics->minResponseTimeMs = 65535;
+      metrics->maxResponseTimeMs = 0;
+      metrics->lastResponseTimeMs = 0;
+      Serial.printf("[TCP] Device %s metrics cleared\n", deviceId.c_str());
+    }
+  }
+
+  Serial.printf("[TCP] Device %s enabled (reason cleared)\n", deviceId.c_str());
+}
+
+void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState::DisableReason reason, const String &reasonDetail)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+    return;
+
+  state->isEnabled = false;
+  state->disableReason = reason;
+  state->disableReasonDetail = reasonDetail;
+  state->disabledTimestamp = millis();
+
+  const char* reasonText = "";
+  switch (reason)
+  {
+    case DeviceFailureState::MANUAL:
+      reasonText = "MANUAL";
+      break;
+    case DeviceFailureState::AUTO_RETRY:
+      reasonText = "AUTO_RETRY";
+      break;
+    case DeviceFailureState::AUTO_TIMEOUT:
+      reasonText = "AUTO_TIMEOUT";
+      break;
+    default:
+      reasonText = "UNKNOWN";
+      break;
+  }
+
+  Serial.printf("[TCP] Device %s disabled (reason: %s, detail: %s)\n",
+                deviceId.c_str(), reasonText, reasonDetail.c_str());
+}
+
+void ModbusTcpService::handleReadFailure(const String &deviceId)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+    return;
+
+  state->consecutiveFailures++;
+  state->lastReadAttempt = millis();
+
+  if (state->retryCount < state->maxRetries)
+  {
+    state->retryCount++;
+    unsigned long backoffTime = calculateBackoffTime(state->retryCount);
+    state->nextRetryTime = millis() + backoffTime;
+
+    Serial.printf("[TCP] Device %s read failed. Retry %d/%d in %lums\n",
+                  deviceId.c_str(), state->retryCount, state->maxRetries, backoffTime);
+  }
+  else
+  {
+    Serial.printf("[TCP] Device %s exceeded max retries (%d), disabling...\n",
+                  deviceId.c_str(), state->maxRetries);
+    disableDevice(deviceId, DeviceFailureState::AUTO_RETRY, "Max retries exceeded");
+  }
+}
+
+bool ModbusTcpService::shouldRetryDevice(const String &deviceId)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state || !state->isEnabled)
+    return false;
+  if (state->retryCount == 0)
+    return false;
+
+  return millis() >= state->nextRetryTime;
+}
+
+unsigned long ModbusTcpService::calculateBackoffTime(uint8_t retryCount)
+{
+  unsigned long baseDelay = 2000;
+  unsigned long backoff = baseDelay * (1 << (retryCount - 1));
+  unsigned long maxBackoff = 32000;
+  backoff = min(backoff, maxBackoff);
+
+  unsigned long jitter = random(0, backoff / 4);
+  return backoff + jitter;
+}
+
+void ModbusTcpService::resetDeviceFailureState(const String &deviceId)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+    return;
+
+  state->consecutiveFailures = 0;
+  state->retryCount = 0;
+  state->nextRetryTime = 0;
+}
+
+void ModbusTcpService::handleReadTimeout(const String &deviceId)
+{
+  DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
+  if (!timeout)
+    return;
+
+  timeout->consecutiveTimeouts++;
+
+  if (timeout->consecutiveTimeouts >= timeout->maxConsecutiveTimeouts)
+  {
+    Serial.printf("[TCP] Device %s exceeded timeout limit (%d), disabling...\n",
+                  deviceId.c_str(), timeout->maxConsecutiveTimeouts);
+    disableDevice(deviceId, DeviceFailureState::AUTO_TIMEOUT, "Max consecutive timeouts exceeded");
+  }
+  else
+  {
+    Serial.printf("[TCP] Device %s timeout %d/%d\n",
+                  deviceId.c_str(), timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
+  }
+}
+
+bool ModbusTcpService::isDeviceEnabled(const String &deviceId)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+    return true;
+  return state->isEnabled;
+}
+
+// ============================================
+// NEW: Enhancement - Public API for BLE Device Control Commands
+// ============================================
+
+bool ModbusTcpService::enableDeviceByCommand(const String &deviceId, bool clearMetrics)
+{
+  Serial.printf("[TCP] BLE Command: Enable device %s (clearMetrics: %s)\n",
+                deviceId.c_str(), clearMetrics ? "true" : "false");
+
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    return false;
+  }
+
+  enableDevice(deviceId, clearMetrics);
+  return true;
+}
+
+bool ModbusTcpService::disableDeviceByCommand(const String &deviceId, const String &reasonDetail)
+{
+  Serial.printf("[TCP] BLE Command: Disable device %s (reason: %s)\n",
+                deviceId.c_str(), reasonDetail.c_str());
+
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    return false;
+  }
+
+  disableDevice(deviceId, DeviceFailureState::MANUAL, reasonDetail);
+  return true;
+}
+
+bool ModbusTcpService::getDeviceStatusInfo(const String &deviceId, JsonObject &statusInfo)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    return false;
+  }
+
+  DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
+  DeviceHealthMetrics *metrics = getDeviceMetrics(deviceId);
+
+  statusInfo["device_id"] = deviceId;
+  statusInfo["enabled"] = state->isEnabled;
+  statusInfo["consecutive_failures"] = state->consecutiveFailures;
+  statusInfo["retry_count"] = state->retryCount;
+
+  const char* reasonText = "";
+  switch (state->disableReason)
+  {
+    case DeviceFailureState::NONE:
+      reasonText = "NONE";
+      break;
+    case DeviceFailureState::MANUAL:
+      reasonText = "MANUAL";
+      break;
+    case DeviceFailureState::AUTO_RETRY:
+      reasonText = "AUTO_RETRY";
+      break;
+    case DeviceFailureState::AUTO_TIMEOUT:
+      reasonText = "AUTO_TIMEOUT";
+      break;
+  }
+  statusInfo["disable_reason"] = reasonText;
+  statusInfo["disable_reason_detail"] = state->disableReasonDetail;
+
+  if (state->disabledTimestamp > 0)
+  {
+    unsigned long disabledDuration = millis() - state->disabledTimestamp;
+    statusInfo["disabled_duration_ms"] = disabledDuration;
+  }
+
+  if (timeout)
+  {
+    statusInfo["timeout_ms"] = timeout->timeoutMs;
+    statusInfo["consecutive_timeouts"] = timeout->consecutiveTimeouts;
+    statusInfo["max_consecutive_timeouts"] = timeout->maxConsecutiveTimeouts;
+  }
+
+  if (metrics)
+  {
+    JsonObject metricsObj = statusInfo["metrics"].to<JsonObject>();
+    metricsObj["total_reads"] = metrics->totalReads;
+    metricsObj["successful_reads"] = metrics->successfulReads;
+    metricsObj["failed_reads"] = metrics->failedReads;
+    metricsObj["success_rate"] = metrics->getSuccessRate();
+    metricsObj["avg_response_time_ms"] = metrics->getAvgResponseTimeMs();
+    metricsObj["min_response_time_ms"] = metrics->minResponseTimeMs;
+    metricsObj["max_response_time_ms"] = metrics->maxResponseTimeMs;
+    metricsObj["last_response_time_ms"] = metrics->lastResponseTimeMs;
+  }
+
+  return true;
+}
+
+bool ModbusTcpService::getAllDevicesStatus(JsonObject &allStatus)
+{
+  JsonArray devicesArray = allStatus["devices"].to<JsonArray>();
+
+  for (const auto &device : tcpDevices)
+  {
+    JsonObject deviceStatus = devicesArray.add<JsonObject>();
+    getDeviceStatusInfo(device.deviceId, deviceStatus);
+  }
+
+  allStatus["total_devices"] = tcpDevices.size();
+  return true;
+}
+
+// ============================================
+// NEW: Enhancement - Auto-Recovery Task
+// ============================================
+
+void ModbusTcpService::autoRecoveryTask(void *parameter)
+{
+  ModbusTcpService *service = static_cast<ModbusTcpService *>(parameter);
+  service->autoRecoveryLoop();
+}
+
+void ModbusTcpService::autoRecoveryLoop()
+{
+  Serial.println("[TCP AutoRecovery] Task started");
+  const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
+
+  while (running)
+  {
+    vTaskDelay(pdMS_TO_TICKS(RECOVERY_INTERVAL_MS));
+
+    if (!running)
+      break;
+
+    Serial.println("[TCP AutoRecovery] Checking for auto-disabled devices...");
+    unsigned long now = millis();
+
+    for (auto &state : deviceFailureStates)
+    {
+      if (!state.isEnabled &&
+          (state.disableReason == DeviceFailureState::AUTO_RETRY ||
+           state.disableReason == DeviceFailureState::AUTO_TIMEOUT))
+      {
+        unsigned long disabledDuration = now - state.disabledTimestamp;
+        Serial.printf("[TCP AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
+                      state.deviceId.c_str(), disabledDuration);
+
+        enableDevice(state.deviceId, false);
+        Serial.printf("[TCP AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
+      }
+    }
+  }
+
+  Serial.println("[TCP AutoRecovery] Task stopped");
 }
 
 ModbusTcpService::~ModbusTcpService()

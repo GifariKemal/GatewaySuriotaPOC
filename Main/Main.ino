@@ -346,12 +346,26 @@ void setup()
   }
   Serial.println("CRUDHandler initialized");
 
+  // Link Modbus TCP Service to CRUD Handler for device control commands
+  if (crudHandler && modbusTcpService)
+  {
+    crudHandler->setModbusTcpService(modbusTcpService);
+    Serial.println("Modbus TCP Service linked to CRUD Handler");
+  }
+
   // Initialize Modbus RTU service (after CRUDHandler)
   modbusRtuService = new ModbusRtuService(configManager);
   if (modbusRtuService && modbusRtuService->init())
   {
     modbusRtuService->start();
     Serial.println("Modbus RTU service started");
+
+    // Link Modbus RTU Service to CRUD Handler for device control commands
+    if (crudHandler)
+    {
+      crudHandler->setModbusRtuService(modbusRtuService);
+      Serial.println("Modbus RTU Service linked to CRUD Handler");
+    }
   }
   else
   {

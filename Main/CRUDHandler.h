@@ -100,6 +100,8 @@ struct BatchStats
 };
 
 class BLEManager; // Forward declaration
+class ModbusRtuService; // Forward declaration
+class ModbusTcpService; // Forward declaration
 
 class CRUDHandler
 {
@@ -109,6 +111,8 @@ private:
   LoggingConfig *loggingConfig;
   MqttManager *mqttManager; // For notifying data interval updates
   HttpManager *httpManager; // For notifying data interval updates
+  ModbusRtuService *modbusRtuService; // NEW: For device control commands
+  ModbusTcpService *modbusTcpService; // NEW: For device control commands
   String streamDeviceId;
 
   // Define a type for our command handler functions
@@ -119,6 +123,7 @@ private:
   std::map<String, CommandHandler> createHandlers;
   std::map<String, CommandHandler> updateHandlers;
   std::map<String, CommandHandler> deleteHandlers;
+  std::map<String, CommandHandler> controlHandlers;  // NEW: Device control operations
 
   // Private method to populate the handler maps
   void setupCommandHandlers();
@@ -161,6 +166,16 @@ public:
   void setHttpManager(HttpManager *http)
   {
     httpManager = http;
+  }
+
+  // NEW: Set Modbus service references for device control
+  void setModbusRtuService(ModbusRtuService *rtu)
+  {
+    modbusRtuService = rtu;
+  }
+  void setModbusTcpService(ModbusTcpService *tcp)
+  {
+    modbusTcpService = tcp;
   }
 
   String getStreamDeviceId() const
