@@ -150,7 +150,9 @@ public:
         xSemaphoreGive(batchMutex);
     }
 
-    // Check if any device has a complete batch ready for publishing
+    // Check if ALL devices have complete batches ready for publishing
+    // FIXED: Changed from "any device complete" to "all devices complete"
+    // This prevents partial publishes when one device completes faster than others
     bool hasCompleteBatch()
     {
         if (xSemaphoreTake(batchMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
@@ -159,18 +161,26 @@ public:
             return false;
         }
 
-        bool result = false;
+        // If no devices are being tracked, return false
+        if (deviceBatches.empty())
+        {
+            xSemaphoreGive(batchMutex);
+            return false;
+        }
+
+        // Check if ALL devices have complete batches
+        bool allComplete = true;
         for (const auto &entry : deviceBatches)
         {
-            if (entry.second.complete)
+            if (!entry.second.complete)
             {
-                result = true;
+                allComplete = false;
                 break;
             }
         }
 
         xSemaphoreGive(batchMutex);
-        return result;
+        return allComplete;
     }
 
     // Check if there are ANY batches being tracked (devices configured)

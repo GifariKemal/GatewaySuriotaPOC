@@ -8,7 +8,96 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.3.1 (Current)
+## 📦 Version 2.3.2 (Current)
+
+**Release Date:** November 21, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🐛 MQTT Partial Publish Bug Fix (Critical)
+
+**Type:** Bug Fix Release
+
+This patch release fixes **1 critical bug** causing incomplete MQTT publishes when multiple devices have different polling durations.
+
+---
+
+#### 🔴 BUG #1 (CRITICAL): MQTT Publishes Before All Devices Complete Polling
+
+**Problem:**
+- `DeviceBatchManager::hasCompleteBatch()` returned `true` if **ANY** device completed, not **ALL** devices
+- When TCP device (2s polling) completed first, MQTT published immediately
+- RTU device (50s polling) was still in progress, only partial data enqueued
+- **Result:** Only 43 of 55 registers published (5 TCP + 38 RTU, missing 12 RTU registers)
+- Missing registers: Power_4, Power_5, Energy_1-5, Flow_1-5
+
+**Reproduction:**
+```
+Configure devices:
+- D7227b (TCP, 5 registers, ~2s polling)
+- Dcf946 (RTU, 50 registers, ~50s polling)
+
+Timeline:
+22:06:26 - Dcf946 completes (batch clears)
+22:06:28 - D7227b completes (hasCompleteBatch returns true)
+22:07:03 - MQTT publishes (only 43 registers!)
+22:07:17 - Dcf946 completes again (too late)
+```
+
+**Files Changed:**
+- `Main/DeviceBatchManager.h:153-184`
+
+**Fix:**
+Changed `hasCompleteBatch()` logic from "any device complete" to "**all devices complete**":
+
+```cpp
+// OLD (BUGGY):
+bool hasCompleteBatch() {
+    for (const auto &entry : deviceBatches) {
+        if (entry.second.complete) {
+            return true;  // ← Returns true if ANY device complete!
+        }
+    }
+    return false;
+}
+
+// NEW (FIXED):
+bool hasCompleteBatch() {
+    if (deviceBatches.empty()) {
+        return false;
+    }
+
+    // Check if ALL devices have complete batches
+    bool allComplete = true;
+    for (const auto &entry : deviceBatches) {
+        if (!entry.second.complete) {  // ← Check all devices
+            allComplete = false;
+            break;
+        }
+    }
+    return allComplete;
+}
+```
+
+**Impact:**
+- ✅ MQTT now waits until **ALL** devices finish polling before publishing
+- ✅ All 55 registers published correctly (5 TCP + 50 RTU)
+- ✅ No more partial data publishes
+- ⚠️ MQTT publish may be delayed slightly (max: slowest device polling time)
+
+**Test Results:**
+```
+Before fix: 43/55 registers (78% success rate)
+After fix:  55/55 registers (100% success rate) ✅
+```
+
+**Related Issues:**
+- Subscriber received incomplete payloads (only 38 of 50 RTU registers)
+- Timing race condition between fast TCP (2s) and slow RTU (50s) devices
+
+---
+
+## 📦 Version 2.3.1
 
 **Release Date:** November 21, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)
