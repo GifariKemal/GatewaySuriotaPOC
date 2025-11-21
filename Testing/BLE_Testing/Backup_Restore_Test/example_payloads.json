@@ -1,0 +1,270 @@
+{
+  "description": "Example payloads for BLE Backup & Restore testing",
+  "version": "1.0.0",
+  "date": "2025-11-21",
+
+  "payloads": {
+    "backup_command": {
+      "description": "Request full configuration backup",
+      "command": {
+        "op": "read",
+        "type": "full_config"
+      },
+      "expected_response": {
+        "status": "ok",
+        "backup_info": {
+          "timestamp": 1234567,
+          "firmware_version": "2.3.0",
+          "device_name": "SURIOTA_GW",
+          "total_devices": 5,
+          "total_registers": 15,
+          "processing_time_ms": 287,
+          "backup_size_bytes": 10240
+        },
+        "config": {
+          "devices": "...",
+          "server_config": "...",
+          "logging_config": "..."
+        }
+      }
+    },
+
+    "restore_command": {
+      "description": "Restore configuration from backup",
+      "command": {
+        "op": "system",
+        "type": "restore_config",
+        "config": {
+          "devices": [
+            {
+              "device_id": "D7A3F2",
+              "device_name": "Temperature Sensor",
+              "protocol": "RTU",
+              "slave_id": 1,
+              "serial_port": 1,
+              "baud_rate": 9600,
+              "timeout": 3000,
+              "retry_count": 3,
+              "refresh_rate_ms": 5000,
+              "enabled": true,
+              "registers": [
+                {
+                  "register_id": "R001",
+                  "register_name": "Temperature",
+                  "address": 0,
+                  "function_code": 3,
+                  "data_type": "FLOAT32_ABCD",
+                  "quantity": 2,
+                  "refresh_rate_ms": 1000
+                }
+              ]
+            }
+          ],
+          "server_config": {
+            "communication": {
+              "mode": "ETH"
+            },
+            "protocol": "mqtt",
+            "wifi": {
+              "ssid": "MyWiFi",
+              "password": "password123"
+            },
+            "ethernet": {
+              "enabled": true
+            },
+            "mqtt_config": {
+              "broker_address": "broker.hivemq.com",
+              "broker_port": 1883,
+              "topic_publish": "suriota/gateway/data",
+              "client_id": "SURIOTA_GW_001",
+              "username": "",
+              "password": "",
+              "qos": 1,
+              "publish_mode": "default",
+              "default_mode": {
+                "interval_ms": 5000
+              }
+            },
+            "http_config": {
+              "server_url": "https://api.example.com/data",
+              "method": "POST",
+              "interval_ms": 5000
+            }
+          },
+          "logging_config": {
+            "logging_ret": "1w",
+            "logging_interval": "5m"
+          }
+        }
+      },
+      "expected_response": {
+        "status": "ok",
+        "restored_configs": [
+          "devices.json",
+          "server_config.json",
+          "logging_config.json"
+        ],
+        "success_count": 3,
+        "fail_count": 0,
+        "message": "Configuration restore completed. Device restart recommended.",
+        "requires_restart": true
+      }
+    },
+
+    "restore_invalid": {
+      "description": "Invalid restore command (missing config field)",
+      "command": {
+        "op": "system",
+        "type": "restore_config"
+      },
+      "expected_response": {
+        "status": "error",
+        "error": "Missing 'config' object in restore payload"
+      }
+    },
+
+    "minimal_restore": {
+      "description": "Minimal configuration restore (1 device only)",
+      "command": {
+        "op": "system",
+        "type": "restore_config",
+        "config": {
+          "devices": [
+            {
+              "device_id": "TEST01",
+              "device_name": "Test Device",
+              "protocol": "RTU",
+              "slave_id": 1,
+              "serial_port": 1,
+              "baud_rate": 9600,
+              "timeout": 3000,
+              "retry_count": 3,
+              "refresh_rate_ms": 5000,
+              "enabled": true,
+              "registers": [
+                {
+                  "register_id": "R001",
+                  "register_name": "Test Register",
+                  "address": 0,
+                  "function_code": 3,
+                  "data_type": "INT16",
+                  "quantity": 1,
+                  "refresh_rate_ms": 1000
+                }
+              ]
+            }
+          ],
+          "server_config": {
+            "protocol": "mqtt",
+            "mqtt_config": {
+              "broker_address": "broker.hivemq.com",
+              "broker_port": 1883,
+              "topic_publish": "test/topic",
+              "client_id": "TEST_GW",
+              "qos": 1
+            }
+          },
+          "logging_config": {
+            "logging_ret": "1d",
+            "logging_interval": "1m"
+          }
+        }
+      }
+    }
+  },
+
+  "testing_scenarios": {
+    "scenario_1_small_config": {
+      "description": "Small configuration for baseline testing",
+      "devices": 1,
+      "registers_per_device": 5,
+      "expected_backup_size_kb": "2-3 KB",
+      "expected_processing_time_ms": "100-200 ms",
+      "expected_transfer_time_sec": "1-2 seconds"
+    },
+
+    "scenario_2_medium_config": {
+      "description": "Medium configuration for typical production",
+      "devices": 10,
+      "registers_per_device": 10,
+      "expected_backup_size_kb": "20-30 KB",
+      "expected_processing_time_ms": "300-500 ms",
+      "expected_transfer_time_sec": "5-8 seconds"
+    },
+
+    "scenario_3_large_config": {
+      "description": "Large configuration for stress testing",
+      "devices": 50,
+      "registers_per_device": 50,
+      "expected_backup_size_kb": "120-150 KB",
+      "expected_processing_time_ms": "800-1200 ms",
+      "expected_transfer_time_sec": "15-20 seconds"
+    },
+
+    "scenario_4_maximum_config": {
+      "description": "Maximum configuration approaching 200KB limit",
+      "devices": 80,
+      "registers_per_device": 60,
+      "expected_backup_size_kb": "180-200 KB",
+      "expected_processing_time_ms": "1500-2000 ms",
+      "expected_transfer_time_sec": "25-30 seconds",
+      "notes": "May require increased BLE timeout"
+    }
+  },
+
+  "validation_criteria": {
+    "backup_response": {
+      "required_fields": [
+        "status",
+        "backup_info",
+        "config"
+      ],
+      "backup_info_fields": [
+        "timestamp",
+        "firmware_version",
+        "device_name",
+        "total_devices",
+        "total_registers",
+        "processing_time_ms",
+        "backup_size_bytes"
+      ],
+      "config_fields": [
+        "devices",
+        "server_config",
+        "logging_config"
+      ],
+      "status_must_be": "ok",
+      "processing_time_max_ms": 2000,
+      "backup_size_max_bytes": 210000
+    },
+
+    "restore_response": {
+      "required_fields": [
+        "status",
+        "restored_configs",
+        "success_count",
+        "fail_count",
+        "message",
+        "requires_restart"
+      ],
+      "status_must_be": "ok",
+      "success_count_expected": 3,
+      "fail_count_expected": 0,
+      "restored_configs_expected": [
+        "devices.json",
+        "server_config.json",
+        "logging_config.json"
+      ],
+      "requires_restart_must_be": true
+    },
+
+    "error_response": {
+      "required_fields": [
+        "status",
+        "error"
+      ],
+      "status_must_be": "error",
+      "error_message_must_contain": "config"
+    }
+  }
+}
