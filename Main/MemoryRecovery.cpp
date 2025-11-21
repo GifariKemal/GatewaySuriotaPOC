@@ -142,7 +142,9 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
     LOG_MEM_ERROR("CRITICAL PSRAM: only %lu bytes free!\n", freePsram);
   } else if (freePsram < MemoryThresholds::PSRAM_WARNING) {
     static LogThrottle psramWarnThrottle(300000); // Log every 5 minutes
-    if (psramWarnThrottle.shouldLog()) {
+    char psramContext[64];
+    snprintf(psramContext, sizeof(psramContext), "PSRAM low (%lu KB free)", freePsram / 1024);
+    if (psramWarnThrottle.shouldLog(psramContext)) {
       LOG_MEM_WARN("LOW PSRAM: %lu bytes free\n", freePsram);
     }
   }

@@ -306,7 +306,9 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     if (!shouldRetryDevice(deviceId))
     {
       static LogThrottle retryThrottle(30000); // Log every 30s to reduce spam
-      if (retryThrottle.shouldLog()) {
+      char contextMsg[128];
+      snprintf(contextMsg, sizeof(contextMsg), "RTU Device %s retry backoff", deviceId);
+      if (retryThrottle.shouldLog(contextMsg)) {
         LOG_RTU_DEBUG("Device %s retry backoff not elapsed, skipping\n", deviceId);
       }
       return;

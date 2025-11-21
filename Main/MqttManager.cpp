@@ -483,7 +483,7 @@ void MqttManager::publishQueueData()
   {
     // No complete batches yet - wait for RTU/TCP to finish reading all registers
     static LogThrottle batchWaitingThrottle(60000); // Increased to 60s to reduce log spam
-    if (batchWaitingThrottle.shouldLog()) {
+    if (batchWaitingThrottle.shouldLog("MQTT waiting for batch completion")) {
       LOG_MQTT_DEBUG("Waiting for device batch to complete...\n");
     }
     return;

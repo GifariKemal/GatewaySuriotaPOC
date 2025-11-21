@@ -222,21 +222,46 @@ void printLogLevelStatus();
 class LogThrottle {
 private:
   unsigned long lastLogTime = 0;
+  unsigned long firstSuppressionTime = 0;
   uint32_t intervalMs;
   uint32_t suppressedCount = 0;
+  String lastMessageContext;  // Store context for development mode
 
 public:
   LogThrottle(uint32_t intervalMs = 10000) : intervalMs(intervalMs) {}
 
-  bool shouldLog() {
+  bool shouldLog(const char* context = nullptr) {
     unsigned long now = millis();
     if (now - lastLogTime >= intervalMs) {
       if (suppressedCount > 0) {
-        Serial.printf("  (suppressed %lu similar messages)\n", suppressedCount);
+        #if PRODUCTION_MODE == 0
+          // Development mode - show detailed suppression info
+          uint32_t suppressionDuration = (now - firstSuppressionTime) / 1000;  // seconds
+          if (lastMessageContext.length() > 0) {
+            Serial.printf("  (suppressed %lu similar messages in %lus: \"%s\")\n",
+                          suppressedCount, suppressionDuration, lastMessageContext.c_str());
+          } else {
+            Serial.printf("  (suppressed %lu similar messages in %lus)\n",
+                          suppressedCount, suppressionDuration);
+          }
+        #else
+          // Production mode - simple counter
+          Serial.printf("  (suppressed %lu similar messages)\n", suppressedCount);
+        #endif
         suppressedCount = 0;
+        lastMessageContext = "";
+        firstSuppressionTime = 0;
       }
       lastLogTime = now;
       return true;
+    }
+
+    // Message is being suppressed
+    if (suppressedCount == 0) {
+      firstSuppressionTime = now;
+      if (context != nullptr) {
+        lastMessageContext = String(context);
+      }
     }
     suppressedCount++;
     return false;
@@ -249,6 +274,8 @@ public:
   void reset() {
     lastLogTime = 0;
     suppressedCount = 0;
+    firstSuppressionTime = 0;
+    lastMessageContext = "";
   }
 
   uint32_t getSuppressedCount() const {
