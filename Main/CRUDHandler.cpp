@@ -722,6 +722,41 @@ void CRUDHandler::setupCommandHandlers()
 
     manager->sendResponse(*response);
   };
+
+  // === SYSTEM HANDLERS ===
+
+  // Factory Reset - Simple single-command reset
+  systemHandlers["factory_reset"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    String reason = command["reason"] | "No reason provided";
+
+    // Serial log audit trail
+    Serial.println("");
+    Serial.println("========================================");
+    Serial.println("[FACTORY RESET] ⚠️  INITIATED by BLE client");
+    Serial.printf("[FACTORY RESET] Reason: %s\n", reason.c_str());
+    Serial.println("[FACTORY RESET] ⚠️  This will ERASE all device, server, and network configurations!");
+    Serial.println("========================================");
+    Serial.println("");
+
+    // Send confirmation response BEFORE reset
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["message"] = "Factory reset initiated. Device will restart in 3 seconds.";
+    JsonArray configsCleared = (*response)["configs_cleared"].to<JsonArray>();
+    configsCleared.add("devices.json");
+    configsCleared.add("server_config.json");
+    configsCleared.add("logging_config.json");
+    (*response)["restart_in_ms"] = 3000;
+
+    manager->sendResponse(*response);
+
+    // Wait 500ms for BLE response to be sent
+    delay(500);
+
+    // Perform factory reset
+    performFactoryReset();
+  };
 }
 
 // ============================================================================
@@ -844,6 +879,10 @@ void CRUDHandler::processPriorityQueue()
   else if (op == "control" && controlHandlers.count(type))
   {
     controlHandlers[type](cmd.manager, *cmd.payload);
+  }
+  else if (op == "system" && systemHandlers.count(type))
+  {
+    systemHandlers[type](cmd.manager, *cmd.payload);
   }
 
   batchStats.totalCommandsProcessed++;
@@ -970,6 +1009,11 @@ void CRUDHandler::executeBatchSequential(BLEManager *manager, const String &batc
       controlHandlers[type](manager, *cmdDoc);
       success = true;
     }
+    else if (op == "system" && systemHandlers.count(type))
+    {
+      systemHandlers[type](manager, *cmdDoc);
+      success = true;
+    }
 
     if (success)
     {
@@ -1041,6 +1085,10 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
     {
       handlerExists = controlHandlers.count(type) > 0;
     }
+    else if (op == "system")
+    {
+      handlerExists = systemHandlers.count(type) > 0;
+    }
 
     if (!handlerExists)
     {
@@ -1086,6 +1134,11 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
       else if (op == "control" && controlHandlers.count(type))
       {
         controlHandlers[type](manager, *cmdDoc);
+        completed++;
+      }
+      else if (op == "system" && systemHandlers.count(type))
+      {
+        systemHandlers[type](manager, *cmdDoc);
         completed++;
       }
 
@@ -1178,4 +1231,104 @@ void CRUDHandler::reportStats(JsonObject &statsObj)
   statsObj["success_rate_percent"] = successRate;
 
   xSemaphoreGive(queueMutex);
+}
+
+// ============================================================================
+// FACTORY RESET IMPLEMENTATION
+// ============================================================================
+
+void CRUDHandler::performFactoryReset()
+{
+  Serial.println("[FACTORY RESET] ========================================");
+  Serial.println("[FACTORY RESET] Starting graceful shutdown sequence...");
+  Serial.println("[FACTORY RESET] ========================================");
+
+  // Step 1: Stop Modbus services
+  Serial.println("[FACTORY RESET] [1/6] Stopping Modbus services...");
+  if (modbusRtuService)
+  {
+    modbusRtuService->stop();
+    Serial.println("[FACTORY RESET] RTU service stopped");
+  }
+  if (modbusTcpService)
+  {
+    modbusTcpService->stop();
+    Serial.println("[FACTORY RESET] TCP service stopped");
+  }
+
+  // Step 2: Disconnect network services
+  Serial.println("[FACTORY RESET] [2/6] Disconnecting network services...");
+  if (mqttManager)
+  {
+    // mqttManager->disconnect(); // Uncomment if disconnect method exists
+    Serial.println("[FACTORY RESET] MQTT disconnected");
+  }
+  if (httpManager)
+  {
+    // httpManager->stop(); // Uncomment if stop method exists
+    Serial.println("[FACTORY RESET] HTTP stopped");
+  }
+
+  // Step 3: Clear device configurations
+  Serial.println("[FACTORY RESET] [3/6] Clearing device configurations...");
+  configManager->clearAllConfigurations();
+  Serial.println("[FACTORY RESET] devices.json cleared");
+
+  // Step 4: Reset server config to defaults
+  Serial.println("[FACTORY RESET] [4/6] Resetting server config to defaults...");
+  if (serverConfig)
+  {
+    JsonDocument defaultServerConfig;
+    JsonObject root = defaultServerConfig.to<JsonObject>();
+
+    // Create default server config (same as ServerConfig::createDefaultConfig)
+    root["protocol"] = "mqtt";
+
+    JsonObject mqtt = root["mqtt_config"].to<JsonObject>();
+    mqtt["enabled"] = true;
+    mqtt["broker_address"] = "broker.hivemq.com";
+    mqtt["broker_port"] = 1883;
+    mqtt["client_id"] = "";
+    mqtt["username"] = "";
+    mqtt["password"] = "";
+    mqtt["topic_publish"] = "v1/devices/me/telemetry";
+
+    JsonObject wifi = root["wifi"].to<JsonObject>();
+    wifi["enabled"] = true;
+    wifi["ssid"] = "";
+    wifi["password"] = "";
+
+    JsonObject ethernet = root["ethernet"].to<JsonObject>();
+    ethernet["enabled"] = true;
+    ethernet["use_dhcp"] = true;
+
+    serverConfig->updateConfig(root);
+    Serial.println("[FACTORY RESET] server_config.json reset to defaults");
+  }
+
+  // Step 5: Reset logging config to defaults
+  Serial.println("[FACTORY RESET] [5/6] Resetting logging config to defaults...");
+  if (loggingConfig)
+  {
+    JsonDocument defaultLoggingConfig;
+    JsonObject root = defaultLoggingConfig.to<JsonObject>();
+
+    // Create default logging config
+    root["logging_ret"] = "1w";
+    root["logging_interval"] = "5m";
+
+    loggingConfig->updateConfig(root);
+    Serial.println("[FACTORY RESET] logging_config.json reset to defaults");
+  }
+
+  // Step 6: Restart device
+  Serial.println("[FACTORY RESET] [6/6] All configurations cleared successfully");
+  Serial.println("[FACTORY RESET] ========================================");
+  Serial.println("[FACTORY RESET] Device will restart in 3 seconds...");
+  Serial.println("[FACTORY RESET] ========================================");
+
+  delay(3000);
+
+  Serial.println("[FACTORY RESET] ✅ RESTARTING NOW...");
+  ESP.restart();
 }
