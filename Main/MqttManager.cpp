@@ -705,15 +705,33 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
 
     // Filter registers for this topic
     JsonDocument topicDoc;
-    topicDoc["timestamp"] = now;
 
-    JsonArray dataArray = topicDoc["data"].to<JsonArray>();
+    // Add formatted timestamp from RTC
+    RTCManager *rtcMgr = RTCManager::getInstance();
+    if (rtcMgr)
+    {
+      DateTime currentTime = rtcMgr->getCurrentTime();
+      char timestampStr[20];
+      snprintf(timestampStr, sizeof(timestampStr), "%02d/%02d/%04d %02d:%02d:%02d",
+               currentTime.day(), currentTime.month(), currentTime.year(),
+               currentTime.hour(), currentTime.minute(), currentTime.second());
+      topicDoc["timestamp"] = timestampStr;
+    }
+    else
+    {
+      topicDoc["timestamp"] = now;
+    }
+
+    // NEW FORMAT: Create devices as nested object (same as default mode)
+    JsonObject devicesObject = topicDoc["devices"].to<JsonObject>();
+    std::map<String, JsonObject> deviceObjects;
+    int registerCount = 0;
 
     for (auto &entry : uniqueRegisters)
     {
       JsonObject dataPoint = entry.second.as<JsonObject>();
 
-      // Validate: Skip if data doesn't have required fields (old format)
+      // Validate: Skip if data doesn't have required fields
       if (dataPoint["name"].isNull() || dataPoint["value"].isNull())
       {
         continue;
@@ -726,25 +744,48 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
                     customTopic.registers.end(),
                     registerId) != customTopic.registers.end())
       {
-        JsonObject item = dataArray.add<JsonObject>();
-        item["device_id"] = dataPoint["device_id"];  // Include device_id per data point
-        item["name"] = dataPoint["name"];
-        item["value"] = dataPoint["value"];
-        item["description"] = dataPoint["description"];
-        item["unit"] = dataPoint["unit"];
+        String deviceId = dataPoint["device_id"].as<String>();
+        String registerName = dataPoint["name"].as<String>();
+
+        if (deviceId.isEmpty() || registerName.isEmpty())
+        {
+          continue;
+        }
+
+        // Create device object if not exists
+        if (deviceObjects.find(deviceId) == deviceObjects.end())
+        {
+          JsonObject deviceObj = devicesObject[deviceId].to<JsonObject>();
+
+          // Add device_name at device level
+          if (!dataPoint["device_name"].isNull())
+          {
+            deviceObj["device_name"] = dataPoint["device_name"];
+          }
+
+          deviceObjects[deviceId] = deviceObj;
+        }
+
+        // Add register as nested object: devices.{device_id}.{register_name} = {value, unit}
+        JsonObject registerObj = deviceObjects[deviceId][registerName].to<JsonObject>();
+        registerObj["value"] = dataPoint["value"];
+        registerObj["unit"] = dataPoint["unit"];
+
+        registerCount++;
       }
     }
 
     // Only publish if there's data for this topic
-    if (dataArray.size() > 0)
+    if (registerCount > 0)
     {
       String payload;
       serializeJson(topicDoc, payload);
 
       if (mqttClient.publish(customTopic.topic.c_str(), payload.c_str()))
       {
-        Serial.printf("[MQTT] Customize Mode: Published %d registers to %s (Interval: %ums)\n",
-                      dataArray.size(), customTopic.topic.c_str(), customTopic.interval);
+        Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB, Interval: %ums)\n",
+                      registerCount, deviceObjects.size(), customTopic.topic.c_str(),
+                      payload.length() / 1024.0, customTopic.interval);
         customTopic.lastPublish = now;
 
         if (ledManager)
