@@ -4,13 +4,13 @@
 SRT-MGATE-1210 Testing Program
 Create 1 TCP Device + 50 Registers
 =============================================================================
-Device: TCP Device (192.168.1.8:502)
+Device: TCP Device (10.21.239.9:502)
 Slave ID: 1
 Registers: 50 Input Registers (INT16)
 =============================================================================
 Author: Kemal - SURIOTA R&D Team
-Date: 2025-11-15
-Firmware: SRT-MGATE-1210 v2.2.0
+Date: 2025-11-21
+Firmware: SRT-MGATE-1210 v2.3.0
 =============================================================================
 """
 
@@ -18,17 +18,25 @@ import asyncio
 import json
 from bleak import BleakClient, BleakScanner
 
+# =============================================================================
+# BLE Configuration
+# =============================================================================
 SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
 COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
 SERVICE_NAME = "SURIOTA GW"
 
+# =============================================================================
+# Device Creation Class
+# =============================================================================
 class DeviceCreationClient:
     def __init__(self):
         self.client = None
         self.response_buffer = ""
         self.connected = False
         self.device_id = None
+        self.last_response = None
+        self.response_received = False
 
     async def connect(self):
         try:
@@ -38,10 +46,6 @@ class DeviceCreationClient:
 
             if not device:
                 print(f"[ERROR] Service '{SERVICE_NAME}' not found")
-                print("[INFO] Make sure:")
-                print("       1. GATEWAY is powered on")
-                print("       2. Mode Development BLE activated")
-                print("       3. LED should be ON (steady)")
                 return False
 
             print(f"[FOUND] {device.name} ({device.address})")
@@ -70,21 +74,34 @@ class DeviceCreationClient:
             if self.response_buffer:
                 try:
                     response = json.loads(self.response_buffer)
-                    print(f"[RESPONSE] {json.dumps(response, indent=2)}")
+                    self.last_response = response
+                    self.response_received = True
 
-                    if response.get('status') == 'ok' and 'device_id' in response:
-                        self.device_id = response['device_id']
-                        print(f"[CAPTURE] Device ID: {self.device_id}")
+                    # Compact response logging (just status + device_id/register_id)
+                    status = response.get('status', 'unknown')
+                    if status == 'ok':
+                        if 'device_id' in response:
+                            self.device_id = response['device_id']
+                            print(f"[OK] Device created: {self.device_id}")
+                        elif 'data' in response and 'register_name' in response['data']:
+                            reg_name = response['data']['register_name']
+                            print(f"[OK] Register created: {reg_name}")
+                        else:
+                            print(f"[OK] Operation successful")
+                    else:
+                        error_msg = response.get('error', 'Unknown error')
+                        print(f"[ERROR] Operation failed: {error_msg}")
 
                 except json.JSONDecodeError as e:
                     print(f"[ERROR] JSON Parse: {e}")
-                    print(f"[DEBUG] Buffer content: {self.response_buffer}")
+                    self.response_received = True
+                    self.last_response = {"status": "error", "error": str(e)}
                 finally:
                     self.response_buffer = ""
         else:
             self.response_buffer += fragment
 
-    async def send_command(self, command, description=""):
+    async def send_command(self, command, description="", max_retries=3):
         if not self.connected:
             raise RuntimeError("Not connected to BLE device")
 
@@ -92,22 +109,72 @@ class DeviceCreationClient:
 
         if description:
             print(f"\n[COMMAND] {description}")
-        print(f"[DEBUG] Payload: {json_str}")
 
-        chunk_size = 18
-        for i in range(0, len(json_str), chunk_size):
-            chunk = json_str[i:i+chunk_size]
-            await self.client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode())
-            await asyncio.sleep(0.1)
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Reset response tracking
+                self.response_received = False
+                self.last_response = None
 
-        await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
-        await asyncio.sleep(2.0)
+                # Send command
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
+
+                # Wait for response (max 5 seconds)
+                for _ in range(50):  # 50 * 0.1s = 5 seconds
+                    if self.response_received:
+                        if self.last_response and self.last_response.get('status') == 'ok':
+                            return True  # Success
+                        else:
+                            print(f"[RETRY] Attempt {attempt}/{max_retries} failed")
+                            break
+                    await asyncio.sleep(0.1)
+
+                # Timeout - retry
+                if not self.response_received:
+                    print(f"[TIMEOUT] No response after 5s (attempt {attempt}/{max_retries})")
+
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)  # Wait before retry
+
+            except Exception as e:
+                print(f"[ERROR] Send failed: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)
+
+        print(f"[FAILED] Command failed after {max_retries} attempts")
+        return False
 
     async def create_device_and_registers(self):
         print("\n" + "="*70)
-        print("  SRT-MGATE-1210 TESTING: CREATE 1 DEVICE + 50 REGISTERS")
+        print("  SRT-MGATE-1210 TESTING: CREATE 1 TCP DEVICE + 50 REGISTERS")
         print("="*70)
 
+        # =============================================================================
+        # IMPORTANT WARNING
+        # =============================================================================
+        print("\n" + "!"*70)
+        print("  IMPORTANT: BEFORE RUNNING THIS SCRIPT")
+        print("!"*70)
+        print("  1. START Modbus TCP Slave Simulator FIRST")
+        print("     Location: Testing/Modbus_Simulators/TCP_Slave/")
+        print("     Command:  python modbus_slave_50_registers.py")
+        print("")
+        print("  2. This prevents TCP polling errors during device creation")
+        print("     which can cause DRAM warnings and BLE packet loss")
+        print("")
+        print("  3. Wait 10 seconds after starting the simulator before")
+        print("     running this script")
+        print("!"*70)
+
+        user_input = input("\nHave you started the Modbus slave simulator? (yes/no): ")
+        if user_input.lower() != 'yes':
+            print("\n[ABORTED] Please start the Modbus slave simulator first")
+            return
+
+        # =============================================================================
+        # STEP 1: Create TCP Device
+        # =============================================================================
         print("\n>>> STEP 1: Creating TCP Device...")
 
         device_config = {
@@ -115,30 +182,33 @@ class DeviceCreationClient:
             "type": "device",
             "device_id": None,
             "config": {
-                "device_name": "TCP_Device_50_Regs",
+                "device_name": "TCP_Device_50Regs",
                 "protocol": "TCP",
                 "slave_id": 1,
                 "timeout": 5000,
                 "retry_count": 3,
-                "refresh_rate_ms": 500,
+                "refresh_rate_ms": 10000,
                 "ip": "10.21.239.9",
                 "port": 502
             }
         }
 
-        await self.send_command(device_config, "Creating TCP Device: TCP_Device_50_Regs")
-        await asyncio.sleep(2)
+        success = await self.send_command(device_config, "Creating TCP Device: TCP_Device_50Regs")
 
-        if not self.device_id:
-            print("[ERROR] Device ID not captured. Aborting...")
+        if not success or not self.device_id:
+            print("[ERROR] Device creation failed. Aborting...")
             return
 
+        print(f"\n[SUCCESS] Device created: {self.device_id}")
+        await asyncio.sleep(2)
+
         # =============================================================================
-        # STEP 2: Create 50 Registers (ALIGNED with RTU layout)
+        # STEP 2: Create 50 Registers (ALIGNED with RTU)
         # =============================================================================
         print(f"\n>>> STEP 2: Creating 50 Registers for Device ID: {self.device_id}")
+        print("[INFO] Using 1.5 second delay between registers to prevent BLE packet loss")
 
-        # Generate 50 registers with consistent layout (same as RTU)
+        # Generate 50 registers with diverse sensor types
         registers = []
 
         # Temperature sensors (0-9)
@@ -213,6 +283,11 @@ class DeviceCreationClient:
                 "unit": "L/min"
             })
 
+        # Create all 50 registers with retry mechanism
+        success_count = 0
+        failed_count = 0
+        failed_registers = []
+
         for idx, reg in enumerate(registers, 1):
             register_config = {
                 "op": "create",
@@ -231,35 +306,86 @@ class DeviceCreationClient:
                 }
             }
 
-            await self.send_command(
-                register_config,
-                f"Creating Register {idx}/50: {reg['name']} (Address: {reg['address']})"
-            )
-            await asyncio.sleep(0.5)
+            print(f"\n[{idx}/50] {reg['name']} (Addr: {reg['address']})", end=" ")
+            success = await self.send_command(register_config, "")
 
+            if success:
+                success_count += 1
+                print(f"✓")
+            else:
+                failed_count += 1
+                failed_registers.append(reg)
+                print(f"✗ FAILED")
+
+            # Increased delay to prevent BLE packet loss during low DRAM
+            await asyncio.sleep(1.5)
+
+        # =============================================================================
+        # STEP 3: Summary
+        # =============================================================================
         print("\n" + "="*70)
         print("  SUMMARY")
         print("="*70)
-        print(f"Device Name:      TCP_Device_50_Regs")
+        print(f"Device Name:      TCP_Device_50Regs")
         print(f"Device ID:        {self.device_id}")
         print(f"Protocol:         Modbus TCP")
-        print(f"IP Address:       192.168.1.8")
+        print(f"IP Address:       10.21.239.9")
         print(f"Port:             502")
         print(f"Slave ID:         1")
-        print(f"Refresh Rate:     1000 ms")
-        print(f"\nRegisters Created: 50")
+        print(f"Timeout:          5000 ms")
+        print(f"Refresh Rate:     10000 ms")
+        print(f"\nRegister Creation Results:")
+        print(f"  Total Attempted:  50")
+        print(f"  Success:          {success_count} ✓")
+        print(f"  Failed:           {failed_count} ✗")
+
+        if success_count == 50:
+            print(f"\n  STATUS: ALL REGISTERS CREATED SUCCESSFULLY! 🎉")
+        elif success_count >= 45:
+            print(f"\n  STATUS: Nearly complete ({success_count}/50)")
+        else:
+            print(f"\n  STATUS: Incomplete - many failures")
+
+        if failed_registers:
+            print(f"\n  Failed Registers:")
+            for reg in failed_registers:
+                print(f"    - {reg['name']} (Addr: {reg['address']})")
+            print(f"\n  [TIP] Re-run the script to retry failed registers")
+            print(f"  [TIP] Or manually create them via BLE app")
+
+        print(f"\nRegister Layout:")
+        print(f"  Temperature Zones:  0-9   (10 sensors)")
+        print(f"  Humidity Zones:     10-19 (10 sensors)")
+        print(f"  Pressure Sensors:   20-24 (5 sensors)")
+        print(f"  Voltage Lines:      25-29 (5 sensors)")
+        print(f"  Current Lines:      30-34 (5 sensors)")
+        print(f"  Power Meters:       35-39 (5 sensors)")
+        print(f"  Energy Counters:    40-44 (5 sensors)")
+        print(f"  Flow Meters:        45-49 (5 sensors)")
         print("="*70)
 
+        if success_count == 50:
+            print("\n[INFO] Expected Gateway behavior:")
+            print("  - TCP polling time: ~2-3 seconds for 50 registers")
+            print("  - Batch completion: All 50 registers attempted")
+            print("  - MQTT payload: ~2.5-3.0 KB")
+            print("  - Publish interval: Every 15-20 seconds")
+            print("="*70)
+
+# =============================================================================
+# Main Execution
+# =============================================================================
 async def main():
     client = DeviceCreationClient()
 
     try:
         print("\n" + "="*70)
-        print("  SRT-MGATE-1210 Firmware Testing")
+        print("  SRT-MGATE-1210 Firmware Testing - TCP Mode (50 Registers)")
         print("  Python BLE Device Creation Client")
         print("="*70)
-        print("  Version:    1.0.0")
-        print("  Date:       2025-11-14")
+        print("  Version:    2.0.0")
+        print("  Date:       2025-11-21")
+        print("  Firmware:   SRT-MGATE-1210 v2.3.0")
         print("  Author:     Kemal - SURIOTA R&D Team")
         print("="*70)
 
@@ -268,8 +394,16 @@ async def main():
 
         await client.create_device_and_registers()
 
-        print("\n[SUCCESS] Program completed successfully")
-        print("[INFO] Device and 50 registers created on GATEWAY")
+        print("\n[SUCCESS] Program completed")
+        print("\n[NEXT STEPS]")
+        print("  1. Monitor Gateway serial output for TCP polling logs")
+        print("  2. Verify batch completion: (X success, Y failed, 50/50 total)")
+        print("  3. Check MQTT broker for published payload (~2.5-3.0 KB)")
+        print("  4. If some registers failed, re-run this script (it will retry)")
+        print("\n[TROUBLESHOOTING]")
+        print("  - Low DRAM warnings: Modbus slave should be running")
+        print("  - BLE packet loss: Try increasing delay in script")
+        print("  - Polling errors: Check slave simulator is running correctly")
 
     except KeyboardInterrupt:
         print("\n[INTERRUPT] Program interrupted by user")
