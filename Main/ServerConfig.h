@@ -11,6 +11,7 @@ class ServerConfig
 private:
   static const char *CONFIG_FILE;
   JsonDocument *config; // Changed from DynamicJsonDocument
+  bool suppressRestart;  // Flag to suppress auto-restart (e.g., during factory reset)
 
   bool saveConfig();
   bool loadConfig();
@@ -28,6 +29,9 @@ public:
   // Configuration operations
   bool getConfig(JsonObject &result);
   bool updateConfig(JsonObjectConst newConfig);
+
+  // Restart control
+  void setSuppressRestart(bool suppress) { suppressRestart = suppress; }
 
   // Specific config getters
   bool getCommunicationConfig(JsonObject &result);

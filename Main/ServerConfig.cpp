@@ -4,7 +4,7 @@
 
 const char *ServerConfig::CONFIG_FILE = "/server_config.json";
 
-ServerConfig::ServerConfig()
+ServerConfig::ServerConfig() : suppressRestart(false)
 {
   // Allocate config in PSRAM
   config = (JsonDocument *)heap_caps_malloc(sizeof(JsonDocument), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -323,7 +323,17 @@ bool ServerConfig::updateConfig(JsonObjectConst newConfig)
   if (saveConfig())
   {
     Serial.println("Server configuration updated successfully");
-    scheduleDeviceRestart();
+
+    // Check if restart should be suppressed (e.g., during factory reset)
+    if (!suppressRestart)
+    {
+      scheduleDeviceRestart();
+    }
+    else
+    {
+      Serial.println("[RESTART] Restart suppressed (factory reset in progress)");
+    }
+
     return true;
   }
   return false;
