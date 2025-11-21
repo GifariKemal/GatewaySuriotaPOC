@@ -495,7 +495,8 @@ void MqttManager::publishQueueData()
   // DEBUG: Track dequeue count
   int dequeueCount = 0;
 
-  while (uniqueRegisters.size() < 50)
+  // Dequeue up to MAX_REGISTERS_PER_PUBLISH registers (configurable limit)
+  while (uniqueRegisters.size() < MqttConfig::MAX_REGISTERS_PER_PUBLISH)
   {
     JsonDocument dataDoc;
     JsonObject dataPoint = dataDoc.to<JsonObject>();

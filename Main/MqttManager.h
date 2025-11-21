@@ -22,6 +22,7 @@ namespace MqttConfig {
   constexpr uint16_t DEFAULT_BUFFER_SIZE = 8192;       // 8KB conservative default
   constexpr uint16_t BYTES_PER_REGISTER = 120;         // Realistic bytes per register (includes metadata, descriptions, JSON overhead)
   constexpr uint16_t BUFFER_OVERHEAD = 500;            // JSON structure overhead (increased for safety)
+  constexpr uint16_t MAX_REGISTERS_PER_PUBLISH = 100;  // Maximum registers to dequeue per MQTT publish cycle (increased from 50 to support larger configurations)
 }
 
 class MqttManager
