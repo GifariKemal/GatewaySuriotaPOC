@@ -2,11 +2,11 @@
 
 **Date:** November 21, 2025
 **Firmware Version:** 2.3.0
-**Status:** IN PROGRESS (2 of 8 files completed)
+**Status:** IN PROGRESS (5 of 8 files completed - 62.5%)
 
 ---
 
-## ✅ Completed Files (2/8)
+## ✅ Completed Files (5/8)
 
 ### 1. Settings.html ⭐ NEW FILE
 **Status:** ✅ COMPLETE
@@ -114,37 +114,137 @@ Every device card shows:
 
 ---
 
-## 🚧 In Progress (0/6)
+### 3. Device Details.html 🔄 UPDATED
+**Status:** ✅ COMPLETE
+**New Features Added:**
 
-Currently committing and documenting progress before continuing with remaining files.
+#### 🎛️ Device Control Section
+- **Enable/Disable Toggle**: Quick device control with confirmation
+- **Clear Metrics Button**: Reset all health metrics to zero
+- **Auto-Recovery Info**: Display auto-recovery status for disabled devices
+- **Loading States**: Smooth transitions during operations
+
+#### 📊 Health Metrics Dashboard (4 Cards)
+- **Success Rate Card**:
+  - Animated SVG gauge (0-100%)
+  - Color-coded based on health status
+  - Large percentage display
+- **Response Time Card**:
+  - Average response time in milliseconds
+  - Min/Max response time range
+  - Trend indicator
+- **Total Reads Card**:
+  - Cumulative read count
+  - Success/failed reads breakdown
+- **Status Card**:
+  - Animated pulsing status dot
+  - Current health status text
+  - Disable reason display (MANUAL, AUTO_RETRY, AUTO_TIMEOUT)
+
+#### 📋 Enhanced Register View
+- **Register Cards with Icons**: Each register displayed as a card
+- **Calibration Indicators**: Show scale/offset values if calibrated
+- **Refresh Rate Indicators**: Display custom refresh rates if overridden
+- **Function Code Display**: Visual function code badges
+- **Edit/Delete Actions**: Quick access buttons per register
+
+#### 🔗 Navigation
+- **Back to Device List**: Quick return button
+- **Add Register Button**: Navigate to Add Register page with device context
+- **URL Parameter Support**: Device ID passed via URL
 
 ---
 
-## ⏳ Pending Files (6/8)
+### 4. Create New Device.html 🔄 UPDATED
+**Status:** ✅ COMPLETE
+**New Features Added:**
 
-### 3. Device Details.html
-**Planned Features:**
-- Device control section (enable/disable, clear metrics)
-- Health metrics dashboard with charts
-- Disable reason display
-- Enhanced register view with calibration indicators
-- Consecutive failures/timeouts display
+#### 🎯 Multi-Step Wizard
+- **Step 1 - Basic Information**:
+  - Device name input
+  - Auto-generated Device ID (6-digit hex)
+  - Manual Device ID override option
+  - Protocol selection cards (RTU/TCP)
+  - Enable/disable toggle
+- **Step 2 - Protocol Settings**:
+  - RTU-specific fields: Slave ID (1-247), Serial Port (1/2), Baud Rate dropdown
+  - TCP-specific fields: IP Address (IPv4 validation), TCP Port
+  - Common fields: Timeout, Max Retries, Refresh Rate
+  - Conditional field display based on protocol
+- **Step 3 - Review & Save**:
+  - Summary of all entered data
+  - JSON preview with syntax highlighting
+  - Edit/Back buttons for corrections
+  - Save to localStorage
 
-### 4. Create New Device.html
-**Planned Features:**
-- Complete form fields (RTU/TCP specific)
-- Multi-step wizard (Basic Info → Protocol Settings → Review)
-- Form validation (device ID uniqueness, IP format, slave ID range)
-- Conditional fields based on protocol
-- JSON preview panel
+#### ✅ Comprehensive Validation
+- **Device ID Validation**:
+  - Hex format check (6 characters, 0-9A-F)
+  - Uniqueness check against existing devices
+  - Real-time error messages
+- **Slave ID Validation**: Range 1-247 for RTU devices
+- **IP Address Validation**: IPv4 format validation for TCP devices
+- **Required Fields**: All mandatory fields enforced
 
-### 5. Add Register.html
-**Planned Features:**
-- Complete 40+ data type list with search
-- Auto-calculate quantity based on data type
-- Calibration fields (scale, offset) with preview
-- Refresh rate override option
-- Data type descriptions and icons
+#### 🎨 Interactive UI
+- **Protocol Selection Cards**: Visual cards with hover effects
+- **Progress Indicator**: Step navigation with completed steps marked
+- **Animated Transitions**: Smooth step transitions
+- **Back/Next Navigation**: Intuitive wizard navigation
+
+---
+
+### 5. Add Register.html 🔄 UPDATED
+**Status:** ✅ COMPLETE
+**New Features Added:**
+
+#### 🔢 Complete Data Type Support (26 types)
+- **16-bit (1 register)**: INT16, UINT16
+- **32-bit Signed (2 registers)**: INT32_BE, INT32_LE, INT32_BE_BS, INT32_LE_BS
+- **32-bit Unsigned (2 registers)**: UINT32_BE, UINT32_LE, UINT32_BE_BS, UINT32_LE_BS
+- **32-bit Float (2 registers)**: FLOAT32_BE, FLOAT32_LE, FLOAT32_BE_BS, FLOAT32_LE_BS
+- **64-bit Signed (4 registers)**: INT64_BE, INT64_LE, INT64_BE_BS, INT64_LE_BS
+- **64-bit Unsigned (4 registers)**: UINT64_BE, UINT64_LE, UINT64_BE_BS, UINT64_LE_BS
+- **64-bit Double (4 registers)**: DOUBLE64_BE, DOUBLE64_LE, DOUBLE64_BE_BS, DOUBLE64_LE_BS
+
+#### 🎯 Smart Features
+- **Data Type Search**: Real-time search/filter for data types
+- **Auto-Calculate Quantity**: Automatically set register count based on data type
+  - 16-bit types → 1 register
+  - 32-bit types → 2 registers
+  - 64-bit types → 4 registers
+- **Register Allocation Info Panel**: Shows address range and register count
+
+#### 🔧 Calibration System
+- **Scale Input**: Multiplier for raw values
+- **Offset Input**: Post-scaling adjustment
+- **Live Formula Preview**: Real-time formula display
+- **Example Calculation**: Shows raw → final value transformation
+- **Unit Input**: Display unit (°C, V, A, kW, etc.)
+
+#### ⚡ Advanced Settings
+- **Refresh Rate Override**:
+  - Optional per-register refresh rate
+  - Checkbox to enable/disable
+  - Input field for custom interval (milliseconds)
+- **Description Field**: Multi-line textarea for notes
+- **Function Code Selection**: FC 01-04 with descriptions
+
+#### 🔗 Integration
+- **Device Context**: Reads device_id from URL parameter
+- **Back Navigation**: Return to Device Details page
+- **Save to Device**: Adds register to device's register array
+- **LocalStorage Persistence**: Register saved to device configuration
+
+---
+
+## 🚧 In Progress (0/3)
+
+Currently committing progress and preparing to continue with remaining files.
+
+---
+
+## ⏳ Pending Files (3/8)
 
 ### 6. Form Server_Configuration.html
 **Planned Features:**
@@ -181,14 +281,14 @@ Currently committing and documenting progress before continuing with remaining f
 
 ### Files Updated
 1. ✅ `Device List (Home Screen).html` - Enhanced with v2.3.0 features
+2. ✅ `Device Details.html` - Added health dashboard and device control
+3. ✅ `Create New Device.html` - Multi-step wizard with validation
+4. ✅ `Add Register.html` - Complete data types with smart features
 
 ### Files Pending
-1. ⏳ `Device Details.html`
-2. ⏳ `Create New Device.html`
-3. ⏳ `Add Register.html`
-4. ⏳ `Form Server_Configuration.html`
-5. ⏳ `Logging Config dan Delete Dialog.html`
-6. ⏳ `Streaming.html`
+1. ⏳ `Form Server_Configuration.html`
+2. ⏳ `Logging Config dan Delete Dialog.html`
+3. ⏳ `Streaming.html`
 
 ---
 
@@ -331,23 +431,27 @@ localStorage.backups            // Array of backup objects (max 10)
 
 ## 📊 Progress Metrics
 
-- **Files Completed**: 2/8 (25%)
-- **Features Implemented**: ~35% of total planned features
-- **Lines of Code**: ~1,200 (Settings.html) + ~500 (Device List) = ~1,700 total
-- **v2.3.0 Coverage**: 60% (Backup, Restore, Factory Reset, Health Metrics, BLE Metrics)
+- **Files Completed**: 5/8 (62.5%)
+- **Features Implemented**: ~75% of total planned features
+- **Lines of Code**:
+  - Settings.html: ~1,200 lines
+  - Device List: ~500 lines
+  - Device Details: ~800 lines
+  - Create New Device: ~900 lines
+  - Add Register: ~760 lines
+  - **Total**: ~4,160 lines
+- **v2.3.0 Coverage**: 85% (Backup, Restore, Factory Reset, Health Metrics, BLE Metrics, Device Control, All Data Types, Calibration, Refresh Rate Override)
 
 ---
 
 ## 🚀 Next Steps
 
-1. ✅ Commit current progress
-2. Continue with **Device Details.html** (device control, health dashboard)
-3. Update **Create New Device.html** (complete form, validation)
-4. Update **Add Register.html** (40+ data types, calibration)
-5. Update **Form Server_Configuration.html** (MQTT modes, failover)
-6. Update **Logging Config.html** (enhanced UI)
-7. Update **Streaming.html** (charts, export)
-8. Create final README with usage instructions
+1. ✅ Commit current progress (5 files complete)
+2. Continue with **Form Server_Configuration.html** (MQTT modes, HTTP interval, network failover)
+3. Update **Logging Config.html** (enhanced UI, module toggles)
+4. Update **Streaming.html** (charts, export, multi-device)
+5. Final testing and bug fixes
+6. Create README with usage instructions
 
 ---
 
@@ -363,5 +467,5 @@ localStorage.backups            // Array of backup objects (max 10)
 ---
 
 **Report Generated:** November 21, 2025
-**Next Update:** After completing Device Details.html
-**Estimated Completion:** 6 more files remaining
+**Last Updated:** After completing Add Register.html (5/8 files)
+**Remaining:** 3 more files to complete (Form Server Config, Logging Config, Streaming)

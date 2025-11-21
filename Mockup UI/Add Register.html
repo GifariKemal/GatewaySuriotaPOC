@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Modbus Register Editor - SRT-MGATE-1210</title>
+  <title>Add Modbus Register - SRT-MGATE-1210</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -71,22 +71,32 @@
       background: linear-gradient(90deg, transparent 0%, rgba(47, 111, 100, 0.1) 50%, transparent 100%);
       background-size: 1000px 100%;
     }
+
+    /* Data type card hover */
+    .datatype-option:hover {
+      background: linear-gradient(to right, rgba(47, 111, 100, 0.05), rgba(47, 111, 100, 0.02));
+    }
   </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-800 min-h-screen">
 
   <!-- Header -->
   <header class="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-    <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+    <div class="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
+        <button id="btnBack" class="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all hover:scale-105">
+          <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
         <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center shadow-lg">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-800">Modbus Register Editor</h1>
-          <p class="text-xs text-slate-500">SRT-MGATE-1210 Configuration</p>
+          <h1 class="text-lg font-bold text-slate-800">Add Modbus Register</h1>
+          <p class="text-xs text-slate-500">Device: <span id="deviceIdHeader" class="font-mono font-semibold">-</span></p>
         </div>
       </div>
       <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200">
@@ -96,231 +106,296 @@
     </div>
   </header>
 
-  <main class="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+  <main class="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
 
       <!-- Form Section -->
-      <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <span class="w-1 h-6 bg-gradient-to-b from-brand to-brand-dark rounded-full"></span>
-              Register Configuration
-            </h2>
-            <p class="mt-1 text-xs text-slate-500">Fill in the Modbus register details below</p>
+      <div class="space-y-6">
+        <!-- Basic Info Card -->
+        <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-6 bg-gradient-to-b from-brand to-brand-dark rounded-full"></span>
+                Basic Information
+              </h2>
+              <p class="mt-1 text-xs text-slate-500">Register identification and address</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <!-- Register Name -->
+            <div class="group">
+              <label for="regName" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                Register Name
+                <span class="text-red-500">*</span>
+              </label>
+              <input id="regName" type="text" placeholder="e.g., VOLTAGE_L1, TEMP_SENSOR_1" required
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
+            </div>
+
+            <!-- Address -->
+            <div class="group">
+              <label for="regAddr" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Modbus Address
+                <span class="text-red-500">*</span>
+              </label>
+              <input id="regAddr" type="number" min="0" max="65535" placeholder="0-65535" required
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 font-mono" />
+              <p id="addrErr" class="mt-2 hidden text-xs text-red-600 font-medium flex items-center gap-1 animate-slide-up">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                Address must be between 0-65535
+              </p>
+            </div>
+
+            <!-- Function Code -->
+            <div class="group">
+              <label for="regFc" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                Function Code
+                <span class="text-red-500">*</span>
+              </label>
+              <select id="regFc" required
+                      class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white cursor-pointer">
+                <option value="1">FC 01 - Read Coil Status</option>
+                <option value="2">FC 02 - Read Discrete Input</option>
+                <option value="3" selected>FC 03 - Read Holding Register</option>
+                <option value="4">FC 04 - Read Input Register</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <form id="registerForm" class="space-y-5">
-
-          <!-- Device ID (read-only) -->
-          <div class="group">
-            <label class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Device ID
-            </label>
-            <input id="device_id" type="text" value="D4A5F1" readonly
-                   class="w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 font-mono shadow-inner cursor-not-allowed" />
+        <!-- Data Type Card -->
+        <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
+                Data Type Configuration
+              </h2>
+              <p class="mt-1 text-xs text-slate-500">40+ data types with automatic register count</p>
+            </div>
           </div>
 
-          <!-- Register Name -->
-          <div class="group">
-            <label for="reg_name" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-              Register Name
-              <span class="text-red-500">*</span>
-            </label>
-            <input id="reg_name" type="text" placeholder="e.g., Voltage_L1, Temperature_Sensor" required
-                   class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
-          </div>
+          <div class="space-y-4">
+            <!-- Data Type Search -->
+            <div class="group">
+              <label for="datatypeSearch" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search Data Type
+              </label>
+              <input id="datatypeSearch" type="text" placeholder="Search: INT16, FLOAT32, DOUBLE64..."
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
+            </div>
 
-          <!-- Address -->
-          <div class="group">
-            <label for="reg_addr" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Modbus Address
-              <span class="text-red-500">*</span>
-            </label>
-            <input id="reg_addr" type="number" min="0" max="65535" placeholder="40001" required
-                   class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 font-mono" />
-            <p id="addr_err" class="mt-2 hidden text-xs text-red-600 font-medium flex items-center gap-1 animate-slide-up">
-              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-              </svg>
-              Address must be between 0-65535
-            </p>
-          </div>
-
-          <!-- Function Code -->
-          <div class="group">
-            <label for="reg_fc" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-              </svg>
-              Function Code
-              <span class="text-red-500">*</span>
-            </label>
-            <select id="reg_fc" required
-                    class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white cursor-pointer">
-              <option value="1">📍 FC 01: Read Coil Status</option>
-              <option value="2">📍 FC 02: Read Discrete Input</option>
-              <option value="3" selected>📍 FC 03: Read Holding Register</option>
-              <option value="4">📍 FC 04: Read Input Register</option>
-            </select>
-          </div>
-
-          <!-- Data Type -->
-          <div class="group">
-            <div class="flex items-center justify-between mb-2">
-              <label for="reg_dt" class="block text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <!-- Data Type Select -->
+            <div class="group">
+              <label for="regDatatype" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                 <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                 </svg>
                 Data Type
                 <span class="text-red-500">*</span>
               </label>
-              <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-md">28 types available</span>
+              <select id="regDatatype" required
+                      class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white cursor-pointer">
+                <optgroup label="🔹 16-bit (1 register)">
+                  <option value="INT16" data-regs="1">INT16 - Signed Integer (-32,768 to 32,767)</option>
+                  <option value="UINT16" data-regs="1">UINT16 - Unsigned Integer (0 to 65,535)</option>
+                </optgroup>
+                <optgroup label="🔸 32-bit Signed Integer (2 registers)">
+                  <option value="INT32_BE" data-regs="2">INT32_BE - Big Endian (ABCD)</option>
+                  <option value="INT32_LE" data-regs="2">INT32_LE - Little Endian (DCBA)</option>
+                  <option value="INT32_BE_BS" data-regs="2">INT32_BE_BS - Big Endian + Byte Swap (BADC)</option>
+                  <option value="INT32_LE_BS" data-regs="2">INT32_LE_BS - Little Endian + Word Swap (CDAB)</option>
+                </optgroup>
+                <optgroup label="🔸 32-bit Unsigned Integer (2 registers)">
+                  <option value="UINT32_BE" data-regs="2">UINT32_BE - Big Endian (ABCD)</option>
+                  <option value="UINT32_LE" data-regs="2">UINT32_LE - Little Endian (DCBA)</option>
+                  <option value="UINT32_BE_BS" data-regs="2">UINT32_BE_BS - Big Endian + Byte Swap (BADC)</option>
+                  <option value="UINT32_LE_BS" data-regs="2">UINT32_LE_BS - Little Endian + Word Swap (CDAB)</option>
+                </optgroup>
+                <optgroup label="🔸 32-bit Float IEEE 754 (2 registers)">
+                  <option value="FLOAT32_BE" data-regs="2" selected>FLOAT32_BE - Big Endian (ABCD)</option>
+                  <option value="FLOAT32_LE" data-regs="2">FLOAT32_LE - Little Endian (DCBA)</option>
+                  <option value="FLOAT32_BE_BS" data-regs="2">FLOAT32_BE_BS - Big Endian + Byte Swap (BADC)</option>
+                  <option value="FLOAT32_LE_BS" data-regs="2">FLOAT32_LE_BS - Little Endian + Word Swap (CDAB)</option>
+                </optgroup>
+                <optgroup label="🔶 64-bit Signed Integer (4 registers)">
+                  <option value="INT64_BE" data-regs="4">INT64_BE - Big Endian (ABCDEFGH)</option>
+                  <option value="INT64_LE" data-regs="4">INT64_LE - Little Endian (HGFEDCBA)</option>
+                  <option value="INT64_BE_BS" data-regs="4">INT64_BE_BS - Big Endian + Byte Swap (BADCFEHG)</option>
+                  <option value="INT64_LE_BS" data-regs="4">INT64_LE_BS - Little Endian + Word Swap (CDABGHEF)</option>
+                </optgroup>
+                <optgroup label="🔶 64-bit Unsigned Integer (4 registers)">
+                  <option value="UINT64_BE" data-regs="4">UINT64_BE - Big Endian (ABCDEFGH)</option>
+                  <option value="UINT64_LE" data-regs="4">UINT64_LE - Little Endian (HGFEDCBA)</option>
+                  <option value="UINT64_BE_BS" data-regs="4">UINT64_BE_BS - Big Endian + Byte Swap (BADCFEHG)</option>
+                  <option value="UINT64_LE_BS" data-regs="4">UINT64_LE_BS - Little Endian + Word Swap (CDABGHEF)</option>
+                </optgroup>
+                <optgroup label="🔶 64-bit Double IEEE 754 (4 registers)">
+                  <option value="DOUBLE64_BE" data-regs="4">DOUBLE64_BE - Big Endian (ABCDEFGH)</option>
+                  <option value="DOUBLE64_LE" data-regs="4">DOUBLE64_LE - Little Endian (HGFEDCBA)</option>
+                  <option value="DOUBLE64_BE_BS" data-regs="4">DOUBLE64_BE_BS - Big Endian + Byte Swap (BADCFEHG)</option>
+                  <option value="DOUBLE64_LE_BS" data-regs="4">DOUBLE64_LE_BS - Little Endian + Word Swap (CDABGHEF)</option>
+                </optgroup>
+              </select>
+              <div class="mt-2 flex items-center gap-2 text-xs text-slate-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                <span><strong>BE</strong>=Big Endian, <strong>LE</strong>=Little Endian, <strong>_BS</strong>=Byte/Word Swap</span>
+              </div>
             </div>
-            <select id="reg_dt" required
-                    class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white cursor-pointer">
-              <optgroup label="🔹 16-bit Signed Integer">
-                <option value="INT16">INT16 - Single Register</option>
-              </optgroup>
-              <optgroup label="🔹 16-bit Unsigned Integer">
-                <option value="UINT16">UINT16 - Single Register</option>
-              </optgroup>
-              <optgroup label="🔹 Boolean Value">
-                <option value="BOOL">BOOL - Single Register</option>
-              </optgroup>
-              <optgroup label="🔹 Binary Data">
-                <option value="BINARY">BINARY - Raw 16-bit Value</option>
-              </optgroup>
-              <optgroup label="🔸 32-bit Signed Integer">
-                <option value="INT32_BE">INT32_BE - Big Endian</option>
-                <option value="INT32_LE">INT32_LE - Little Endian</option>
-                <option value="INT32_BE_BS">INT32_BE_BS - Big Endian + Byte Swap</option>
-                <option value="INT32_LE_BS">INT32_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="🔸 32-bit Unsigned Integer">
-                <option value="UINT32_BE">UINT32_BE - Big Endian</option>
-                <option value="UINT32_LE">UINT32_LE - Little Endian</option>
-                <option value="UINT32_BE_BS">UINT32_BE_BS - Big Endian + Byte Swap</option>
-                <option value="UINT32_LE_BS">UINT32_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="🔸 32-bit IEEE 754 Float">
-                <option value="FLOAT32_BE" selected>FLOAT32_BE - Big Endian</option>
-                <option value="FLOAT32_LE">FLOAT32_LE - Little Endian</option>
-                <option value="FLOAT32_BE_BS">FLOAT32_BE_BS - Big Endian + Byte Swap</option>
-                <option value="FLOAT32_LE_BS">FLOAT32_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="🔶 64-bit Signed Integer">
-                <option value="INT64_BE">INT64_BE - Big Endian</option>
-                <option value="INT64_LE">INT64_LE - Little Endian</option>
-                <option value="INT64_BE_BS">INT64_BE_BS - Big Endian + Byte Swap</option>
-                <option value="INT64_LE_BS">INT64_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="🔶 64-bit Unsigned Integer">
-                <option value="UINT64_BE">UINT64_BE - Big Endian</option>
-                <option value="UINT64_LE">UINT64_LE - Little Endian</option>
-                <option value="UINT64_BE_BS">UINT64_BE_BS - Big Endian + Byte Swap</option>
-                <option value="UINT64_LE_BS">UINT64_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="🔶 64-bit IEEE 754 Double">
-                <option value="DOUBLE64_BE">DOUBLE64_BE - Big Endian</option>
-                <option value="DOUBLE64_LE">DOUBLE64_LE - Little Endian</option>
-                <option value="DOUBLE64_BE_BS">DOUBLE64_BE_BS - Big Endian + Byte Swap</option>
-                <option value="DOUBLE64_LE_BS">DOUBLE64_LE_BS - Little Endian + Byte Swap</option>
-              </optgroup>
-              <optgroup label="📦 Legacy Types">
-                <option value="INT32">INT32 - Legacy Format</option>
-                <option value="FLOAT32">FLOAT32 - Legacy Format</option>
-                <option value="STRING">STRING - Variable Length</option>
-              </optgroup>
-            </select>
-            <p class="mt-2 text-xs text-slate-500 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              <span class="font-semibold">💡 Info:</span>
-              <span class="font-mono text-blue-700">BE</span> = Big Endian,
-              <span class="font-mono text-blue-700">LE</span> = Little Endian,
-              <span class="font-mono text-blue-700">_BS</span> = Byte Swap
-            </p>
+
+            <!-- Quantity (Auto-calculated) -->
+            <div class="group">
+              <label for="regQuantity" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 0l4 16M6 9h14M4 15h14" />
+                </svg>
+                Register Quantity
+                <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md ml-2">Auto-calculated</span>
+              </label>
+              <input id="regQuantity" type="number" min="1" max="4" value="2" readonly
+                     class="w-full rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 font-mono font-semibold shadow-inner cursor-not-allowed" />
+              <p class="mt-2 text-xs text-slate-500">
+                Number of consecutive registers to read (auto-set based on data type)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calibration Card -->
+        <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></span>
+                Calibration & Unit
+              </h2>
+              <p class="mt-1 text-xs text-slate-500">Optional scaling and offset adjustment</p>
+            </div>
           </div>
 
-          <!-- Description -->
-          <div class="group">
-            <label for="reg_desc" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
-              </svg>
-              Description
-              <span class="text-slate-400 text-xs">(Optional)</span>
-            </label>
-            <input id="reg_desc" type="text" placeholder="e.g., Phase 1 Voltage Measurement"
-                   class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
-          </div>
-
-          <!-- Calibration Section -->
-          <div class="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
-            <h3 class="text-sm font-bold text-amber-900 mb-3 flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-              </svg>
-              Calibration Settings
-              <span class="text-xs font-normal text-amber-700">(Optional)</span>
-            </h3>
-
+          <div class="space-y-4">
             <!-- Scale -->
-            <div class="mb-3">
-              <label for="reg_scale" class="block text-sm font-semibold text-amber-900 mb-2">Scale (Multiplier)</label>
-              <input id="reg_scale" type="number" step="any" placeholder="1.0" value="1.0"
-                     class="w-full rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-200 font-mono" />
-              <p class="mt-1.5 text-xs text-amber-700">
-                Multiplier untuk kalibrasi (default: 1.0)
+            <div class="group">
+              <label for="regScale" class="block text-sm font-semibold text-slate-700 mb-2">
+                Scale (Multiplier)
+              </label>
+              <input id="regScale" type="number" step="any" placeholder="1.0" value="1.0"
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 font-mono" />
+              <p class="mt-1.5 text-xs text-slate-500">
+                Multiply raw value by this factor (e.g., 0.1 for 235 → 23.5)
               </p>
             </div>
 
             <!-- Offset -->
-            <div class="mb-3">
-              <label for="reg_offset" class="block text-sm font-semibold text-amber-900 mb-2">Offset</label>
-              <input id="reg_offset" type="number" step="any" placeholder="0.0" value="0.0"
-                     class="w-full rounded-lg border-2 border-amber-300 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-200 font-mono" />
-              <p class="mt-1.5 text-xs text-amber-700">
-                Nilai offset setelah scaling (default: 0.0)
+            <div class="group">
+              <label for="regOffset" class="block text-sm font-semibold text-slate-700 mb-2">
+                Offset
+              </label>
+              <input id="regOffset" type="number" step="any" placeholder="0.0" value="0.0"
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 font-mono" />
+              <p class="mt-1.5 text-xs text-slate-500">
+                Add this value after scaling (e.g., -273.15 for Kelvin to Celsius)
               </p>
             </div>
 
             <!-- Formula Display -->
-            <div class="bg-white/80 backdrop-blur-sm rounded-lg px-4 py-3 border-2 border-amber-300">
-              <p class="text-xs font-mono text-amber-900 font-semibold text-center">
-                final_value = (raw_value × <span class="text-orange-600">scale</span>) + <span class="text-orange-600">offset</span>
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4">
+              <p class="text-xs font-semibold text-amber-900 mb-2">Formula:</p>
+              <p class="text-sm font-mono text-amber-900 font-bold text-center bg-white/70 rounded-lg py-3">
+                final_value = (raw_value × <span class="text-orange-600" id="scalePreview">1.0</span>) + <span class="text-orange-600" id="offsetPreview">0.0</span>
+              </p>
+              <div class="mt-3 pt-3 border-t border-amber-300">
+                <p class="text-xs font-semibold text-amber-900 mb-1">Example:</p>
+                <p class="text-xs text-amber-800 font-mono">
+                  Raw: <span class="font-bold">1000</span> → Final: <span class="font-bold text-orange-600" id="exampleResult">1000.0</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Unit -->
+            <div class="group">
+              <label for="regUnit" class="block text-sm font-semibold text-slate-700 mb-2">
+                Unit of Measurement
+              </label>
+              <input id="regUnit" type="text" placeholder="e.g., °C, V, A, kW, %, Bar, RPM"
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
+              <p class="mt-1.5 text-xs text-slate-500">
+                Display unit (appears in dashboard and MQTT payload)
               </p>
             </div>
           </div>
+        </div>
 
-          <!-- Unit -->
-          <div class="group">
-            <label for="reg_unit" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-              </svg>
-              Unit
-              <span class="text-slate-400 text-xs">(Optional)</span>
-            </label>
-            <input id="reg_unit" type="text" placeholder="e.g., °C, V, A, kW, %, Bar"
-                   class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300" />
-            <p class="mt-2 text-xs text-slate-500">
-              Satuan ukuran untuk display (misal: °C, V, A, kW, %)
-            </p>
+        <!-- Advanced Settings Card -->
+        <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span class="w-1 h-6 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full"></span>
+                Advanced Settings
+              </h2>
+              <p class="mt-1 text-xs text-slate-500">Optional refresh rate override and description</p>
+            </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="flex flex-wrap gap-3 pt-4 border-t-2 border-slate-100">
+          <div class="space-y-4">
+            <!-- Refresh Rate Override -->
+            <div class="group">
+              <div class="flex items-center justify-between mb-2">
+                <label for="regRefreshRate" class="block text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Rate Override
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input id="enableRefreshOverride" type="checkbox" class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                  <span class="text-xs text-slate-600">Enable</span>
+                </label>
+              </div>
+              <input id="regRefreshRate" type="number" min="100" step="100" placeholder="1000" disabled
+                     class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 font-mono disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed" />
+              <p class="mt-1.5 text-xs text-slate-500">
+                Override device refresh rate for this register only (milliseconds). Leave unchecked to use device default.
+              </p>
+            </div>
+
+            <!-- Description -->
+            <div class="group">
+              <label for="regDesc" class="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                Description
+              </label>
+              <textarea id="regDesc" rows="3" placeholder="Optional description or notes..."
+                        class="input-shimmer w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="rounded-2xl bg-white p-6 shadow-soft border border-slate-200 animate-slide-up">
+          <div class="flex flex-wrap gap-3">
             <button id="btnSave" type="button" class="flex-1 sm:flex-none rounded-xl bg-gradient-to-r from-brand to-brand-light px-6 py-3 text-sm font-bold text-white shadow-lg hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -334,8 +409,7 @@
               Copy JSON
             </button>
           </div>
-
-        </form>
+        </div>
       </div>
 
       <!-- Preview Section -->
@@ -346,7 +420,7 @@
               <span class="w-1 h-6 bg-gradient-to-b from-emerald-500 to-emerald-600 rounded-full"></span>
               Live JSON Preview
             </h2>
-            <p class="mt-1 text-xs text-slate-500">Real-time API payload preview</p>
+            <p class="mt-1 text-xs text-slate-500">Real-time BLE API payload</p>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -373,12 +447,28 @@
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
             </svg>
-            API Information
+            BLE API Information
           </h4>
           <div class="space-y-1 text-xs text-blue-800">
-            <p><span class="font-semibold">Endpoint:</span> <code class="bg-blue-100 px-2 py-0.5 rounded">POST /api/registers</code></p>
+            <p><span class="font-semibold">Operation:</span> <code class="bg-blue-100 px-2 py-0.5 rounded">create</code></p>
+            <p><span class="font-semibold">Type:</span> <code class="bg-blue-100 px-2 py-0.5 rounded">register</code></p>
             <p><span class="font-semibold">Method:</span> BLE GATT Characteristic Write</p>
             <p><span class="font-semibold">Format:</span> JSON (application/json)</p>
+          </div>
+        </div>
+
+        <!-- Register Count Info -->
+        <div class="mt-4 bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+          <h4 class="text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+            Register Allocation
+          </h4>
+          <div class="space-y-1 text-xs text-amber-800">
+            <p><span class="font-semibold">Starting Address:</span> <span id="infoAddr" class="font-mono">-</span></p>
+            <p><span class="font-semibold">Register Count:</span> <span id="infoQty" class="font-mono">-</span></p>
+            <p><span class="font-semibold">Address Range:</span> <span id="infoRange" class="font-mono">-</span></p>
           </div>
         </div>
       </div>
@@ -388,51 +478,155 @@
 
   <!-- Footer -->
   <footer class="mt-12 pb-8 text-center text-xs text-slate-500">
-    <p>SRT-MGATE-1210 Firmware Configuration Tool</p>
-    <p class="mt-1">© 2024 - Modbus RTU/TCP Gateway</p>
+    <p>SRT-MGATE-1210 Firmware v2.3.0 Configuration Tool</p>
+    <p class="mt-1">© 2025 - Modbus RTU/TCP Gateway</p>
   </footer>
 
   <script>
     const $ = (q) => document.querySelector(q);
+    const $$ = (q) => document.querySelectorAll(q);
+
+    // Get device_id from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceId = urlParams.get('device_id') || 'UNKNOWN';
+    $('#deviceIdHeader').textContent = deviceId;
+
+    // Elements
     const preview = $('#preview');
-    const addr = $('#reg_addr');
-    const addrErr = $('#addr_err');
+    const regAddr = $('#regAddr');
+    const addrErr = $('#addrErr');
     const copySuccess = $('#copySuccess');
+    const regDatatype = $('#regDatatype');
+    const regQuantity = $('#regQuantity');
+    const regScale = $('#regScale');
+    const regOffset = $('#regOffset');
+    const scalePreview = $('#scalePreview');
+    const offsetPreview = $('#offsetPreview');
+    const exampleResult = $('#exampleResult');
+    const datatypeSearch = $('#datatypeSearch');
+    const enableRefreshOverride = $('#enableRefreshOverride');
+    const regRefreshRate = $('#regRefreshRate');
+
+    // Info elements
+    const infoAddr = $('#infoAddr');
+    const infoQty = $('#infoQty');
+    const infoRange = $('#infoRange');
+
+    // Back button
+    $('#btnBack').addEventListener('click', () => {
+      window.location.href = `Device Details.html?device_id=${deviceId}`;
+    });
+
+    // Data type search filter
+    datatypeSearch.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      const options = regDatatype.querySelectorAll('option');
+
+      options.forEach(opt => {
+        const text = opt.textContent.toLowerCase();
+        const value = opt.value.toLowerCase();
+        const match = text.includes(searchTerm) || value.includes(searchTerm);
+        opt.style.display = match ? '' : 'none';
+      });
+    });
+
+    // Auto-update quantity based on data type
+    regDatatype.addEventListener('change', () => {
+      const selectedOption = regDatatype.selectedOptions[0];
+      const regs = selectedOption.getAttribute('data-regs');
+      regQuantity.value = regs || '1';
+      updateInfoPanel();
+      render();
+    });
+
+    // Refresh rate override toggle
+    enableRefreshOverride.addEventListener('change', () => {
+      regRefreshRate.disabled = !enableRefreshOverride.checked;
+      if (!enableRefreshOverride.checked) {
+        regRefreshRate.value = '';
+      }
+      render();
+    });
+
+    // Update calibration preview
+    function updateCalibrationPreview() {
+      const scale = parseFloat(regScale.value) || 1.0;
+      const offset = parseFloat(regOffset.value) || 0.0;
+
+      scalePreview.textContent = scale.toFixed(2);
+      offsetPreview.textContent = offset.toFixed(2);
+
+      const exampleRaw = 1000;
+      const exampleFinal = (exampleRaw * scale) + offset;
+      exampleResult.textContent = exampleFinal.toFixed(2);
+    }
+
+    regScale.addEventListener('input', updateCalibrationPreview);
+    regOffset.addEventListener('input', updateCalibrationPreview);
+
+    // Update info panel
+    function updateInfoPanel() {
+      const addr = parseInt(regAddr.value) || 0;
+      const qty = parseInt(regQuantity.value) || 1;
+
+      infoAddr.textContent = addr;
+      infoQty.textContent = qty;
+      infoRange.textContent = `${addr} - ${addr + qty - 1}`;
+    }
+
+    regAddr.addEventListener('input', updateInfoPanel);
 
     // Validation functions
     function validAddr() {
-      const v = Number(addr.value);
+      const v = Number(regAddr.value);
       const ok = Number.isFinite(v) && v >= 0 && v <= 65535;
-      addrErr.classList.toggle('hidden', ok);
-      addr.classList.toggle('border-red-500', !ok);
-      addr.classList.toggle('border-slate-200', ok);
+      addrErr.classList.toggle('hidden', ok || regAddr.value === '');
+      regAddr.classList.toggle('border-red-500', !ok && regAddr.value !== '');
+      regAddr.classList.toggle('border-slate-200', ok || regAddr.value === '');
       return ok;
     }
 
     function validFields() {
       const addrOk = validAddr();
-      return addrOk;
+      const nameOk = $('#regName').value.trim() !== '';
+      return addrOk && nameOk;
     }
 
     // Build payload
     function buildPayload() {
-      const scale = Number($('#reg_scale').value);
-      const offset = Number($('#reg_offset').value);
+      const scale = Number(regScale.value);
+      const offset = Number(regOffset.value);
+      const refreshOverride = enableRefreshOverride.checked;
+      const refreshRate = refreshOverride ? parseInt(regRefreshRate.value) : null;
+
+      const config = {
+        address: Number(regAddr.value) || 0,
+        register_name: $('#regName').value || '',
+        function_code: Number($('#regFc').value),
+        data_type: regDatatype.value,
+        quantity: Number(regQuantity.value),
+        description: $('#regDesc').value || '',
+        unit: $('#regUnit').value || ''
+      };
+
+      // Add calibration if not default
+      if (scale !== 1.0 || offset !== 0.0) {
+        config.calibration = {
+          scale: Number.isFinite(scale) ? scale : 1.0,
+          offset: Number.isFinite(offset) ? offset : 0.0
+        };
+      }
+
+      // Add refresh rate override if enabled
+      if (refreshOverride && refreshRate) {
+        config.refresh_rate_ms = refreshRate;
+      }
 
       return {
         op: "create",
         type: "register",
-        device_id: $('#device_id').value,
-        config: {
-          address: Number($('#reg_addr').value) || 0,
-          register_name: $('#reg_name').value || '',
-          function_code: Number($('#reg_fc').value),
-          data_type: $('#reg_dt').value,
-          description: $('#reg_desc').value || '',
-          scale: Number.isFinite(scale) ? scale : 1.0,
-          offset: Number.isFinite(offset) ? offset : 0.0,
-          unit: $('#reg_unit').value || ''
-        }
+        device_id: deviceId,
+        config: config
       };
     }
 
@@ -459,7 +653,7 @@
     // Render preview
     function render() {
       if (!validFields()) {
-        preview.innerHTML = '<span class="text-red-400">⚠️ Please fix validation errors before preview</span>';
+        preview.innerHTML = '<span class="text-red-400">⚠️ Please fill all required fields</span>';
         return;
       }
 
@@ -478,30 +672,61 @@
     }
 
     // Live preview
-    document.querySelectorAll('input, select').forEach(el => {
+    $$('input, select, textarea').forEach(el => {
       el.addEventListener('input', render);
       el.addEventListener('change', render);
     });
 
     // Save button
-    $('#btnSave').addEventListener('click', (e) => {
+    $('#btnSave').addEventListener('click', async (e) => {
       e.preventDefault();
-      if (validFields()) {
-        render();
-        // Show success animation
-        const btn = e.target.closest('button');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Saving...';
+      if (!validFields()) {
+        alert('Please fill all required fields');
+        return;
+      }
+
+      const btn = e.target.closest('button');
+      const originalText = btn.innerHTML;
+
+      btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Saving...';
+      btn.disabled = true;
+
+      // Simulate BLE save operation
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get device from localStorage
+      const devices = JSON.parse(localStorage.getItem('mockDevices') || '[]');
+      const deviceIndex = devices.findIndex(d => d.device_id === deviceId);
+
+      if (deviceIndex !== -1) {
+        // Add register to device
+        const payload = buildPayload();
+        if (!devices[deviceIndex].registers) {
+          devices[deviceIndex].registers = [];
+        }
+        devices[deviceIndex].registers.push(payload.config);
+        localStorage.setItem('mockDevices', JSON.stringify(devices));
+
+        btn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg> Saved!';
+
         setTimeout(() => {
-          btn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg> Saved!';
-          setTimeout(() => { btn.innerHTML = originalText; }, 1500);
-        }, 1000);
+          window.location.href = `Device Details.html?device_id=${deviceId}`;
+        }, 1500);
+      } else {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        alert('Device not found');
       }
     });
 
     // Copy button
     $('#btnCopy').addEventListener('click', async (e) => {
       e.preventDefault();
+      if (!validFields()) {
+        alert('Please fill all required fields');
+        return;
+      }
+
       try {
         await navigator.clipboard.writeText(JSON.stringify(buildPayload(), null, 2));
 
@@ -527,7 +752,9 @@
       }
     });
 
-    // Initialize preview
+    // Initialize
+    updateCalibrationPreview();
+    updateInfoPanel();
     render();
   </script>
 </body>
