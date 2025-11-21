@@ -662,7 +662,15 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
 
   // Publish single message with all data
-  if (mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str()))
+  // Use binary publish with explicit length for large payloads (safer than null-terminated string)
+  Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
+                payload.length(), defaultTopicPublish.c_str());
+
+  bool published = mqttClient.publish(defaultTopicPublish.c_str(),
+                                      (uint8_t*)payload.c_str(),
+                                      payload.length());
+
+  if (published)
   {
     // Calculate interval display: convert from milliseconds to original unit
     // NOTE: defaultInterval is ALWAYS in milliseconds (converted at loadMqttConfig)
@@ -813,7 +821,12 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       String payload;
       serializeJson(topicDoc, payload);
 
-      if (mqttClient.publish(customTopic.topic.c_str(), payload.c_str()))
+      // Use binary publish with explicit length for large payloads (safer than null-terminated string)
+      bool published = mqttClient.publish(customTopic.topic.c_str(),
+                                          (uint8_t*)payload.c_str(),
+                                          payload.length());
+
+      if (published)
       {
         // Calculate interval display: convert from milliseconds to original unit
         // NOTE: customTopic.interval is ALWAYS in milliseconds (converted at loadMqttConfig)
