@@ -505,9 +505,11 @@ void BLEManager::sendFragmented(const char* data, size_t length)
   }
 
   // Log low DRAM warning (non-critical)
-  // Threshold adjusted to 30KB to reduce log noise while maintaining safety margin
-  // (System stable at 35-40KB during normal operations)
-  if (freeDRAM < 30000) { // <30KB free DRAM
+  // Threshold lowered to 25KB based on empirical testing:
+  // - BLE connected with no devices: stable at 28-29KB DRAM
+  // - 30KB threshold caused excessive warnings during normal operation
+  // - 25KB threshold provides safety margin while reducing log noise
+  if (freeDRAM < 25000) { // <25KB free DRAM
     Serial.printf("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
   }
 
