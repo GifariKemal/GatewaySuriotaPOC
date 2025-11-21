@@ -760,7 +760,7 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
     String streamIdStr = crudHandler->getStreamDeviceId();  // CRUDHandler returns String
     if (!streamIdStr.isEmpty() && strcmp(streamIdStr.c_str(), deviceId) == 0)
     {
-      Serial.printf("[RTU] Streaming data for device %s to BLE\n", deviceId);
+      // Verbose log suppressed - summary shown in [STREAM] logs
       queueMgr->enqueueStream(dataPoint);
     }
   }

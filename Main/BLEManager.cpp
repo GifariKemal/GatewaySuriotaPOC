@@ -440,7 +440,8 @@ void BLEManager::sendResponse(const JsonDocument &data)
     return;
   }
 
-  Serial.printf("[BLE] Serialized %u bytes to PSRAM buffer\n", serializedLength);
+  // Verbose log suppressed - summary shown in [STREAM] logs
+  // Serial.printf("[BLE] Serialized %u bytes to PSRAM buffer\n", serializedLength);
 
   // Send fragmented data from PSRAM buffer
   sendFragmented(psramBuffer, serializedLength);

@@ -322,6 +322,9 @@ void CRUDHandler::setupCommandHandlers()
       // transmission to complete before sending the stop response
       Serial.println("[CRUD] Sending stop response");
 
+      // Simple streaming completion summary
+      Serial.println("[STREAM] Stopped");
+
       auto response = make_psram_unique<JsonDocument>();
       (*response)["status"] = "ok";
       (*response)["message"] = "Data streaming stopped";
@@ -332,8 +335,21 @@ void CRUDHandler::setupCommandHandlers()
     {
       streamDeviceId = device;
 
+      // Get register count for this device
+      int registerCount = 0;
+      auto devicesDoc = configManager->loadDevicesCache();
+      if (devicesDoc.containsKey(device.c_str())) {
+        JsonObject deviceObj = devicesDoc[device.c_str()];
+        if (deviceObj.containsKey("registers")) {
+          registerCount = deviceObj["registers"].size();
+        }
+      }
+
       // Set streaming flag to true when starting
       manager->setStreamingActive(true);
+
+      // Simple summary log
+      Serial.printf("[STREAM] Started: %s (%d registers)\n", device.c_str(), registerCount);
 
       auto response = make_psram_unique<JsonDocument>();
       (*response)["status"] = "ok";
