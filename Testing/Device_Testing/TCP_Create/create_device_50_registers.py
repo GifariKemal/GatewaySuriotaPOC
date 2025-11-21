@@ -133,60 +133,85 @@ class DeviceCreationClient:
             print("[ERROR] Device ID not captured. Aborting...")
             return
 
+        # =============================================================================
+        # STEP 2: Create 50 Registers (ALIGNED with RTU layout)
+        # =============================================================================
         print(f"\n>>> STEP 2: Creating 50 Registers for Device ID: {self.device_id}")
 
-        registers = [
-            {"address": 0, "name": "Temperature", "desc": "Temperature Sensor Reading", "unit": "°C"},
-            {"address": 1, "name": "Humidity", "desc": "Humidity Sensor Reading", "unit": "%"},
-            {"address": 2, "name": "Pressure", "desc": "Pressure Sensor Reading", "unit": "Pa"},
-            {"address": 3, "name": "Voltage", "desc": "Voltage Measurement", "unit": "V"},
-            {"address": 4, "name": "Current", "desc": "Current Measurement", "unit": "A"},
-            {"address": 5, "name": "Power", "desc": "Power Consumption", "unit": "W"},
-            {"address": 6, "name": "Energy", "desc": "Energy Consumption", "unit": "kWh"},
-            {"address": 7, "name": "Frequency", "desc": "Frequency Measurement", "unit": "Hz"},
-            {"address": 8, "name": "Speed", "desc": "Motor Speed", "unit": "RPM"},
-            {"address": 9, "name": "Flow", "desc": "Flow Rate", "unit": "L/m"},
-            {"address": 10, "name": "Temperature_2", "desc": "Temperature Sensor 2 Reading", "unit": "°C"},
-            {"address": 11, "name": "Humidity_2", "desc": "Humidity Sensor 2 Reading", "unit": "%"},
-            {"address": 12, "name": "Pressure_2", "desc": "Pressure Sensor 2 Reading", "unit": "Pa"},
-            {"address": 13, "name": "Voltage_2", "desc": "Voltage Measurement 2", "unit": "V"},
-            {"address": 14, "name": "Current_2", "desc": "Current Measurement 2", "unit": "A"},
-            {"address": 15, "name": "Power_2", "desc": "Power Consumption 2", "unit": "W"},
-            {"address": 16, "name": "Energy_2", "desc": "Energy Consumption 2", "unit": "kWh"},
-            {"address": 17, "name": "Frequency_2", "desc": "Frequency Measurement 2", "unit": "Hz"},
-            {"address": 18, "name": "Speed_2", "desc": "Motor Speed 2", "unit": "RPM"},
-            {"address": 19, "name": "Flow_2", "desc": "Flow Rate 2", "unit": "L/m"},
-            {"address": 20, "name": "Temperature_3", "desc": "Temperature Sensor 3 Reading", "unit": "°C"},
-            {"address": 21, "name": "Humidity_3", "desc": "Humidity Sensor 3 Reading", "unit": "%"},
-            {"address": 22, "name": "Pressure_3", "desc": "Pressure Sensor 3 Reading", "unit": "Pa"},
-            {"address": 23, "name": "Voltage_3", "desc": "Voltage Measurement 3", "unit": "V"},
-            {"address": 24, "name": "Current_3", "desc": "Current Measurement 3", "unit": "A"},
-            {"address": 25, "name": "Power_3", "desc": "Power Consumption 3", "unit": "W"},
-            {"address": 26, "name": "Energy_3", "desc": "Energy Consumption 3", "unit": "kWh"},
-            {"address": 27, "name": "Frequency_3", "desc": "Frequency Measurement 3", "unit": "Hz"},
-            {"address": 28, "name": "Speed_3", "desc": "Motor Speed 3", "unit": "RPM"},
-            {"address": 29, "name": "Flow_3", "desc": "Flow Rate 3", "unit": "L/m"},
-            {"address": 30, "name": "Temperature_4", "desc": "Temperature Sensor 4 Reading", "unit": "°C"},
-            {"address": 31, "name": "Humidity_4", "desc": "Humidity Sensor 4 Reading", "unit": "%"},
-            {"address": 32, "name": "Pressure_4", "desc": "Pressure Sensor 4 Reading", "unit": "Pa"},
-            {"address": 33, "name": "Voltage_4", "desc": "Voltage Measurement 4", "unit": "V"},
-            {"address": 34, "name": "Current_4", "desc": "Current Measurement 4", "unit": "A"},
-            {"address": 35, "name": "Power_4", "desc": "Power Consumption 4", "unit": "W"},
-            {"address": 36, "name": "Energy_4", "desc": "Energy Consumption 4", "unit": "kWh"},
-            {"address": 37, "name": "Frequency_4", "desc": "Frequency Measurement 4", "unit": "Hz"},
-            {"address": 38, "name": "Speed_4", "desc": "Motor Speed 4", "unit": "RPM"},
-            {"address": 39, "name": "Flow_4", "desc": "Flow Rate 4", "unit": "L/m"},
-            {"address": 40, "name": "Temperature_5", "desc": "Temperature Sensor 5 Reading", "unit": "°C"},
-            {"address": 41, "name": "Humidity_5", "desc": "Humidity Sensor 5 Reading", "unit": "%"},
-            {"address": 42, "name": "Pressure_5", "desc": "Pressure Sensor 5 Reading", "unit": "Pa"},
-            {"address": 43, "name": "Voltage_5", "desc": "Voltage Measurement 5", "unit": "V"},
-            {"address": 44, "name": "Current_5", "desc": "Current Measurement 5", "unit": "A"},
-            {"address": 45, "name": "Power_5", "desc": "Power Consumption 5", "unit": "W"},
-            {"address": 46, "name": "Energy_5", "desc": "Energy Consumption 5", "unit": "kWh"},
-            {"address": 47, "name": "Frequency_5", "desc": "Frequency Measurement 5", "unit": "Hz"},
-            {"address": 48, "name": "Speed_5", "desc": "Motor Speed 5", "unit": "RPM"},
-            {"address": 49, "name": "Flow_5", "desc": "Flow Rate 5", "unit": "L/m"}
-        ]
+        # Generate 50 registers with consistent layout (same as RTU)
+        registers = []
+
+        # Temperature sensors (0-9)
+        for i in range(10):
+            registers.append({
+                "address": i,
+                "name": f"Temp_Zone_{i+1}",
+                "desc": f"Temperature Zone {i+1}",
+                "unit": "°C"
+            })
+
+        # Humidity sensors (10-19)
+        for i in range(10):
+            registers.append({
+                "address": 10 + i,
+                "name": f"Humid_Zone_{i+1}",
+                "desc": f"Humidity Zone {i+1}",
+                "unit": "%"
+            })
+
+        # Pressure sensors (20-24)
+        for i in range(5):
+            registers.append({
+                "address": 20 + i,
+                "name": f"Press_Sensor_{i+1}",
+                "desc": f"Pressure Sensor {i+1}",
+                "unit": "Pa"
+            })
+
+        # Voltage sensors (25-29)
+        for i in range(5):
+            registers.append({
+                "address": 25 + i,
+                "name": f"Voltage_L{i+1}",
+                "desc": f"Voltage Line {i+1}",
+                "unit": "V"
+            })
+
+        # Current sensors (30-34)
+        for i in range(5):
+            registers.append({
+                "address": 30 + i,
+                "name": f"Current_L{i+1}",
+                "desc": f"Current Line {i+1}",
+                "unit": "A"
+            })
+
+        # Power sensors (35-39)
+        for i in range(5):
+            registers.append({
+                "address": 35 + i,
+                "name": f"Power_{i+1}",
+                "desc": f"Power Meter {i+1}",
+                "unit": "W"
+            })
+
+        # Energy counters (40-44)
+        for i in range(5):
+            registers.append({
+                "address": 40 + i,
+                "name": f"Energy_{i+1}",
+                "desc": f"Energy Counter {i+1}",
+                "unit": "kWh"
+            })
+
+        # Flow rate sensors (45-49)
+        for i in range(5):
+            registers.append({
+                "address": 45 + i,
+                "name": f"Flow_{i+1}",
+                "desc": f"Flow Meter {i+1}",
+                "unit": "L/min"
+            })
 
         for idx, reg in enumerate(registers, 1):
             register_config = {
