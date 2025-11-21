@@ -6,6 +6,8 @@
 #include "MqttManager.h"   //For calling updateDataTransmissionInterval()
 #include "HttpManager.h"   //For calling updateDataTransmissionInterval()
 #include "MemoryManager.h" // For make_psram_unique
+#include "RTCManager.h"    // For RTC timestamp in factory reset
+#include "LEDManager.h"    // For stopping LED task during factory reset
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;
@@ -1483,7 +1485,7 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] [1/6] Stopping all services...");
 
   // Stop LED manager
-  extern LEDManager *ledManager;
+  LEDManager *ledManager = LEDManager::getInstance();
   if (ledManager)
   {
     ledManager->stop();
