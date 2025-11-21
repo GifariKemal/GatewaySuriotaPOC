@@ -5,7 +5,7 @@ Modbus RTU Slave Simulator - 50 Input Registers
 =============================================================================
 Description:
     Simulates a Modbus RTU slave with 50 Input Registers
-    matching the Device_Testing configuration
+    ALIGNED with create_device_50_registers.py for perfect register matching
 
     Device Configuration:
     - Serial Port: COM8 (Windows) or /dev/ttyUSB0 (Linux)
@@ -107,59 +107,105 @@ STOP_BITS = 1          # MUST match device config
 SLAVE_ID = 1           # MUST match device config slave_id
 NUM_REGISTERS = 50      # 50 Input Registers
 
-# Register definitions
-REGISTER_INFO = {
-    0: {"name": "Temperature", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    1: {"name": "Humidity", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    2: {"name": "Pressure", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    3: {"name": "Voltage", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    4: {"name": "Current", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    5: {"name": "Power", "unit": "W", "min": 0, "max": 5000, "initial": 1000},
-    6: {"name": "Frequency", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    7: {"name": "PowerFactor", "unit": "", "min": 0, "max": 100, "initial": 95},
-    8: {"name": "Energy", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
-    9: {"name": "Flow", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
-    10: {"name": "Level", "unit": "cm", "min": 0, "max": 200, "initial": 100},
-    11: {"name": "pH", "unit": "", "min": 0, "max": 14, "initial": 7},
-    12: {"name": "Conductivity", "unit": "mS/cm", "min": 0, "max": 200, "initial": 100},
-    13: {"name": "TDS", "unit": "ppm", "min": 0, "max": 1000, "initial": 500},
-    14: {"name": "Turbidity", "unit": "NTU", "min": 0, "max": 100, "initial": 10},
-    15: {"name": "Speed", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    16: {"name": "Torque", "unit": "Nm", "min": 0, "max": 500, "initial": 100},
-    17: {"name": "Vibration", "unit": "mm/s", "min": 0, "max": 20, "initial": 5},
-    18: {"name": "CO2", "unit": "ppm", "min": 300, "max": 2000, "initial": 400},
-    19: {"name": "VOC", "unit": "ppb", "min": 0, "max": 1000, "initial": 100},
-    20: {"name": "Light", "unit": "lux", "min": 0, "max": 10000, "initial": 500},
-    21: {"name": "Noise", "unit": "dB", "min": 30, "max": 120, "initial": 60},
-    22: {"name": "Distance", "unit": "cm", "min": 0, "max": 400, "initial": 100},
-    23: {"name": "Angle", "unit": "deg", "min": 0, "max": 360, "initial": 180},
-    24: {"name": "Weight", "unit": "kg", "min": 0, "max": 1000, "initial": 100},
-    25: {"name": "Force", "unit": "N", "min": 0, "max": 1000, "initial": 100},
-    26: {"name": "Position", "unit": "mm", "min": 0, "max": 500, "initial": 250},
-    27: {"name": "Velocity", "unit": "m/s", "min": 0, "max": 50, "initial": 10},
-    28: {"name": "Acceleration", "unit": "m/s²", "min": 0, "max": 20, "initial": 10},
-    29: {"name": "Tank1Level", "unit": "%", "min": 0, "max": 100, "initial": 50},
-    30: {"name": "Tank2Level", "unit": "%", "min": 0, "max": 100, "initial": 60},
-    31: {"name": "Pump1Speed", "unit": "RPM", "min": 0, "max": 1500, "initial": 750},
-    32: {"name": "Pump2Speed", "unit": "RPM", "min": 0, "max": 1500, "initial": 800},
-    33: {"name": "Valve1Position", "unit": "%", "min": 0, "max": 100, "initial": 50},
-    34: {"name": "Valve2Position", "unit": "%", "min": 0, "max": 100, "initial": 60},
-    35: {"name": "MotorCurrent", "unit": "A", "min": 0, "max": 50, "initial": 10},
-    36: {"name": "MotorVoltage", "unit": "V", "min": 0, "max": 480, "initial": 380},
-    37: {"name": "MotorTemp", "unit": "°C", "min": 20, "max": 80, "initial": 40},
-    38: {"name": "AmbientTemp", "unit": "°C", "min": 15, "max": 40, "initial": 25},
-    39: {"name": "AmbientHumidity", "unit": "%", "min": 20, "max": 90, "initial": 60},
-    40: {"name": "Dewpoint", "unit": "°C", "min": -10, "max": 30, "initial": 15},
-    41: {"name": "WindSpeed", "unit": "m/s", "min": 0, "max": 30, "initial": 5},
-    42: {"name": "WindDirection", "unit": "deg", "min": 0, "max": 360, "initial": 180},
-    43: {"name": "Rain", "unit": "mm", "min": 0, "max": 100, "initial": 0},
-    44: {"name": "SolarRadiation", "unit": "W/m²", "min": 0, "max": 1200, "initial": 500},
-    45: {"name": "BarometricPressure", "unit": "hPa", "min": 950, "max": 1050, "initial": 1013},
-    46: {"name": "UVIndex", "unit": "", "min": 0, "max": 15, "initial": 5},
-    47: {"name": "AirQualityIndex", "unit": "", "min": 0, "max": 500, "initial": 50},
-    48: {"name": "PM25", "unit": "µg/m³", "min": 0, "max": 500, "initial": 35},
-    49: {"name": "PM10", "unit": "µg/m³", "min": 0, "max": 600, "initial": 50}
-}
+# Register definitions - ALIGNED WITH create_device_50_registers.py
+# Temperature Zones: 0-9 (10 registers)
+# Humidity Zones: 10-19 (10 registers)
+# Pressure Sensors: 20-24 (5 registers)
+# Voltage Lines: 25-29 (5 registers)
+# Current Lines: 30-34 (5 registers)
+# Power Meters: 35-39 (5 registers)
+# Energy Counters: 40-44 (5 registers)
+# Flow Meters: 45-49 (5 registers)
+
+REGISTER_INFO = {}
+
+# Temperature Zones (0-9) - °C
+for i in range(10):
+    REGISTER_INFO[i] = {
+        "name": f"Temp_Zone_{i+1}",
+        "desc": f"Temperature Zone {i+1}",
+        "unit": "°C",
+        "min": 20,
+        "max": 35,
+        "initial": 25
+    }
+
+# Humidity Zones (10-19) - %
+for i in range(10):
+    REGISTER_INFO[10 + i] = {
+        "name": f"Humid_Zone_{i+1}",
+        "desc": f"Humidity Zone {i+1}",
+        "unit": "%",
+        "min": 40,
+        "max": 80,
+        "initial": 60
+    }
+
+# Pressure Sensors (20-24) - Pa
+for i in range(5):
+    REGISTER_INFO[20 + i] = {
+        "name": f"Press_Sensor_{i+1}",
+        "desc": f"Pressure Sensor {i+1}",
+        "unit": "Pa",
+        "min": 900,
+        "max": 1100,
+        "initial": 1000
+    }
+
+# Voltage Lines (25-29) - V
+for i in range(5):
+    REGISTER_INFO[25 + i] = {
+        "name": f"Voltage_L{i+1}",
+        "desc": f"Voltage Line {i+1}",
+        "unit": "V",
+        "min": 220,
+        "max": 240,
+        "initial": 230
+    }
+
+# Current Lines (30-34) - A
+for i in range(5):
+    REGISTER_INFO[30 + i] = {
+        "name": f"Current_L{i+1}",
+        "desc": f"Current Line {i+1}",
+        "unit": "A",
+        "min": 1,
+        "max": 10,
+        "initial": 5
+    }
+
+# Power Meters (35-39) - W
+for i in range(5):
+    REGISTER_INFO[35 + i] = {
+        "name": f"Power_{i+1}",
+        "desc": f"Power Meter {i+1}",
+        "unit": "W",
+        "min": 0,
+        "max": 5000,
+        "initial": 1000
+    }
+
+# Energy Counters (40-44) - kWh
+for i in range(5):
+    REGISTER_INFO[40 + i] = {
+        "name": f"Energy_{i+1}",
+        "desc": f"Energy Counter {i+1}",
+        "unit": "kWh",
+        "min": 0,
+        "max": 9999,
+        "initial": 100
+    }
+
+# Flow Meters (45-49) - L/min
+for i in range(5):
+    REGISTER_INFO[45 + i] = {
+        "name": f"Flow_{i+1}",
+        "desc": f"Flow Meter {i+1}",
+        "unit": "L/min",
+        "min": 0,
+        "max": 100,
+        "initial": 50
+    }
 
 # Auto-update configuration
 AUTO_UPDATE = True
@@ -287,205 +333,37 @@ class RegisterUpdater(threading.Thread):
                     # Get current value (function code 4 = Input Registers)
                     current_value = slave_context.getValues(4, address, count=1)[0]
 
-                    # Simulate realistic sensor variations
-                    if address == 0:  # Temperature
+                    # Simulate realistic sensor variations based on register type
+                    if 0 <= address <= 9:  # Temperature Zones (0-9)
                         new_value = current_value + random.choice([-1, 0, 0, 1])
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 1:  # Humidity
+                    elif 10 <= address <= 19:  # Humidity Zones (10-19)
                         new_value = current_value + random.choice([-2, -1, 0, 1, 2])
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 2:  # Pressure
+                    elif 20 <= address <= 24:  # Pressure Sensors (20-24)
                         new_value = current_value + random.randint(-5, 5)
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 3:  # Voltage
+                    elif 25 <= address <= 29:  # Voltage Lines (25-29)
                         new_value = current_value + random.choice([-1, 0, 0, 0, 1])
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 4:  # Current
+                    elif 30 <= address <= 34:  # Current Lines (30-34)
                         new_value = current_value + random.choice([-1, 0, 1])
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 5:  # Power
+                    elif 35 <= address <= 39:  # Power Meters (35-39)
                         new_value = current_value + random.randint(-50, 50)
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 6:  # Frequency
-                        new_value = current_value + random.choice([-1, 0, 0, 0, 1])
+                    elif 40 <= address <= 44:  # Energy Counters (40-44)
+                        new_value = current_value + random.randint(0, 5)  # Energy only increases
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 7:  # PowerFactor
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 8:  # Energy
-                        new_value = current_value + random.randint(0, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 9:  # Flow
+                    elif 45 <= address <= 49:  # Flow Meters (45-49)
                         new_value = current_value + random.randint(-3, 3)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 10:  # Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 11:  # pH
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 12:  # Conductivity
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 13:  # TDS
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 14:  # Turbidity
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 15:  # Speed
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 16:  # Torque
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 17:  # Vibration
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 18:  # CO2
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 19:  # VOC
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 20:  # Light
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 21:  # Noise
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 22:  # Distance
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 23:  # Angle
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 24:  # Weight
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 25:  # Force
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 26:  # Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 27:  # Velocity
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 28:  # Acceleration
-                        new_value = current_value + random.choice([-1, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 29:  # Tank1Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 30:  # Tank2Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 31:  # Pump1Speed
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 32:  # Pump2Speed
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 33:  # Valve1Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 34:  # Valve2Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 35:  # MotorCurrent
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 36:  # MotorVoltage
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 37:  # MotorTemp
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 38:  # AmbientTemp
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 39:  # AmbientHumidity
-                        new_value = current_value + random.randint(-3, 3)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 40:  # Dewpoint
-                        new_value = current_value + random.choice([-1, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 41:  # WindSpeed
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 42:  # WindDirection
-                        new_value = current_value + random.randint(-15, 15)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 43:  # Rain
-                        new_value = current_value + random.choice([0, 0, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 44:  # SolarRadiation
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 45:  # BarometricPressure
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 46:  # UVIndex
-                        new_value = current_value + random.choice([0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 47:  # AirQualityIndex
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 48:  # PM25
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 49:  # PM10
-                        new_value = current_value + random.randint(-5, 5)
                         new_value = max(info["min"], min(info["max"], new_value))
 
                     else:
@@ -571,22 +449,36 @@ def run_server():
         single=False
     )
 
-    # Display initial register values (first 10 for brevity)
+    # Display initial register values (organized by category)
     print("\n" + "="*70)
     print(f"  INITIAL REGISTER VALUES ({NUM_REGISTERS} Input Registers)")
     print("="*70)
-    print(f"  {'Addr':<6} {'Name':<18} {'Value':<10} {'Unit':<10} {'Range':<20}")
+    print(f"  {'Addr':<6} {'Name':<20} {'Value':<8} {'Unit':<8} {'Range':<15}")
     print("─"*70)
 
-    display_count = min(10, NUM_REGISTERS)
-    for addr in range(display_count):
-        info = REGISTER_INFO[addr]
-        value = info["initial"]
-        range_str = f"{info['min']}-{info['max']}"
-        print(f"  {addr:<6} {info['name']:<18} {value:<10} {info['unit']:<10} {range_str:<20}")
+    # Show sample from each category
+    categories = [
+        (0, 2, 10, "Temperature Zones"),
+        (10, 12, 10, "Humidity Zones"),
+        (20, 22, 5, "Pressure Sensors"),
+        (25, 27, 5, "Voltage Lines"),
+        (30, 32, 5, "Current Lines"),
+        (35, 37, 5, "Power Meters"),
+        (40, 42, 5, "Energy Counters"),
+        (45, 47, 5, "Flow Meters")
+    ]
 
-    if NUM_REGISTERS > 10:
-        print(f"  ... ({NUM_REGISTERS - display_count} more registers)")
+    for start, end, total, category in categories:
+        print(f"  {category}:")
+        for addr in range(start, end):
+            info = REGISTER_INFO[addr]
+            value = info["initial"]
+            range_str = f"{info['min']}-{info['max']}"
+            print(f"    {addr:<4} {info['name']:<20} {value:<8} {info['unit']:<8} {range_str:<15}")
+        remaining = total - (end - start)
+        if remaining > 0:
+            print(f"    ... ({remaining} more in this category)")
+        print()
 
     print("="*70)
 
@@ -681,13 +573,15 @@ if __name__ == "__main__":
     print(f"  ├─ Registers:    {NUM_REGISTERS} Input Registers (INT16)")
     print(f"  └─ Addresses:    0-{NUM_REGISTERS-1}")
 
-    print(f"\n  First {min(10, NUM_REGISTERS)} Register Mapping:")
-    for addr in range(min(10, NUM_REGISTERS)):
-        info = REGISTER_INFO[addr]
-        print(f"  [{addr}] {info['name']:15s} - {info['unit']:6s} ({info['min']}-{info['max']})")
-
-    if NUM_REGISTERS > 10:
-        print(f"  ... ({NUM_REGISTERS - 10} more registers)")
+    print(f"\n  Register Mapping (by category):")
+    print(f"  ├─ Temperature Zones (0-9):   {REGISTER_INFO[0]['name']} ... {REGISTER_INFO[9]['name']}")
+    print(f"  ├─ Humidity Zones (10-19):    {REGISTER_INFO[10]['name']} ... {REGISTER_INFO[19]['name']}")
+    print(f"  ├─ Pressure Sensors (20-24):  {REGISTER_INFO[20]['name']} ... {REGISTER_INFO[24]['name']}")
+    print(f"  ├─ Voltage Lines (25-29):     {REGISTER_INFO[25]['name']} ... {REGISTER_INFO[29]['name']}")
+    print(f"  ├─ Current Lines (30-34):     {REGISTER_INFO[30]['name']} ... {REGISTER_INFO[34]['name']}")
+    print(f"  ├─ Power Meters (35-39):      {REGISTER_INFO[35]['name']} ... {REGISTER_INFO[39]['name']}")
+    print(f"  ├─ Energy Counters (40-44):   {REGISTER_INFO[40]['name']} ... {REGISTER_INFO[44]['name']}")
+    print(f"  └─ Flow Meters (45-49):       {REGISTER_INFO[45]['name']} ... {REGISTER_INFO[49]['name']}")
 
     print("\n" + "="*70)
     print(f"\n  This simulator provides {NUM_REGISTERS} Input Registers for comprehensive testing")
