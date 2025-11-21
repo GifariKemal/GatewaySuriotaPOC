@@ -3,163 +3,493 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mockup Lainnya – Interactive</title>
+  <title>Logging Configuration - SRT-MGATE-1210</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme:{ extend:{
-        colors:{ brand:{ DEFAULT:'#2f6f64' } },
-        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
-      }}
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              DEFAULT:'#2f6f64',
+              dark: '#1f4f44',
+              light: '#3f8f74',
+              ink:'#e7f3f0'
+            }
+          },
+          boxShadow: {
+            soft:'0 10px 30px rgba(2,8,20,.08)',
+            glow: '0 0 20px rgba(47, 111, 100, 0.3)',
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-in-out',
+            'slide-up': 'slideUp 0.4s ease-out',
+            'scale-in': 'scaleIn 0.3s ease-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(10px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            },
+            scaleIn: {
+              '0%': { transform: 'scale(0.95)', opacity: '0' },
+              '100%': { transform: 'scale(1)', opacity: '1' },
+            }
+          }
+        }
+      }
     }
   </script>
+  <style>
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+    * { transition: all 0.2s ease; }
+    input:focus, select:focus { transform: translateY(-1px); }
+  </style>
 </head>
-<body class="bg-slate-100 p-4 space-y-8 text-slate-800">
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 text-slate-800 min-h-screen p-4">
 
   <!-- Logging Config Card -->
-  <div class="max-w-md mx-auto rounded-xl bg-white shadow-soft overflow-hidden border border-slate-200">
-    <header class="bg-white border-b border-slate-200">
-      <div class="px-4 py-4 flex justify-between items-center">
-        <a href="#" class="font-semibold text-slate-900 flex items-center gap-1 hover:text-brand">
-          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
-          Back
-        </a>
-        <h1 class="text-lg font-semibold text-slate-900">Logging Config</h1>
-        <div class="size-5"></div>
+  <div class="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div class="rounded-2xl bg-white shadow-soft overflow-hidden border border-slate-200">
+      <header class="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200 px-4 sm:px-6 py-4">
+        <div class="flex justify-between items-center">
+          <a href="Device List (Home Screen).html" class="font-semibold text-slate-700 flex items-center gap-2 hover:text-brand transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+            </svg>
+            Back to Home
+          </a>
+          <h1 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Logging Configuration
+          </h1>
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200">
+            <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+            <span class="text-xs font-medium text-emerald-700">Live Preview</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="p-4 sm:p-6 space-y-6">
+        <!-- File Storage Settings -->
+        <div class="rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 p-4 sm:p-5 border-2 border-blue-200 shadow-sm animate-slide-up">
+          <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full"></span>
+            File Storage Settings
+          </h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Logging Retention
+              </span>
+              <select id="retention" class="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white shadow-sm">
+                <option value="1h">1 Hour</option>
+                <option value="6h">6 Hours</option>
+                <option value="12h">12 Hours</option>
+                <option value="1d">1 Day</option>
+                <option value="1w" selected>1 Week</option>
+                <option value="1m">1 Month</option>
+              </select>
+              <p class="mt-1.5 text-xs text-slate-500">
+                How long to keep log files on SD card
+              </p>
+            </label>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Logging Interval
+              </span>
+              <select id="interval" class="w-full rounded-xl border-2 border-slate-200 px-4 py-3 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-brand/20 hover:border-slate-300 bg-white shadow-sm">
+                <option value="1m">1 Minute</option>
+                <option value="5m" selected>5 Minutes</option>
+                <option value="10m">10 Minutes</option>
+                <option value="30m">30 Minutes</option>
+                <option value="1h">1 Hour</option>
+              </select>
+              <p class="mt-1.5 text-xs text-slate-500">
+                How often to write logs to SD card
+              </p>
+            </label>
+          </div>
+        </div>
+
+        <!-- Runtime Log Control -->
+        <div class="rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 p-4 sm:p-5 border-2 border-purple-200 shadow-sm animate-slide-up">
+          <h2 class="text-base sm:text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+            <span class="w-1 h-6 bg-gradient-to-b from-purple-500 to-purple-600 rounded-full"></span>
+            Runtime Log Control
+          </h2>
+
+          <div class="space-y-4">
+            <!-- Log Level Selector -->
+            <div>
+              <span class="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                Global Log Level
+              </span>
+              <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="0" class="peer sr-only" />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-slate-600 peer-checked:bg-slate-600 peer-checked:text-white hover:border-slate-400">
+                    NONE
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="1" class="peer sr-only" />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-red-600 peer-checked:bg-red-600 peer-checked:text-white hover:border-red-400">
+                    ERROR
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="2" class="peer sr-only" />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-amber-600 peer-checked:bg-amber-600 peer-checked:text-white hover:border-amber-400">
+                    WARN
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="3" class="peer sr-only" checked />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-blue-600 peer-checked:bg-blue-600 peer-checked:text-white hover:border-blue-400">
+                    INFO
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="4" class="peer sr-only" />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-emerald-600 peer-checked:bg-emerald-600 peer-checked:text-white hover:border-emerald-400">
+                    DEBUG
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="logLevel" value="5" class="peer sr-only" />
+                  <div class="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-center transition-all peer-checked:border-purple-600 peer-checked:bg-purple-600 peer-checked:text-white hover:border-purple-400">
+                    VERBOSE
+                  </div>
+                </label>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">
+                Controls which messages appear in Serial Monitor and SD logs
+              </p>
+            </div>
+
+            <!-- RTC Timestamp Toggle -->
+            <div class="flex items-center justify-between p-3 bg-white rounded-lg border-2 border-slate-200">
+              <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">RTC Timestamps</p>
+                  <p class="text-xs text-slate-500">Use DS3231 RTC for log timestamps</p>
+                </div>
+              </div>
+              <label class="inline-flex cursor-pointer items-center">
+                <input id="rtcEnabled" type="checkbox" class="peer sr-only" checked />
+                <div class="relative h-6 w-11 rounded-full bg-slate-300 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 shadow-inner">
+                  <span class="absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all peer-checked:translate-x-5"></span>
+                </div>
+              </label>
+            </div>
+
+            <!-- Module-Specific Logging -->
+            <div>
+              <span class="mb-2 block text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                Module-Specific Logging
+              </span>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">RTU</span>
+                  <input type="checkbox" id="logRTU" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">TCP</span>
+                  <input type="checkbox" id="logTCP" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">MQTT</span>
+                  <input type="checkbox" id="logMQTT" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">HTTP</span>
+                  <input type="checkbox" id="logHTTP" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">BLE</span>
+                  <input type="checkbox" id="logBLE" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">NET</span>
+                  <input type="checkbox" id="logNET" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">CONFIG</span>
+                  <input type="checkbox" id="logCONFIG" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+                <div class="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <span class="text-xs font-medium text-slate-700">QUEUE</span>
+                  <input type="checkbox" id="logQUEUE" checked class="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand" />
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">
+                Enable or disable logging for specific firmware modules
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- JSON Preview -->
+        <div class="rounded-xl bg-white p-4 sm:p-5 border-2 border-slate-200 shadow-sm animate-slide-up">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-600 flex items-center gap-2">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              LIVE JSON PREVIEW
+            </h3>
+            <button id="btnCopy" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-all active:scale-95 flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+              Copy
+            </button>
+          </div>
+          <pre id="preview" class="max-h-64 overflow-auto rounded-xl bg-slate-900 p-4 text-xs text-emerald-400 font-mono leading-relaxed"></pre>
+        </div>
+
+        <!-- Action Button -->
+        <button id="btnSave"
+          class="w-full rounded-xl bg-gradient-to-r from-brand to-brand-light px-6 py-3 text-sm font-bold text-white shadow-lg hover:shadow-glow hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+          Save Logging Configuration
+        </button>
       </div>
-    </header>
+    </div>
 
-    <div class="p-4 space-y-4">
-      <label class="block">
-        <span class="mb-1 block text-sm font-medium text-slate-700">Logging Retention</span>
-        <select id="retention" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
-          <option value="1w" selected>1 Minggu (1w)</option>
-          <option value="1m">1 Bulan (1m)</option>
-          <option value="3m">3 Bulan (3m)</option>
-        </select>
-      </label>
-
-      <label class="block">
-        <span class="mb-1 block text-sm font-medium text-slate-700">Logging Interval</span>
-        <select id="interval" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200">
-          <option value="5m" selected>5 Menit (5m)</option>
-          <option value="10m">10 Menit (10m)</option>
-          <option value="30m">30 Menit (30m)</option>
-        </select>
-      </label>
-
-      <div>
-        <p class="text-xs text-slate-500">Preview Payload (read-only)</p>
-        <pre id="preview" class="mt-1 max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-[12px] text-emerald-100"></pre>
+    <!-- Enhanced Delete Device Dialog -->
+    <div id="deleteModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50" style="animation: fadeIn 0.3s ease-in-out;">
+      <div class="max-w-md w-full rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200 animate-scale-in">
+        <div class="p-6">
+          <div class="text-center">
+            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-red-100 to-red-200 animate-pulse">
+              <svg class="w-8 h-8 text-red-600" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <h3 class="mt-4 text-xl font-bold text-slate-900">Delete Device?</h3>
+            <div class="mt-4 p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+              <p id="delText" class="text-sm text-slate-700 leading-relaxed">
+                You are about to delete "<strong class="text-red-700">Main Power Meter</strong>" and all <strong class="text-red-700">5 registers</strong> associated with it.
+              </p>
+            </div>
+            <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div class="flex items-start gap-2 text-left">
+                <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                <div>
+                  <p class="text-xs font-bold text-amber-900">Warning</p>
+                  <ul class="mt-1 text-xs text-amber-800 space-y-1">
+                    <li>• This action cannot be undone</li>
+                    <li>• All historical data will be lost</li>
+                    <li>• Streaming will stop immediately</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4">
+              <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border-2 border-slate-200 cursor-pointer hover:border-brand transition-colors">
+                <input id="confirmDelete" type="checkbox" class="w-5 h-5 rounded border-slate-300 text-brand focus:ring-brand" />
+                <span class="text-sm font-medium text-slate-700">I understand this action cannot be undone</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="bg-slate-50 px-6 py-4 flex gap-3">
+          <button id="btnCancel" class="flex-1 rounded-xl bg-white border-2 border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 transition-all active:scale-95">
+            Cancel
+          </button>
+          <button id="btnDelete" disabled class="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+            Delete Device
+          </button>
+        </div>
       </div>
+    </div>
 
-      <button id="btnSave"
-        class="w-full rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow transition hover:brightness-110 active:scale-95 disabled:opacity-60">
-        Save Logging Config
+    <!-- Demo Button to Show Delete Modal -->
+    <div class="max-w-4xl mx-auto">
+      <button id="showDeleteModal" class="w-full rounded-xl bg-gradient-to-r from-red-500 to-red-600 px-6 py-3 text-sm font-bold text-white shadow-lg hover:from-red-600 hover:to-red-700 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        Demo: Delete Device Dialog
       </button>
     </div>
   </div>
 
-  <!-- Delete Device Dialog (modal style card) -->
-  <div class="max-w-md mx-auto rounded-xl bg-white shadow-soft overflow-hidden border border-slate-200 p-6">
-    <div class="text-center">
-      <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-red-100">
-        <svg class="size-6 text-red-600" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-        </svg>
-      </div>
-      <h3 class="mt-4 text-lg font-semibold text-slate-900">Delete Device?</h3>
-      <p id="delText" class="mt-2 text-sm text-slate-500">
-        Are you sure you want to delete "<b>Main Power Meter</b>"? All 5 of its registers will also be permanently deleted. This action cannot be undone.
-      </p>
-    </div>
-    <div class="mt-6 grid grid-cols-2 gap-3">
-      <button id="btnCancel" class="w-full rounded-xl bg-slate-200 px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-300 active:scale-95">
-        Cancel
-      </button>
-      <button id="btnDelete" class="w-full rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95">
-        Delete
-      </button>
-    </div>
-  </div>
-
-  <!-- Toast -->
+  <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden">
-    <div class="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm shadow-lg"></div>
+    <div class="rounded-xl bg-slate-900 text-white px-6 py-3 text-sm shadow-2xl flex items-center gap-3 min-w-[200px] animate-slide-up">
+      <svg class="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+      <span id="toastText">Success!</span>
+    </div>
   </div>
 
   <script>
-    const $ = (q)=>document.querySelector(q);
+    const $ = (q) => document.querySelector(q);
 
     // --- Helpers ---
-    function mapRetention(raw){
-      // 1w ~ 7 days, 1m ~ 30 days, 3m ~ 90 days (approx)
-      const map = { '1w':7, '1m':30, '3m':90 };
-      return { raw, days: map[raw] ?? 7 };
+    function mapRetention(raw) {
+      const map = { '1h': 1, '6h': 6, '12h': 12, '1d': 24, '1w': 168, '1m': 720 };
+      return { raw, hours: map[raw] ?? 168 };
     }
-    function mapInterval(raw){
-      // minutes
-      const map = { '5m':5, '10m':10, '30m':30 };
+
+    function mapInterval(raw) {
+      const map = { '1m': 1, '5m': 5, '10m': 10, '30m': 30, '1h': 60 };
       return { raw, minutes: map[raw] ?? 5 };
     }
-    function buildPayload(){
-      const retention = mapRetention($('#retention').value);
-      const interval  = mapInterval($('#interval').value);
+
+    function getLogLevelName(value) {
+      const names = ['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE'];
+      return names[parseInt(value)] || 'INFO';
+    }
+
+    function buildPayload() {
+      const logLevel = parseInt(document.querySelector('input[name="logLevel"]:checked').value);
+
       return {
-        logging: {
-          retention,
-          interval
-        },
-        updated_at: new Date().toISOString()
+        op: "update",
+        type: "logging_config",
+        config: {
+          file_storage: {
+            retention: mapRetention($('#retention').value),
+            interval: mapInterval($('#interval').value)
+          },
+          runtime: {
+            log_level: logLevel,
+            log_level_name: getLogLevelName(logLevel),
+            rtc_timestamps: $('#rtcEnabled').checked,
+            module_logging: {
+              RTU: $('#logRTU').checked,
+              TCP: $('#logTCP').checked,
+              MQTT: $('#logMQTT').checked,
+              HTTP: $('#logHTTP').checked,
+              BLE: $('#logBLE').checked,
+              NET: $('#logNET').checked,
+              CONFIG: $('#logCONFIG').checked,
+              QUEUE: $('#logQUEUE').checked
+            }
+          },
+          updated_at: new Date().toISOString()
+        }
       };
     }
-    function showToast(msg){
-      const box = $('#toast');
-      box.querySelector('div').textContent = msg;
-      box.classList.remove('hidden');
-      setTimeout(()=> box.classList.add('hidden'), 1400);
+
+    function showToast(msg) {
+      const toast = $('#toast');
+      $('#toastText').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2000);
     }
 
     // --- Logging Config interactions ---
     const preview = $('#preview');
-    function renderPreview(){ preview.textContent = JSON.stringify(buildPayload(), null, 2); }
-    ['change','input'].forEach(ev=>{
+    function renderPreview() {
+      preview.textContent = JSON.stringify(buildPayload(), null, 2);
+    }
+
+    ['change', 'input'].forEach(ev => {
       $('#retention').addEventListener(ev, renderPreview);
       $('#interval').addEventListener(ev, renderPreview);
+      $('#rtcEnabled').addEventListener(ev, renderPreview);
+      document.querySelectorAll('input[name="logLevel"]').forEach(radio => {
+        radio.addEventListener(ev, renderPreview);
+      });
+      ['#logRTU', '#logTCP', '#logMQTT', '#logHTTP', '#logBLE', '#logNET', '#logCONFIG', '#logQUEUE'].forEach(sel => {
+        $(sel).addEventListener(ev, renderPreview);
+      });
     });
+
     renderPreview();
 
-    $('#btnSave').addEventListener('click', async ()=>{
+    $('#btnSave').addEventListener('click', async () => {
       const btn = $('#btnSave');
       btn.disabled = true;
-      // Simpan ke localStorage sebagai simulasi persistensi
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Saving...';
+
       const payload = buildPayload();
-      try{
+      try {
+        await new Promise(resolve => setTimeout(resolve, 800));
         localStorage.setItem('suriota_logging_config', JSON.stringify(payload));
-        renderPreview(); // refresh timestamp
-        showToast('Logging config saved.');
-      }catch(e){
-        showToast('Failed to save.');
-      }finally{
-        setTimeout(()=> btn.disabled = false, 600);
+        renderPreview();
+        btn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg> Saved!';
+        showToast('Logging configuration saved successfully');
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }, 1500);
+      } catch (e) {
+        showToast('Failed to save configuration');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    $('#btnCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(preview.textContent);
+        const btn = $('#btnCopy');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg> Copied!';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+        }, 1500);
+      } catch (err) {
+        showToast('Failed to copy');
       }
     });
 
     // --- Delete Device interactions ---
-    // Kamu bisa ubah ini sesuai data runtime
-    const device = { name:'Main Power Meter', registers:5, id:'D4A5F1' };
-    $('#delText').innerHTML = `Are you sure you want to delete "<b>${device.name}</b>"? All ${device.registers} of its registers will also be permanently deleted. This action cannot be undone.`;
+    const deleteModal = $('#deleteModal');
+    const confirmDelete = $('#confirmDelete');
+    const btnDelete = $('#btnDelete');
+    const device = { name: 'Main Power Meter', registers: 5, id: 'D4A5F1' };
 
-    $('#btnCancel').addEventListener('click', ()=>{
-      showToast('Deletion canceled.');
+    $('#delText').innerHTML = `You are about to delete "<strong class="text-red-700">${device.name}</strong>" and all <strong class="text-red-700">${device.registers} registers</strong> associated with it.`;
+
+    $('#showDeleteModal').addEventListener('click', () => {
+      deleteModal.classList.remove('hidden');
     });
 
-    $('#btnDelete').addEventListener('click', ()=>{
-      // Hook ke backend di sini. Untuk demo, kita hanya tampilkan toast.
-      // Misal: fetch('/api/devices/'+device.id, { method:'DELETE' })
-      showToast(`Device "${device.name}" deleted.`);
+    $('#btnCancel').addEventListener('click', () => {
+      deleteModal.classList.add('hidden');
+      confirmDelete.checked = false;
+      btnDelete.disabled = true;
+    });
+
+    confirmDelete.addEventListener('change', () => {
+      btnDelete.disabled = !confirmDelete.checked;
+    });
+
+    btnDelete.addEventListener('click', async () => {
+      if (!confirmDelete.checked) return;
+
+      btnDelete.disabled = true;
+      const originalText = btnDelete.textContent;
+      btnDelete.textContent = 'Deleting...';
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      showToast(`Device "${device.name}" deleted successfully`);
+      deleteModal.classList.add('hidden');
+      confirmDelete.checked = false;
+
+      setTimeout(() => {
+        btnDelete.textContent = originalText;
+      }, 500);
     });
   </script>
 </body>
