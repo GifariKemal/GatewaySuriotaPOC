@@ -240,6 +240,15 @@ void ModbusRtuService::readRtuDevicesLoop()
       if (!running)
         break;
 
+      // BUGFIX: Check for config changes during iteration for immediate device deletion response
+      // This prevents continuing to poll deleted devices until next full iteration
+      if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+      {
+        Serial.println("[RTU] Configuration changed during polling, refreshing immediately...");
+        refreshDeviceList();
+        break; // Exit current iteration, next iteration will use updated device list
+      }
+
       const char* deviceId = deviceVar.as<const char*>();  // BUG #31: const char* (zero allocation!)
 
       if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)

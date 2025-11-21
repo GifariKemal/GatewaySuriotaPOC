@@ -1127,6 +1127,14 @@ void ConfigManager::invalidateDevicesCache()
   {
     devicesCacheValid = false;
     lastDevicesCacheTime = 0; // Reset TTL timestamp
+
+    // BUGFIX: Clear cache memory to prevent memory leak after device deletion
+    // Without this, deleted device data remains in memory until next cache load
+    if (devicesCache) {
+      devicesCache->clear();
+      Serial.println("[CACHE] Devices cache cleared to free memory");
+    }
+
     xSemaphoreGive(cacheMutex);
   }
   else
@@ -1143,6 +1151,13 @@ void ConfigManager::invalidateRegistersCache()
   {
     registersCacheValid = false;
     lastRegistersCacheTime = 0; // Reset TTL timestamp
+
+    // BUGFIX: Clear cache memory to prevent memory leak after register deletion
+    if (registersCache) {
+      registersCache->clear();
+      Serial.println("[CACHE] Registers cache cleared to free memory");
+    }
+
     xSemaphoreGive(cacheMutex);
   }
   else
