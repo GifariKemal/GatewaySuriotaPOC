@@ -35,6 +35,8 @@ class DeviceCreationClient:
         self.response_buffer = ""
         self.connected = False
         self.device_id = None
+        self.last_response = None
+        self.response_received = False
 
     async def connect(self):
         try:
@@ -72,20 +74,34 @@ class DeviceCreationClient:
             if self.response_buffer:
                 try:
                     response = json.loads(self.response_buffer)
-                    print(f"[RESPONSE] {json.dumps(response, indent=2)}")
+                    self.last_response = response
+                    self.response_received = True
 
-                    if response.get('status') == 'ok' and 'device_id' in response:
-                        self.device_id = response['device_id']
-                        print(f"[CAPTURE] Device ID: {self.device_id}")
+                    # Compact response logging (just status + device_id/register_id)
+                    status = response.get('status', 'unknown')
+                    if status == 'ok':
+                        if 'device_id' in response:
+                            self.device_id = response['device_id']
+                            print(f"[OK] Device created: {self.device_id}")
+                        elif 'data' in response and 'register_name' in response['data']:
+                            reg_name = response['data']['register_name']
+                            print(f"[OK] Register created: {reg_name}")
+                        else:
+                            print(f"[OK] Operation successful")
+                    else:
+                        error_msg = response.get('error', 'Unknown error')
+                        print(f"[ERROR] Operation failed: {error_msg}")
 
                 except json.JSONDecodeError as e:
                     print(f"[ERROR] JSON Parse: {e}")
+                    self.response_received = True
+                    self.last_response = {"status": "error", "error": str(e)}
                 finally:
                     self.response_buffer = ""
         else:
             self.response_buffer += fragment
 
-    async def send_command(self, command, description=""):
+    async def send_command(self, command, description="", max_retries=3):
         if not self.connected:
             raise RuntimeError("Not connected to BLE device")
 
@@ -93,17 +109,68 @@ class DeviceCreationClient:
 
         if description:
             print(f"\n[COMMAND] {description}")
-        print(f"[DEBUG] Payload ({len(json_str)} bytes): {json_str}")
 
-        # Send entire command at once (MTU is 517 bytes)
-        await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
-        await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
-        await asyncio.sleep(2.0)
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Reset response tracking
+                self.response_received = False
+                self.last_response = None
+
+                # Send command
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
+
+                # Wait for response (max 5 seconds)
+                for _ in range(50):  # 50 * 0.1s = 5 seconds
+                    if self.response_received:
+                        if self.last_response and self.last_response.get('status') == 'ok':
+                            return True  # Success
+                        else:
+                            print(f"[RETRY] Attempt {attempt}/{max_retries} failed")
+                            break
+                    await asyncio.sleep(0.1)
+
+                # Timeout - retry
+                if not self.response_received:
+                    print(f"[TIMEOUT] No response after 5s (attempt {attempt}/{max_retries})")
+
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)  # Wait before retry
+
+            except Exception as e:
+                print(f"[ERROR] Send failed: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)
+
+        print(f"[FAILED] Command failed after {max_retries} attempts")
+        return False
 
     async def create_device_and_registers(self):
         print("\n" + "="*70)
         print("  SRT-MGATE-1210 TESTING: CREATE 1 RTU DEVICE + 50 REGISTERS")
         print("="*70)
+
+        # =============================================================================
+        # IMPORTANT WARNING
+        # =============================================================================
+        print("\n" + "!"*70)
+        print("  IMPORTANT: BEFORE RUNNING THIS SCRIPT")
+        print("!"*70)
+        print("  1. START Modbus RTU Slave Simulator FIRST")
+        print("     Location: Testing/Modbus_Simulators/RTU_Slave/")
+        print("     Command:  python modbus_slave_50_registers.py")
+        print("")
+        print("  2. This prevents RTU polling errors during device creation")
+        print("     which can cause DRAM warnings and BLE packet loss")
+        print("")
+        print("  3. Wait 10 seconds after starting the simulator before")
+        print("     running this script")
+        print("!"*70)
+
+        user_input = input("\nHave you started the Modbus slave simulator? (yes/no): ")
+        if user_input.lower() != 'yes':
+            print("\n[ABORTED] Please start the Modbus slave simulator first")
+            return
 
         # =============================================================================
         # STEP 1: Create RTU Device
@@ -129,17 +196,20 @@ class DeviceCreationClient:
             }
         }
 
-        await self.send_command(device_config, "Creating RTU Device: RTU_Device_50Regs")
-        await asyncio.sleep(2)
+        success = await self.send_command(device_config, "Creating RTU Device: RTU_Device_50Regs")
 
-        if not self.device_id:
-            print("[ERROR] Device ID not captured. Aborting...")
+        if not success or not self.device_id:
+            print("[ERROR] Device creation failed. Aborting...")
             return
+
+        print(f"\n[SUCCESS] Device created: {self.device_id}")
+        await asyncio.sleep(2)
 
         # =============================================================================
         # STEP 2: Create 50 Registers
         # =============================================================================
         print(f"\n>>> STEP 2: Creating 50 Registers for Device ID: {self.device_id}")
+        print("[INFO] Using 1.5 second delay between registers to prevent BLE packet loss")
 
         # Generate 50 registers with diverse sensor types
         registers = []
@@ -216,7 +286,11 @@ class DeviceCreationClient:
                 "unit": "L/min"
             })
 
-        # Create all 50 registers
+        # Create all 50 registers with retry mechanism
+        success_count = 0
+        failed_count = 0
+        failed_registers = []
+
         for idx, reg in enumerate(registers, 1):
             register_config = {
                 "op": "create",
@@ -235,11 +309,19 @@ class DeviceCreationClient:
                 }
             }
 
-            await self.send_command(
-                register_config,
-                f"Creating Register {idx}/50: {reg['name']} (Address: {reg['address']})"
-            )
-            await asyncio.sleep(0.5)
+            print(f"\n[{idx}/50] {reg['name']} (Addr: {reg['address']})", end=" ")
+            success = await self.send_command(register_config, "")
+
+            if success:
+                success_count += 1
+                print(f"✓")
+            else:
+                failed_count += 1
+                failed_registers.append(reg)
+                print(f"✗ FAILED")
+
+            # Increased delay to prevent BLE packet loss during low DRAM
+            await asyncio.sleep(1.5)
 
         # =============================================================================
         # STEP 3: Summary
@@ -254,8 +336,27 @@ class DeviceCreationClient:
         print(f"Baud Rate:        9600")
         print(f"Slave ID:         1")
         print(f"Timeout:          5000 ms")
-        print(f"Refresh Rate:     2000 ms")
-        print(f"\nRegisters Created: 50")
+        print(f"Refresh Rate:     10000 ms")
+        print(f"\nRegister Creation Results:")
+        print(f"  Total Attempted:  50")
+        print(f"  Success:          {success_count} ✓")
+        print(f"  Failed:           {failed_count} ✗")
+
+        if success_count == 50:
+            print(f"\n  STATUS: ALL REGISTERS CREATED SUCCESSFULLY! 🎉")
+        elif success_count >= 45:
+            print(f"\n  STATUS: Nearly complete ({success_count}/50)")
+        else:
+            print(f"\n  STATUS: Incomplete - many failures")
+
+        if failed_registers:
+            print(f"\n  Failed Registers:")
+            for reg in failed_registers:
+                print(f"    - {reg['name']} (Addr: {reg['address']})")
+            print(f"\n  [TIP] Re-run the script to retry failed registers")
+            print(f"  [TIP] Or manually create them via BLE app")
+
+        print(f"\nRegister Layout:")
         print(f"  Temperature Zones:  0-9   (10 sensors)")
         print(f"  Humidity Zones:     10-19 (10 sensors)")
         print(f"  Pressure Sensors:   20-24 (5 sensors)")
@@ -265,12 +366,14 @@ class DeviceCreationClient:
         print(f"  Energy Counters:    40-44 (5 sensors)")
         print(f"  Flow Meters:        45-49 (5 sensors)")
         print("="*70)
-        print("\n[INFO] Expected Gateway behavior:")
-        print("  - RTU polling time: ~8-10 seconds for 50 registers")
-        print("  - Batch completion: All 50 registers must be attempted")
-        print("  - MQTT payload: ~2.5-3.0 KB")
-        print("  - Publish interval: Every 20-25 seconds (with batch wait)")
-        print("="*70)
+
+        if success_count == 50:
+            print("\n[INFO] Expected Gateway behavior:")
+            print("  - RTU polling time: ~8-10 seconds for 50 registers")
+            print("  - Batch completion: All 50 registers attempted")
+            print("  - MQTT payload: ~2.5-3.0 KB")
+            print("  - Publish interval: Every 20-25 seconds")
+            print("="*70)
 
 # =============================================================================
 # Main Execution
@@ -294,13 +397,16 @@ async def main():
 
         await client.create_device_and_registers()
 
-        print("\n[SUCCESS] Program completed successfully")
-        print("[INFO] Device and 50 registers created on GATEWAY")
+        print("\n[SUCCESS] Program completed")
         print("\n[NEXT STEPS]")
-        print("  1. Configure Modbus Slave Simulator with 50 Input Registers (addr 0-49)")
-        print("  2. Monitor Gateway serial output for RTU polling logs")
-        print("  3. Verify batch completion: (X success, Y failed, 50/50 total)")
-        print("  4. Check MQTT broker for published payload (~2.5-3.0 KB)")
+        print("  1. Monitor Gateway serial output for RTU polling logs")
+        print("  2. Verify batch completion: (X success, Y failed, 50/50 total)")
+        print("  3. Check MQTT broker for published payload (~2.5-3.0 KB)")
+        print("  4. If some registers failed, re-run this script (it will retry)")
+        print("\n[TROUBLESHOOTING]")
+        print("  - Low DRAM warnings: Modbus slave should be running")
+        print("  - BLE packet loss: Try increasing delay in script")
+        print("  - Polling errors: Check slave simulator is running correctly")
 
     except KeyboardInterrupt:
         print("\n[INTERRUPT] Program interrupted by user")
