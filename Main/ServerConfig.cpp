@@ -95,7 +95,10 @@ void ServerConfig::createDefaultConfig()
   mqtt["password"] = "";
   mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app compatibility
   mqtt["topic_subscribe"] = "";  // Top level for mobile app compatibility
-  mqtt["keep_alive"] = 60;
+
+  // FIXED: Increased default keep_alive from 60s to 120s
+  // This prevents MQTT disconnections during long Modbus RTU polling cycles (50s+)
+  mqtt["keep_alive"] = 120;
   mqtt["clean_session"] = true;
   mqtt["use_tls"] = false;
   mqtt["publish_mode"] = "default";  // "default" or "customize"
@@ -190,7 +193,9 @@ bool ServerConfig::getConfig(JsonObject &result)
   if (mqtt["password"].isNull()) mqtt["password"] = "";
   if (mqtt["topic_publish"].isNull()) mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app
   if (mqtt["topic_subscribe"].isNull()) mqtt["topic_subscribe"] = "";  // Top level for mobile app
-  if (mqtt["keep_alive"].isNull()) mqtt["keep_alive"] = 60;
+
+  // FIXED: Increased default keep_alive from 60s to 120s
+  if (mqtt["keep_alive"].isNull()) mqtt["keep_alive"] = 120;
   if (mqtt["clean_session"].isNull()) mqtt["clean_session"] = true;
   if (mqtt["use_tls"].isNull()) mqtt["use_tls"] = false;
   if (mqtt["publish_mode"].isNull()) mqtt["publish_mode"] = "default";

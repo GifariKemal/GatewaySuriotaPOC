@@ -96,7 +96,9 @@ void MqttManager::start()
       "MQTT_TASK",
       MqttConfig::MQTT_TASK_STACK_SIZE,
       this,
-      1,
+      2,  // FIXED: Priority 2 (equal to Modbus RTU task) to ensure fair CPU time for MQTT PINGREQ
+          // Previous: Priority 1 was too low - MQTT task was starved during long RTU polling
+          // New: Priority 2 ensures MQTT keep-alive packets are sent even during heavy RTU load
       &taskHandle,
       1);  // FIXED: Run on Core 1 to avoid blocking IDLE0 on Core 0
 
@@ -283,7 +285,11 @@ bool MqttManager::connectToMqtt()
 
   mqttClient.setBufferSize(cachedBufferSize, cachedBufferSize);
   Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
-  mqttClient.setKeepAlive(60);
+
+  // FIXED: Increased keep_alive to 120s to prevent timeouts during long Modbus polling cycles
+  // Previous: 60s was too short when RTU polling takes ~50s + publish interval 70s
+  // New: 120s provides enough margin for slow network conditions and long polling
+  mqttClient.setKeepAlive(120);
   mqttClient.setSocketTimeout(5);  // Socket timeout in seconds
 
   mqttClient.setServer(brokerAddress.c_str(), brokerPort);

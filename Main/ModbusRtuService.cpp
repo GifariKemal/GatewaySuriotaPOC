@@ -631,7 +631,10 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // OPTIMIZED: Reduced delay from 100ms to 10ms to speed up batch processing
+    // 50 registers * 10ms = 0.5s overhead (vs 5s overhead previously)
+    // This prevents MQTT keep-alive timeout during long polling cycles
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
