@@ -15,7 +15,7 @@ private:
   QueueHandle_t streamQueue;
   SemaphoreHandle_t queueMutex;
   SemaphoreHandle_t streamMutex;
-  static const int MAX_QUEUE_SIZE = 100;
+  static const int MAX_QUEUE_SIZE = 200;  // Increased from 100 to support multiple polling cycles and persistent storage before MQTT publish
   static const int MAX_STREAM_QUEUE_SIZE = 50;
 
   // Configurable mutex timeout (milliseconds)
