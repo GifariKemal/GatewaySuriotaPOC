@@ -335,12 +335,12 @@ void CRUDHandler::setupCommandHandlers()
     {
       streamDeviceId = device;
 
-      // Get register count for this device
+      // Get register count for this device using public API
       int registerCount = 0;
-      auto devicesDoc = configManager->loadDevicesCache();
-      if (devicesDoc.containsKey(device.c_str())) {
-        JsonObject deviceObj = devicesDoc[device.c_str()];
-        if (deviceObj.containsKey("registers")) {
+      JsonDocument tempDoc;
+      JsonObject deviceObj = tempDoc.to<JsonObject>();
+      if (configManager->readDevice(device, deviceObj)) {
+        if (deviceObj["registers"].is<JsonArray>()) {
           registerCount = deviceObj["registers"].size();
         }
       }
