@@ -332,14 +332,17 @@
     // ============================================
     class MockBLEManager {
       async sendCommand(command) {
+        // Update JSON Preview - Command
+        updateJSONCommand(command);
+
         await new Promise(resolve => setTimeout(resolve, 800)); // Simulate BLE delay
 
-        if (command.op === 'read' && command.type === 'full_config') {
-          return this.mockFullConfigResponse();
-        }
+        let response;
 
-        if (command.op === 'system' && command.type === 'restore_config') {
-          return {
+        if (command.op === 'read' && command.type === 'full_config') {
+          response = this.mockFullConfigResponse();
+        } else if (command.op === 'system' && command.type === 'restore_config') {
+          response = {
             status: 'ok',
             restored_configs: ['devices.json', 'server_config.json', 'logging_config.json'],
             success_count: 3,
@@ -347,22 +350,23 @@
             message: 'Configuration restore completed. Device restart recommended.',
             requires_restart: true
           };
-        }
-
-        if (command.op === 'system' && command.type === 'factory_reset') {
-          return {
+        } else if (command.op === 'system' && command.type === 'factory_reset') {
+          response = {
             status: 'ok',
             message: 'Factory reset initiated. Device will restart in 3 seconds.',
             configs_cleared: ['devices.json', 'server_config.json', 'logging_config.json'],
             restart_in_ms: 3000
           };
+        } else if (command.op === 'read' && command.type === 'ble_metrics') {
+          response = this.mockBLEMetricsResponse();
+        } else {
+          response = { status: 'error', error: 'Unknown command' };
         }
 
-        if (command.op === 'read' && command.type === 'ble_metrics') {
-          return this.mockBLEMetricsResponse();
-        }
+        // Update JSON Preview - Response
+        updateJSONResponse(response);
 
-        return { status: 'error', error: 'Unknown command' };
+        return response;
       }
 
       mockFullConfigResponse() {
@@ -818,5 +822,133 @@
       transform: translateY(0);
     }
   </style>
+
+  <!-- JSON Preview Panel (Fixed at bottom) -->
+  <div id="jsonPreviewPanel" class="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-[#2f6f64] shadow-2xl z-50 transition-all duration-300" style="max-height: 400px;">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-4 py-3 flex justify-between items-center cursor-pointer hover:from-gray-700 hover:to-gray-800 transition-colors" onclick="toggleJSONPreview()">
+      <div class="flex items-center gap-3">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+        </svg>
+        <h3 class="font-bold text-lg">JSON Preview - BLE Commands & Responses</h3>
+      </div>
+      <svg id="toggleIcon" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </div>
+
+    <!-- Content (collapsible) -->
+    <div id="jsonPreviewContent" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-auto" style="max-height: 340px;">
+      <!-- Command Panel -->
+      <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+        <div class="bg-blue-600 text-white px-3 py-2 flex justify-between items-center">
+          <h4 class="font-semibold text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            Last Command (Request)
+          </h4>
+          <button onclick="copyJSON('command')" class="text-xs bg-blue-700 hover:bg-blue-800 px-2 py-1 rounded transition-colors">
+            Copy
+          </button>
+        </div>
+        <div class="p-3">
+          <p id="jsonCommandTime" class="text-xs text-gray-500 mb-2">No command sent yet</p>
+          <pre id="jsonCommand" class="text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono">// Waiting for command...</pre>
+        </div>
+      </div>
+
+      <!-- Response Panel -->
+      <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+        <div class="bg-emerald-600 text-white px-3 py-2 flex justify-between items-center">
+          <h4 class="font-semibold text-sm flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+            Last Response
+          </h4>
+          <button onclick="copyJSON('response')" class="text-xs bg-emerald-700 hover:bg-emerald-800 px-2 py-1 rounded transition-colors">
+            Copy
+          </button>
+        </div>
+        <div class="p-3">
+          <p id="jsonResponseTime" class="text-xs text-gray-500 mb-2">No response received yet</p>
+          <pre id="jsonResponse" class="text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono">// Waiting for response...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // JSON PREVIEW FUNCTIONS
+    // ============================================
+
+    // Toggle JSON Preview Panel
+    function toggleJSONPreview() {
+      const content = document.getElementById('jsonPreviewContent');
+      const icon = document.getElementById('toggleIcon');
+      const panel = document.getElementById('jsonPreviewPanel');
+
+      if (content.style.display === 'none') {
+        content.style.display = 'grid';
+        icon.style.transform = 'rotate(0deg)';
+        panel.style.maxHeight = '400px';
+      } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(180deg)';
+        panel.style.maxHeight = '48px';
+      }
+    }
+
+    // Update Command Preview
+    function updateJSONCommand(command) {
+      const el = document.getElementById('jsonCommand');
+      const timeEl = document.getElementById('jsonCommandTime');
+      const timestamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      timeEl.textContent = `Sent at ${timestamp}`;
+      el.textContent = JSON.stringify(command, null, 2);
+      el.className = 'text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono animate-pulse-slow';
+
+      setTimeout(() => {
+        el.className = 'text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono';
+      }, 1000);
+    }
+
+    // Update Response Preview
+    function updateJSONResponse(response) {
+      const el = document.getElementById('jsonResponse');
+      const timeEl = document.getElementById('jsonResponseTime');
+      const timestamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      timeEl.textContent = `Received at ${timestamp}`;
+      el.textContent = JSON.stringify(response, null, 2);
+      el.className = 'text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono animate-pulse-slow';
+
+      setTimeout(() => {
+        el.className = 'text-xs bg-gray-900 text-emerald-400 p-3 rounded overflow-x-auto font-mono';
+      }, 1000);
+    }
+
+    // Copy to Clipboard
+    function copyJSON(type) {
+      const el = document.getElementById(type === 'command' ? 'jsonCommand' : 'jsonResponse');
+      const text = el.textContent;
+
+      if (text.includes('Waiting for')) {
+        showToast('No Data', 'No JSON data to copy yet', 'warning');
+        return;
+      }
+
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied!', `JSON ${type} copied to clipboard`, 'success');
+      }).catch(() => {
+        showToast('Copy Failed', 'Failed to copy to clipboard', 'error');
+      });
+    }
+  </script>
+
 </body>
 </html>
