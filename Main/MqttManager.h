@@ -3,6 +3,14 @@
 
 #include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <WiFi.h>
+
+// CRITICAL FIX: Override PubSubClient's default MQTT_MAX_PACKET_SIZE (256 bytes)
+// Must be defined BEFORE including PubSubClient.h
+// This allows sending large payloads (2-16 KB) without truncation
+#ifndef MQTT_MAX_PACKET_SIZE
+#define MQTT_MAX_PACKET_SIZE 16384  // 16KB - matches MAX_BUFFER_SIZE
+#endif
+
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <map> // For std::map in deduplication logic
