@@ -5,11 +5,18 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.2.0 (November 14, 2025)
+**Version:** 2.3.0 (November 21, 2025)
 **Developer:** Kemal
-**Last Updated:** November 14, 2025
+**Last Updated:** November 21, 2025
 
-> **What's New in v2.2.0:**
+> **What's New in v2.3.0:**
+> - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
+> - ✅ **Factory Reset Command** - One-command device reset to factory defaults
+> - ✅ **Device Control API** - Enable/disable devices with health metrics
+> - ✅ **BLE Response Size** - Increased from 10KB to 200KB
+> - See specialized documentation: [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md), [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md), [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md)
+>
+> **Previous (v2.2.0):**
 > - Clean API Structure - HTTP interval moved to `http_config` (breaking change)
 > - Breaking Change: `data_interval` removed from root level
 > - New Documentation: Complete Network Configuration guide
@@ -49,8 +56,11 @@ The SRT-MGATE-1210 gateway provides a **JSON-based CRUD API** over **BLE** for c
 - ✅ **Batch Operations**: Execute multiple commands in a single transaction
 - ✅ **Priority Queue**: High/Normal/Low priority command execution
 - ✅ **Real-time Streaming**: Live sensor data over BLE notifications
-- ✅ **Fragmentation**: Automatic handling of large JSON payloads
+- ✅ **Fragmentation**: Automatic handling of large JSON payloads (up to 200KB)
 - ✅ **Atomic Transactions**: All-or-nothing batch execution
+- ✅ **Backup & Restore**: Complete configuration backup/restore system
+- ✅ **Factory Reset**: One-command device reset with server config
+- ✅ **Device Control**: Enable/disable devices with health metrics
 
 ### Communication Flow
 
@@ -69,6 +79,18 @@ sequenceDiagram
     CRUD-->>BLE: Generate response
     BLE-->>App: Notify Response (fragmented)
 ```
+
+### 📚 Specialized API Documentation
+
+For detailed documentation on advanced BLE features, see:
+
+| Feature | Documentation | Description |
+|---------|---------------|-------------|
+| **Backup & Restore** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Complete configuration backup/restore system via BLE |
+| **Factory Reset** | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md) | One-command device reset to factory defaults |
+| **Device Control** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics tracking |
+
+> **💡 New in Latest Firmware:** These features provide advanced configuration management and device control capabilities.
 
 ---
 
@@ -1829,19 +1851,27 @@ class SuriotaGateway {
 
 ## Related Documentation
 
+### Advanced BLE Features
+- **[Backup & Restore System](BLE_BACKUP_RESTORE.md)** - Complete configuration backup/restore via BLE
+- **[Factory Reset](BLE_FACTORY_RESET.md)** - One-command device reset to factory defaults
+- **[Device Control](BLE_DEVICE_CONTROL.md)** - Enable/disable devices with health metrics
+
+### Technical Guides
 - [Hardware Specifications](../Technical_Guides/HARDWARE.md) - GPIO pinout and electrical specs
 - [Protocol Documentation](../Technical_Guides/PROTOCOL.md) - BLE and Modbus protocol details
 - [MQTT Publish Modes](../Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT publish modes (Default & Customize)
 - [Logging System](../Technical_Guides/LOGGING.md) - Debug log reference
 - [Troubleshooting Guide](../Technical_Guides/TROUBLESHOOTING.md) - Common issues and solutions
+
+### Getting Started
 - [Best Practices](../BEST_PRACTICES.md) - Production deployment guidelines
 - [Quick Start Guide](../QUICKSTART.md) - Get started in 5 minutes
 
 ---
 
-**Document Version:** 1.1 (Updated)
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Document Version:** 1.2 (Updated)
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)

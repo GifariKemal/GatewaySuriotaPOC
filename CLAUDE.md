@@ -1,7 +1,7 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.2.0
-**Last Updated:** November 20, 2025
+**Version:** 2.3.0
+**Last Updated:** November 21, 2025
 **Repository:** GatewaySuriotaPOC (ESP32-S3 Industrial IoT Gateway)
 
 ---
@@ -34,7 +34,7 @@
 - **RTOS:** FreeRTOS with 11+ dedicated tasks
 - **Language:** C++ (Arduino framework)
 - **IDE:** Arduino IDE 2.0+
-- **Current Version:** 2.2.0 (November 14, 2025)
+- **Current Version:** 2.3.0 (November 21, 2025)
 
 ### Primary Protocols
 
@@ -97,6 +97,37 @@
 ---
 
 ## 🚀 Advanced Features & Optimization
+
+### 🆕 v2.3.0 Features (November 21, 2025)
+
+**Advanced BLE Configuration Management**
+
+#### Backup & Restore System
+- **Complete Configuration Export**: Single BLE command exports all devices, registers, server config, and logging
+- **200KB Response Support**: BLE response size increased from 10KB to 200KB (20x larger)
+- **PSRAM Optimized**: Handles large configurations (100KB+) without memory issues
+- **Atomic Snapshots**: Consistent configuration at single point in time with metadata
+- **Documentation**: `Documentation/API_Reference/BLE_BACKUP_RESTORE.md`
+
+#### Factory Reset Command
+- **One-Command Reset**: Complete device reset to factory defaults via BLE
+- **Comprehensive Scope**: Clears devices, server config (WiFi, Ethernet, MQTT, HTTP), and logging config
+- **Automatic Restart**: Device automatically restarts after reset
+- **Documentation**: `Documentation/API_Reference/BLE_FACTORY_RESET.md`
+
+#### Device Control API
+- **Enable/Disable Devices**: Manual control of device polling via BLE
+- **Health Metrics**: Real-time tracking of success rate, response times (avg/min/max)
+- **Auto-Recovery**: System automatically re-enables auto-disabled devices every 5 minutes
+- **Disable Reason Tracking**: NONE, MANUAL, AUTO_RETRY, AUTO_TIMEOUT
+- **Protocol-Agnostic**: Works for both RTU and TCP devices
+- **Documentation**: `Documentation/API_Reference/BLE_DEVICE_CONTROL.md`
+
+#### Performance Enhancements
+- **BLE Response Size**: 10KB → 200KB (supports large configuration backups)
+- **DRAM Warning Threshold**: Optimized to reduce log noise
+
+---
 
 ### Optimization Phases (Performance Evolution)
 
