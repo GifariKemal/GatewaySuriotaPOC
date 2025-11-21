@@ -101,6 +101,7 @@ public:
   bool init();
   void start();
   void stop();
+  void disconnect();  // Graceful disconnect from MQTT broker
   void getStatus(JsonObject &status);
 
   // Persistent queue methods
