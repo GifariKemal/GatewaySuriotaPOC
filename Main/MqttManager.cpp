@@ -656,9 +656,27 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   // Publish single message with all data
   if (mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str()))
   {
-    // Calculate interval display (convert ms to seconds if needed)
-    uint32_t displayInterval = (defaultIntervalUnit == "ms") ? (defaultInterval / 1000) : defaultInterval;
-    const char* displayUnit = (defaultIntervalUnit == "ms") ? "s" : defaultIntervalUnit.c_str();
+    // Calculate interval display with unit conversion
+    uint32_t displayInterval;
+    const char* displayUnit;
+
+    if (defaultIntervalUnit == "ms") {
+      // Convert milliseconds to seconds
+      displayInterval = defaultInterval / 1000;
+      displayUnit = "s";
+    } else if (defaultIntervalUnit == "s") {
+      // Keep as seconds
+      displayInterval = defaultInterval;
+      displayUnit = "s";
+    } else if (defaultIntervalUnit == "m") {
+      // Keep as minutes
+      displayInterval = defaultInterval;
+      displayUnit = "m";
+    } else {
+      // Fallback for unknown units
+      displayInterval = defaultInterval;
+      displayUnit = defaultIntervalUnit.c_str();
+    }
 
     LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                   totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(),
@@ -788,9 +806,27 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
 
       if (mqttClient.publish(customTopic.topic.c_str(), payload.c_str()))
       {
-        // Calculate interval display (convert ms to seconds if needed)
-        uint32_t displayInterval = (customTopic.intervalUnit == "ms") ? (customTopic.interval / 1000) : customTopic.interval;
-        const char* displayUnit = (customTopic.intervalUnit == "ms") ? "s" : customTopic.intervalUnit.c_str();
+        // Calculate interval display with explicit unit handling
+        uint32_t displayInterval;
+        const char* displayUnit;
+
+        if (customTopic.intervalUnit == "ms") {
+          // Convert milliseconds to seconds
+          displayInterval = customTopic.interval / 1000;
+          displayUnit = "s";
+        } else if (customTopic.intervalUnit == "s") {
+          // Keep as seconds
+          displayInterval = customTopic.interval;
+          displayUnit = "s";
+        } else if (customTopic.intervalUnit == "m") {
+          // Keep as minutes
+          displayInterval = customTopic.interval;
+          displayUnit = "m";
+        } else {
+          // Fallback for unknown units
+          displayInterval = customTopic.interval;
+          displayUnit = customTopic.intervalUnit.c_str();
+        }
 
         Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
