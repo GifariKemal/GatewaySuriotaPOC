@@ -105,6 +105,7 @@ public:
   bool init();
   void start();
   void stop();
+  void disconnect();  // Graceful disconnect from MQTT broker
   void getStatus(JsonObject &status);
 
   // FIXED BUG #5: Config change notification to invalidate buffer size cache

@@ -128,6 +128,15 @@ void MqttManager::stop()
   Serial.println("MQTT Manager stopped");
 }
 
+void MqttManager::disconnect()
+{
+  if (mqttClient.connected())
+  {
+    mqttClient.disconnect();
+    Serial.println("[MQTT] Gracefully disconnected from broker");
+  }
+}
+
 void MqttManager::mqttTask(void *parameter)
 {
   MqttManager *manager = static_cast<MqttManager *>(parameter);

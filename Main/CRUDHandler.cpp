@@ -810,14 +810,43 @@ void CRUDHandler::setupCommandHandlers()
   {
     String reason = command["reason"] | "No reason provided";
 
-    // Serial log audit trail
+    // Get RTC timestamp for audit trail
+    RTCManager *rtc = RTCManager::getInstance();
+    String timestamp = "Unknown";
+    if (rtc && rtc->isRTCAvailable())
+    {
+      DateTime now = rtc->now();
+      char buffer[32];
+      snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d",
+               now.year(), now.month(), now.day(),
+               now.hour(), now.minute(), now.second());
+      timestamp = String(buffer);
+    }
+    else
+    {
+      timestamp = String(millis() / 1000) + "s uptime";
+    }
+
+    // Serial log audit trail (without emoji)
     Serial.println("");
     Serial.println("========================================");
-    Serial.println("[FACTORY RESET] ⚠️  INITIATED by BLE client");
+    Serial.println("[FACTORY RESET] WARNING - INITIATED by BLE client");
+    Serial.printf("[FACTORY RESET] Timestamp: %s\n", timestamp.c_str());
     Serial.printf("[FACTORY RESET] Reason: %s\n", reason.c_str());
-    Serial.println("[FACTORY RESET] ⚠️  This will ERASE all device, server, and network configurations!");
+    Serial.println("[FACTORY RESET] This will ERASE all device, server, and network configurations!");
     Serial.println("========================================");
     Serial.println("");
+
+    // Write to persistent audit log file
+    File auditLog = LittleFS.open("/factory_reset_audit.log", "a");
+    if (auditLog)
+    {
+      auditLog.printf("%s|%s|BLE Client|SUCCESS\n",
+                      timestamp.c_str(),
+                      reason.c_str());
+      auditLog.close();
+      Serial.println("[FACTORY RESET] Audit log written to /factory_reset_audit.log");
+    }
 
     // Send confirmation response BEFORE reset
     auto response = make_psram_unique<JsonDocument>();
@@ -1450,8 +1479,18 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] Starting graceful shutdown sequence...");
   Serial.println("[FACTORY RESET] ========================================");
 
-  // Step 1: Stop Modbus services
-  Serial.println("[FACTORY RESET] [1/6] Stopping Modbus services...");
+  // Step 1: Stop all services (Modbus + LED + Button)
+  Serial.println("[FACTORY RESET] [1/6] Stopping all services...");
+
+  // Stop LED manager
+  extern LEDManager *ledManager;
+  if (ledManager)
+  {
+    ledManager->stop();
+    Serial.println("[FACTORY RESET] LED manager stopped");
+  }
+
+  // Stop Modbus services
   if (modbusRtuService)
   {
     modbusRtuService->stop();
@@ -1467,12 +1506,12 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] [2/6] Disconnecting network services...");
   if (mqttManager)
   {
-    // mqttManager->disconnect(); // Uncomment if disconnect method exists
+    mqttManager->disconnect();
     Serial.println("[FACTORY RESET] MQTT disconnected");
   }
   if (httpManager)
   {
-    // httpManager->stop(); // Uncomment if stop method exists
+    httpManager->stop();
     Serial.println("[FACTORY RESET] HTTP stopped");
   }
 
@@ -1485,6 +1524,9 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] [4/6] Resetting server config to defaults...");
   if (serverConfig)
   {
+    // Suppress auto-restart since factory reset has its own restart
+    serverConfig->setSuppressRestart(true);
+
     JsonDocument defaultServerConfig;
     JsonObject root = defaultServerConfig.to<JsonObject>();
 
@@ -1553,6 +1595,10 @@ void CRUDHandler::performFactoryReset()
     headers["Content-Type"] = "application/json";
 
     serverConfig->updateConfig(root);
+
+    // Re-enable auto-restart for future config updates
+    serverConfig->setSuppressRestart(false);
+
     Serial.println("[FACTORY RESET] server_config.json reset to defaults (COMPLETE with MQTT modes + HTTP)");
   }
 
@@ -1579,6 +1625,6 @@ void CRUDHandler::performFactoryReset()
 
   delay(3000);
 
-  Serial.println("[FACTORY RESET] ✅ RESTARTING NOW...");
+  Serial.println("[FACTORY RESET] RESTARTING NOW...");
   ESP.restart();
 }
