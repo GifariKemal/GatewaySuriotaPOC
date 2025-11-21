@@ -815,14 +815,23 @@ void CRUDHandler::setupCommandHandlers()
     // Get RTC timestamp for audit trail
     RTCManager *rtc = RTCManager::getInstance();
     String timestamp = "Unknown";
-    if (rtc && rtc->isRTCAvailable())
+    if (rtc)
     {
-      DateTime now = rtc->now();
-      char buffer[32];
-      snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d",
-               now.year(), now.month(), now.day(),
-               now.hour(), now.minute(), now.second());
-      timestamp = String(buffer);
+      DateTime now = rtc->getCurrentTime();
+      // Check if RTC time is valid (year >= 2024)
+      if (now.year() >= 2024)
+      {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%04d-%02d-%02d %02d:%02d:%02d",
+                 now.year(), now.month(), now.day(),
+                 now.hour(), now.minute(), now.second());
+        timestamp = String(buffer);
+      }
+      else
+      {
+        // RTC time invalid, use uptime
+        timestamp = String(millis() / 1000) + "s uptime";
+      }
     }
     else
     {
