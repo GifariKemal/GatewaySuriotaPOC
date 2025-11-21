@@ -290,7 +290,12 @@ bool MqttManager::connectToMqtt()
   // Previous: 60s was too short when RTU polling takes ~50s + publish interval 70s
   // New: 120s provides enough margin for slow network conditions and long polling
   mqttClient.setKeepAlive(120);
-  mqttClient.setSocketTimeout(5);  // Socket timeout in seconds
+
+  // FIXED: Increased socket timeout from 5s to 15s for public broker resilience
+  // Previous: 5s timeout caused reconnection failures (error -4) on slow/overloaded public brokers
+  // New: 15s provides adequate time for broker.hivemq.com to respond during high load
+  // Note: Public brokers often have slow response times (5-10s is common)
+  mqttClient.setSocketTimeout(15);  // Socket timeout in seconds
 
   mqttClient.setServer(brokerAddress.c_str(), brokerPort);
 
@@ -758,6 +763,13 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
                 published ? "SUCCESS" : "FAILED", published);
   Serial.printf("[MQTT] MQTT state after publish: %d (0=connected)\n", mqttClient.state());
 
+  // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
+  // This prevents premature disconnect detection on slow/public brokers
+  // 100ms is sufficient for TCP stack to flush ~2KB payload over typical network
+  if (published) {
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+
   if (published)
   {
     // Calculate interval display: convert from milliseconds to original unit
@@ -958,6 +970,11 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
 
       // FIXED: Use text publish (2 params) instead of binary publish for JSON data
       bool published = mqttClient.publish(customTopic.topic.c_str(), payload.c_str());
+
+      // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
+      if (published) {
+        vTaskDelay(pdMS_TO_TICKS(100));
+      }
 
       if (published)
       {
