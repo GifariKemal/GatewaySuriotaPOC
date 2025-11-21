@@ -111,8 +111,16 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
   // ============================================
   if (freeDram < MemoryThresholds::DRAM_WARNING) {
     lowMemoryEventCount++;
-    LOG_MEM_WARN("LOW DRAM: %lu bytes (threshold: %lu). Triggering proactive cleanup... (event #%lu)\n",
-                 freeDram, MemoryThresholds::DRAM_WARNING, lowMemoryEventCount);
+
+    // Throttle DRAM warnings - log only every 60 seconds to reduce noise
+    // System is stable at ~29KB when BLE connected with no devices configured
+    static LogThrottle dramWarnThrottle(60000); // Log every 60 seconds
+    char dramContext[64];
+    snprintf(dramContext, sizeof(dramContext), "DRAM at %lu KB (event #%lu)", freeDram / 1024, lowMemoryEventCount);
+    if (dramWarnThrottle.shouldLog(dramContext)) {
+      LOG_MEM_WARN("LOW DRAM: %lu bytes (threshold: %lu). Triggering proactive cleanup... (event #%lu)\n",
+                   freeDram, MemoryThresholds::DRAM_WARNING, lowMemoryEventCount);
+    }
 
     // Proactive cleanup - clear expired messages
     if (forceRecovery(RECOVERY_CLEAR_MQTT_PERSISTENT)) {
