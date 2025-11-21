@@ -235,7 +235,7 @@ void setup()
   configManager->refreshCache();
 
   // FIXED: Removed automatic config clear - only clear manually when needed
-  // configManager->clearAllConfigurations();  // ❌ DISABLED - Uncomment only for factory reset
+  // configManager->clearAllConfigurations();  // DISABLED - Uncomment only for factory reset
 
   Serial.println("[MAIN] Configuration initialization completed.");
 

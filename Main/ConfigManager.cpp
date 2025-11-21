@@ -550,7 +550,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
   JsonObject devicesObj = devices.as<JsonObject>();
   if (devicesObj.size() == 0)
   {
-    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Devices file is empty - no devices configured");
+    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] Devices file is empty - no devices configured");
     return;
   }
 
@@ -584,7 +584,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
       if (deviceRegisters.size() == 0)
       {
-        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has empty registers array\n", deviceId);  // BUG #31: removed .c_str()
+        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has empty registers array\n", deviceId);  // BUG #31: removed .c_str()
       }
 
       for (JsonObject reg : deviceRegisters)
@@ -611,7 +611,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
     }
     else
     {
-      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] ⚠️  Device %s has no registers array\n", deviceId);  // BUG #31: removed .c_str()
+      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has no registers array\n", deviceId);  // BUG #31: removed .c_str()
     }
 
     Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Added device %s with %d registers\n",
@@ -623,17 +623,12 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
 String ConfigManager::createRegister(const String &deviceId, JsonObjectConst config)
 {
-  Serial.printf("[CREATE_REGISTER] Starting for device: %s\n", deviceId.c_str());
-
-  // Debug: Print all config fields
-  Serial.println("[CREATE_REGISTER] Config fields:");
-  for (JsonPairConst kv : config)
-  {
-    Serial.printf("  %s: %s (type: %s)\n",
-                  kv.key().c_str(),
-                  kv.value().as<String>().c_str(),
-                  kv.value().is<String>() ? "string" : "other");
-  }
+  // Concise logging - only show register name and address
+  int address = config["address"].is<String>() ? config["address"].as<String>().toInt() : config["address"].as<int>();
+  Serial.printf("[CREATE_REG] Device %s: %s (addr %d)\n",
+                deviceId.c_str(),
+                config["register_name"].as<String>().c_str(),
+                address);
 
   if (!loadDevicesCache())
   {
@@ -666,20 +661,10 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
 
   JsonArray registers = device["registers"];
 
-  // Parse address - handle both string and integer formats
-  int address = 0;
-  if (config["address"].is<String>())
-  {
-    address = config["address"].as<String>().toInt();
-  }
-  else
-  {
-    address = config["address"].as<int>();
-  }
-
+  // Address already parsed at the beginning for logging
   if (address < 0)
   {
-    Serial.printf("Invalid address: %d\n", address);
+    Serial.printf("[CREATE_REG] Invalid address: %d\n", address);
     return "";
   }
 
@@ -695,8 +680,6 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
       return "";
     }
   }
-
-  Serial.printf("[CREATE_REGISTER] Registers array size before: %d\n", registers.size());
 
   JsonObject newRegister = registers.add<JsonObject>();
   for (JsonPairConst kv : config)
@@ -744,26 +727,18 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     newRegister["unit"] = "";
   }
 
-  Serial.printf("[CREATE_REGISTER] Registers array size after: %d\n", registers.size());
-  Serial.printf("[CREATE_REGISTER] Created register %s (address: %d, index: %d) for device %s\n",
-                registerId.c_str(), address, registerIndex, deviceId.c_str());
-
-  // Debug: Print the new register content
-  Serial.println("[CREATE_REGISTER] New register content:");
-  for (JsonPair kv : newRegister)
-  {
-    Serial.printf("  %s: %s\n", kv.key().c_str(), kv.value().as<String>().c_str());
-  }
-
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache))
   {
-    Serial.println("[CREATE_REGISTER] Successfully saved devices file and updated cache");
+    Serial.printf("[CREATE_REG] OK: %s (ID: %s, idx: %d)\n",
+                  newRegister["register_name"].as<String>().c_str(),
+                  registerId.c_str(),
+                  registerIndex);
     return registerId;
   }
   else
   {
-    Serial.println("[CREATE_REGISTER] Failed to save devices file");
+    Serial.println("[CREATE_REG] FAIL: Save error");
     invalidateDevicesCache();
   }
   return "";

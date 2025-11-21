@@ -206,7 +206,7 @@ void ModbusTcpService::readTcpDevicesLoop()
     if (ulTaskNotifyTake(pdTRUE, 0) > 0)
     {
       refreshDeviceList();
-      Serial.println("[TCP] Configuration changed, device list refreshed");
+      // Config refresh is silent to reduce log noise
     }
 
     // Smart network detection - check both Ethernet AND WiFi
@@ -1371,7 +1371,6 @@ void ModbusTcpService::closeAllConnections() {
 
 void ModbusTcpService::initializeDeviceFailureTracking()
 {
-  Serial.println("[TCP] Initializing device failure tracking...");
   deviceFailureStates.clear();
 
   for (const auto &device : tcpDevices)
@@ -1389,14 +1388,13 @@ void ModbusTcpService::initializeDeviceFailureTracking()
     state.disableReasonDetail = "";
     state.disabledTimestamp = 0;
     deviceFailureStates.push_back(state);
-
-    Serial.printf("[TCP] Initialized tracking for device %s\n", device.deviceId.c_str());
   }
+  // Concise summary log
+  Serial.printf("[TCP] Failure tracking init: %d devices\n", deviceFailureStates.size());
 }
 
 void ModbusTcpService::initializeDeviceTimeouts()
 {
-  Serial.println("[TCP] Initializing device timeout tracking...");
   deviceTimeouts.clear();
 
   for (const auto &device : tcpDevices)
@@ -1408,15 +1406,13 @@ void ModbusTcpService::initializeDeviceTimeouts()
     timeout.lastSuccessfulRead = millis();
     timeout.maxConsecutiveTimeouts = 3;
     deviceTimeouts.push_back(timeout);
-
-    Serial.printf("[TCP] Initialized timeout tracking for device: %s (timeout: %dms)\n",
-                  device.deviceId.c_str(), timeout.timeoutMs);
   }
+  // Concise summary log
+  Serial.printf("[TCP] Timeout tracking init: %d devices\n", deviceTimeouts.size());
 }
 
 void ModbusTcpService::initializeDeviceMetrics()
 {
-  Serial.println("[TCP] Initializing device health metrics tracking...");
   deviceMetrics.clear();
 
   for (const auto &device : tcpDevices)
@@ -1431,9 +1427,9 @@ void ModbusTcpService::initializeDeviceMetrics()
     metrics.maxResponseTimeMs = 0;
     metrics.lastResponseTimeMs = 0;
     deviceMetrics.push_back(metrics);
-
-    Serial.printf("[TCP] Initialized metrics tracking for device: %s\n", device.deviceId.c_str());
   }
+  // Concise summary log
+  Serial.printf("[TCP] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
 ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(const String &deviceId)
