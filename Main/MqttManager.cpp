@@ -666,9 +666,11 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
                 payload.length(), defaultTopicPublish.c_str());
 
+  // PubSubClient binary publish: publish(topic, payload, length, retained)
   bool published = mqttClient.publish(defaultTopicPublish.c_str(),
                                       (uint8_t*)payload.c_str(),
-                                      payload.length());
+                                      payload.length(),
+                                      false);  // retained = false
 
   if (published)
   {
@@ -822,9 +824,11 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       serializeJson(topicDoc, payload);
 
       // Use binary publish with explicit length for large payloads (safer than null-terminated string)
+      // PubSubClient binary publish: publish(topic, payload, length, retained)
       bool published = mqttClient.publish(customTopic.topic.c_str(),
                                           (uint8_t*)payload.c_str(),
-                                          payload.length());
+                                          payload.length(),
+                                          false);  // retained = false
 
       if (published)
       {
