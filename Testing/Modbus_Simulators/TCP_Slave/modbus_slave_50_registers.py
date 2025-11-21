@@ -12,57 +12,31 @@ Description:
     - Slave ID: 1
     - Protocol: Modbus TCP
 
-    Registers (50 Input Registers):
-    - Address 0: Temperature (°C)    - Range: 20-35
-    - Address 1: Humidity (%)    - Range: 40-80
-    - Address 2: Pressure (Pa)    - Range: 900-1100
-    - Address 3: Voltage (V)    - Range: 220-240
-    - Address 4: Current (A)    - Range: 1-10
-    - Address 5: Power (W)    - Range: 0-2400
-    - Address 6: Energy (kWh)    - Range: 0-1000
-    - Address 7: Frequency (Hz)    - Range: 48-52
-    - Address 8: Speed (RPM)    - Range: 0-3000
-    - Address 9: Flow (L/m)    - Range: 0-100
-    - Address 10: Temperature_2 (°C)    - Range: 20-35
-    - Address 11: Humidity_2 (%)    - Range: 40-80
-    - Address 12: Pressure_2 (Pa)    - Range: 900-1100
-    - Address 13: Voltage_2 (V)    - Range: 220-240
-    - Address 14: Current_2 (A)    - Range: 1-10
-    - Address 15: Power_2 (W)    - Range: 0-2400
-    - Address 16: Energy_2 (kWh)    - Range: 0-1000
-    - Address 17: Frequency_2 (Hz)    - Range: 48-52
-    - Address 18: Speed_2 (RPM)    - Range: 0-3000
-    - Address 19: Flow_2 (L/m)    - Range: 0-100
-    - Address 20: Temperature_3 (°C)    - Range: 20-35
-    - Address 21: Humidity_3 (%)    - Range: 40-80
-    - Address 22: Pressure_3 (Pa)    - Range: 900-1100
-    - Address 23: Voltage_3 (V)    - Range: 220-240
-    - Address 24: Current_3 (A)    - Range: 1-10
-    - Address 25: Power_3 (W)    - Range: 0-2400
-    - Address 26: Energy_3 (kWh)    - Range: 0-1000
-    - Address 27: Frequency_3 (Hz)    - Range: 48-52
-    - Address 28: Speed_3 (RPM)    - Range: 0-3000
-    - Address 29: Flow_3 (L/m)    - Range: 0-100
-    - Address 30: Temperature_4 (°C)    - Range: 20-35
-    - Address 31: Humidity_4 (%)    - Range: 40-80
-    - Address 32: Pressure_4 (Pa)    - Range: 900-1100
-    - Address 33: Voltage_4 (V)    - Range: 220-240
-    - Address 34: Current_4 (A)    - Range: 1-10
-    - Address 35: Power_4 (W)    - Range: 0-2400
-    - Address 36: Energy_4 (kWh)    - Range: 0-1000
-    - Address 37: Frequency_4 (Hz)    - Range: 48-52
-    - Address 38: Speed_4 (RPM)    - Range: 0-3000
-    - Address 39: Flow_4 (L/m)    - Range: 0-100
-    - Address 40: Temperature_5 (°C)    - Range: 20-35
-    - Address 41: Humidity_5 (%)    - Range: 40-80
-    - Address 42: Pressure_5 (Pa)    - Range: 900-1100
-    - Address 43: Voltage_5 (V)    - Range: 220-240
-    - Address 44: Current_5 (A)    - Range: 1-10
-    - Address 45: Power_5 (W)    - Range: 0-2400
-    - Address 46: Energy_5 (kWh)    - Range: 0-1000
-    - Address 47: Frequency_5 (Hz)    - Range: 48-52
-    - Address 48: Speed_5 (RPM)    - Range: 0-3000
-    - Address 49: Flow_5 (L/m)    - Range: 0-100
+    Registers (50 Input Registers) - ALIGNED WITH create_device_50_registers.py:
+
+    Temperature Zones (0-9):
+    - Address 0-9: Temp_Zone_1 to Temp_Zone_10 (°C)  - Range: 20-35
+
+    Humidity Zones (10-19):
+    - Address 10-19: Humid_Zone_1 to Humid_Zone_10 (%)  - Range: 40-80
+
+    Pressure Sensors (20-24):
+    - Address 20-24: Press_Sensor_1 to Press_Sensor_5 (Pa)  - Range: 900-1100
+
+    Voltage Lines (25-29):
+    - Address 25-29: Voltage_L1 to Voltage_L5 (V)  - Range: 220-240
+
+    Current Lines (30-34):
+    - Address 30-34: Current_L1 to Current_L5 (A)  - Range: 1-10
+
+    Power Meters (35-39):
+    - Address 35-39: Power_1 to Power_5 (W)  - Range: 0-2400
+
+    Energy Counters (40-44):
+    - Address 40-44: Energy_1 to Energy_5 (kWh)  - Range: 0-1000
+
+    Flow Meters (45-49):
+    - Address 45-49: Flow_1 to Flow_5 (L/min)  - Range: 0-100
 
 Usage:
     1. Install: pip install pymodbus
@@ -110,59 +84,105 @@ SERVER_PORT = 502          # MUST match device config port
 SLAVE_ID = 1               # MUST match device config slave_id
 NUM_REGISTERS = 50          # 50 Input Registers
 
-# Register definitions (matching create_device_50_registers.py)
-REGISTER_INFO = {
-    0: {"name": "Temperature", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    1: {"name": "Humidity", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    2: {"name": "Pressure", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    3: {"name": "Voltage", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    4: {"name": "Current", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    5: {"name": "Power", "unit": "W", "min": 0, "max": 2400, "initial": 1200},
-    6: {"name": "Energy", "unit": "kWh", "min": 0, "max": 1000, "initial": 500},
-    7: {"name": "Frequency", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    8: {"name": "Speed", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    9: {"name": "Flow", "unit": "L/m", "min": 0, "max": 100, "initial": 50},
-    10: {"name": "Temperature_2", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    11: {"name": "Humidity_2", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    12: {"name": "Pressure_2", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    13: {"name": "Voltage_2", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    14: {"name": "Current_2", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    15: {"name": "Power_2", "unit": "W", "min": 0, "max": 2400, "initial": 1200},
-    16: {"name": "Energy_2", "unit": "kWh", "min": 0, "max": 1000, "initial": 500},
-    17: {"name": "Frequency_2", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    18: {"name": "Speed_2", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    19: {"name": "Flow_2", "unit": "L/m", "min": 0, "max": 100, "initial": 50},
-    20: {"name": "Temperature_3", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    21: {"name": "Humidity_3", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    22: {"name": "Pressure_3", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    23: {"name": "Voltage_3", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    24: {"name": "Current_3", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    25: {"name": "Power_3", "unit": "W", "min": 0, "max": 2400, "initial": 1200},
-    26: {"name": "Energy_3", "unit": "kWh", "min": 0, "max": 1000, "initial": 500},
-    27: {"name": "Frequency_3", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    28: {"name": "Speed_3", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    29: {"name": "Flow_3", "unit": "L/m", "min": 0, "max": 100, "initial": 50},
-    30: {"name": "Temperature_4", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    31: {"name": "Humidity_4", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    32: {"name": "Pressure_4", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    33: {"name": "Voltage_4", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    34: {"name": "Current_4", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    35: {"name": "Power_4", "unit": "W", "min": 0, "max": 2400, "initial": 1200},
-    36: {"name": "Energy_4", "unit": "kWh", "min": 0, "max": 1000, "initial": 500},
-    37: {"name": "Frequency_4", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    38: {"name": "Speed_4", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    39: {"name": "Flow_4", "unit": "L/m", "min": 0, "max": 100, "initial": 50},
-    40: {"name": "Temperature_5", "unit": "°C", "min": 20, "max": 35, "initial": 25},
-    41: {"name": "Humidity_5", "unit": "%", "min": 40, "max": 80, "initial": 60},
-    42: {"name": "Pressure_5", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
-    43: {"name": "Voltage_5", "unit": "V", "min": 220, "max": 240, "initial": 230},
-    44: {"name": "Current_5", "unit": "A", "min": 1, "max": 10, "initial": 5},
-    45: {"name": "Power_5", "unit": "W", "min": 0, "max": 2400, "initial": 1200},
-    46: {"name": "Energy_5", "unit": "kWh", "min": 0, "max": 1000, "initial": 500},
-    47: {"name": "Frequency_5", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    48: {"name": "Speed_5", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    49: {"name": "Flow_5", "unit": "L/m", "min": 0, "max": 100, "initial": 50}
-}
+# Register definitions - ALIGNED WITH create_device_50_registers.py
+# Temperature Zones: 0-9 (10 registers)
+# Humidity Zones: 10-19 (10 registers)
+# Pressure Sensors: 20-24 (5 registers)
+# Voltage Lines: 25-29 (5 registers)
+# Current Lines: 30-34 (5 registers)
+# Power Meters: 35-39 (5 registers)
+# Energy Counters: 40-44 (5 registers)
+# Flow Meters: 45-49 (5 registers)
+
+REGISTER_INFO = {}
+
+# Temperature Zones (0-9) - °C
+for i in range(10):
+    REGISTER_INFO[i] = {
+        "name": f"Temp_Zone_{i+1}",
+        "desc": f"Temperature Zone {i+1}",
+        "unit": "°C",
+        "min": 20,
+        "max": 35,
+        "initial": 25
+    }
+
+# Humidity Zones (10-19) - %
+for i in range(10):
+    REGISTER_INFO[10 + i] = {
+        "name": f"Humid_Zone_{i+1}",
+        "desc": f"Humidity Zone {i+1}",
+        "unit": "%",
+        "min": 40,
+        "max": 80,
+        "initial": 60
+    }
+
+# Pressure Sensors (20-24) - Pa
+for i in range(5):
+    REGISTER_INFO[20 + i] = {
+        "name": f"Press_Sensor_{i+1}",
+        "desc": f"Pressure Sensor {i+1}",
+        "unit": "Pa",
+        "min": 900,
+        "max": 1100,
+        "initial": 1000
+    }
+
+# Voltage Lines (25-29) - V
+for i in range(5):
+    REGISTER_INFO[25 + i] = {
+        "name": f"Voltage_L{i+1}",
+        "desc": f"Voltage Line {i+1}",
+        "unit": "V",
+        "min": 220,
+        "max": 240,
+        "initial": 230
+    }
+
+# Current Lines (30-34) - A
+for i in range(5):
+    REGISTER_INFO[30 + i] = {
+        "name": f"Current_L{i+1}",
+        "desc": f"Current Line {i+1}",
+        "unit": "A",
+        "min": 1,
+        "max": 10,
+        "initial": 5
+    }
+
+# Power Meters (35-39) - W
+for i in range(5):
+    REGISTER_INFO[35 + i] = {
+        "name": f"Power_{i+1}",
+        "desc": f"Power Meter {i+1}",
+        "unit": "W",
+        "min": 0,
+        "max": 2400,
+        "initial": 1200
+    }
+
+# Energy Counters (40-44) - kWh
+for i in range(5):
+    REGISTER_INFO[40 + i] = {
+        "name": f"Energy_{i+1}",
+        "desc": f"Energy Counter {i+1}",
+        "unit": "kWh",
+        "min": 0,
+        "max": 1000,
+        "initial": 500
+    }
+
+# Flow Meters (45-49) - L/min
+for i in range(5):
+    REGISTER_INFO[45 + i] = {
+        "name": f"Flow_{i+1}",
+        "desc": f"Flow Meter {i+1}",
+        "unit": "L/min",
+        "min": 0,
+        "max": 100,
+        "initial": 50
+    }
 
 # Auto-update configuration
 AUTO_UPDATE = True
