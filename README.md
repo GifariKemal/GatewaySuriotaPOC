@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
@@ -9,7 +9,7 @@
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
 Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Developer:** Kemal | **Last Updated:** November 20, 2025
+**Developer:** Kemal | **Last Updated:** November 21, 2025
 
 ---
 
@@ -67,6 +67,9 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 ### 🎛️ Configuration Management
 
 - **BLE CRUD Operations**: Create, Read, Update, Delete devices via smartphone
+- **Backup & Restore**: Complete configuration backup/restore system via BLE (up to 200KB)
+- **Factory Reset**: One-command device reset to factory defaults
+- **Device Control**: Enable/disable devices with health metrics and auto-recovery
 - **Batch Operations**: Sequential, parallel, and atomic batch processing
 - **Priority Queue**: High/normal/low priority command execution
 - **Atomic Updates**: Crash-safe configuration writes with WAL (Write-Ahead Logging)
@@ -409,6 +412,9 @@ Comprehensive documentation is available in the `Documentation/` directory:
 | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
 | [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md) ⭐                                                        | Changelog and migration guide (v2.1.1)        |
 | [**API.md**](Documentation/API_Reference/API.md)                                                                              | Complete BLE CRUD API reference with examples |
+| [**BLE_BACKUP_RESTORE.md**](Documentation/API_Reference/BLE_BACKUP_RESTORE.md) 🆕                                             | Complete configuration backup/restore via BLE |
+| [**BLE_FACTORY_RESET.md**](Documentation/API_Reference/BLE_FACTORY_RESET.md) 🆕                                               | One-command device reset to factory defaults  |
+| [**BLE_DEVICE_CONTROL.md**](Documentation/API_Reference/BLE_DEVICE_CONTROL.md) 🆕                                             | Enable/disable devices with health metrics    |
 | [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)                 | MQTT Default & Customize modes                |
 | [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)             | Scale & offset calibration guide              |
 
@@ -424,6 +430,7 @@ Comprehensive documentation is available in the `Documentation/` directory:
 
 | Document                                                                       | Description                            |
 | ------------------------------------------------------------------------------ | -------------------------------------- |
+| [**BUG_STATUS_REPORT.md**](Documentation/Changelog/BUG_STATUS_REPORT.md) 🆕    | Active bug tracking and analysis (Nov 2025) |
 | [**CAPACITY_ANALYSIS.md**](Documentation/Changelog/CAPACITY_ANALYSIS.md)      | Gateway capacity limits and benchmarks |
 | [**TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
 
@@ -649,7 +656,56 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ## 📈 Changelog
 
-### Version 2.2.0 (2025-11-20) - Current ⭐
+### Version 2.3.0 (2025-11-21) - Current ⭐
+
+**Advanced Configuration Management Release**
+
+**Developer:** Kemal | **Release Date:** November 21, 2025
+
+#### 🎯 New BLE Configuration Features
+- ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE
+  - Export all devices, registers, server config, and logging config as single JSON
+  - Atomic snapshot with metadata (timestamp, firmware version, statistics)
+  - PSRAM optimized for large configurations (100KB+)
+  - Automatic BLE fragmentation for responses up to **200KB** (20x increase from 10KB)
+  - Full documentation: [BLE_BACKUP_RESTORE.md](Documentation/API_Reference/BLE_BACKUP_RESTORE.md)
+
+- ✅ **Factory Reset Command** - One-command device reset to factory defaults
+  - Clears all device configurations (devices.json)
+  - Resets server config to defaults (WiFi, Ethernet, MQTT, HTTP)
+  - Resets logging config to defaults
+  - Automatic device restart after reset
+  - Full documentation: [BLE_FACTORY_RESET.md](Documentation/API_Reference/BLE_FACTORY_RESET.md)
+
+- ✅ **Device Control API** - Enable/disable devices with health metrics
+  - Manual enable/disable devices remotely via BLE
+  - Real-time health metrics (success rate, avg response time, min/max tracking)
+  - Auto-recovery system for auto-disabled devices (every 5 minutes)
+  - Disable reason tracking (NONE, MANUAL, AUTO_RETRY, AUTO_TIMEOUT)
+  - Protocol-agnostic (works for both RTU and TCP devices)
+  - Full documentation: [BLE_DEVICE_CONTROL.md](Documentation/API_Reference/BLE_DEVICE_CONTROL.md)
+
+#### ⚡ Performance Optimizations
+- ✅ **BLE Response Size Limit** - Increased from 10KB to 200KB (commit 618b53d)
+  - Supports large configuration backups
+  - Handles complex multi-device setups
+
+- ✅ **DRAM Warning Threshold** - Optimized to reduce log noise (commit ca12aab)
+  - Improved memory monitoring efficiency
+
+#### 📚 Documentation Updates
+- ✅ **Bug Status Report** - Active bug tracking and analysis added
+  - [BUG_STATUS_REPORT.md](Documentation/Changelog/BUG_STATUS_REPORT.md) with 8 bugs analyzed
+  - Priority classification (High/Medium/Low)
+  - Root cause analysis and fix recommendations
+
+**Migration:** No breaking changes. All new features are additive and backward compatible.
+
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+
+---
+
+### Version 2.2.0 (2025-11-20)
 
 **Documentation Excellence Release**
 

@@ -1,8 +1,8 @@
 # SRT-MGATE-1210 Documentation
 
 **Modbus IIoT Gateway Documentation Hub**
-**Current Version:** 2.2.0
-**Last Updated:** November 20, 2025
+**Current Version:** 2.3.0
+**Last Updated:** November 21, 2025
 
 ---
 
@@ -34,6 +34,9 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
   - Batch operations
   - Real-time data streaming
   - Error codes and troubleshooting
+- **[Backup & Restore System](API_Reference/BLE_BACKUP_RESTORE.md)** - Complete configuration backup/restore via BLE
+- **[Factory Reset](API_Reference/BLE_FACTORY_RESET.md)** - One-command device reset to factory defaults
+- **[Device Control](API_Reference/BLE_DEVICE_CONTROL.md)** - Enable/disable devices with health metrics tracking
 
 #### Technical Guides
 - **[Protocol Documentation](Technical_Guides/PROTOCOL.md)** - Communication protocols (BLE, Modbus RTU/TCP, MQTT, HTTP)
@@ -56,6 +59,7 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 
 #### Version Information
 - **[Version History](Changelog/VERSION_HISTORY.md)** - Release notes, breaking changes, migration guides
+- **[Bug Status Report](Changelog/BUG_STATUS_REPORT.md)** - Active bug tracking and analysis (November 2025)
 - **[Capacity Analysis](Changelog/CAPACITY_ANALYSIS.md)** - Performance limits and scalability
 - **[Use Cases & Failure Recovery](Changelog/USE_CASES_FAILURE_RECOVERY.md)** - Real-world scenarios
 
@@ -107,7 +111,7 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 - **MCU:** ESP32-S3-WROOM-1-N16R8 (16MB Flash, 8MB PSRAM)
 - **Protocols:** Modbus RTU, Modbus TCP, MQTT, HTTP, BLE 5.0
 - **Network:** WiFi 802.11 b/g/n, Ethernet (optional)
-- **Firmware:** v2.2.0 (November 2025)
+- **Firmware:** v2.3.0 (November 2025)
 
 ### Key Features
 - ✅ **Multi-Protocol:** Bridge Modbus devices to MQTT/HTTP/BLE
@@ -131,20 +135,21 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 
 ## 🔄 Version Information
 
-### Current Version: 2.2.0 (November 14, 2025)
+### Current Version: 2.3.0 (November 21, 2025)
 
-**Breaking Changes:**
-- `data_interval` removed from root configuration
-- `http_config.interval` now controls HTTP polling interval
+**New Features:**
+- ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
+- ✅ **Factory Reset Command** - One-command device reset to factory defaults
+- ✅ **Device Control API** - Enable/disable devices with health metrics and auto-recovery
+- ✅ **BLE Response Size** - Increased from 10KB to 200KB for large configurations
+- ✅ **Bug Status Report** - Active bug tracking with root cause analysis
 
-**Key Improvements:**
-- Clean API structure with dedicated config sections
-- Enhanced network configuration documentation
-- Improved error handling and recovery
+**Migration:** No breaking changes. All new features are additive and backward compatible.
 
 **Migration:** See [Version History](Changelog/VERSION_HISTORY.md) for full migration guide.
 
 ### Previous Versions
+- **v2.2.0** - Documentation excellence (100% English, comprehensive navigation)
 - **v2.1.1** - 28x faster BLE transmission, enhanced CRUD responses
 - **v2.1.0** - Priority queue, batch operations
 - **v2.0** - Initial stable release
