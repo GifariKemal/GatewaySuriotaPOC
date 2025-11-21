@@ -718,15 +718,39 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
 
   // Publish single message with all data
-  // Use binary publish with explicit length for large payloads (safer than null-terminated string)
+  // FIXED BUG: Use text publish instead of binary publish for JSON data
+  // Text publish is more reliable for JSON/text payloads (binary publish can cause data loss)
   Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
                 payload.length(), defaultTopicPublish.c_str());
 
-  // PubSubClient binary publish: publish(topic, payload, length, retained)
-  bool published = mqttClient.publish(defaultTopicPublish.c_str(),
-                                      (uint8_t*)payload.c_str(),
-                                      payload.length(),
-                                      false);  // retained = false
+  // DEBUG: Print payload preview (first 500 chars) for troubleshooting
+  if (payload.length() > 0) {
+    Serial.println("[MQTT] Payload preview:");
+    Serial.println(payload.substring(0, min(500, (int)payload.length())));
+    if (payload.length() > 500) {
+      Serial.println("[MQTT] ... (truncated)");
+    }
+    Serial.println("[MQTT] ---");
+  }
+
+  // FIXED: Use text publish (2 params) instead of binary publish (4 params)
+  // This matches the working implementation in previous firmware version
+
+  // DEBUG: Check MQTT connection state before publish
+  if (!mqttClient.connected()) {
+    Serial.println("[MQTT] ERROR: MQTT client not connected before publish!");
+    Serial.printf("[MQTT] Connection state: %d\n", mqttClient.state());
+    return;
+  }
+
+  Serial.printf("[MQTT] Publishing to broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
+  Serial.printf("[MQTT] Topic: %s\n", defaultTopicPublish.c_str());
+
+  bool published = mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str());
+
+  Serial.printf("[MQTT] Publish result: %s (return value: %d)\n",
+                published ? "SUCCESS" : "FAILED", published);
+  Serial.printf("[MQTT] MQTT state after publish: %d (0=connected)\n", mqttClient.state());
 
   if (published)
   {
@@ -917,12 +941,17 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       String payload;
       serializeJson(topicDoc, payload);
 
-      // Use binary publish with explicit length for large payloads (safer than null-terminated string)
-      // PubSubClient binary publish: publish(topic, payload, length, retained)
-      bool published = mqttClient.publish(customTopic.topic.c_str(),
-                                          (uint8_t*)payload.c_str(),
-                                          payload.length(),
-                                          false);  // retained = false
+      // DEBUG: Print payload preview for troubleshooting
+      Serial.printf("[MQTT] Customize Mode - Publishing %u bytes to: %s\n",
+                    payload.length(), customTopic.topic.c_str());
+      if (payload.length() > 0 && payload.length() <= 300) {
+        Serial.println("[MQTT] Payload preview:");
+        Serial.println(payload);
+        Serial.println("[MQTT] ---");
+      }
+
+      // FIXED: Use text publish (2 params) instead of binary publish for JSON data
+      bool published = mqttClient.publish(customTopic.topic.c_str(), payload.c_str());
 
       if (published)
       {
