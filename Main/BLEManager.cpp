@@ -702,14 +702,20 @@ void BLEManager::logMTUNegotiation()
     mtuMetrics.mtuNegotiated = true;
     Serial.printf("[BLE MTU] Negotiation OK  Actual MTU: %d bytes  Effective: %d bytes  Max: %d bytes  Time: %lu ms  Attempts: %d\n",
                   actualMTU, mtuMetrics.mtuSize, mtuMetrics.maxMTUSize, mtuMetrics.lastNegotiationTime, mtuMetrics.negotiationAttempts);
+
+    // CRITICAL FIX: Mark negotiation as completed to stop timeout monitoring
+    // Without this, checkMTUNegotiationTimeout() continues checking and triggers
+    // false positive timeouts (e.g., after 54s even though negotiation succeeded at 10s)
+    xSemaphoreGive(metricsMutex);  // Release metrics mutex before acquiring MTU mutex
+    completeMTUNegotiation();
   }
   else
   {
     mtuMetrics.mtuNegotiated = false;
     Serial.printf("[BLE MTU] Negotiation pending  Current MTU: %d bytes (waiting for higher MTU)\n", actualMTU);
+    xSemaphoreGive(metricsMutex);
+    // State remains INITIATING - timeout monitoring continues
   }
-
-  xSemaphoreGive(metricsMutex);
 }
 
 void BLEManager::updateQueueMetrics()
