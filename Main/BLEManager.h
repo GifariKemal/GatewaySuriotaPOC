@@ -30,7 +30,7 @@
 #define BLE_MTU_SAFE_DEFAULT 247         // Conservative MTU for all devices (iOS compatible)
 #define BLE_MTU_MAX_REQUESTED 517        // Maximum MTU we request (not all clients support)
 #define BLE_MTU_MAX_SUPPORTED 512        // Maximum MTU we actually support
-#define MAX_RESPONSE_SIZE_BYTES 10240    // 10KB maximum response size
+#define MAX_RESPONSE_SIZE_BYTES 204800   // 200KB maximum response size (for full_config backup with 50+ devices)
 #define LARGE_PAYLOAD_THRESHOLD 5120     // 5KB threshold for adaptive chunking
 #define ADAPTIVE_CHUNK_SIZE_LARGE 100    // Chunk size for large payloads
 #define ADAPTIVE_DELAY_LARGE_MS 20       // Delay for large payload chunks
