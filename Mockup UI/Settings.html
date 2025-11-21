@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gateway Settings - Backup, Restore & System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#2f6f64', dark: '#1e4a42', light: '#3d8b7e' }
+          },
+          boxShadow: {
+            soft: '0 10px 30px rgba(2,8,20,.08)',
+            glow: '0 0 20px rgba(47,111,100,.2)'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+            'scale-in': 'scaleIn 0.2s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            scaleIn: { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes gradient { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+    .gradient-animate { background: linear-gradient(-45deg, #2f6f64, #3d8b7e, #2f6f64, #1e4a42); background-size: 400% 400%; animation: gradient 8s ease infinite; }
+    .toast { transform: translateX(400px); transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(0); }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="gradient-animate text-white sticky top-0 z-50 shadow-lg">
+    <div class="max-w-4xl mx-auto px-4 py-4 sm:py-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-lg sm:text-2xl font-bold flex items-center gap-2">
+            <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Settings
+          </h1>
+          <p class="mt-1 text-xs sm:text-sm opacity-90">Backup, Restore, Factory Reset & Metrics</p>
+        </div>
+        <a href="#" class="p-2 rounded-full hover:bg-white/10 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 19.5 8.25 12l7.5-7.5" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
+
+    <!-- 1. BACKUP SECTION -->
+    <section class="bg-white rounded-2xl shadow-soft p-6 space-y-4 hover:shadow-lg transition-shadow">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-brand flex items-center gap-2">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+            Configuration Backup
+          </h2>
+          <p class="text-sm text-slate-500 mt-1">Export complete gateway configuration</p>
+        </div>
+        <button id="btnCreateBackup" class="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-white font-semibold hover:brightness-110 active:scale-95 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span class="hidden sm:inline">Create Backup</span>
+        </button>
+      </div>
+
+      <!-- Backup List -->
+      <div id="backupList" class="space-y-2 mt-4"></div>
+      <div id="backupEmpty" class="text-center py-8 text-slate-400">
+        <svg class="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+        </svg>
+        <p>No backups yet. Create your first backup!</p>
+      </div>
+    </section>
+
+    <!-- 2. RESTORE SECTION -->
+    <section class="bg-white rounded-2xl shadow-soft p-6 space-y-4 hover:shadow-lg transition-shadow">
+      <div>
+        <h2 class="text-lg sm:text-xl font-bold text-blue-600 flex items-center gap-2">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          Configuration Restore
+        </h2>
+        <p class="text-sm text-slate-500 mt-1">Upload and apply backup configuration</p>
+      </div>
+
+      <!-- File Upload -->
+      <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-brand transition">
+        <input type="file" id="fileRestore" accept=".json" class="hidden">
+        <label for="fileRestore" class="cursor-pointer">
+          <svg class="w-12 h-12 mx-auto mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <p class="text-sm font-semibold text-brand">Click to upload backup file</p>
+          <p class="text-xs text-slate-500 mt-1">JSON format only</p>
+        </label>
+      </div>
+
+      <!-- Preview Panel (hidden by default) -->
+      <div id="restorePreview" class="hidden space-y-3 animate-slide-up">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h3 class="font-semibold text-blue-900 mb-2">Backup Information</h3>
+          <dl class="grid grid-cols-2 gap-2 text-sm">
+            <dt class="text-slate-600">Created:</dt>
+            <dd id="previewDate" class="font-medium">-</dd>
+            <dt class="text-slate-600">Firmware:</dt>
+            <dd id="previewFirmware" class="font-medium">-</dd>
+            <dt class="text-slate-600">Devices:</dt>
+            <dd id="previewDevices" class="font-medium">-</dd>
+            <dt class="text-slate-600">Registers:</dt>
+            <dd id="previewRegisters" class="font-medium">-</dd>
+          </dl>
+        </div>
+        <button id="btnRestore" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 active:scale-[0.98] transition">
+          Restore Configuration
+        </button>
+      </div>
+    </section>
+
+    <!-- 3. FACTORY RESET SECTION -->
+    <section class="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-2xl shadow-soft p-6 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="p-2 bg-red-100 rounded-full">
+          <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          </svg>
+        </div>
+        <div class="flex-1">
+          <h2 class="text-lg sm:text-xl font-bold text-red-700 flex items-center gap-2">
+            Factory Reset
+          </h2>
+          <p class="text-sm text-red-600 mt-1">⚠️ This will ERASE all configurations and restart the device</p>
+        </div>
+      </div>
+
+      <!-- Warning Box -->
+      <div class="bg-white/70 backdrop-blur rounded-xl p-4 space-y-2">
+        <p class="text-sm font-semibold text-slate-800">This action will delete:</p>
+        <ul class="text-sm text-slate-700 space-y-1 ml-4">
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+            All Modbus devices and registers
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+            WiFi/Ethernet network settings
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+            MQTT/HTTP server configurations
+          </li>
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
+            Logging configuration
+          </li>
+        </ul>
+      </div>
+
+      <!-- Reason Input -->
+      <div>
+        <label class="block text-sm font-semibold text-slate-700 mb-2">Reason for reset (optional):</label>
+        <input id="resetReason" type="text" placeholder="e.g., Redeployment to new site"
+               class="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+      </div>
+
+      <!-- Reset Button -->
+      <button id="btnFactoryReset" class="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-3 rounded-xl font-bold hover:from-red-700 hover:to-orange-700 active:scale-[0.98] transition flex items-center justify-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        Factory Reset Device
+      </button>
+    </section>
+
+    <!-- 4. BLE METRICS SECTION -->
+    <section class="bg-white rounded-2xl shadow-soft p-6 space-y-4 hover:shadow-lg transition-shadow">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg sm:text-xl font-bold text-emerald-600 flex items-center gap-2">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            BLE Performance Metrics
+          </h2>
+          <p class="text-sm text-slate-500 mt-1">Real-time BLE connection statistics</p>
+        </div>
+        <button id="btnRefreshMetrics" class="p-2 rounded-full hover:bg-emerald-50 text-emerald-600 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Metrics Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- MTU Metrics -->
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+          <h3 class="text-sm font-semibold text-purple-900 mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/></svg>
+            MTU Metrics
+          </h3>
+          <dl class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <dt class="text-purple-700">Current MTU:</dt>
+              <dd id="mtuCurrent" class="font-bold text-purple-900">512 bytes</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-purple-700">Max MTU:</dt>
+              <dd id="mtuMax" class="font-bold text-purple-900">512 bytes</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-purple-700">Negotiated:</dt>
+              <dd id="mtuNegotiated" class="font-bold text-emerald-600">✓ Yes</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-purple-700">Timeouts:</dt>
+              <dd id="mtuTimeouts" class="font-bold text-purple-900">0</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Connection Metrics -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+          <h3 class="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2 5a2 2 0 012-2h8a2 2 0 012 2v10a2 2 0 002 2H4a2 2 0 01-2-2V5zm3 1h6v4H5V6zm6 6H5v2h6v-2z" clip-rule="evenodd"/><path d="M15 7h1a2 2 0 012 2v5.5a1.5 1.5 0 01-3 0V7z"/></svg>
+            Connection
+          </h3>
+          <dl class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <dt class="text-blue-700">Uptime:</dt>
+              <dd id="connUptime" class="font-bold text-blue-900">1h 23m</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-blue-700">Fragments Sent:</dt>
+              <dd id="connFragments" class="font-bold text-blue-900">1,543</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-blue-700">Bytes TX:</dt>
+              <dd id="connBytes" class="font-bold text-blue-900">156 KB</dd>
+            </div>
+          </dl>
+        </div>
+
+        <!-- Queue Metrics -->
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+          <h3 class="text-sm font-semibold text-emerald-900 mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+            Queue
+          </h3>
+          <dl class="space-y-2 text-xs">
+            <div class="flex justify-between">
+              <dt class="text-emerald-700">Current:</dt>
+              <dd id="queueCurrent" class="font-bold text-emerald-900">3 / 50</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-emerald-700">Peak Depth:</dt>
+              <dd id="queuePeak" class="font-bold text-emerald-900">15</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-emerald-700">Utilization:</dt>
+              <dd id="queueUtil" class="font-bold text-emerald-900">6%</dd>
+            </div>
+            <div class="flex justify-between">
+              <dt class="text-emerald-700">Drops:</dt>
+              <dd id="queueDrops" class="font-bold text-emerald-900">0</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast fixed top-4 right-4 bg-white rounded-xl shadow-glow p-4 border-l-4 hidden z-50 max-w-sm">
+    <div class="flex items-start gap-3">
+      <div id="toastIcon" class="flex-shrink-0"></div>
+      <div class="flex-1">
+        <h4 id="toastTitle" class="font-semibold text-sm"></h4>
+        <p id="toastMessage" class="text-xs text-slate-600 mt-1"></p>
+      </div>
+      <button onclick="hideToast()" class="text-slate-400 hover:text-slate-600">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="modal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="relative flex items-center justify-center min-h-screen p-4">
+      <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
+        <div id="modalIcon" class="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center"></div>
+        <h3 id="modalTitle" class="text-xl font-bold text-center mb-2"></h3>
+        <p id="modalMessage" class="text-sm text-slate-600 text-center mb-6"></p>
+        <div class="flex gap-3">
+          <button onclick="closeModal()" class="flex-1 px-4 py-2 border border-slate-300 rounded-xl font-semibold hover:bg-slate-50 transition">
+            Cancel
+          </button>
+          <button id="modalConfirm" class="flex-1 px-4 py-2 rounded-xl font-semibold text-white transition"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // MOCK BLE MANAGER
+    // ============================================
+    class MockBLEManager {
+      async sendCommand(command) {
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate BLE delay
+
+        if (command.op === 'read' && command.type === 'full_config') {
+          return this.mockFullConfigResponse();
+        }
+
+        if (command.op === 'system' && command.type === 'restore_config') {
+          return {
+            status: 'ok',
+            restored_configs: ['devices.json', 'server_config.json', 'logging_config.json'],
+            success_count: 3,
+            fail_count: 0,
+            message: 'Configuration restore completed. Device restart recommended.',
+            requires_restart: true
+          };
+        }
+
+        if (command.op === 'system' && command.type === 'factory_reset') {
+          return {
+            status: 'ok',
+            message: 'Factory reset initiated. Device will restart in 3 seconds.',
+            configs_cleared: ['devices.json', 'server_config.json', 'logging_config.json'],
+            restart_in_ms: 3000
+          };
+        }
+
+        if (command.op === 'read' && command.type === 'ble_metrics') {
+          return this.mockBLEMetricsResponse();
+        }
+
+        return { status: 'error', error: 'Unknown command' };
+      }
+
+      mockFullConfigResponse() {
+        const devices = JSON.parse(localStorage.getItem('mockDevices') || '[]');
+        const serverConfig = JSON.parse(localStorage.getItem('mockServerConfig') || '{}');
+
+        const totalRegisters = devices.reduce((sum, d) => sum + (d.registers?.length || 0), 0);
+        const configString = JSON.stringify({ devices, server_config: serverConfig });
+
+        return {
+          status: 'ok',
+          backup_info: {
+            timestamp: Date.now(),
+            firmware_version: '2.3.0',
+            device_name: 'SURIOTA_GW',
+            total_devices: devices.length,
+            total_registers: totalRegisters,
+            processing_time_ms: 350,
+            backup_size_bytes: configString.length
+          },
+          config: {
+            devices,
+            server_config: serverConfig,
+            logging_config: { logging_ret: '1w', logging_interval: '5m' }
+          }
+        };
+      }
+
+      mockBLEMetricsResponse() {
+        return {
+          status: 'ok',
+          data: {
+            mtu: {
+              current: 512,
+              max: 512,
+              negotiated: true,
+              timeout_count: 0
+            },
+            connection: {
+              uptime_sec: 4980, // 1h 23m
+              fragments_sent: 1543,
+              bytes_tx: 156789
+            },
+            queue: {
+              depth: 3,
+              capacity: 50,
+              peak: 15,
+              utilization: 6.0,
+              drop_count: 0
+            }
+          }
+        };
+      }
+    }
+
+    const bleManager = new MockBLEManager();
+
+    // ============================================
+    // TOAST NOTIFICATION
+    // ============================================
+    function showToast(title, message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastIcon = document.getElementById('toastIcon');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+
+      const icons = {
+        success: `<svg class="w-6 h-6 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>`,
+        error: `<svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>`,
+        warning: `<svg class="w-6 h-6 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>`,
+        info: `<svg class="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>`
+      };
+
+      const borderColors = {
+        success: 'border-emerald-500',
+        error: 'border-red-500',
+        warning: 'border-amber-500',
+        info: 'border-blue-500'
+      };
+
+      toastIcon.innerHTML = icons[type];
+      toastTitle.textContent = title;
+      toastMessage.textContent = message;
+
+      toast.className = `toast fixed top-4 right-4 bg-white rounded-xl shadow-glow p-4 border-l-4 z-50 max-w-sm ${borderColors[type]}`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('show'), 10);
+
+      setTimeout(hideToast, 5000);
+    }
+
+    function hideToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.remove('show');
+      setTimeout(() => toast.classList.add('hidden'), 300);
+    }
+
+    // ============================================
+    // MODAL
+    // ============================================
+    function showModal(title, message, confirmText, confirmAction, type = 'warning') {
+      const modal = document.getElementById('modal');
+      const modalIcon = document.getElementById('modalIcon');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalMessage = document.getElementById('modalMessage');
+      const modalConfirm = document.getElementById('modalConfirm');
+
+      const icons = {
+        warning: { icon: '⚠️', bg: 'bg-amber-100', text: 'text-amber-600' },
+        danger: { icon: '🔴', bg: 'bg-red-100', text: 'text-red-600' },
+        info: { icon: 'ℹ️', bg: 'bg-blue-100', text: 'text-blue-600' }
+      };
+
+      const config = icons[type];
+      modalIcon.className = `w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center ${config.bg} text-2xl`;
+      modalIcon.textContent = config.icon;
+      modalTitle.textContent = title;
+      modalMessage.textContent = message;
+      modalConfirm.textContent = confirmText;
+
+      const btnColors = {
+        warning: 'bg-amber-600 hover:bg-amber-700',
+        danger: 'bg-red-600 hover:bg-red-700',
+        info: 'bg-blue-600 hover:bg-blue-700'
+      };
+      modalConfirm.className = `flex-1 px-4 py-2 rounded-xl font-semibold text-white transition ${btnColors[type]}`;
+
+      modalConfirm.onclick = () => {
+        confirmAction();
+        closeModal();
+      };
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    // ============================================
+    // BACKUP MANAGEMENT
+    // ============================================
+    function renderBackupList() {
+      const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+      const list = document.getElementById('backupList');
+      const empty = document.getElementById('backupEmpty');
+
+      if (backups.length === 0) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      list.innerHTML = backups.map((backup, idx) => `
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 hover:bg-slate-100 transition">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold text-sm text-slate-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-brand" fill="currentColor" viewBox="0 0 20 20"><path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z"/><path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+                ${new Date(backup.created_at).toLocaleString('id-ID')}
+              </h3>
+              <div class="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-slate-600">
+                <div><span class="font-medium">Firmware:</span> ${backup.backup_info.firmware_version}</div>
+                <div><span class="font-medium">Devices:</span> ${backup.backup_info.total_devices}</div>
+                <div><span class="font-medium">Registers:</span> ${backup.backup_info.total_registers}</div>
+                <div><span class="font-medium">Size:</span> ${(backup.backup_info.backup_size_bytes / 1024).toFixed(1)} KB</div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="downloadBackup(${idx})" class="p-2 rounded-lg bg-brand text-white hover:brightness-110 transition" title="Download">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+              <button onclick="deleteBackup(${idx})" class="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition" title="Delete">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function createBackup() {
+      try {
+        showToast('Creating Backup...', 'Please wait while we export your configuration', 'info');
+
+        const response = await bleManager.sendCommand({
+          op: 'read',
+          type: 'full_config'
+        });
+
+        if (response.status === 'ok') {
+          const backup = {
+            created_at: new Date().toISOString(),
+            backup_info: response.backup_info,
+            config: response.config
+          };
+
+          const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+          backups.unshift(backup); // Add to beginning
+          if (backups.length > 10) backups.pop(); // Keep max 10 backups
+          localStorage.setItem('backups', JSON.stringify(backups));
+
+          showToast('Backup Created!',
+            `${response.backup_info.total_devices} devices, ${response.backup_info.total_registers} registers`,
+            'success');
+          renderBackupList();
+        } else {
+          showToast('Backup Failed', response.error || 'Unknown error', 'error');
+        }
+      } catch (error) {
+        showToast('Backup Error', error.message, 'error');
+      }
+    }
+
+    function downloadBackup(index) {
+      const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+      const backup = backups[index];
+      if (!backup) return;
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gateway_backup_${new Date(backup.created_at).toISOString().replace(/[:.]/g, '-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      showToast('Download Started', 'Backup file is being downloaded', 'success');
+    }
+
+    function deleteBackup(index) {
+      showModal(
+        'Delete Backup?',
+        'This action cannot be undone. The backup file will be permanently deleted.',
+        'Delete',
+        () => {
+          const backups = JSON.parse(localStorage.getItem('backups') || '[]');
+          backups.splice(index, 1);
+          localStorage.setItem('backups', JSON.stringify(backups));
+          renderBackupList();
+          showToast('Backup Deleted', 'The backup has been removed', 'success');
+        },
+        'danger'
+      );
+    }
+
+    // ============================================
+    // RESTORE
+    // ============================================
+    document.getElementById('fileRestore').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        const text = await file.text();
+        const backup = JSON.parse(text);
+
+        if (!backup.config || !backup.backup_info) {
+          showToast('Invalid File', 'This is not a valid backup file', 'error');
+          return;
+        }
+
+        // Show preview
+        document.getElementById('previewDate').textContent = new Date(backup.created_at).toLocaleString('id-ID');
+        document.getElementById('previewFirmware').textContent = backup.backup_info.firmware_version;
+        document.getElementById('previewDevices').textContent = backup.backup_info.total_devices;
+        document.getElementById('previewRegisters').textContent = backup.backup_info.total_registers;
+        document.getElementById('restorePreview').classList.remove('hidden');
+
+        // Store for restore
+        window.currentRestoreBackup = backup;
+
+      } catch (error) {
+        showToast('Invalid File', 'Failed to parse backup file: ' + error.message, 'error');
+      }
+    });
+
+    document.getElementById('btnRestore').addEventListener('click', () => {
+      if (!window.currentRestoreBackup) return;
+
+      const backup = window.currentRestoreBackup;
+      showModal(
+        '⚠️ RESTORE CONFIGURATION',
+        `This will REPLACE all current configurations with ${backup.backup_info.total_devices} devices and ${backup.backup_info.total_registers} registers. Current configuration will be lost!`,
+        'Restore',
+        async () => {
+          try {
+            showToast('Restoring...', 'Please wait while we restore your configuration', 'info');
+
+            const response = await bleManager.sendCommand({
+              op: 'system',
+              type: 'restore_config',
+              config: backup.config
+            });
+
+            if (response.status === 'ok') {
+              showToast('Restore Complete!',
+                `${response.success_count} configurations restored. Device restart recommended.`,
+                'success');
+
+              // Reset UI
+              document.getElementById('restorePreview').classList.add('hidden');
+              document.getElementById('fileRestore').value = '';
+              delete window.currentRestoreBackup;
+
+              // Optionally show restart prompt
+              setTimeout(() => {
+                if (confirm('Restore complete! Device restart is recommended to apply all changes.\n\nRestart gateway now?')) {
+                  showToast('Restarting...', 'Device will restart in 3 seconds', 'info');
+                  // In real app: send restart command
+                }
+              }, 1000);
+            } else {
+              showToast('Restore Failed', response.error || 'Unknown error', 'error');
+            }
+          } catch (error) {
+            showToast('Restore Error', error.message, 'error');
+          }
+        },
+        'warning'
+      );
+    });
+
+    // ============================================
+    // FACTORY RESET
+    // ============================================
+    document.getElementById('btnFactoryReset').addEventListener('click', () => {
+      showModal(
+        '🔴 FACTORY RESET WARNING',
+        'This will ERASE all device configurations, network settings, and server configurations. The device will restart automatically. This action is IRREVERSIBLE!',
+        'Factory Reset',
+        async () => {
+          try {
+            const reason = document.getElementById('resetReason').value.trim() || 'No reason provided';
+
+            showToast('Initiating Factory Reset...', 'Please wait...', 'warning');
+
+            const response = await bleManager.sendCommand({
+              op: 'system',
+              type: 'factory_reset',
+              reason: reason
+            });
+
+            if (response.status === 'ok') {
+              showToast('Factory Reset Initiated!',
+                `Device will restart in ${response.restart_in_ms / 1000} seconds`,
+                'success');
+
+              // Clear localStorage (simulate reset)
+              setTimeout(() => {
+                localStorage.removeItem('mockDevices');
+                localStorage.removeItem('mockServerConfig');
+                localStorage.removeItem('backups');
+                showToast('Device Restarting...', 'Please reconnect after restart', 'info');
+              }, 2000);
+
+              document.getElementById('resetReason').value = '';
+            } else {
+              showToast('Factory Reset Failed', response.error || 'Unknown error', 'error');
+            }
+          } catch (error) {
+            showToast('Factory Reset Error', error.message, 'error');
+          }
+        },
+        'danger'
+      );
+    });
+
+    // ============================================
+    // BLE METRICS
+    // ============================================
+    async function loadBLEMetrics() {
+      try {
+        const response = await bleManager.sendCommand({
+          op: 'read',
+          type: 'ble_metrics'
+        });
+
+        if (response.status === 'ok') {
+          const { mtu, connection, queue } = response.data;
+
+          // MTU Metrics
+          document.getElementById('mtuCurrent').textContent = `${mtu.current} bytes`;
+          document.getElementById('mtuMax').textContent = `${mtu.max} bytes`;
+          document.getElementById('mtuNegotiated').textContent = mtu.negotiated ? '✓ Yes' : '✗ No';
+          document.getElementById('mtuNegotiated').className = mtu.negotiated ? 'font-bold text-emerald-600' : 'font-bold text-red-600';
+          document.getElementById('mtuTimeouts').textContent = mtu.timeout_count;
+
+          // Connection Metrics
+          const hours = Math.floor(connection.uptime_sec / 3600);
+          const minutes = Math.floor((connection.uptime_sec % 3600) / 60);
+          document.getElementById('connUptime').textContent = `${hours}h ${minutes}m`;
+          document.getElementById('connFragments').textContent = connection.fragments_sent.toLocaleString();
+          document.getElementById('connBytes').textContent = `${(connection.bytes_tx / 1024).toFixed(1)} KB`;
+
+          // Queue Metrics
+          document.getElementById('queueCurrent').textContent = `${queue.depth} / ${queue.capacity}`;
+          document.getElementById('queuePeak').textContent = queue.peak;
+          document.getElementById('queueUtil').textContent = `${queue.utilization.toFixed(1)}%`;
+          document.getElementById('queueDrops').textContent = queue.drop_count;
+        }
+      } catch (error) {
+        console.error('Failed to load BLE metrics:', error);
+      }
+    }
+
+    document.getElementById('btnRefreshMetrics').addEventListener('click', async () => {
+      showToast('Refreshing Metrics...', 'Fetching latest BLE statistics', 'info');
+      await loadBLEMetrics();
+      showToast('Metrics Updated', 'BLE metrics refreshed successfully', 'success');
+    });
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+    document.getElementById('btnCreateBackup').addEventListener('click', createBackup);
+
+    // ============================================
+    // INIT
+    // ============================================
+    renderBackupList();
+    loadBLEMetrics();
+
+    // Seed some mock data if empty
+    if (!localStorage.getItem('mockDevices')) {
+      localStorage.setItem('mockDevices', JSON.stringify([
+        { device_id: 'D4A5F1', device_name: 'Main Power Meter', protocol: 'RTU', slave_id: 1, registers: [
+          { register_id: 'R001', register_name: 'Voltage L1', address: 40001, function_code: 3, data_type: 'FLOAT32_ABCD', quantity: 2 }
+        ]}
+      ]));
+    }
+
+    if (!localStorage.getItem('mockServerConfig')) {
+      localStorage.setItem('mockServerConfig', JSON.stringify({
+        protocol: 'mqtt',
+        mqtt_config: { broker_address: 'broker.hivemq.com', broker_port: 1883 }
+      }));
+    }
+  </script>
+
+  <style>
+    .btn-primary {
+      background: linear-gradient(135deg, #2f6f64 0%, #3d8b7e 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #1e4a42 0%, #2f6f64 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(47, 111, 100, .3);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+  </style>
+</body>
+</html>
