@@ -1,181 +1,853 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mockup Streaming</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Data Streaming - SURIOTA Gateway v2.3.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme:{ extend:{
-        colors:{ brand:{ DEFAULT:'#2f6f64', ink:'#0b2a24' } },
-        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' }
-      }}
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#2f6f64', ink: '#0b2a24' }
+          }
+        }
+      }
     }
   </script>
   <style>
-    @keyframes pulse-bg { 50% { background-color: #10b981; } }
-    .live-dot { animation: pulse-bg 2s infinite; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    .pulse-dot { animation: pulse-dot 2s infinite; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 p-4 font-sans">
-  <div class="max-w-xl mx-auto rounded-2xl bg-white shadow-soft overflow-hidden border border-slate-200">
-    <!-- Header -->
-    <div class="p-4 bg-brand text-white">
-      <h1 class="text-lg font-semibold">Main Power Meter</h1>
-      <p class="text-sm/6 text-emerald-100">Device ID:
-        <input id="deviceId" type="text" value="Dca4cf"
-               class="ml-2 w-36 rounded-md border border-emerald-200 bg-white/10 px-2 py-0.5 text-white placeholder-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-               placeholder="D4A5F1" />
-      </p>
-    </div>
+<body class="bg-gray-50 min-h-screen">
 
-    <!-- Toggle Bar -->
-    <div class="p-4 bg-emerald-50/60 flex items-center justify-between gap-3">
-      <div class="min-w-0">
-        <label for="streamToggle" class="font-medium text-brand">Live Data Stream</label>
-        <p id="statusText" class="text-xs text-slate-600">Status: idle</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <span id="pktCount" class="text-xs text-slate-600">0 pkt</span>
-        <label class="inline-flex cursor-pointer select-none items-center gap-3" title="Start/Stop Stream">
-          <input id="streamToggle" type="checkbox" class="peer sr-only" />
-          <span class="relative h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500">
-            <span class="absolute left-1 top-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
-          </span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Payload preview (what we send) -->
-    <div class="px-4 pt-3">
-      <p class="text-xs text-slate-600">Payload terakhir dikirim:</p>
-      <pre id="sentPreview" class="mt-1 max-h-24 overflow-auto rounded-lg bg-slate-900 p-2 text-[12px] text-emerald-100"></pre>
-    </div>
-
-    <!-- Live Panel -->
-    <div id="liveDataPanel" class="p-4 space-y-3 hidden">
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-[#2f6f64] to-[#1e4d45] text-white shadow-lg">
+    <div class="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2 text-emerald-700">
-          <span class="live-dot size-3 rounded-full bg-emerald-500"></span>
-          <span class="text-sm">Streaming data… <span class="text-slate-500">(menerima paket <span class="font-mono text-slate-700">{ "status": "data", … }</span>)</span></span>
+        <div class="flex items-center gap-3">
+          <button onclick="window.location.href='Device List (Home Screen).html'"
+                  class="p-2 hover:bg-white/10 rounded-lg transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <div>
+            <h1 class="text-xl sm:text-2xl font-bold">Real-Time Data Streaming</h1>
+            <p class="text-sm text-emerald-100 mt-1">Live Modbus data visualization</p>
+          </div>
         </div>
-        <button id="btnClear" class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 hover:bg-emerald-50">Clear Feed</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+    <!-- Control Panel -->
+    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#2f6f64]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            Streaming Control
+          </h2>
+          <p id="statusText" class="text-sm text-gray-600 mt-1">
+            Status: <span id="statusValue" class="font-medium text-gray-700">Idle</span>
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="btnStartStop" onclick="toggleStreaming()"
+                  class="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium">
+            <svg id="iconStart" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span id="btnText">Start Streaming</span>
+          </button>
+
+          <button onclick="clearData()"
+                  class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  title="Clear all data">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+
+          <button onclick="exportToCSV()"
+                  class="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  title="Export to CSV">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div id="liveFeed" class="max-h-72 overflow-auto space-y-2 pr-1">
-        <!-- items injected here -->
+      <!-- Device Selection -->
+      <div class="mb-6">
+        <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Select Devices to Stream
+        </h3>
+        <div id="deviceList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Device checkboxes will be injected here -->
+        </div>
+        <p class="text-xs text-gray-500 mt-2">
+          Select one or more devices to stream their register data in real-time
+        </p>
+      </div>
+
+      <!-- Register Filter -->
+      <div id="registerFilterSection" class="hidden">
+        <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          Filter Registers
+        </h3>
+        <div id="registerList" class="space-y-2">
+          <!-- Register checkboxes will be injected here -->
+        </div>
+        <p class="text-xs text-gray-500 mt-2">
+          Select specific registers to stream (leave all unchecked to stream all registers)
+        </p>
       </div>
     </div>
 
-    <!-- Placeholder Panel -->
-    <div id="placeholderPanel" class="p-6 text-center text-slate-600">
-      <p>Aktifkan toggle untuk memulai streaming data dari device ini.</p>
-      <p class="text-xs mt-2">
-        (Akan mengirim:
-        <span class="font-mono text-brand bg-emerald-50 px-1 py-0.5 rounded">
-          { "op":"read", "type":"data", "device_id":"&lt;ID&gt;" }
-        </span>)
+    <!-- Performance Metrics -->
+    <div id="metricsSection" class="hidden bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-[#2f6f64]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Performance Metrics
+      </h2>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="pulse-dot w-2 h-2 bg-blue-500 rounded-full"></div>
+            <p class="text-xs font-medium text-blue-700">Packets</p>
+          </div>
+          <p id="metricPackets" class="text-2xl font-bold text-blue-900">0</p>
+          <p class="text-xs text-blue-600 mt-1">Total received</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4 border border-emerald-200">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            </svg>
+            <p class="text-xs font-medium text-emerald-700">Rate</p>
+          </div>
+          <p id="metricRate" class="text-2xl font-bold text-emerald-900">0.0</p>
+          <p class="text-xs text-emerald-600 mt-1">packets/sec</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-xs font-medium text-purple-700">Duration</p>
+          </div>
+          <p id="metricDuration" class="text-2xl font-bold text-purple-900">00:00</p>
+          <p class="text-xs text-purple-600 mt-1">mm:ss</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200">
+          <div class="flex items-center gap-2 mb-2">
+            <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+            <p class="text-xs font-medium text-amber-700">Data Size</p>
+          </div>
+          <p id="metricDataSize" class="text-2xl font-bold text-amber-900">0</p>
+          <p class="text-xs text-amber-600 mt-1">KB received</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Visualization -->
+    <div id="chartSection" class="hidden bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-[#2f6f64]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+        </svg>
+        Live Chart Visualization
+      </h2>
+
+      <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <canvas id="liveChart" class="w-full" style="height: 300px;"></canvas>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button onclick="changeChartTimeRange(30)" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+          30s
+        </button>
+        <button onclick="changeChartTimeRange(60)" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+          1min
+        </button>
+        <button onclick="changeChartTimeRange(300)" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+          5min
+        </button>
+        <button onclick="changeChartTimeRange(600)" class="text-xs px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+          10min
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Data Feed -->
+    <div id="dataFeedSection" class="hidden bg-white rounded-lg shadow-md p-4 sm:p-6">
+      <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5 text-[#2f6f64]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+        </svg>
+        Live Data Feed
+      </h2>
+
+      <div id="dataFeed" class="space-y-2 max-h-96 overflow-y-auto">
+        <!-- Data items will be injected here -->
+      </div>
+
+      <div id="emptyDataFeed" class="text-center py-8 text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+        </svg>
+        <p>No data received yet</p>
+        <p class="text-sm mt-1">Start streaming to see live data</p>
+      </div>
+    </div>
+
+    <!-- Placeholder when not streaming -->
+    <div id="placeholderSection" class="bg-white rounded-lg shadow-md p-8 text-center">
+      <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <h3 class="text-lg font-bold text-gray-700 mb-2">Real-Time Data Streaming</h3>
+      <p class="text-gray-600 mb-4 max-w-md mx-auto">
+        Select one or more devices above and click "Start Streaming" to view live Modbus register data with chart visualization.
       </p>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-lg mx-auto">
+        <p class="text-sm text-blue-800 font-medium mb-2">Features:</p>
+        <ul class="text-sm text-blue-700 text-left space-y-1">
+          <li>✓ Multi-device streaming support</li>
+          <li>✓ Register-level filtering</li>
+          <li>✓ Real-time chart visualization</li>
+          <li>✓ Performance metrics tracking</li>
+          <li>✓ CSV data export</li>
+        </ul>
+      </div>
     </div>
-  </div>
+
+  </main>
 
   <script>
-    const $ = (q)=>document.querySelector(q);
+    // Helper function
+    const $ = (q) => document.querySelector(q);
+    const $$ = (q) => document.querySelectorAll(q);
 
-    const deviceIdInput   = $('#deviceId');
-    const streamToggle     = $('#streamToggle');
-    const liveDataPanel    = $('#liveDataPanel');
-    const placeholderPanel = $('#placeholderPanel');
-    const liveFeed         = $('#liveFeed');
-    const statusText       = $('#statusText');
-    const pktCountEl       = $('#pktCount');
-    const btnClear         = $('#btnClear');
-    const sentPreview      = $('#sentPreview');
-
+    // State
+    let isStreaming = false;
     let streamInterval = null;
-    let pktCount = 0;
+    let selectedDevices = [];
+    let selectedRegisters = [];
+    let streamData = [];
+    let chartData = {};
+    let chartTimeRange = 60; // seconds
+    let metricsStartTime = null;
+    let totalPackets = 0;
+    let totalDataSize = 0;
 
-    // contoh metrik
-    const registers = ['Voltage L1','Current L1','Frequency','Power Factor','Total kWH'];
+    // Chart canvas context
+    let chartCanvas = null;
+    let chartCtx = null;
 
-    function sendPayload(payload){
-      // preview payload yang "dikirim"
-      sentPreview.textContent = JSON.stringify(payload, null, 2);
-      // di implementasi nyata, kirim via BLE/WebSocket/HTTP sesuai arsitektur
-      // console.log('SEND', JSON.stringify(payload));
+    // Load mock devices from localStorage
+    function loadDevices() {
+      const devices = JSON.parse(localStorage.getItem('mockDevices') || '[]');
+      return devices;
     }
 
-    function addFeedItem() {
-      const name  = registers[Math.floor(Math.random() * registers.length)];
-      const value = (Math.random() * (250 - 5) + 5).toFixed(2);
-      const time  = new Date().toLocaleTimeString();
+    // Initialize device list
+    function initializeDeviceList() {
+      const devices = loadDevices();
+      const deviceList = $('#deviceList');
 
-      const item = document.createElement('div');
-      item.className = 'p-3 rounded-lg bg-emerald-50 flex justify-between items-center border border-emerald-100';
-      item.innerHTML = `
-        <div>
-          <span class="font-medium text-brand">${name}</span>
-          <span class="block text-[11px] text-slate-500">time: ${time}</span>
-        </div>
-        <span class="text-xl font-mono text-brand">${value}</span>
-      `;
-
-      // newest at top
-      liveFeed.prepend(item);
-      if (liveFeed.children.length > 50) {
-        liveFeed.removeChild(liveFeed.lastChild);
+      if (devices.length === 0) {
+        deviceList.innerHTML = `
+          <div class="col-span-full text-center py-6 text-gray-500">
+            <p>No devices configured</p>
+            <a href="Create New Device.html" class="text-[#2f6f64] hover:underline text-sm mt-2 inline-block">
+              Create your first device →
+            </a>
+          </div>
+        `;
+        return;
       }
-      pktCount++;
-      pktCountEl.textContent = `${pktCount} pkt`;
+
+      deviceList.innerHTML = devices.map(device => `
+        <label class="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+          <input type="checkbox" value="${device.device_id}"
+                 onchange="handleDeviceSelection()"
+                 class="w-4 h-4 text-[#2f6f64] rounded focus:ring-[#2f6f64]">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-800 truncate">${device.device_name}</p>
+            <p class="text-xs text-gray-500">${device.device_id} • ${device.protocol}</p>
+          </div>
+          <span class="px-2 py-1 text-xs rounded-full ${device.enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}">
+            ${device.enabled ? 'Enabled' : 'Disabled'}
+          </span>
+        </label>
+      `).join('');
     }
 
-    function startStream() {
-      // clear interval lama
-      if (streamInterval) { clearInterval(streamInterval); streamInterval = null; }
+    // Handle device selection
+    function handleDeviceSelection() {
+      const checkboxes = $$('#deviceList input[type="checkbox"]:checked');
+      selectedDevices = Array.from(checkboxes).map(cb => cb.value);
 
-      const devId = (deviceIdInput.value || '').trim() || 'UNKNOWN';
-      const payloadStart = { op:'read', type:'data', device_id: devId };
-      sendPayload(payloadStart);
-
-      liveDataPanel.classList.remove('hidden');
-      placeholderPanel.classList.add('hidden');
-      liveFeed.innerHTML = '';
-      pktCount = 0;
-      pktCountEl.textContent = '0 pkt';
-      statusText.textContent = 'Status: running';
-
-      // simulasi data masuk
-      streamInterval = setInterval(addFeedItem, 1500);
+      if (selectedDevices.length > 0) {
+        updateRegisterList();
+        $('#registerFilterSection').classList.remove('hidden');
+      } else {
+        $('#registerFilterSection').classList.add('hidden');
+      }
     }
 
-    function stopStream() {
-      const payloadStop = { op:'read', type:'data', device_id:'stop' };
-      sendPayload(payloadStop);
+    // Update register list based on selected devices
+    function updateRegisterList() {
+      const devices = loadDevices();
+      const registerList = $('#registerList');
 
-      if (streamInterval) { clearInterval(streamInterval); streamInterval = null; }
-      liveDataPanel.classList.add('hidden');
-      placeholderPanel.classList.remove('hidden');
-      statusText.textContent = 'Status: idle';
-    }
-
-    // Toggle handler
-    streamToggle.addEventListener('change', () => {
-      if (streamToggle.checked) startStream();
-      else stopStream();
-    });
-
-    // Clear feed
-    if (btnClear) {
-      btnClear.addEventListener('click', () => {
-        liveFeed.innerHTML = '';
-        pktCount = 0;
-        pktCountEl.textContent = '0 pkt';
+      // Collect all unique registers from selected devices
+      const allRegisters = [];
+      selectedDevices.forEach(deviceId => {
+        const device = devices.find(d => d.device_id === deviceId);
+        if (device && device.registers) {
+          device.registers.forEach(reg => {
+            const regKey = `${deviceId}:${reg.address}`;
+            if (!allRegisters.find(r => r.key === regKey)) {
+              allRegisters.push({
+                key: regKey,
+                deviceId: deviceId,
+                deviceName: device.device_name,
+                name: reg.register_name,
+                address: reg.address
+              });
+            }
+          });
+        }
       });
+
+      if (allRegisters.length === 0) {
+        registerList.innerHTML = `
+          <p class="text-sm text-gray-500 py-4">Selected devices have no registers configured</p>
+        `;
+        return;
+      }
+
+      registerList.innerHTML = allRegisters.map(reg => `
+        <label class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer">
+          <input type="checkbox" value="${reg.key}"
+                 class="w-4 h-4 text-[#2f6f64] rounded focus:ring-[#2f6f64]">
+          <div class="flex-1">
+            <p class="text-sm font-medium text-gray-700">${reg.name}</p>
+            <p class="text-xs text-gray-500">${reg.deviceName} • Address: ${reg.address}</p>
+          </div>
+        </label>
+      `).join('');
     }
 
-    // seed preview kosong
-    sentPreview.textContent = '';
+    // Toggle streaming
+    function toggleStreaming() {
+      if (isStreaming) {
+        stopStreaming();
+      } else {
+        startStreaming();
+      }
+    }
+
+    // Start streaming
+    function startStreaming() {
+      // Validate selection
+      const deviceCheckboxes = $$('#deviceList input[type="checkbox"]:checked');
+      if (deviceCheckboxes.length === 0) {
+        showToast('Please select at least one device', 'warning');
+        return;
+      }
+
+      selectedDevices = Array.from(deviceCheckboxes).map(cb => cb.value);
+
+      const registerCheckboxes = $$('#registerList input[type="checkbox"]:checked');
+      selectedRegisters = Array.from(registerCheckboxes).map(cb => cb.value);
+
+      // Reset state
+      isStreaming = true;
+      streamData = [];
+      totalPackets = 0;
+      totalDataSize = 0;
+      metricsStartTime = Date.now();
+      chartData = {};
+
+      // Initialize chart data for each register
+      const devices = loadDevices();
+      selectedDevices.forEach(deviceId => {
+        const device = devices.find(d => d.device_id === deviceId);
+        if (device && device.registers) {
+          device.registers.forEach(reg => {
+            const regKey = `${deviceId}:${reg.address}`;
+            // If specific registers selected, only include those
+            if (selectedRegisters.length === 0 || selectedRegisters.includes(regKey)) {
+              chartData[regKey] = {
+                label: `${device.device_name} - ${reg.register_name}`,
+                data: [],
+                color: getRandomColor()
+              };
+            }
+          });
+        }
+      });
+
+      // Update UI
+      $('#statusValue').textContent = 'Streaming...';
+      $('#statusValue').className = 'font-medium text-emerald-600';
+      $('#btnText').textContent = 'Stop Streaming';
+      $('#iconStart').innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+      `;
+      $('#btnStartStop').className = 'flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium';
+
+      // Show sections
+      $('#placeholderSection').classList.add('hidden');
+      $('#metricsSection').classList.remove('hidden');
+      $('#chartSection').classList.remove('hidden');
+      $('#dataFeedSection').classList.remove('hidden');
+
+      // Initialize chart
+      initializeChart();
+
+      // Start streaming simulation
+      streamInterval = setInterval(simulateDataPacket, 1500);
+
+      showToast(`Started streaming ${selectedDevices.length} device(s)`, 'success');
+    }
+
+    // Stop streaming
+    function stopStreaming() {
+      isStreaming = false;
+
+      if (streamInterval) {
+        clearInterval(streamInterval);
+        streamInterval = null;
+      }
+
+      // Update UI
+      $('#statusValue').textContent = 'Idle';
+      $('#statusValue').className = 'font-medium text-gray-700';
+      $('#btnText').textContent = 'Start Streaming';
+      $('#iconStart').innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      `;
+      $('#btnStartStop').className = 'flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium';
+
+      showToast('Streaming stopped', 'info');
+    }
+
+    // Simulate data packet
+    function simulateDataPacket() {
+      const devices = loadDevices();
+      const timestamp = Date.now();
+
+      selectedDevices.forEach(deviceId => {
+        const device = devices.find(d => d.device_id === deviceId);
+        if (!device || !device.registers) return;
+
+        device.registers.forEach(reg => {
+          const regKey = `${deviceId}:${reg.address}`;
+
+          // If specific registers selected, only include those
+          if (selectedRegisters.length > 0 && !selectedRegisters.includes(regKey)) {
+            return;
+          }
+
+          // Generate random value based on data type
+          const value = generateRandomValue(reg.data_type);
+
+          // Apply calibration if exists
+          const finalValue = applyCalibration(value, reg.calibration);
+
+          // Add to stream data
+          const dataPoint = {
+            timestamp,
+            deviceId,
+            deviceName: device.device_name,
+            registerName: reg.register_name,
+            address: reg.address,
+            value: finalValue,
+            unit: reg.unit || ''
+          };
+
+          streamData.unshift(dataPoint); // Add to beginning
+
+          // Keep only last 100 items in feed
+          if (streamData.length > 100) {
+            streamData.pop();
+          }
+
+          // Update chart data
+          if (chartData[regKey]) {
+            chartData[regKey].data.push({
+              time: timestamp,
+              value: finalValue
+            });
+
+            // Keep only data within time range
+            const cutoffTime = timestamp - (chartTimeRange * 1000);
+            chartData[regKey].data = chartData[regKey].data.filter(d => d.time > cutoffTime);
+          }
+
+          // Update metrics
+          totalPackets++;
+          totalDataSize += 0.05; // Approximate 50 bytes per data point
+        });
+      });
+
+      // Update UI
+      updateDataFeed();
+      updateChart();
+      updateMetrics();
+    }
+
+    // Generate random value based on data type
+    function generateRandomValue(dataType) {
+      if (dataType.includes('FLOAT') || dataType.includes('DOUBLE')) {
+        return (Math.random() * 200 + 50).toFixed(2);
+      } else if (dataType.includes('UINT')) {
+        return Math.floor(Math.random() * 1000);
+      } else {
+        return Math.floor(Math.random() * 500 - 250);
+      }
+    }
+
+    // Apply calibration
+    function applyCalibration(value, calibration) {
+      if (!calibration) return parseFloat(value);
+
+      const scale = calibration.scale || 1.0;
+      const offset = calibration.offset || 0.0;
+
+      return (parseFloat(value) * scale + offset).toFixed(2);
+    }
+
+    // Update data feed
+    function updateDataFeed() {
+      const dataFeed = $('#dataFeed');
+
+      if (streamData.length === 0) {
+        $('#emptyDataFeed').classList.remove('hidden');
+        return;
+      }
+
+      $('#emptyDataFeed').classList.add('hidden');
+
+      dataFeed.innerHTML = streamData.slice(0, 20).map(data => {
+        const timeStr = new Date(data.timestamp).toLocaleTimeString();
+        return `
+          <div class="fade-in flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-[#2f6f64] transition-colors">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-800 truncate">${data.registerName}</p>
+              <p class="text-xs text-gray-500">${data.deviceName} • ${timeStr}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-lg font-bold text-[#2f6f64]">${data.value}</p>
+              <p class="text-xs text-gray-500">${data.unit}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Initialize chart
+    function initializeChart() {
+      chartCanvas = $('#liveChart');
+      chartCtx = chartCanvas.getContext('2d');
+
+      // Set canvas size
+      const rect = chartCanvas.getBoundingClientRect();
+      chartCanvas.width = rect.width;
+      chartCanvas.height = 300;
+
+      drawChart();
+    }
+
+    // Update chart
+    function updateChart() {
+      if (!chartCtx) return;
+      drawChart();
+    }
+
+    // Draw chart
+    function drawChart() {
+      const width = chartCanvas.width;
+      const height = chartCanvas.height;
+      const padding = { top: 20, right: 20, bottom: 40, left: 60 };
+      const chartWidth = width - padding.left - padding.right;
+      const chartHeight = height - padding.top - padding.bottom;
+
+      // Clear canvas
+      chartCtx.clearRect(0, 0, width, height);
+
+      // Draw background
+      chartCtx.fillStyle = '#ffffff';
+      chartCtx.fillRect(0, 0, width, height);
+
+      // Get all data points
+      const allData = [];
+      Object.values(chartData).forEach(series => {
+        allData.push(...series.data.map(d => d.value));
+      });
+
+      if (allData.length === 0) {
+        // No data message
+        chartCtx.fillStyle = '#9ca3af';
+        chartCtx.font = '14px sans-serif';
+        chartCtx.textAlign = 'center';
+        chartCtx.fillText('No data to display', width / 2, height / 2);
+        return;
+      }
+
+      // Calculate scales
+      const minValue = Math.min(...allData);
+      const maxValue = Math.max(...allData);
+      const valueRange = maxValue - minValue || 1;
+      const now = Date.now();
+      const timeRange = chartTimeRange * 1000;
+
+      // Draw grid lines
+      chartCtx.strokeStyle = '#e5e7eb';
+      chartCtx.lineWidth = 1;
+
+      // Horizontal grid lines
+      for (let i = 0; i <= 5; i++) {
+        const y = padding.top + (chartHeight / 5) * i;
+        chartCtx.beginPath();
+        chartCtx.moveTo(padding.left, y);
+        chartCtx.lineTo(padding.left + chartWidth, y);
+        chartCtx.stroke();
+
+        // Y-axis labels
+        const value = maxValue - (valueRange / 5) * i;
+        chartCtx.fillStyle = '#6b7280';
+        chartCtx.font = '12px sans-serif';
+        chartCtx.textAlign = 'right';
+        chartCtx.fillText(value.toFixed(1), padding.left - 10, y + 4);
+      }
+
+      // Vertical grid lines
+      for (let i = 0; i <= 5; i++) {
+        const x = padding.left + (chartWidth / 5) * i;
+        chartCtx.beginPath();
+        chartCtx.moveTo(x, padding.top);
+        chartCtx.lineTo(x, padding.top + chartHeight);
+        chartCtx.stroke();
+
+        // X-axis labels
+        const secondsAgo = chartTimeRange - (chartTimeRange / 5) * i;
+        chartCtx.fillStyle = '#6b7280';
+        chartCtx.font = '12px sans-serif';
+        chartCtx.textAlign = 'center';
+        chartCtx.fillText(`-${secondsAgo.toFixed(0)}s`, x, height - 15);
+      }
+
+      // Draw data series
+      Object.values(chartData).forEach((series, index) => {
+        if (series.data.length === 0) return;
+
+        chartCtx.strokeStyle = series.color;
+        chartCtx.lineWidth = 2;
+        chartCtx.beginPath();
+
+        let firstPoint = true;
+        series.data.forEach(point => {
+          const x = padding.left + ((now - point.time) / timeRange) * chartWidth;
+          const normalizedValue = (point.value - minValue) / valueRange;
+          const y = padding.top + chartHeight - (normalizedValue * chartHeight);
+
+          if (firstPoint) {
+            chartCtx.moveTo(width - x + padding.left, y);
+            firstPoint = false;
+          } else {
+            chartCtx.lineTo(width - x + padding.left, y);
+          }
+        });
+
+        chartCtx.stroke();
+      });
+
+      // Draw legend
+      let legendY = 10;
+      Object.values(chartData).forEach(series => {
+        chartCtx.fillStyle = series.color;
+        chartCtx.fillRect(width - 150, legendY, 12, 12);
+
+        chartCtx.fillStyle = '#374151';
+        chartCtx.font = '11px sans-serif';
+        chartCtx.textAlign = 'left';
+        chartCtx.fillText(series.label.substring(0, 20), width - 135, legendY + 10);
+
+        legendY += 18;
+      });
+
+      // Draw axes
+      chartCtx.strokeStyle = '#374151';
+      chartCtx.lineWidth = 2;
+      chartCtx.beginPath();
+      chartCtx.moveTo(padding.left, padding.top);
+      chartCtx.lineTo(padding.left, padding.top + chartHeight);
+      chartCtx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+      chartCtx.stroke();
+    }
+
+    // Update metrics
+    function updateMetrics() {
+      $('#metricPackets').textContent = totalPackets;
+      $('#metricDataSize').textContent = totalDataSize.toFixed(2);
+
+      const duration = Math.floor((Date.now() - metricsStartTime) / 1000);
+      const minutes = Math.floor(duration / 60);
+      const seconds = duration % 60;
+      $('#metricDuration').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+      const rate = duration > 0 ? (totalPackets / duration).toFixed(1) : '0.0';
+      $('#metricRate').textContent = rate;
+    }
+
+    // Change chart time range
+    function changeChartTimeRange(seconds) {
+      chartTimeRange = seconds;
+      updateChart();
+    }
+
+    // Clear all data
+    function clearData() {
+      if (!confirm('Clear all streaming data?')) return;
+
+      streamData = [];
+      chartData = {};
+      totalPackets = 0;
+      totalDataSize = 0;
+
+      if (isStreaming) {
+        metricsStartTime = Date.now();
+      }
+
+      updateDataFeed();
+      updateChart();
+      updateMetrics();
+
+      showToast('Data cleared', 'info');
+    }
+
+    // Export to CSV
+    function exportToCSV() {
+      if (streamData.length === 0) {
+        showToast('No data to export', 'warning');
+        return;
+      }
+
+      // Prepare CSV content
+      const headers = ['Timestamp', 'Device ID', 'Device Name', 'Register', 'Address', 'Value', 'Unit'];
+      const rows = streamData.map(data => [
+        new Date(data.timestamp).toISOString(),
+        data.deviceId,
+        data.deviceName,
+        data.registerName,
+        data.address,
+        data.value,
+        data.unit
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', `streaming_data_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast(`Exported ${streamData.length} data points to CSV`, 'success');
+    }
+
+    // Get random color for chart series
+    function getRandomColor() {
+      const colors = [
+        '#3b82f6', // blue
+        '#10b981', // emerald
+        '#f59e0b', // amber
+        '#ef4444', // red
+        '#8b5cf6', // purple
+        '#ec4899', // pink
+        '#06b6d4', // cyan
+        '#84cc16', // lime
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    // Toast notification
+    function showToast(message, type = 'info') {
+      const colors = {
+        success: 'bg-emerald-500',
+        error: 'bg-red-500',
+        warning: 'bg-amber-500',
+        info: 'bg-blue-500'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in`;
+      toast.textContent = message;
+
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeDeviceList();
+    });
   </script>
+
 </body>
 </html>
