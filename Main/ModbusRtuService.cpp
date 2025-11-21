@@ -95,6 +95,25 @@ void ModbusRtuService::start()
   if (result == pdPASS)
   {
     Serial.println("Modbus RTU service started successfully");
+
+    // Start auto-recovery task
+    BaseType_t recoveryResult = xTaskCreatePinnedToCore(
+        autoRecoveryTask,
+        "RTU_AUTO_RECOVERY",
+        4096,
+        this,
+        1,
+        &autoRecoveryTaskHandle,
+        1);
+
+    if (recoveryResult == pdPASS)
+    {
+      Serial.println("[RTU] Auto-recovery task started");
+    }
+    else
+    {
+      Serial.println("[RTU] WARNING: Failed to create auto-recovery task");
+    }
   }
   else
   {
@@ -107,12 +126,24 @@ void ModbusRtuService::start()
 void ModbusRtuService::stop()
 {
   running = false;
+
+  // Stop auto-recovery task
+  if (autoRecoveryTaskHandle)
+  {
+    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelete(autoRecoveryTaskHandle);
+    autoRecoveryTaskHandle = nullptr;
+    Serial.println("[RTU] Auto-recovery task stopped");
+  }
+
+  // Stop main RTU task
   if (rtuTaskHandle)
   {
     vTaskDelay(pdMS_TO_TICKS(100));
     vTaskDelete(rtuTaskHandle);
     rtuTaskHandle = nullptr;
   }
+
   Serial.println("Modbus RTU service stopped");
 }
 
@@ -172,6 +203,11 @@ void ModbusRtuService::refreshDeviceList()
     }
   }
   Serial.printf("[RTU Task] Found %d RTU devices. Schedule rebuilt.\n", rtuDevices.size());
+
+  // Initialize device tracking after device list is loaded
+  initializeDeviceFailureTracking();
+  initializeDeviceTimeouts();
+  initializeDeviceMetrics();
 }
 
 void ModbusRtuService::readRtuDevicesLoop()
@@ -963,6 +999,41 @@ ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const ch
   return nullptr;
 }
 
+// NEW: Enhancement - Device Health Metrics Tracking
+void ModbusRtuService::initializeDeviceMetrics()
+{
+  Serial.println("[RTU] Initializing device health metrics tracking...");
+  deviceMetrics.clear();
+
+  for (const auto &device : rtuDevices)
+  {
+    DeviceHealthMetrics metrics;
+    metrics.deviceId = device.deviceId;
+    metrics.totalReads = 0;
+    metrics.successfulReads = 0;
+    metrics.failedReads = 0;
+    metrics.totalResponseTimeMs = 0;
+    metrics.minResponseTimeMs = 65535;
+    metrics.maxResponseTimeMs = 0;
+    metrics.lastResponseTimeMs = 0;
+    deviceMetrics.push_back(metrics);
+
+    Serial.printf("[RTU] Initialized metrics tracking for device: %s\n", device.deviceId);
+  }
+}
+
+ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const char* deviceId)
+{
+  for (auto &metrics : deviceMetrics)
+  {
+    if (metrics.deviceId == deviceId)
+    {
+      return &metrics;
+    }
+  }
+  return nullptr;
+}
+
 bool ModbusRtuService::configureDeviceBaudRate(const char* deviceId, uint16_t baudRate)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
@@ -1075,7 +1146,7 @@ void ModbusRtuService::handleReadFailure(const char* deviceId)
     // Max retries exceeded
     Serial.printf("[RTU] Device %s exceeded max retries (%d), disabling...\n",
                   deviceId, state->maxRetries);
-    disableDevice(deviceId);
+    disableDevice(deviceId, DeviceFailureState::AUTO_RETRY, "Max retries exceeded");
   }
 }
 
@@ -1144,7 +1215,7 @@ void ModbusRtuService::handleReadTimeout(const char* deviceId)
   {
     Serial.printf("[RTU] Device %s exceeded timeout limit (%d), disabling...\n",
                   deviceId, timeout->maxConsecutiveTimeouts);
-    disableDevice(deviceId);
+    disableDevice(deviceId, DeviceFailureState::AUTO_TIMEOUT, "Max consecutive timeouts exceeded");
   }
   else
   {
@@ -1161,13 +1232,16 @@ bool ModbusRtuService::isDeviceEnabled(const char* deviceId)
   return state->isEnabled;
 }
 
-void ModbusRtuService::enableDevice(const char* deviceId)
+void ModbusRtuService::enableDevice(const char* deviceId, bool clearMetrics)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
     return;
 
   state->isEnabled = true;
+  state->disableReason = DeviceFailureState::NONE;  // Clear disable reason
+  state->disableReasonDetail = "";
+  state->disabledTimestamp = 0;
   resetDeviceFailureState(deviceId);
 
   DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
@@ -1177,18 +1251,56 @@ void ModbusRtuService::enableDevice(const char* deviceId)
     timeout->lastSuccessfulRead = millis();
   }
 
-  Serial.printf("[RTU] Device %s enabled\n", deviceId);
+  // Optionally clear health metrics
+  if (clearMetrics)
+  {
+    DeviceHealthMetrics *metrics = getDeviceMetrics(deviceId);
+    if (metrics)
+    {
+      metrics->totalReads = 0;
+      metrics->successfulReads = 0;
+      metrics->failedReads = 0;
+      metrics->totalResponseTimeMs = 0;
+      metrics->minResponseTimeMs = 65535;
+      metrics->maxResponseTimeMs = 0;
+      metrics->lastResponseTimeMs = 0;
+      Serial.printf("[RTU] Device %s metrics cleared\n", deviceId);
+    }
+  }
+
+  Serial.printf("[RTU] Device %s enabled (reason cleared)\n", deviceId);
 }
 
-void ModbusRtuService::disableDevice(const char* deviceId)
+void ModbusRtuService::disableDevice(const char* deviceId, DeviceFailureState::DisableReason reason, const char* reasonDetail)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
     return;
 
   state->isEnabled = false;
+  state->disableReason = reason;
+  state->disableReasonDetail = reasonDetail;
+  state->disabledTimestamp = millis();
 
-  Serial.printf("[RTU] Device %s disabled due to failures/timeouts\n", deviceId);
+  const char* reasonText = "";
+  switch (reason)
+  {
+    case DeviceFailureState::MANUAL:
+      reasonText = "MANUAL";
+      break;
+    case DeviceFailureState::AUTO_RETRY:
+      reasonText = "AUTO_RETRY";
+      break;
+    case DeviceFailureState::AUTO_TIMEOUT:
+      reasonText = "AUTO_TIMEOUT";
+      break;
+    default:
+      reasonText = "UNKNOWN";
+      break;
+  }
+
+  Serial.printf("[RTU] Device %s disabled (reason: %s, detail: %s)\n",
+                deviceId, reasonText, reasonDetail);
 }
 
 // NEW: Polling Hierarchy Implementation
@@ -1252,6 +1364,169 @@ void ModbusRtuService::setDataTransmissionInterval(uint32_t intervalMs)
 {
   dataTransmissionSchedule.dataIntervalMs = intervalMs;
   Serial.printf("[RTU] Data transmission interval set to: %lums\n", intervalMs);
+}
+
+// ============================================
+// NEW: Enhancement - Public API for BLE Device Control Commands
+// ============================================
+
+bool ModbusRtuService::enableDeviceByCommand(const char* deviceId, bool clearMetrics)
+{
+  Serial.printf("[RTU] BLE Command: Enable device %s (clearMetrics: %s)\n",
+                deviceId, clearMetrics ? "true" : "false");
+
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    return false;
+  }
+
+  enableDevice(deviceId, clearMetrics);
+  return true;
+}
+
+bool ModbusRtuService::disableDeviceByCommand(const char* deviceId, const char* reasonDetail)
+{
+  Serial.printf("[RTU] BLE Command: Disable device %s (reason: %s)\n",
+                deviceId, reasonDetail);
+
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    return false;
+  }
+
+  disableDevice(deviceId, DeviceFailureState::MANUAL, reasonDetail);
+  return true;
+}
+
+bool ModbusRtuService::getDeviceStatusInfo(const char* deviceId, JsonObject &statusInfo)
+{
+  DeviceFailureState *state = getDeviceFailureState(deviceId);
+  if (!state)
+  {
+    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    return false;
+  }
+
+  DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
+  DeviceHealthMetrics *metrics = getDeviceMetrics(deviceId);
+
+  // Basic status
+  statusInfo["device_id"] = deviceId;
+  statusInfo["enabled"] = state->isEnabled;
+  statusInfo["consecutive_failures"] = state->consecutiveFailures;
+  statusInfo["retry_count"] = state->retryCount;
+
+  // Disable reason
+  const char* reasonText = "";
+  switch (state->disableReason)
+  {
+    case DeviceFailureState::NONE:
+      reasonText = "NONE";
+      break;
+    case DeviceFailureState::MANUAL:
+      reasonText = "MANUAL";
+      break;
+    case DeviceFailureState::AUTO_RETRY:
+      reasonText = "AUTO_RETRY";
+      break;
+    case DeviceFailureState::AUTO_TIMEOUT:
+      reasonText = "AUTO_TIMEOUT";
+      break;
+  }
+  statusInfo["disable_reason"] = reasonText;
+  statusInfo["disable_reason_detail"] = state->disableReasonDetail.c_str();
+
+  if (state->disabledTimestamp > 0)
+  {
+    unsigned long disabledDuration = millis() - state->disabledTimestamp;
+    statusInfo["disabled_duration_ms"] = disabledDuration;
+  }
+
+  // Timeout info
+  if (timeout)
+  {
+    statusInfo["timeout_ms"] = timeout->timeoutMs;
+    statusInfo["consecutive_timeouts"] = timeout->consecutiveTimeouts;
+    statusInfo["max_consecutive_timeouts"] = timeout->maxConsecutiveTimeouts;
+  }
+
+  // Health metrics
+  if (metrics)
+  {
+    JsonObject metricsObj = statusInfo["metrics"].to<JsonObject>();
+    metricsObj["total_reads"] = metrics->totalReads;
+    metricsObj["successful_reads"] = metrics->successfulReads;
+    metricsObj["failed_reads"] = metrics->failedReads;
+    metricsObj["success_rate"] = metrics->getSuccessRate();
+    metricsObj["avg_response_time_ms"] = metrics->getAvgResponseTimeMs();
+    metricsObj["min_response_time_ms"] = metrics->minResponseTimeMs;
+    metricsObj["max_response_time_ms"] = metrics->maxResponseTimeMs;
+    metricsObj["last_response_time_ms"] = metrics->lastResponseTimeMs;
+  }
+
+  return true;
+}
+
+bool ModbusRtuService::getAllDevicesStatus(JsonObject &allStatus)
+{
+  JsonArray devicesArray = allStatus["devices"].to<JsonArray>();
+
+  for (const auto &device : rtuDevices)
+  {
+    JsonObject deviceStatus = devicesArray.add<JsonObject>();
+    getDeviceStatusInfo(device.deviceId.c_str(), deviceStatus);
+  }
+
+  allStatus["total_devices"] = rtuDevices.size();
+  return true;
+}
+
+// ============================================
+// NEW: Enhancement - Auto-Recovery Task
+// ============================================
+
+void ModbusRtuService::autoRecoveryTask(void *parameter)
+{
+  ModbusRtuService *service = static_cast<ModbusRtuService *>(parameter);
+  service->autoRecoveryLoop();
+}
+
+void ModbusRtuService::autoRecoveryLoop()
+{
+  Serial.println("[RTU AutoRecovery] Task started");
+  const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
+
+  while (running)
+  {
+    vTaskDelay(pdMS_TO_TICKS(RECOVERY_INTERVAL_MS));
+
+    if (!running)
+      break;
+
+    Serial.println("[RTU AutoRecovery] Checking for auto-disabled devices...");
+    unsigned long now = millis();
+
+    for (auto &state : deviceFailureStates)
+    {
+      if (!state.isEnabled &&
+          (state.disableReason == DeviceFailureState::AUTO_RETRY ||
+           state.disableReason == DeviceFailureState::AUTO_TIMEOUT))
+      {
+        unsigned long disabledDuration = now - state.disabledTimestamp;
+        Serial.printf("[RTU AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
+                      state.deviceId.c_str(), disabledDuration);
+
+        enableDevice(state.deviceId.c_str(), false);  // Don't clear metrics
+        Serial.printf("[RTU AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
+      }
+    }
+  }
+
+  Serial.println("[RTU AutoRecovery] Task stopped");
 }
 
 ModbusRtuService::~ModbusRtuService()

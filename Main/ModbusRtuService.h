@@ -53,9 +53,21 @@ private:
     uint8_t retryCount = 0;            // Current retry attempt count
     unsigned long nextRetryTime = 0;   // When to retry (exponential backoff)
     unsigned long lastReadAttempt = 0; // Timestamp of last read attempt
+    unsigned long lastSuccessfulRead = 0; // NEW: Track last success time for metrics
     bool isEnabled = true;             // Enable/disable for polling
     uint16_t baudRate = 9600;          // Per-device baud rate
     uint32_t maxRetries = 5;           // Max retry attempts
+
+    // NEW: Enhancement - Flexible Disable Reason Tracking
+    enum DisableReason {
+      NONE = 0,           // Device is enabled
+      MANUAL = 1,         // Manually disabled via BLE command
+      AUTO_RETRY = 2,     // Auto-disabled: max retries exceeded
+      AUTO_TIMEOUT = 3    // Auto-disabled: max consecutive timeouts
+    };
+    DisableReason disableReason = NONE;
+    PSRAMString disableReasonDetail;      // User-provided reason (e.g., "maintenance")
+    unsigned long disabledTimestamp = 0;  // When device was disabled (for auto-recovery)
   };
   std::vector<DeviceFailureState> deviceFailureStates; // Dynamic device tracking
 
@@ -69,6 +81,49 @@ private:
     uint8_t maxConsecutiveTimeouts = 3;   // Disable device after 3 timeouts
   };
   std::vector<DeviceReadTimeout> deviceTimeouts; // Dynamic timeout tracking
+
+  // NEW: Enhancement - Device Health Metrics Tracking (Phase 2)
+  struct DeviceHealthMetrics
+  {
+    PSRAMString deviceId;
+
+    // Counters
+    uint32_t totalReads = 0;
+    uint32_t successfulReads = 0;
+    uint32_t failedReads = 0;
+
+    // Response time tracking (in milliseconds)
+    uint32_t totalResponseTimeMs = 0;  // Sum for averaging
+    uint16_t minResponseTimeMs = 65535;
+    uint16_t maxResponseTimeMs = 0;
+    uint16_t lastResponseTimeMs = 0;
+
+    // Calculate metrics
+    float getSuccessRate() const {
+      if (totalReads == 0) return 100.0f;
+      return (successfulReads * 100.0f) / totalReads;
+    }
+
+    uint16_t getAvgResponseTimeMs() const {
+      if (successfulReads == 0) return 0;
+      return totalResponseTimeMs / successfulReads;
+    }
+
+    // Record a read attempt
+    void recordRead(bool success, uint16_t responseTimeMs = 0) {
+      totalReads++;
+      if (success) {
+        successfulReads++;
+        totalResponseTimeMs += responseTimeMs;
+        lastResponseTimeMs = responseTimeMs;
+        if (responseTimeMs < minResponseTimeMs) minResponseTimeMs = responseTimeMs;
+        if (responseTimeMs > maxResponseTimeMs) maxResponseTimeMs = responseTimeMs;
+      } else {
+        failedReads++;
+      }
+    }
+  };
+  std::vector<DeviceHealthMetrics> deviceMetrics; // Dynamic metrics tracking
 
   // --- New Scheduler Structures ---
   struct PollingTask
@@ -129,8 +184,10 @@ private:
   // Modbus Improvement Phase - Helper Methods
   void initializeDeviceFailureTracking();
   void initializeDeviceTimeouts();
+  void initializeDeviceMetrics();  // NEW: Enhancement - Initialize metrics tracking
   struct DeviceFailureState *getDeviceFailureState(const char* deviceId);  // BUG #31: const char* instead of String
   struct DeviceReadTimeout *getDeviceTimeout(const char* deviceId);  // BUG #31: const char* instead of String
+  struct DeviceHealthMetrics *getDeviceMetrics(const char* deviceId);  // NEW: Enhancement - Get metrics
 
   // Baud rate configuration
   bool configureDeviceBaudRate(const char* deviceId, uint16_t baudRate);  // BUG #31: const char* instead of String
@@ -145,8 +202,15 @@ private:
   // Timeout and device management
   void handleReadTimeout(const char* deviceId);  // BUG #31: const char* instead of String
   bool isDeviceEnabled(const char* deviceId);  // BUG #31: const char* instead of String
-  void enableDevice(const char* deviceId);  // BUG #31: const char* instead of String
-  void disableDevice(const char* deviceId);  // BUG #31: const char* instead of String
+
+  // NEW: Enhancement - Flexible enable/disable with reason tracking
+  void enableDevice(const char* deviceId, bool clearMetrics = false);  // Updated signature
+  void disableDevice(const char* deviceId, DeviceFailureState::DisableReason reason, const char* reasonDetail = "");  // Updated signature
+
+  // NEW: Enhancement - Auto-recovery for auto-disabled devices
+  static void autoRecoveryTask(void *parameter);
+  void autoRecoveryLoop();
+  TaskHandle_t autoRecoveryTaskHandle = nullptr;
 
 public:
   ModbusRtuService(ConfigManager *config);
@@ -157,6 +221,12 @@ public:
   void getStatus(JsonObject &status);
 
   void notifyConfigChange();
+
+  // NEW: Enhancement - Public API for BLE device control commands
+  bool enableDeviceByCommand(const char* deviceId, bool clearMetrics = false);
+  bool disableDeviceByCommand(const char* deviceId, const char* reasonDetail = "");
+  bool getDeviceStatusInfo(const char* deviceId, JsonObject &statusInfo);
+  bool getAllDevicesStatus(JsonObject &allStatus);
 
   ~ModbusRtuService();
 };

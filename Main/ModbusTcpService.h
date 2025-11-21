@@ -54,6 +54,81 @@ private:
   };
   std::vector<TcpDeviceConfig> tcpDevices;
 
+  // NEW: Enhancement - Device Failure State Tracking (matching RTU service)
+  struct DeviceFailureState
+  {
+    String deviceId;  // TODO: Convert to PSRAMString in future (BUG #31 continuation)
+    uint8_t consecutiveFailures = 0;
+    uint8_t retryCount = 0;
+    unsigned long nextRetryTime = 0;
+    unsigned long lastReadAttempt = 0;
+    unsigned long lastSuccessfulRead = 0;
+    bool isEnabled = true;
+    uint32_t maxRetries = 5;
+
+    // Flexible disable reason tracking
+    enum DisableReason {
+      NONE = 0,
+      MANUAL = 1,
+      AUTO_RETRY = 2,
+      AUTO_TIMEOUT = 3
+    };
+    DisableReason disableReason = NONE;
+    String disableReasonDetail;
+    unsigned long disabledTimestamp = 0;
+  };
+  std::vector<DeviceFailureState> deviceFailureStates;
+
+  // NEW: Enhancement - Device Read Timeout Configuration
+  struct DeviceReadTimeout
+  {
+    String deviceId;
+    uint16_t timeoutMs = 5000;
+    uint8_t consecutiveTimeouts = 0;
+    unsigned long lastSuccessfulRead = 0;
+    uint8_t maxConsecutiveTimeouts = 3;
+  };
+  std::vector<DeviceReadTimeout> deviceTimeouts;
+
+  // NEW: Enhancement - Device Health Metrics Tracking
+  struct DeviceHealthMetrics
+  {
+    String deviceId;
+
+    uint32_t totalReads = 0;
+    uint32_t successfulReads = 0;
+    uint32_t failedReads = 0;
+
+    uint32_t totalResponseTimeMs = 0;
+    uint16_t minResponseTimeMs = 65535;
+    uint16_t maxResponseTimeMs = 0;
+    uint16_t lastResponseTimeMs = 0;
+
+    float getSuccessRate() const {
+      if (totalReads == 0) return 100.0f;
+      return (successfulReads * 100.0f) / totalReads;
+    }
+
+    uint16_t getAvgResponseTimeMs() const {
+      if (successfulReads == 0) return 0;
+      return totalResponseTimeMs / successfulReads;
+    }
+
+    void recordRead(bool success, uint16_t responseTimeMs = 0) {
+      totalReads++;
+      if (success) {
+        successfulReads++;
+        totalResponseTimeMs += responseTimeMs;
+        lastResponseTimeMs = responseTimeMs;
+        if (responseTimeMs < minResponseTimeMs) minResponseTimeMs = responseTimeMs;
+        if (responseTimeMs > maxResponseTimeMs) maxResponseTimeMs = responseTimeMs;
+      } else {
+        failedReads++;
+      }
+    }
+  };
+  std::vector<DeviceHealthMetrics> deviceMetrics;
+
   // --- New Scheduler Structures ---
   struct PollingTask
   {
@@ -127,6 +202,33 @@ private:
   // Atomic transaction counter
   uint16_t getNextTransactionId();
 
+  // NEW: Enhancement - Device failure and metrics management
+  void initializeDeviceFailureTracking();
+  void initializeDeviceTimeouts();
+  void initializeDeviceMetrics();
+  struct DeviceFailureState *getDeviceFailureState(const String &deviceId);
+  struct DeviceReadTimeout *getDeviceTimeout(const String &deviceId);
+  struct DeviceHealthMetrics *getDeviceMetrics(const String &deviceId);
+
+  // NEW: Enhancement - Flexible enable/disable with reason tracking
+  void enableDevice(const String &deviceId, bool clearMetrics = false);
+  void disableDevice(const String &deviceId, DeviceFailureState::DisableReason reason, const String &reasonDetail = "");
+
+  // Exponential backoff retry logic
+  void handleReadFailure(const String &deviceId);
+  bool shouldRetryDevice(const String &deviceId);
+  unsigned long calculateBackoffTime(uint8_t retryCount);
+  void resetDeviceFailureState(const String &deviceId);
+
+  // Timeout and device management
+  void handleReadTimeout(const String &deviceId);
+  bool isDeviceEnabled(const String &deviceId);
+
+  // NEW: Enhancement - Auto-recovery for auto-disabled devices
+  static void autoRecoveryTask(void *parameter);
+  void autoRecoveryLoop();
+  TaskHandle_t autoRecoveryTaskHandle = nullptr;
+
 public:
   ModbusTcpService(ConfigManager *config, EthernetManager *ethernet);
 
@@ -136,6 +238,12 @@ public:
   void getStatus(JsonObject &status);
 
   void notifyConfigChange();
+
+  // NEW: Enhancement - Public API for BLE device control commands
+  bool enableDeviceByCommand(const String &deviceId, bool clearMetrics = false);
+  bool disableDeviceByCommand(const String &deviceId, const String &reasonDetail = "");
+  bool getDeviceStatusInfo(const String &deviceId, JsonObject &statusInfo);
+  bool getAllDevicesStatus(JsonObject &allStatus);
 
   ~ModbusTcpService();
 };
