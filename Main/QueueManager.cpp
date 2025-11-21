@@ -407,7 +407,8 @@ bool QueueManager::enqueueStream(const JsonObject &dataPoint)
 
   if (success)
   {
-    Serial.printf("Stream queue: Added data, size now: %d\n", uxQueueMessagesWaiting(streamQueue));
+    // Verbose log suppressed - summary shown in [STREAM] logs
+    // Serial.printf("Stream queue: Added data, size now: %d\n", uxQueueMessagesWaiting(streamQueue));
   }
   else
   {
@@ -437,7 +438,8 @@ bool QueueManager::dequeueStream(JsonObject &dataPoint)
 
   if (xQueueReceive(streamQueue, &jsonString, 0) == pdTRUE)
   {
-    Serial.printf("Stream queue: Dequeued data, size now: %d\n", uxQueueMessagesWaiting(streamQueue));
+    // Verbose log suppressed - summary shown in [STREAM] logs
+    // Serial.printf("Stream queue: Dequeued data, size now: %d\n", uxQueueMessagesWaiting(streamQueue));
     JsonDocument doc;
     if (deserializeJson(doc, jsonString) == DeserializationError::Ok)
     {

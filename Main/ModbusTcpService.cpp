@@ -1050,7 +1050,7 @@ void ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
 
   if (!streamId.isEmpty() && streamId == deviceId && queueMgr)
   {
-    Serial.printf("[TCP] Streaming data for device %s to BLE\n", deviceId.c_str());
+    // Verbose log suppressed - summary shown in [STREAM] logs
     queueMgr->enqueueStream(dataPoint);
   }
 }
