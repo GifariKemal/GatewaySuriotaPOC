@@ -1281,9 +1281,28 @@ void CRUDHandler::performFactoryReset()
     JsonDocument defaultServerConfig;
     JsonObject root = defaultServerConfig.to<JsonObject>();
 
-    // Create default server config (same as ServerConfig::createDefaultConfig)
+    // Communication config (mobile app structure)
+    JsonObject comm = root["communication"].to<JsonObject>();
+    comm["mode"] = "ETH";  // Mobile app expects this field
+
+    // WiFi at root level (mobile app structure)
+    JsonObject wifi = root["wifi"].to<JsonObject>();
+    wifi["enabled"] = true;
+    wifi["ssid"] = "";
+    wifi["password"] = "";
+
+    // Ethernet at root level (mobile app structure)
+    JsonObject ethernet = root["ethernet"].to<JsonObject>();
+    ethernet["enabled"] = true;
+    ethernet["use_dhcp"] = true;
+    ethernet["static_ip"] = "";
+    ethernet["gateway"] = "";
+    ethernet["subnet"] = "";
+
+    // Protocol
     root["protocol"] = "mqtt";
 
+    // MQTT config with publish modes
     JsonObject mqtt = root["mqtt_config"].to<JsonObject>();
     mqtt["enabled"] = true;
     mqtt["broker_address"] = "broker.hivemq.com";
@@ -1291,19 +1310,43 @@ void CRUDHandler::performFactoryReset()
     mqtt["client_id"] = "";
     mqtt["username"] = "";
     mqtt["password"] = "";
-    mqtt["topic_publish"] = "v1/devices/me/telemetry";
+    mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app compatibility
+    mqtt["topic_subscribe"] = "";  // Top level for mobile app compatibility
+    mqtt["keep_alive"] = 60;
+    mqtt["clean_session"] = true;
+    mqtt["use_tls"] = false;
+    mqtt["publish_mode"] = "default";  // "default" or "customize"
 
-    JsonObject wifi = root["wifi"].to<JsonObject>();
-    wifi["enabled"] = true;
-    wifi["ssid"] = "";
-    wifi["password"] = "";
+    // Default mode configuration (for MQTT modes feature)
+    JsonObject defaultMode = mqtt["default_mode"].to<JsonObject>();
+    defaultMode["enabled"] = true;
+    defaultMode["topic_publish"] = "v1/devices/me/telemetry";
+    defaultMode["topic_subscribe"] = "";
+    defaultMode["interval"] = 5;
+    defaultMode["interval_unit"] = "s";  // "ms" (milliseconds), "s" (seconds), "m" (minutes)
 
-    JsonObject ethernet = root["ethernet"].to<JsonObject>();
-    ethernet["enabled"] = true;
-    ethernet["use_dhcp"] = true;
+    // Customize mode configuration (for MQTT modes feature)
+    JsonObject customizeMode = mqtt["customize_mode"].to<JsonObject>();
+    customizeMode["enabled"] = false;
+    customizeMode["custom_topics"].to<JsonArray>();
+
+    // HTTP config
+    JsonObject http = root["http_config"].to<JsonObject>();
+    http["enabled"] = false;
+    http["endpoint_url"] = "https://api.example.com/data";
+    http["method"] = "POST";
+    http["body_format"] = "json";
+    http["timeout"] = 5000;
+    http["retry"] = 3;
+    http["interval"] = 5;           // HTTP transmission interval
+    http["interval_unit"] = "s";    // "ms", "s", or "m"
+
+    JsonObject headers = http["headers"].to<JsonObject>();
+    headers["Authorization"] = "Bearer token";
+    headers["Content-Type"] = "application/json";
 
     serverConfig->updateConfig(root);
-    Serial.println("[FACTORY RESET] server_config.json reset to defaults");
+    Serial.println("[FACTORY RESET] server_config.json reset to defaults (COMPLETE with MQTT modes + HTTP)");
   }
 
   // Step 5: Reset logging config to defaults
