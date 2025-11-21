@@ -24,7 +24,7 @@
 namespace MemoryThresholds {
   // DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
   constexpr uint32_t DRAM_HEALTHY     = 50000;  // 50KB - Normal operation
-  constexpr uint32_t DRAM_WARNING     = 30000;  // 30KB - Proactive cleanup
+  constexpr uint32_t DRAM_WARNING     = 25000;  // 25KB - Proactive cleanup (optimized for PSRAM-heavy firmware)
   constexpr uint32_t DRAM_CRITICAL    = 15000;  // 15KB - Emergency recovery
   constexpr uint32_t DRAM_EMERGENCY   = 10000;  // 10KB - Imminent crash
 
