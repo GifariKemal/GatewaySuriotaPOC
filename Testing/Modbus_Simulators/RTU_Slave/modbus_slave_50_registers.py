@@ -209,7 +209,7 @@ for i in range(5):
 
 # Auto-update configuration
 AUTO_UPDATE = True
-UPDATE_INTERVAL = 1.0  # Update every 1 second (gateway polls every 2s)
+UPDATE_INTERVAL = 0.5  # Update every 0.5 seconds (gateway polls every 1s)
 
 # =============================================================================
 # Logging Configuration
