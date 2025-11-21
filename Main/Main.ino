@@ -10,6 +10,13 @@
 
 #define PRODUCTION_MODE 0 // 0 = Development, 1 = Production
 
+// CRITICAL: Override MQTT_MAX_PACKET_SIZE BEFORE any library includes
+// This MUST be defined here (not in MqttManager.h) to ensure Arduino IDE
+// compiles TBPubSubClient library with the correct packet size limit
+#ifndef MQTT_MAX_PACKET_SIZE
+#define MQTT_MAX_PACKET_SIZE 16384  // 16KB - allows large payloads without truncation
+#endif
+
 #include "DebugConfig.h" // ← MUST BE FIRST (before all other includes)
 #include "MemoryRecovery.h" // Phase 2 optimization
 #include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
