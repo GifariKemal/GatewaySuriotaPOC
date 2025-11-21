@@ -13,12 +13,8 @@ Description:
     - Protocol: Modbus TCP
 
 
-    Registers (5 Input Registers):
-    - Address 0: Temperature (°C)    - Range: 20-35°C
-    - Address 1: Humidity (%)        - Range: 40-80%
-    - Address 2: Pressure (Pa)       - Range: 900-1100 Pa
-    - Address 3: Voltage (V)         - Range: 220-240 V
-    - Address 4: Current (A)         - Range: 1-10 A
+    Registers (5 Input Registers) - ALIGNED WITH create_device_5_registers.py:
+    - Address 0-4: Temp_Zone_1 to Temp_Zone_5 (°C) - Range: 20-35°C
 
 Usage:
     1. Install: pip install pymodbus
@@ -61,19 +57,23 @@ except ImportError as e:
 # =============================================================================
 # Configuration (Match with Device_Testing/create_device_5_registers.py)
 # =============================================================================
-SERVER_IP = '192.168.1.8'  # MUST match device config IP
+SERVER_IP = '10.21.239.9'  # MUST match device config IP
 SERVER_PORT = 502          # MUST match device config port
 SLAVE_ID = 1               # MUST match device config slave_id
 NUM_REGISTERS = 5          # 5 Input Registers
 
-# Register definitions (matching create_device_5_registers.py)
-REGISTER_INFO = {
-    0: {"name": "Temperature", "unit": "°C",  "min": 20,   "max": 35,   "initial": 25},
-    1: {"name": "Humidity",    "unit": "%",   "min": 40,   "max": 80,   "initial": 60},
-    2: {"name": "Pressure",    "unit": "Pa",  "min": 900,  "max": 1100, "initial": 1000},
-    3: {"name": "Voltage",     "unit": "V",   "min": 220,  "max": 240,  "initial": 230},
-    4: {"name": "Current",     "unit": "A",   "min": 1,    "max": 10,   "initial": 5}
-}
+# Register definitions - ALIGNED with create_device_5_registers.py
+# Temperature Zones 1-5 (addresses 0-4)
+REGISTER_INFO = {}
+for i in range(5):
+    REGISTER_INFO[i] = {
+        "name": f"Temp_Zone_{i+1}",
+        "desc": f"Temperature Zone {i+1}",
+        "unit": "°C",
+        "min": 20,
+        "max": 35,
+        "initial": 25
+    }
 
 # Auto-update configuration
 AUTO_UPDATE = True
