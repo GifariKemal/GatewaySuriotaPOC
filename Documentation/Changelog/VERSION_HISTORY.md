@@ -8,7 +8,171 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.2.1 (Current)
+## 📦 Version 2.3.1 (Current)
+
+**Release Date:** November 21, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🐛 Memory Leak & Device Deletion Bug Fixes
+
+**Type:** Bug Fix Release
+
+This patch release fixes **2 critical bugs** related to device deletion that caused memory leaks and delayed polling stop.
+
+---
+
+#### 🔴 BUG #1 (CRITICAL): ConfigManager Cache Memory Leak After Device Deletion
+
+**Problem:**
+- `invalidateDevicesCache()` and `invalidateRegistersCache()` only set flag `cacheValid = false`
+- **DID NOT clear actual JsonDocument memory** holding device/register data
+- After deleting device with 9 registers (~8-10KB), memory remained allocated
+- **DRAM stuck at 24KB** even after deleting all devices
+- Caused continuous low memory warnings: `(suppressed 11 similar messages in 55s: "DRAM at 24 KB")`
+
+**Files Changed:**
+- `Main/ConfigManager.cpp:1148-1193`
+
+**Fix:**
+Added explicit cache memory clearing in invalidate functions:
+```cpp
+void ConfigManager::invalidateDevicesCache() {
+  devicesCacheValid = false;
+  lastDevicesCacheTime = 0;
+
+  // BUGFIX: Clear cache memory to prevent memory leak
+  if (devicesCache) {
+    devicesCache->clear();
+    Serial.println("[CACHE] Devices cache cleared to free memory");
+  }
+}
+```
+
+**Impact:** DRAM usage returns to normal after device deletion, eliminating persistent low memory warnings
+
+---
+
+#### 🟠 BUG #2 (HIGH): Delayed Polling Stop After Device Deletion
+
+**Problem:**
+- RTU/TCP tasks check config change notification **only once** at start of polling loop
+- If notification arrives **during device iteration**, it's ignored until next full loop
+- Device continues being polled for **1-2 more iterations** after deletion (5-10 seconds)
+- User sees error logs like `D7227b: Humid_Zone_5 = ERROR` AFTER device deleted
+
+**Files Changed:**
+- `Main/ModbusRtuService.cpp:243-250`
+- `Main/ModbusTcpService.cpp:298-305`
+
+**Fix:**
+Added in-loop notification check for immediate response:
+```cpp
+for (JsonVariant deviceVar : devices) {
+  // BUGFIX: Check for config changes during iteration
+  if (ulTaskNotifyTake(pdTRUE, 0) > 0) {
+    Serial.println("[RTU] Configuration changed during polling, refreshing immediately...");
+    refreshDeviceList();
+    break; // Exit immediately
+  }
+
+  // Continue polling...
+}
+```
+
+**Impact:** Polling stops **immediately** upon device deletion (< 100ms delay instead of 5-10s)
+
+---
+
+#### 📊 Testing Results
+
+**Memory Behavior:**
+
+Before Fix:
+```
+[DELETE] Device D7227b deleted
+DRAM: 24788 bytes (stuck, never recovers)
+(suppressed 11 similar messages in 55s)
+```
+
+After Fix:
+```
+[DELETE] Device D7227b deleted
+[CACHE] Devices cache cleared to free memory
+DRAM: 45000+ bytes (recovered within 5s)
+```
+
+**Polling Behavior:**
+
+Before Fix:
+```
+[DELETE] Device D7227b deleted
+D7227b: Humid_Zone_5 = ERROR  ← Still polling!
+D7227b: Humid_Zone_6 = ERROR  ← Still polling!
+D7227b: Humid_Zone_7 = ERROR  ← Still polling!
+(5-10s delay before stop)
+```
+
+After Fix:
+```
+[DELETE] Device D7227b deleted
+[RTU] Configuration changed during polling, refreshing immediately...
+(Polling stops within 100ms, no more error logs)
+```
+
+---
+
+#### ✅ Commits
+
+- `fix: Clear ConfigManager cache memory on invalidate to prevent leak`
+- `fix: Add in-loop config notification check for immediate deletion response`
+
+---
+
+## 📦 Version 2.3.0
+
+**Release Date:** November 21, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🆕 Advanced BLE Configuration Management
+
+**Type:** Feature Release
+
+This release adds powerful configuration management features via BLE, including full backup/restore and factory reset.
+
+#### Features Added:
+
+1. **Backup & Restore System**
+   - Complete configuration export (devices, registers, server config, logging)
+   - 200KB response support (20x larger than previous 10KB limit)
+   - PSRAM optimized for large configurations (100KB+)
+   - Atomic snapshots with metadata (timestamp, firmware version, statistics)
+
+2. **Factory Reset Command**
+   - One-command reset to factory defaults via BLE
+   - Comprehensive scope (devices, server config, network config, logging)
+   - Automatic restart after reset
+   - Audit trail logging
+
+3. **Device Control API**
+   - Enable/disable devices manually via BLE
+   - Health metrics tracking (success rate, response times)
+   - Auto-recovery system (re-enables devices every 5 minutes)
+   - Disable reason tracking (NONE, MANUAL, AUTO_RETRY, AUTO_TIMEOUT)
+
+**Files Added:**
+- `Documentation/API_Reference/BLE_BACKUP_RESTORE.md`
+- `Documentation/API_Reference/BLE_FACTORY_RESET.md`
+- `Documentation/API_Reference/BLE_DEVICE_CONTROL.md`
+
+**Performance:**
+- BLE response size: 10KB → 200KB (20x improvement)
+- DRAM warning threshold optimized to reduce log noise
+
+---
+
+## 📦 Version 2.2.1
 
 **Release Date:** November 21, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)

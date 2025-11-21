@@ -295,6 +295,15 @@ void ModbusTcpService::readTcpDevicesLoop()
       if (!running)
         break; // Exit if stopped
 
+      // BUGFIX: Check for config changes during iteration for immediate device deletion response
+      // This prevents continuing to poll deleted devices until next full iteration
+      if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+      {
+        Serial.println("[TCP] Configuration changed during polling, refreshing immediately...");
+        refreshDeviceList();
+        break; // Exit current iteration, next iteration will use updated device list
+      }
+
       String deviceId = deviceVar.as<String>();
 
       JsonDocument deviceDoc;

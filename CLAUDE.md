@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.0
+**Version:** 2.3.1
 **Last Updated:** November 21, 2025
 **Repository:** GatewaySuriotaPOC (ESP32-S3 Industrial IoT Gateway)
 
