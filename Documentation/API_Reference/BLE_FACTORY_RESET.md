@@ -97,16 +97,10 @@ When the command is received, the gateway performs the following steps:
 
 ```json
 {
-  "protocol": "mqtt",
-  "mqtt_config": {
-    "enabled": true,
-    "broker_address": "broker.hivemq.com",
-    "broker_port": 1883,
-    "client_id": "",
-    "username": "",
-    "password": "",
-    "topic_publish": "v1/devices/me/telemetry"
+  "communication": {
+    "mode": "ETH"
   },
+  "protocol": "mqtt",
   "wifi": {
     "enabled": true,
     "ssid": "",
@@ -114,10 +108,61 @@ When the command is received, the gateway performs the following steps:
   },
   "ethernet": {
     "enabled": true,
-    "use_dhcp": true
+    "use_dhcp": true,
+    "static_ip": "",
+    "gateway": "",
+    "subnet": ""
+  },
+  "mqtt_config": {
+    "enabled": true,
+    "broker_address": "broker.hivemq.com",
+    "broker_port": 1883,
+    "client_id": "",
+    "username": "",
+    "password": "",
+    "topic_publish": "v1/devices/me/telemetry",
+    "topic_subscribe": "",
+    "keep_alive": 60,
+    "clean_session": true,
+    "use_tls": false,
+    "publish_mode": "default",
+    "default_mode": {
+      "enabled": true,
+      "topic_publish": "v1/devices/me/telemetry",
+      "topic_subscribe": "",
+      "interval": 5,
+      "interval_unit": "s"
+    },
+    "customize_mode": {
+      "enabled": false,
+      "custom_topics": []
+    }
+  },
+  "http_config": {
+    "enabled": false,
+    "endpoint_url": "https://api.example.com/data",
+    "method": "POST",
+    "body_format": "json",
+    "timeout": 5000,
+    "retry": 3,
+    "interval": 5,
+    "interval_unit": "s",
+    "headers": {
+      "Authorization": "Bearer token",
+      "Content-Type": "application/json"
+    }
   }
 }
 ```
+
+**Key Features:**
+- **Communication Mode:** Ethernet primary (`"ETH"`)
+- **WiFi:** Enabled but unconfigured (empty SSID/password)
+- **Ethernet:** DHCP enabled, static IP fields empty
+- **MQTT Publish Modes:**
+  - **Default Mode** (enabled): Single topic, 5-second interval
+  - **Customize Mode** (disabled): Per-device custom topics
+- **HTTP:** Disabled by default, example endpoint configured
 
 ### Logging Config (`logging_config.json`)
 
