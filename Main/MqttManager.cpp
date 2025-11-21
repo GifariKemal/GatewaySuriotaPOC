@@ -35,7 +35,8 @@ MqttManager *MqttManager::instance = nullptr;
 
 MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, NetworkMgr *netMgr)
     : configManager(config), queueManager(nullptr), serverConfig(serverCfg), networkManager(netMgr), mqttClient(PubSubClient()),
-      running(false), taskHandle(nullptr), brokerPort(1883), lastReconnectAttempt(0)
+      running(false), taskHandle(nullptr), brokerPort(1883), lastReconnectAttempt(0),
+      cachedBufferSize(0), bufferSizeNeedsRecalculation(true)  // FIXED BUG #5: Initialize cache
 {
   queueManager = QueueManager::getInstance();
   persistentQueue = MQTTPersistentQueue::getInstance();
@@ -260,11 +261,18 @@ bool MqttManager::connectToMqtt()
   mqttClient.setClient(*activeClient);
 
   // FIXED BUG #15: Dynamic buffer sizing based on actual device configuration
-  // Previous: Hardcoded 8192 bytes
-  // New: Calculate based on total registers across all devices
-  uint16_t optimalBufferSize = calculateOptimalBufferSize();
-  mqttClient.setBufferSize(optimalBufferSize, optimalBufferSize);
-  Serial.printf("[MQTT] Buffer size set to %u bytes (dynamically calculated)\n", optimalBufferSize);
+  // FIXED BUG #5 & #7: Use cached buffer size to avoid repeated calculations
+  // Previous: Hardcoded 8192 bytes, recalculated every connection
+  // New: Calculate once, cache result, recalculate only on config change
+  if (bufferSizeNeedsRecalculation || cachedBufferSize == 0) {
+    cachedBufferSize = calculateOptimalBufferSize();
+    bufferSizeNeedsRecalculation = false;
+    Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
+  } else {
+    Serial.printf("[MQTT] Buffer size using cached value: %u bytes\n", cachedBufferSize);
+  }
+
+  mqttClient.setBufferSize(cachedBufferSize, cachedBufferSize);
   Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
   mqttClient.setKeepAlive(60);
   mqttClient.setSocketTimeout(5);  // Socket timeout in seconds
@@ -313,12 +321,21 @@ void MqttManager::loadMqttConfig()
 
   if (serverConfig->getMqttConfig(mqttConfig))
   {
+    // FIXED BUG #6: Consistent whitespace trimming for all string configs
+    // Prevents subtle bugs from trailing spaces/newlines in BLE config input
     brokerAddress = mqttConfig["broker_address"] | "broker.hivemq.com";
-    brokerAddress.trim(); // FIXED Bug #9: Trim whitespace to avoid isEmpty() false assumption
+    brokerAddress.trim();
+
     brokerPort = mqttConfig["broker_port"] | 1883;
+
     clientId = mqttConfig["client_id"] | "esp32_gateway";
+    clientId.trim();
+
     username = mqttConfig["username"] | "";
+    username.trim();
+
     password = mqttConfig["password"] | "";
+    password.trim();
 
     // Load publish mode
     publishMode = mqttConfig["publish_mode"] | "default";
@@ -333,8 +350,13 @@ void MqttManager::loadMqttConfig()
     {
       JsonObject defaultMode = mqttConfig["default_mode"];
       defaultModeEnabled = defaultMode["enabled"] | true;
+
+      // FIXED BUG #6: Trim topic strings
       defaultTopicPublish = defaultMode["topic_publish"] | "v1/devices/me/telemetry";
+      defaultTopicPublish.trim();
+
       defaultTopicSubscribe = defaultMode["topic_subscribe"] | "device/control";
+      defaultTopicSubscribe.trim();
 
       // Load interval and unit, then convert to milliseconds
       uint32_t intervalValue = defaultMode["interval"] | 5;
@@ -361,7 +383,10 @@ void MqttManager::loadMqttConfig()
         for (JsonObject topicObj : topics)
         {
           CustomTopic ct;
+
+          // FIXED BUG #6: Trim custom topic strings
           ct.topic = topicObj["topic"] | "";
+          ct.topic.trim();
 
           // Load interval and unit, then convert to milliseconds
           uint32_t intervalValue = topicObj["interval"] | 5;
@@ -487,14 +512,36 @@ void MqttManager::publishQueueData()
     return;
   }
 
+  // FIXED BUG #2: Add timeout for batch completion wait to prevent deadlock
+  // If RTU/TCP service crashes or hangs, MQTT should still publish available data
+  static unsigned long batchWaitStartTime = 0;
+  const unsigned long BATCH_WAIT_TIMEOUT = 60000;  // 60 seconds timeout
+
   if (batchMgr && !batchMgr->hasCompleteBatch())
   {
-    // No complete batches yet - wait for RTU/TCP to finish reading all registers
-    static LogThrottle batchWaitingThrottle(60000); // Increased to 60s to reduce log spam
-    if (batchWaitingThrottle.shouldLog("MQTT waiting for batch completion")) {
-      LOG_MQTT_DEBUG("Waiting for device batch to complete...\n");
+    // Start timer on first wait
+    if (batchWaitStartTime == 0) {
+      batchWaitStartTime = millis();
     }
-    return;
+
+    // Check timeout
+    unsigned long elapsed = millis() - batchWaitStartTime;
+    if (elapsed > BATCH_WAIT_TIMEOUT) {
+      Serial.printf("[MQTT] WARNING: Batch completion timeout (%lus)! Force publishing available data...\n",
+                    elapsed / 1000);
+      batchWaitStartTime = 0;  // Reset timer
+      // Continue to publish whatever is in queue (don't return)
+    } else {
+      // Still waiting for batch - log progress
+      static LogThrottle batchWaitingThrottle(60000);
+      if (batchWaitingThrottle.shouldLog("MQTT waiting for batch completion")) {
+        LOG_MQTT_DEBUG("Waiting for device batch to complete... (%lus elapsed)\n", elapsed / 1000);
+      }
+      return;  // Wait for batch completion
+    }
+  } else {
+    // Batch complete or no batches - reset timer
+    batchWaitStartTime = 0;
   }
 
   // Only dequeue if we're actually going to publish
@@ -653,11 +700,11 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   serializeJson(batchDoc, payload);
 
   // FIXED BUG #15: Check against dynamic buffer size
-  uint16_t currentBufferSize = calculateOptimalBufferSize();
-  if (payload.length() > currentBufferSize)
+  // FIXED BUG #7: Use cached buffer size (already set in connectToMqtt)
+  if (payload.length() > cachedBufferSize)
   {
     Serial.printf("[MQTT] ERROR: Payload too large (%d bytes > %u bytes buffer)!\n",
-                  payload.length(), currentBufferSize);
+                  payload.length(), cachedBufferSize);
     Serial.printf("[MQTT] Splitting large payloads is needed. Current registers: %d\n", totalRegisters);
   }
 
@@ -724,7 +771,9 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
   else
   {
-    Serial.printf("[MQTT] Default Mode: Publish failed (payload: %d bytes, buffer: 1024 bytes)\n", payload.length());
+    // FIXED BUG #4: Use actual buffer size instead of hardcoded 1024 bytes
+    Serial.printf("[MQTT] Default Mode: Publish failed (payload: %d bytes, buffer: %u bytes)\n",
+                  payload.length(), cachedBufferSize);
 
     if (persistentQueueEnabled && persistentQueue)
     {
@@ -769,6 +818,9 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
     std::map<String, JsonObject> deviceObjects;
     int registerCount = 0;
 
+    // FIXED BUG #3: Track deleted devices (same as default mode)
+    std::map<String, int> deletedDevices;
+
     for (auto &entry : uniqueRegisters)
     {
       JsonObject dataPoint = entry.second.as<JsonObject>();
@@ -794,6 +846,27 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
           continue;
         }
 
+        // FIXED BUG #3: Validate device still exists (not deleted) before publishing
+        if (deviceObjects.find(deviceId) == deviceObjects.end())
+        {
+          // Check if we already know this device is deleted
+          if (deletedDevices.find(deviceId) != deletedDevices.end())
+          {
+            deletedDevices[deviceId]++;
+            continue;
+          }
+
+          // First time seeing this device - verify it exists in config
+          JsonDocument tempDoc;
+          JsonObject tempObj = tempDoc.to<JsonObject>();
+          if (!configManager->readDevice(deviceId, tempObj))
+          {
+            // Device deleted - track it and skip
+            deletedDevices[deviceId] = 1;
+            continue;
+          }
+        }
+
         // Create device object if not exists
         if (deviceObjects.find(deviceId) == deviceObjects.end())
         {
@@ -815,6 +888,18 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
 
         registerCount++;
       }
+    }
+
+    // FIXED BUG #3: Log summary for deleted devices (compact - one line)
+    if (!deletedDevices.empty())
+    {
+      int totalSkipped = 0;
+      for (auto &entry : deletedDevices)
+      {
+        totalSkipped += entry.second;
+      }
+      Serial.printf("[MQTT] Customize Mode: Skipped %d registers from %d deleted device(s) for topic %s\n",
+                    totalSkipped, deletedDevices.size(), customTopic.topic.c_str());
     }
 
     // Only publish if there's data for this topic
@@ -859,6 +944,23 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
                       payload.length() / 1024.0, displayInterval, displayUnit);
         customTopic.lastPublish = now;
+
+        // FIXED BUG #1 (CRITICAL): Clear batch status after successful publish
+        // Without this, hasCompleteBatch() will always return false after first publish
+        // causing MQTT to never publish data again (infinite wait)
+        DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
+        if (batchMgr) {
+          // Track cleared devices to avoid duplicate clears
+          std::set<String> clearedDevices;
+          for (auto &entry : uniqueRegisters) {
+            JsonObject dataPoint = entry.second.as<JsonObject>();
+            String deviceId = dataPoint["device_id"].as<String>();
+            if (!deviceId.isEmpty() && clearedDevices.find(deviceId) == clearedDevices.end()) {
+              batchMgr->clearBatch(deviceId);
+              clearedDevices.insert(deviceId);
+            }
+          }
+        }
 
         if (ledManager)
         {
@@ -1059,6 +1161,14 @@ uint16_t MqttManager::calculateOptimalBufferSize()
                 totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
 
   return optimalSize;
+}
+
+// FIXED BUG #5: Notify MQTT manager when device configuration changes
+// This invalidates the cached buffer size calculation
+void MqttManager::notifyConfigChange()
+{
+  bufferSizeNeedsRecalculation = true;
+  Serial.println("[MQTT] Config change detected - buffer size will be recalculated on next connection");
 }
 
 MqttManager::~MqttManager()

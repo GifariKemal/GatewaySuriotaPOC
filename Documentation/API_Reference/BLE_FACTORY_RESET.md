@@ -38,6 +38,7 @@ The **Factory Reset** command provides a simple way to reset the gateway to fact
   "type": "factory_reset",
   "reason": "Optional reason for reset"
 }
+{"op":"system","type":"factory_reset","reason":"Optional reason for reset"}
 ```
 
 ### Request Fields

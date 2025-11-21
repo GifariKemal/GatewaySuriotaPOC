@@ -54,6 +54,10 @@ private:
   String topicPublish;
   unsigned long lastReconnectAttempt;
 
+  // FIXED BUG #5 & #7: Cache buffer size calculation
+  uint16_t cachedBufferSize;
+  bool bufferSizeNeedsRecalculation;
+
   // MQTT Publish Mode ("default" or "customize")
   String publishMode;
 
@@ -102,6 +106,9 @@ public:
   void start();
   void stop();
   void getStatus(JsonObject &status);
+
+  // FIXED BUG #5: Config change notification to invalidate buffer size cache
+  void notifyConfigChange();
 
   // Persistent queue methods
   void setPersistentQueueEnabled(bool enable);
