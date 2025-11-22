@@ -562,17 +562,33 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
     JsonObject device = kv.value();
     JsonObject deviceWithRegs = result.add<JsonObject>();
 
-    // Add device info
+    // Add device ID first
     deviceWithRegs["device_id"] = deviceId;
-    deviceWithRegs["device_name"] = device["device_name"];
 
-    if (!minimalFields)
+    // Copy ALL device fields (except registers, handle separately)
+    for (JsonPair deviceKv : device)
     {
-      deviceWithRegs["protocol"] = device["protocol"];
-      deviceWithRegs["ip_address"] = device["ip_address"];
-      deviceWithRegs["port"] = device["port"];
-      deviceWithRegs["slave_id"] = device["slave_id"];
-      deviceWithRegs["refresh_rate_ms"] = device["refresh_rate_ms"];
+      String key = deviceKv.key().c_str();
+
+      if (key == "registers")
+      {
+        // Skip registers, will be handled separately below
+        continue;
+      }
+
+      if (minimalFields)
+      {
+        // In minimal mode, only copy essential fields
+        if (key == "device_name" || key == "protocol")
+        {
+          deviceWithRegs[deviceKv.key()] = deviceKv.value();
+        }
+      }
+      else
+      {
+        // In full mode, copy ALL fields (timeout, retry_count, enabled, ip, serial_port, baud_rate, etc.)
+        deviceWithRegs[deviceKv.key()] = deviceKv.value();
+      }
     }
 
     // Add all registers

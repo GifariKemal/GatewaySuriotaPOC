@@ -115,12 +115,29 @@ async def send_command(client, command):
     response_buffer = []
     response_complete = False
 
-    # Send command
-    command_json = json.dumps(command)
+    # Convert to JSON string
+    command_json = json.dumps(command, separators=(',', ':'))
     print(f"\n📤 SENDING COMMAND:")
     print(f"   {command_json}")
 
-    await client.write_gatt_char(COMMAND_CHAR_UUID, command_json.encode('utf-8'))
+    # Fragmentation: 18 bytes per chunk (matching ble_test.py)
+    chunk_size = 18
+    total_chunks = (len(command_json) + chunk_size - 1) // chunk_size
+
+    print(f"   Fragmenting into {total_chunks} chunk(s) ({chunk_size} bytes/chunk)...")
+
+    # Send command in chunks
+    for i in range(0, len(command_json), chunk_size):
+        chunk = command_json[i:i+chunk_size]
+        chunk_num = (i // chunk_size) + 1
+
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        print(f"   Chunk {chunk_num}/{total_chunks} sent ({len(chunk)} bytes)")
+        await asyncio.sleep(0.1)  # Delay for stable transmission
+
+    # Send end marker (CRITICAL!)
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+    print(f"   ✓ End marker <END> sent")
 
     # Wait for response with timeout
     timeout = 60  # 60 seconds for large responses
