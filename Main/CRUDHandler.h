@@ -6,6 +6,7 @@
 #include "ConfigManager.h"
 #include "ServerConfig.h"
 #include "LoggingConfig.h"
+#include "MemoryManager.h"  // For PsramUniquePtr and make_psram_unique
 #include <map>
 #include <functional>
 #include <queue>
@@ -46,7 +47,7 @@ struct Command
   uint64_t id;                           // Unique command ID
   CommandPriority priority;              // Priority level
   unsigned long enqueueTime;             // When command was enqueued
-  std::unique_ptr<JsonDocument> payload; // Command payload
+  PsramUniquePtr<JsonDocument> payload;  // Command payload (PSRAM-allocated for large restore commands)
   BLEManager *manager;                   // BLE Manager for sending responses
 
   // Default constructor
