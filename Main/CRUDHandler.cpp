@@ -1027,7 +1027,7 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   cmd.manager = manager; // Store BLE manager for response sending
 
   // BUG FIX: Use PSRAM allocation for large JSON documents (restore commands can be 3-4KB)
-  cmd.payload = make_psram_unique<JsonDocument>();
+  cmd.payload = std::make_unique<JsonDocument>();
 
   if (!cmd.payload)
   {
@@ -1095,7 +1095,7 @@ void CRUDHandler::processPriorityQueue()
       cmd.manager = topCmd.manager; // Copy manager pointer
 
       // BUG FIX: Use PSRAM allocation for large JSON documents
-      cmd.payload = make_psram_unique<JsonDocument>();
+      cmd.payload = std::make_unique<JsonDocument>();
 
       if (cmd.payload)
       {
