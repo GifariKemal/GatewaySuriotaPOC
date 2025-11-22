@@ -5,11 +5,17 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.3.0 (November 21, 2025)
+**Version:** 2.3.3 (November 22, 2025)
 **Developer:** Kemal
-**Last Updated:** November 21, 2025
+**Last Updated:** November 22, 2025
 
-> **What's New in v2.3.0:**
+> **What's New in v2.3.3:**
+> - ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads (3420+ bytes)
+> - ✅ **Register Index Fix** - Fixed register_index stuck at 0 during device creation
+> - ✅ **Device ID Preservation** - Device IDs now properly preserved during restore operations
+> - All backup/restore operations now fully stable (100% success rate)
+>
+> **Previous (v2.3.0):**
 > - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
 > - ✅ **Factory Reset Command** - One-command device reset to factory defaults
 > - ✅ **Device Control API** - Enable/disable devices with health metrics
@@ -100,7 +106,7 @@ All commands follow a consistent JSON structure:
 
 ```json
 {
-  "op": "create|read|update|delete|batch",
+  "op": "create|read|update|delete|control|system|batch",
   "type": "device|register|server|logging|data|status|metrics",
   "device_id": "string (optional)",
   "register_id": "string (optional)",
@@ -108,6 +114,8 @@ All commands follow a consistent JSON structure:
   "priority": "high|normal|low (optional)"
 }
 ```
+
+**Note:** For advanced `control` and `system` operations, see [Specialized API Documentation](#-specialized-api-documentation).
 
 ### Common Fields
 
@@ -1428,7 +1436,9 @@ All-or-nothing transaction. If any command fails, all changes are rolled back.
 
 ## 🔍 System Operations
 
-### Get System Status
+### Basic System Operations
+
+#### Get System Status
 
 Retrieve system health and metrics.
 
@@ -1474,7 +1484,7 @@ Retrieve system health and metrics.
 
 ---
 
-### Get Metrics
+#### Get Metrics
 
 Retrieve BLE transmission metrics.
 
@@ -1501,6 +1511,27 @@ Retrieve BLE transmission metrics.
   }
 }
 ```
+
+---
+
+### Advanced System Operations
+
+For advanced configuration management and device control, see the specialized documentation:
+
+| Operation Type | Documentation | Description |
+|----------------|---------------|-------------|
+| **`op: "system"`** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Backup/restore complete configuration (up to 200KB) |
+| **`op: "system"`** | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md) | Factory reset device to defaults |
+| **`op: "control"`** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics |
+
+**Example Operations:**
+- **Backup Configuration**: `{"op":"system","type":"backup_config"}`
+- **Restore Configuration**: `{"op":"system","type":"restore_config","config":{...}}`
+- **Factory Reset**: `{"op":"system","type":"factory_reset"}`
+- **Enable Device**: `{"op":"control","type":"enable_device","device_id":"D7A3F2"}`
+- **Disable Device**: `{"op":"control","type":"disable_device","device_id":"D7A3F2"}`
+
+> **💡 New in v2.3.x:** These advanced operations provide enterprise-grade configuration management and device control capabilities.
 
 ---
 
@@ -1869,9 +1900,9 @@ class SuriotaGateway {
 
 ---
 
-**Document Version:** 1.2 (Updated)
-**Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Document Version:** 1.3 (Updated)
+**Last Updated:** November 22, 2025
+**Firmware Version:** 2.3.3
 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)
