@@ -6,7 +6,7 @@ Testing suite untuk Modbus RTU device creation dengan berbagai jumlah registers 
 
 **Author:** Kemal - SURIOTA R&D Team
 **Date:** 2025-11-17
-**Firmware:** SRT-MGATE-1210 v2.2.0
+**Firmware:** SRT-MGATE-1210 v2.3.0
 
 ---
 
@@ -310,5 +310,5 @@ RTU/
 ---
 
 **Last Updated:** 2025-11-17
-**Tested On:** SRT-MGATE-1210 v2.2.0
+**Tested On:** SRT-MGATE-1210 v2.3.0
 **Author:** Kemal - SURIOTA R&D Team

@@ -15,7 +15,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 ## Quick Navigation
 
 ### Current Documentation
-- **[Version History](VERSION_HISTORY.md)** - Complete release notes (v2.0 - v2.2.0)
+- **[Version History](VERSION_HISTORY.md)** - Complete release notes (v2.0 - v2.3.0)
 - **[Capacity Analysis](CAPACITY_ANALYSIS.md)** - Performance limits and scalability
 - **[Use Cases & Failure Recovery](USE_CASES_FAILURE_RECOVERY.md)** - Real-world scenarios
 
@@ -26,7 +26,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Version History
 
-### Current Version: 2.2.0 (November 14, 2025)
+### Current Version: 2.3.0 (November 14, 2025)
 
 **Breaking Changes:**
 - `data_interval` removed from root configuration
@@ -43,7 +43,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
-| **v2.2.0** | Nov 14, 2025 | Clean API structure, breaking changes |
+| **v2.3.0** | Nov 14, 2025 | Clean API structure, breaking changes |
 | **v2.1.1** | Nov 2025 | 28x faster BLE transmission, enhanced CRUD |
 | **v2.1.0** | Oct 2025 | Priority queue, batch operations |
 | **v2.0** | Oct 2024 | Initial stable release |
@@ -63,7 +63,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## What's New
 
-### v2.2.0 Highlights (Current)
+### v2.3.0 Highlights (Current)
 
 **Breaking Changes:**
 - API structure reorganization
@@ -90,7 +90,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Migration Guides
 
-### Upgrading from v2.1.1 to v2.2.0
+### Upgrading from v2.1.1 to v2.3.0
 
 **Configuration Changes:**
 ```json
@@ -102,7 +102,7 @@ This directory contains version history, release notes, bug analysis, and capaci
   }
 }
 
-// NEW (v2.2.0)
+// NEW (v2.3.0)
 {
   "http_config": {
     "enabled": true,
@@ -111,7 +111,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 }
 ```
 
-**Full Guide:** [VERSION_HISTORY.md - v2.2.0 Migration](VERSION_HISTORY.md#v220-migration-guide)
+**Full Guide:** [VERSION_HISTORY.md - v2.3.0 Migration](VERSION_HISTORY.md#v220-migration-guide)
 
 ### Upgrading from v2.0 to v2.1.x
 
@@ -126,7 +126,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Bug Fixes by Version
 
-### v2.2.0
+### v2.3.0
 - Fixed: Network configuration edge cases
 - Improved: Error recovery mechanisms
 - Enhanced: Configuration validation
@@ -208,7 +208,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Known Issues & Workarounds
 
-### Current Issues (v2.2.0)
+### Current Issues (v2.3.0)
 
 **No critical issues reported**
 
@@ -252,8 +252,8 @@ Found a bug or have a feature request?
 
 ---
 
-**Last Updated:** November 20, 2025
-**Current Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Current Version:** 2.3.0
 **Next Release:** TBA
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#changelog)

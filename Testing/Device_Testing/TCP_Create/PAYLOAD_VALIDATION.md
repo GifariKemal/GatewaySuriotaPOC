@@ -1,6 +1,6 @@
 # 📋 Payload Validation for Device Testing
 
-**Validation document untuk memastikan payload sesuai dengan API v2.2.0**
+**Validation document untuk memastikan payload sesuai dengan API v2.3.0**
 
 ---
 
@@ -95,7 +95,7 @@
 
 ---
 
-## 🔧 Koreksi Payload (API v2.2.0 Compliant)
+## 🔧 Koreksi Payload (API v2.3.0 Compliant)
 
 ### Device Creation (Corrected)
 
@@ -135,7 +135,7 @@
 
 ## 📝 Summary of Differences
 
-| Item | Original | API v2.2.0 | Priority |
+| Item | Original | API v2.3.0 | Priority |
 |------|----------|-----------|----------|
 | Device `ip` | `"ip"` | `"ip_address"` | 🔴 HIGH |
 | Register `function_code` | `4` (int) | `"input"` (string) | 🟡 MEDIUM |
@@ -155,5 +155,5 @@
 ---
 
 **Validation Date:** 2025-11-14
-**API Version:** v2.2.0
+**API Version:** v2.3.0
 **Validator:** Kemal - SURIOTA R&D Team

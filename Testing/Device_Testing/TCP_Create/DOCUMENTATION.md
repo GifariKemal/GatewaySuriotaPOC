@@ -11,7 +11,7 @@ Folder khusus untuk testing **Create Device + Register** pada firmware **SRT-MGA
 ### Firmware Details
 - **Product:** SRT-MGATE-1210 Modbus IIoT Gateway
 - **MCU:** ESP32-S3 Dev Module
-- **Firmware Version:** v2.2.0
+- **Firmware Version:** v2.3.0
 - **Communication:** BLE (Bluetooth Low Energy)
 - **Library:** Bleak (Python BLE library)
 
@@ -22,7 +22,7 @@ Folder khusus untuk testing **Create Device + Register** pada firmware **SRT-MGA
 ```
 Device_Testing/
 ├── create_device_5_registers.py            # Original version
-├── create_device_5_registers_corrected.py  # API v2.2.0 compliant
+├── create_device_5_registers_corrected.py  # API v2.3.0 compliant
 ├── DOCUMENTATION.md                        # This file
 ├── QUICK_START.txt                         # Quick reference
 ├── PAYLOAD_VALIDATION.md                   # Payload validation
@@ -113,7 +113,7 @@ Refresh Rate:     5000 ms
 - Register: `"function_code": "input"` (string)
 - Register: No `"type"` field (removed)
 
-**Status:** ✅ 100% sesuai API.md v2.2.0
+**Status:** ✅ 100% sesuai API.md v2.3.0
 
 **Use Case:**
 - Production deployment
@@ -321,7 +321,7 @@ pip install bleak
 
 2. TEST CORRECTED VERSION
    ├─ python create_device_5_registers_corrected.py
-   ├─ If ✅ SUCCESS → Firmware supports API v2.2.0
+   ├─ If ✅ SUCCESS → Firmware supports API v2.3.0
    └─ If ❌ FAIL → Check troubleshooting
 
 3. DOCUMENT RESULTS

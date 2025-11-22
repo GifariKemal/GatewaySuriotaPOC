@@ -6,7 +6,7 @@
 
 **Current Version:** v2.1.1
 **Developer:** Kemal
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 
 ---
 
@@ -1194,7 +1194,7 @@ client.on('message', (topic, message) => {
 ---
 
 **Document Version:** 2.0 (Translated)
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 **Firmware Version:** v2.1.1
 **Developer:** Kemal
 

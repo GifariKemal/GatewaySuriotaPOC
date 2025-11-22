@@ -216,7 +216,7 @@ If you're updating from an older firmware version with basic Serial.println() lo
 - ✅ Enhanced CRUD responses
 - ✅ Optimized memory usage
 
-**v2.1.1 → v2.2.0:**
+**v2.1.1 → v2.3.0:**
 - ✅ API structure cleaned
 - ✅ Configuration organization improved
 - ✅ Error handling enhanced
@@ -254,8 +254,8 @@ If you're updating from an older firmware version with basic Serial.println() lo
 
 ---
 
-**Last Updated:** November 20, 2025
-**Current Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Current Version:** 2.3.0
 **Optimization Status:** Ongoing
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#optimization-documentation)

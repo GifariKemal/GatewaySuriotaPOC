@@ -506,7 +506,7 @@ RTU/
 
 ## Compatibility
 
-- **Firmware:** SRT-MGATE-1210 v2.2.0
+- **Firmware:** SRT-MGATE-1210 v2.3.0
 - **Python:** 3.7, 3.8, 3.9, 3.10, 3.11, 3.12
 - **PyModbus:** 3.0.0 - 3.6.x
 - **PySerial:** 3.5+

@@ -4,13 +4,13 @@
 
 [Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Register Calibration
 
-**Current Version:** v2.2.0
+**Current Version:** v2.3.0
 **Developer:** Kemal
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 
 ## Overview
 
-SRT-MGATE-1210 Firmware v2.2.0 supports **automatic calibration** for Modbus register values using the **scale & offset** formula. This feature enables conversion of raw Modbus values to appropriate measurement units without requiring post-processing on the subscriber side.
+SRT-MGATE-1210 Firmware v2.3.0 supports **automatic calibration** for Modbus register values using the **scale & offset** formula. This feature enables conversion of raw Modbus values to appropriate measurement units without requiring post-processing on the subscriber side.
 
 **Key Features:**
 - ✅ Automatic calibration with formula: `final_value = (raw_value × scale) + offset`
@@ -1409,9 +1409,9 @@ For questions or issues related to register calibration:
 ---
 
 **Document Version:** 1.2 (Updated)
-**Firmware Version:** v2.2.0
+**Firmware Version:** v2.3.0
 **Developer:** Kemal
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 
 [← Back to Technical Guides](README.md) | [↑ Top](#register-calibration---documentation)
 
