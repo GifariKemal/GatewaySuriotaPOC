@@ -8,7 +8,7 @@
 
 ## ⚠️ Important Notice
 
-This directory contains **archived documentation** from previous firmware versions and development phases. These documents are kept for historical reference but **are no longer applicable** to current firmware versions (v2.2.0+).
+This directory contains **archived documentation** from previous firmware versions and development phases. These documents are kept for historical reference but **are no longer applicable** to current firmware versions (v2.3.0+).
 
 **For current documentation:** See [Documentation Index](../README.md)
 
@@ -166,8 +166,8 @@ Documents are archived when:
 ---
 
 **Archive Created:** October 2024
-**Last Updated:** November 20, 2025
+**Last Updated:** November 21, 2025
 **Archived From:** v2.0.0 development phase
-**Current Firmware:** v2.2.0
+**Current Firmware:** v2.3.0
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#archive)

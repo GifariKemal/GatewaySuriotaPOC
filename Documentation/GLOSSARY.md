@@ -97,7 +97,7 @@ Wired network connection via W5500 chip. More stable than WiFi, recommended for 
 Automatic switch from primary to backup network when primary fails. Occurs within 5 seconds. See [NETWORK_CONFIGURATION.md - Failover](Technical_Guides/NETWORK_CONFIGURATION.md#failover-logic).
 
 **Firmware**
-Software running on the gateway. Current version: v2.2.0. See [VERSION_HISTORY.md](Changelog/VERSION_HISTORY.md).
+Software running on the gateway. Current version: v2.3.0. See [VERSION_HISTORY.md](Changelog/VERSION_HISTORY.md).
 
 **Flash Memory**
 Non-volatile storage (16MB) for firmware and configuration. Data persists across reboots.
@@ -415,7 +415,7 @@ WiFi security protocols. Always use for secure wireless connections. See [BEST_P
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 
 [← Back to Documentation Index](README.md) | [↑ Top](#glossary)

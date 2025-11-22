@@ -178,4 +178,4 @@ Gateway (Serial1) <--RS485--> RS485 Adapter <--USB--> PC (COM8)
 
 **Author:** Kemal - SURIOTA R&D Team
 **Date:** 2025-11-17
-**Firmware Version:** SRT-MGATE-1210 v2.2.0
+**Firmware Version:** SRT-MGATE-1210 v2.3.0

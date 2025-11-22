@@ -4,7 +4,7 @@
 
 This document explains the server configuration structure used in `update_server_config.py`.
 
-## Configuration Structure (API v2.2.0)
+## Configuration Structure (API v2.3.0)
 
 ```json
 {
@@ -277,8 +277,8 @@ HTTP REST API telemetry settings.
 - `body_format` (string) - Request body format: `"json"` or `"form"`
 - `timeout` (integer) - Request timeout in milliseconds
 - `retry` (integer) - Max retry attempts on failure
-- `interval` (integer) - Transmission interval value (v2.2.0+)
-- `interval_unit` (string) - `"ms"`, `"s"`, or `"m"` (v2.2.0+)
+- `interval` (integer) - Transmission interval value (v2.3.0+)
+- `interval_unit` (string) - `"ms"`, `"s"`, or `"m"` (v2.3.0+)
 - `headers` (object) - Custom HTTP headers
 
 **Current Settings:**
@@ -415,7 +415,7 @@ Three units are supported:
 
 ### API Version Changes
 
-**v2.2.0 Breaking Changes:**
+**v2.3.0 Breaking Changes:**
 - ❌ `data_interval` removed from root config
 - ✅ `http_config.interval` and `http_config.interval_unit` added
 - ✅ MQTT intervals moved to mode-specific configs
@@ -428,7 +428,7 @@ Three units are supported:
 }
 ```
 
-**New (v2.2.0+):**
+**New (v2.3.0+):**
 ```json
 "config": {
   "http_config": {
@@ -578,6 +578,6 @@ Three units are supported:
 
 ---
 
-**Version:** 2.2.0
+**Version:** 2.3.0
 **Last Updated:** 2025-11-15
 **Author:** Kemal - SURIOTA R&D Team

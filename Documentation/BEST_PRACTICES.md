@@ -741,8 +741,8 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md) | [↑ Top](#best-practices-guide)

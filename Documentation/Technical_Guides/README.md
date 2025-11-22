@@ -98,7 +98,7 @@ For additional help:
 
 ---
 
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#technical-guides)

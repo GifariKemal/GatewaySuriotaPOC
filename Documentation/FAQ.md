@@ -555,7 +555,7 @@ Then read logs via:
 Response includes:
 ```json
 {
-  "firmware_version": "2.2.0",
+  "firmware_version": "2.3.0",
   "build_date": "2025-11-14"
 }
 ```
@@ -572,7 +572,7 @@ Response includes:
 
 **⚠️ Warning:** Some versions have breaking changes. Read migration guide first!
 
-### Q: What's new in v2.2.0?
+### Q: What's new in v2.3.0?
 
 **A:** Key changes:
 - Clean API structure
@@ -580,7 +580,7 @@ Response includes:
 - Breaking change: `data_interval` removed from root
 - Enhanced network configuration documentation
 
-**Migration Required:** Yes, see [VERSION_HISTORY.md - v2.2.0 Migration](Changelog/VERSION_HISTORY.md#v220-migration-guide)
+**Migration Required:** Yes, see [VERSION_HISTORY.md - v2.3.0 Migration](Changelog/VERSION_HISTORY.md#v220-migration-guide)
 
 ### Q: How do I update the firmware?
 
@@ -611,7 +611,7 @@ Response includes:
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 
 [← Back to Documentation Index](README.md) | [↑ Top](#frequently-asked-questions-faq)

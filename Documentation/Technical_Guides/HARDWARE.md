@@ -734,7 +734,7 @@ TP10: SPI MISO (W5500)
 ---
 
 **Document Version:** 1.1 (Updated)
-**Last Updated:** November 20, 2025
-**Firmware Version:** 2.2.0
+**Last Updated:** November 21, 2025
+**Firmware Version:** 2.3.0
 
 [← Back to Technical Guides](README.md) | [↑ Top](#hardware-specifications)
