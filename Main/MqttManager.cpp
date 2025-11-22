@@ -612,8 +612,22 @@ void MqttManager::publishQueueData()
 
 void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegisters, unsigned long now)
 {
+  // CRITICAL FIX: ArduinoJson v7 uses dynamic allocation (no size parameter needed)
+  // The PSRAMAllocator will automatically allocate memory in PSRAM as data is added
+  // This is more efficient than pre-allocating a fixed size
+  // Reference: ArduinoJson v7 documentation - dynamic memory management
+
+  // Calculate estimated size for logging/monitoring purposes only
+  constexpr uint32_t AVG_BYTES_PER_REGISTER = 150;  // Bytes per register (name, value, unit, metadata)
+  constexpr uint32_t JSON_OVERHEAD = 1000;           // Timestamp, device structure, commas, brackets
+  uint32_t estimatedSize = (uniqueRegisters.size() * AVG_BYTES_PER_REGISTER) + JSON_OVERHEAD;
+
   // Batch all data into single payload grouped by device_id
-  JsonDocument batchDoc;
+  // SpiRamJsonDocument automatically uses PSRAM allocator (see JsonDocumentPSRAM.h)
+  SpiRamJsonDocument batchDoc;  // ArduinoJson v7: No size parameter, dynamic allocation
+
+  LOG_MQTT_DEBUG("JsonDocument created for %d registers (estimated: ~%u bytes)\n",
+                 uniqueRegisters.size(), estimatedSize);
 
   // Get formatted timestamp from RTC: DD/MM/YYYY HH:MM:SS
   RTCManager *rtcMgr = RTCManager::getInstance();
@@ -717,7 +731,28 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
 
   // Serialize batch payload
   String payload;
-  serializeJson(batchDoc, payload);
+  size_t serializedSize = serializeJson(batchDoc, payload);
+
+  // Validate serialization success
+  if (serializedSize == 0) {
+    Serial.println("[MQTT] ERROR: serializeJson() returned 0 bytes!");
+    return;
+  }
+
+  // Validate payload is valid JSON (check first and last characters)
+  if (payload.length() > 0) {
+    if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}') {
+      Serial.printf("[MQTT] ERROR: Payload is not valid JSON! First char: '%c', Last char: '%c'\n",
+                    payload.charAt(0), payload.charAt(payload.length() - 1));
+      Serial.printf("[MQTT] Payload (first 100): %s\n", payload.substring(0, 100).c_str());
+      Serial.printf("[MQTT] Payload (last 100): %s\n",
+                    payload.substring(max(0, (int)payload.length() - 100)).c_str());
+      return;
+    }
+  }
+
+  Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
+                serializedSize, estimatedSize);
 
   // FIXED BUG #15: Check against dynamic buffer size
   // FIXED BUG #7: Use cached buffer size (already set in connectToMqtt)
@@ -726,26 +761,30 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     Serial.printf("[MQTT] ERROR: Payload too large (%d bytes > %u bytes buffer)!\n",
                   payload.length(), cachedBufferSize);
     Serial.printf("[MQTT] Splitting large payloads is needed. Current registers: %d\n", totalRegisters);
+    return;
   }
 
   // Publish single message with all data
-  // FIXED BUG: Use text publish instead of binary publish for JSON data
-  // Text publish is more reliable for JSON/text payloads (binary publish can cause data loss)
   Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
                 payload.length(), defaultTopicPublish.c_str());
 
-  // DEBUG: Print payload preview (first 500 chars) for troubleshooting
+  // DEBUG: Print payload preview (first 500 chars) and LAST 200 chars for troubleshooting
   if (payload.length() > 0) {
-    Serial.println("[MQTT] Payload preview:");
+    Serial.println("[MQTT] Payload FIRST 500 chars:");
     Serial.println(payload.substring(0, min(500, (int)payload.length())));
     if (payload.length() > 500) {
-      Serial.println("[MQTT] ... (truncated)");
+      Serial.println("[MQTT] ... (middle truncated) ...");
+      Serial.println("[MQTT] Payload LAST 200 chars:");
+      Serial.println(payload.substring(max(0, (int)payload.length() - 200)));
     }
     Serial.println("[MQTT] ---");
   }
 
-  // FIXED: Use text publish (2 params) instead of binary publish (4 params)
-  // This matches the working implementation in previous firmware version
+  // CRITICAL FIX: Use BINARY publish with explicit length for large JSON payloads (>2KB)
+  // PREVIOUS BUG: Text publish uses strlen() which STOPS at null terminator (\x00)
+  // This causes data corruption/truncation for large payloads or JSON with special chars
+  // SOLUTION: Binary publish treats payload as byte array with explicit length
+  // Reference: PubSubClient documentation - binary publish for non-text data
 
   // DEBUG: Check MQTT connection state before publish
   if (!mqttClient.connected()) {
@@ -755,9 +794,57 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
 
   Serial.printf("[MQTT] Publishing to broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
-  Serial.printf("[MQTT] Topic: %s\n", defaultTopicPublish.c_str());
+  Serial.printf("[MQTT] Topic: %s (length: %d)\n", defaultTopicPublish.c_str(), defaultTopicPublish.length());
+  Serial.printf("[MQTT] Payload size: %u bytes (using BINARY publish with explicit length)\n", payload.length());
 
-  bool published = mqttClient.publish(defaultTopicPublish.c_str(), payload.c_str());
+  // CRITICAL: Calculate total MQTT packet size for validation
+  // MQTT Packet = Fixed Header (5) + Topic Length (2) + Topic Name + Payload
+  uint32_t mqttPacketSize = 5 + 2 + defaultTopicPublish.length() + payload.length();
+  Serial.printf("[MQTT] Total MQTT packet size: %u bytes (buffer: %u bytes)\n", mqttPacketSize, cachedBufferSize);
+
+  // Validate packet size doesn't exceed buffer
+  if (mqttPacketSize > cachedBufferSize) {
+    Serial.printf("[MQTT] ERROR: Packet size (%u) exceeds buffer (%u)! Cannot publish.\n",
+                  mqttPacketSize, cachedBufferSize);
+    return;
+  }
+
+  // Validate payload is not empty or corrupted
+  if (payload.length() == 0 || payload.length() > 16000) {
+    Serial.printf("[MQTT] ERROR: Invalid payload size: %u bytes\n", payload.length());
+    return;
+  }
+
+  // CRITICAL FIX: Copy topic to separate buffer to prevent memory overlap
+  // This prevents topic name from corrupting payload during MQTT packet construction
+  char topicBuffer[128];
+  strncpy(topicBuffer, defaultTopicPublish.c_str(), sizeof(topicBuffer) - 1);
+  topicBuffer[sizeof(topicBuffer) - 1] = '\0';
+
+  // CRITICAL FIX: Allocate separate buffer for payload to prevent String memory issues
+  // String.c_str() can return unstable pointer for large strings (>2KB) on ESP32
+  uint8_t* payloadBuffer = (uint8_t*)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
+  if (!payloadBuffer) {
+    Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for payload buffer!\n", payload.length());
+    return;
+  }
+
+  // Copy payload to dedicated buffer
+  memcpy(payloadBuffer, payload.c_str(), payload.length());
+  uint32_t payloadLen = payload.length();
+
+  Serial.printf("[MQTT] Payload copied to dedicated buffer (%u bytes at 0x%p)\n",
+                payloadLen, payloadBuffer);
+
+  // FIXED: Use binary publish (3 params) with explicit length for reliable transmission
+  bool published = mqttClient.publish(
+    topicBuffer,                // Topic (separate buffer)
+    payloadBuffer,              // Payload (dedicated buffer)
+    payloadLen                  // Explicit length
+  );
+
+  // Free payload buffer after publish
+  heap_caps_free(payloadBuffer);
 
   Serial.printf("[MQTT] Publish result: %s (return value: %d)\n",
                 published ? "SUCCESS" : "FAILED", published);
@@ -845,8 +932,21 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       continue; // Wait for this topic's interval
     }
 
+    // CRITICAL FIX: ArduinoJson v7 uses dynamic allocation (no size parameter needed)
+    // Calculate estimated size for logging/monitoring purposes only
+    constexpr uint32_t AVG_BYTES_PER_REGISTER = 150;
+    constexpr uint32_t JSON_OVERHEAD = 1000;
+
+    // Estimate for registers in THIS topic only (will be filtered below)
+    uint32_t topicRegistersCount = customTopic.registers.size();
+    uint32_t estimatedSize = (topicRegistersCount * AVG_BYTES_PER_REGISTER) + JSON_OVERHEAD;
+
     // Filter registers for this topic
-    JsonDocument topicDoc;
+    // SpiRamJsonDocument automatically uses PSRAM allocator (ArduinoJson v7 dynamic allocation)
+    SpiRamJsonDocument topicDoc;
+
+    LOG_MQTT_DEBUG("Customize Mode: JsonDocument created for topic %s (%d registers, estimated: ~%u bytes)\n",
+                   customTopic.topic.c_str(), topicRegistersCount, estimatedSize);
 
     // Add formatted timestamp from RTC
     RTCManager *rtcMgr = RTCManager::getInstance();
@@ -968,8 +1068,13 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         Serial.println("[MQTT] ---");
       }
 
-      // FIXED: Use text publish (2 params) instead of binary publish for JSON data
-      bool published = mqttClient.publish(customTopic.topic.c_str(), payload.c_str());
+      // CRITICAL FIX: Use BINARY publish with explicit length (same as default mode)
+      // Prevents data truncation for large payloads or JSON with special chars
+      bool published = mqttClient.publish(
+        customTopic.topic.c_str(),               // Topic
+        (const uint8_t*)payload.c_str(),        // Payload as byte array
+        payload.length()                         // Explicit length
+      );
 
       // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
       if (published) {

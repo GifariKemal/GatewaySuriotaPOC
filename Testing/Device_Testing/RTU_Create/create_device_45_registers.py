@@ -29,6 +29,8 @@ class DeviceCreationClient:
         self.response_buffer = ""
         self.connected = False
         self.device_id = None
+        self.last_response = None
+        self.response_received = False
 
     async def connect(self):
         try:
@@ -66,20 +68,34 @@ class DeviceCreationClient:
             if self.response_buffer:
                 try:
                     response = json.loads(self.response_buffer)
-                    print(f"[RESPONSE] {json.dumps(response, indent=2)}")
+                    self.last_response = response
+                    self.response_received = True
 
-                    if response.get('status') == 'ok' and 'device_id' in response:
-                        self.device_id = response['device_id']
-                        print(f"[CAPTURE] Device ID: {self.device_id}")
+                    # Compact response logging (just status + device_id/register_id)
+                    status = response.get('status', 'unknown')
+                    if status == 'ok':
+                        if 'device_id' in response:
+                            self.device_id = response['device_id']
+                            print(f"[OK] Device created: {self.device_id}")
+                        elif 'data' in response and 'register_name' in response['data']:
+                            reg_name = response['data']['register_name']
+                            print(f"[OK] Register created: {reg_name}")
+                        else:
+                            print(f"[OK] Operation successful")
+                    else:
+                        error_msg = response.get('error', 'Unknown error')
+                        print(f"[ERROR] Operation failed: {error_msg}")
 
                 except json.JSONDecodeError as e:
                     print(f"[ERROR] JSON Parse: {e}")
+                    self.response_received = True
+                    self.last_response = {"status": "error", "error": str(e)}
                 finally:
                     self.response_buffer = ""
         else:
             self.response_buffer += fragment
 
-    async def send_command(self, command, description=""):
+    async def send_command(self, command, description="", max_retries=3):
         if not self.connected:
             raise RuntimeError("Not connected to BLE device")
 
@@ -87,18 +103,72 @@ class DeviceCreationClient:
 
         if description:
             print(f"\n[COMMAND] {description}")
-        print(f"[DEBUG] Payload ({len(json_str)} bytes): {json_str}")
 
-        # Send entire command at once (MTU is 517 bytes - no chunking needed)
-        await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
-        await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
-        await asyncio.sleep(2.0)
+        for attempt in range(1, max_retries + 1):
+            try:
+                # Reset response tracking
+                self.response_received = False
+                self.last_response = None
+
+                # Send command
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
+                await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
+
+                # Wait for response (max 5 seconds)
+                for _ in range(50):  # 50 * 0.1s = 5 seconds
+                    if self.response_received:
+                        if self.last_response and self.last_response.get('status') == 'ok':
+                            return True  # Success
+                        else:
+                            print(f"[RETRY] Attempt {attempt}/{max_retries} failed")
+                            break
+                    await asyncio.sleep(0.1)
+
+                # Timeout - retry
+                if not self.response_received:
+                    print(f"[TIMEOUT] No response after 5s (attempt {attempt}/{max_retries})")
+
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)  # Wait before retry
+
+            except Exception as e:
+                print(f"[ERROR] Send failed: {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(1.0)
+
+        print(f"[FAILED] Command failed after {max_retries} attempts")
+        return False
 
     async def create_device_and_registers(self):
         print("\n" + "="*70)
         print("  SRT-MGATE-1210 TESTING: CREATE 1 RTU DEVICE + 45 REGISTERS")
         print("="*70)
 
+        # =============================================================================
+        # IMPORTANT WARNING
+        # =============================================================================
+        print("\n" + "!"*70)
+        print("  IMPORTANT: BEFORE RUNNING THIS SCRIPT")
+        print("!"*70)
+        print("  1. START Modbus RTU Slave Simulator FIRST")
+        print("     Location: Testing/Modbus_Simulators/RTU_Slave/")
+        print("     Command:  python modbus_slave_45_registers.py")
+        print("")
+        print("  2. This prevents RTU polling errors during device creation")
+        print("     which can cause DRAM warnings and BLE packet loss")
+        print("")
+        print("  3. Wait 10 seconds after starting the simulator before")
+        print("     running this script")
+        print("!"*70)
+
+        user_input = input("\nHave you started the Modbus slave simulator? (yes/no): ")
+        if user_input.lower() != 'yes':
+            print("\n[ABORTED] Please start the Modbus slave simulator first")
+            return
+
+        # =============================================================================
+        # STEP 1: Create RTU Device
+        # =============================================================================
         print("\n>>> STEP 1: Creating RTU Device...")
 
         device_config = {
@@ -106,12 +176,12 @@ class DeviceCreationClient:
             "type": "device",
             "device_id": None,
             "config": {
-                "device_name": "RTU_Device_45_Regs",
+                "device_name": "RTU_Device_45Regs",
                 "protocol": "RTU",
                 "slave_id": 1,
                 "timeout": 5000,
                 "retry_count": 3,
-                "refresh_rate_ms": 2000,
+                "refresh_rate_ms": 10000,
                 "serial_port": 2,
                 "baud_rate": 9600,
                 "data_bits": 8,
@@ -120,18 +190,91 @@ class DeviceCreationClient:
             }
         }
 
-        await self.send_command(device_config, "Creating RTU Device: RTU_Device_45_Regs")
-        await asyncio.sleep(2)
+        success = await self.send_command(device_config, "Creating RTU Device: RTU_Device_45Regs")
 
-        if not self.device_id:
-            print("[ERROR] Device ID not captured. Aborting...")
+        if not success or not self.device_id:
+            print("[ERROR] Device creation failed. Aborting...")
             return
 
-        print(f"\n>>> STEP 2: Creating 45 Registers for Device ID: {self.device_id}")
+        print(f"\n[SUCCESS] Device created: {self.device_id}")
+        await asyncio.sleep(2)
 
-        registers = [
-            {"address": 0, "name": "Register_1", "desc": "Data Point 1", "unit": "unit"},\n            {"address": 1, "name": "Register_2", "desc": "Data Point 2", "unit": "unit"},\n            {"address": 2, "name": "Register_3", "desc": "Data Point 3", "unit": "unit"},\n            {"address": 3, "name": "Register_4", "desc": "Data Point 4", "unit": "unit"},\n            {"address": 4, "name": "Register_5", "desc": "Data Point 5", "unit": "unit"},\n            {"address": 5, "name": "Register_6", "desc": "Data Point 6", "unit": "unit"},\n            {"address": 6, "name": "Register_7", "desc": "Data Point 7", "unit": "unit"},\n            {"address": 7, "name": "Register_8", "desc": "Data Point 8", "unit": "unit"},\n            {"address": 8, "name": "Register_9", "desc": "Data Point 9", "unit": "unit"},\n            {"address": 9, "name": "Register_10", "desc": "Data Point 10", "unit": "unit"},\n            {"address": 10, "name": "Register_11", "desc": "Data Point 11", "unit": "unit"},\n            {"address": 11, "name": "Register_12", "desc": "Data Point 12", "unit": "unit"},\n            {"address": 12, "name": "Register_13", "desc": "Data Point 13", "unit": "unit"},\n            {"address": 13, "name": "Register_14", "desc": "Data Point 14", "unit": "unit"},\n            {"address": 14, "name": "Register_15", "desc": "Data Point 15", "unit": "unit"},\n            {"address": 15, "name": "Register_16", "desc": "Data Point 16", "unit": "unit"},\n            {"address": 16, "name": "Register_17", "desc": "Data Point 17", "unit": "unit"},\n            {"address": 17, "name": "Register_18", "desc": "Data Point 18", "unit": "unit"},\n            {"address": 18, "name": "Register_19", "desc": "Data Point 19", "unit": "unit"},\n            {"address": 19, "name": "Register_20", "desc": "Data Point 20", "unit": "unit"},\n            {"address": 20, "name": "Register_21", "desc": "Data Point 21", "unit": "unit"},\n            {"address": 21, "name": "Register_22", "desc": "Data Point 22", "unit": "unit"},\n            {"address": 22, "name": "Register_23", "desc": "Data Point 23", "unit": "unit"},\n            {"address": 23, "name": "Register_24", "desc": "Data Point 24", "unit": "unit"},\n            {"address": 24, "name": "Register_25", "desc": "Data Point 25", "unit": "unit"},\n            {"address": 25, "name": "Register_26", "desc": "Data Point 26", "unit": "unit"},\n            {"address": 26, "name": "Register_27", "desc": "Data Point 27", "unit": "unit"},\n            {"address": 27, "name": "Register_28", "desc": "Data Point 28", "unit": "unit"},\n            {"address": 28, "name": "Register_29", "desc": "Data Point 29", "unit": "unit"},\n            {"address": 29, "name": "Register_30", "desc": "Data Point 30", "unit": "unit"},\n            {"address": 30, "name": "Register_31", "desc": "Data Point 31", "unit": "unit"},\n            {"address": 31, "name": "Register_32", "desc": "Data Point 32", "unit": "unit"},\n            {"address": 32, "name": "Register_33", "desc": "Data Point 33", "unit": "unit"},\n            {"address": 33, "name": "Register_34", "desc": "Data Point 34", "unit": "unit"},\n            {"address": 34, "name": "Register_35", "desc": "Data Point 35", "unit": "unit"},\n            {"address": 35, "name": "Register_36", "desc": "Data Point 36", "unit": "unit"},\n            {"address": 36, "name": "Register_37", "desc": "Data Point 37", "unit": "unit"},\n            {"address": 37, "name": "Register_38", "desc": "Data Point 38", "unit": "unit"},\n            {"address": 38, "name": "Register_39", "desc": "Data Point 39", "unit": "unit"},\n            {"address": 39, "name": "Register_40", "desc": "Data Point 40", "unit": "unit"},\n            {"address": 40, "name": "Register_41", "desc": "Data Point 41", "unit": "unit"},\n            {"address": 41, "name": "Register_42", "desc": "Data Point 42", "unit": "unit"},\n            {"address": 42, "name": "Register_43", "desc": "Data Point 43", "unit": "unit"},\n            {"address": 43, "name": "Register_44", "desc": "Data Point 44", "unit": "unit"},\n            {"address": 44, "name": "Register_45", "desc": "Data Point 45", "unit": "unit"}
-        ]
+        # =============================================================================
+        # STEP 2: Create 45 Registers
+        # =============================================================================
+        print(f"\n>>> STEP 2: Creating 45 Registers for Device ID: {self.device_id}")
+        print("[INFO] Using 1.5 second delay between registers to prevent BLE packet loss")
+
+        # Generate 45 registers with diverse sensor types (same pattern as 50-register version)
+        registers = []
+
+        # Temperature sensors (0-9) - 10 sensors
+        for i in range(10):
+            registers.append({
+                "address": i,
+                "name": f"Temp_Zone_{i+1}",
+                "desc": f"Temperature Zone {i+1}",
+                "unit": "degC"  # FIXED: Changed from °C to avoid UTF-8 encoding issues
+            })
+
+        # Humidity sensors (10-19) - 10 sensors
+        for i in range(10):
+            registers.append({
+                "address": 10 + i,
+                "name": f"Humid_Zone_{i+1}",
+                "desc": f"Humidity Zone {i+1}",
+                "unit": "%"
+            })
+
+        # Pressure sensors (20-24) - 5 sensors
+        for i in range(5):
+            registers.append({
+                "address": 20 + i,
+                "name": f"Press_Sensor_{i+1}",
+                "desc": f"Pressure Sensor {i+1}",
+                "unit": "Pa"
+            })
+
+        # Voltage sensors (25-29) - 5 sensors
+        for i in range(5):
+            registers.append({
+                "address": 25 + i,
+                "name": f"Voltage_L{i+1}",
+                "desc": f"Voltage Line {i+1}",
+                "unit": "V"
+            })
+
+        # Current sensors (30-34) - 5 sensors
+        for i in range(5):
+            registers.append({
+                "address": 30 + i,
+                "name": f"Current_L{i+1}",
+                "desc": f"Current Line {i+1}",
+                "unit": "A"
+            })
+
+        # Power sensors (35-39) - 5 sensors
+        for i in range(5):
+            registers.append({
+                "address": 35 + i,
+                "name": f"Power_{i+1}",
+                "desc": f"Power Meter {i+1}",
+                "unit": "W"
+            })
+
+        # Energy counters (40-44) - 5 sensors
+        for i in range(5):
+            registers.append({
+                "address": 40 + i,
+                "name": f"Energy_{i+1}",
+                "desc": f"Energy Counter {i+1}",
+                "unit": "kWh"
+            })
+
+        # Create all 45 registers with retry mechanism
+        success_count = 0
+        failed_count = 0
+        failed_registers = []
 
         for idx, reg in enumerate(registers, 1):
             register_config = {
@@ -151,25 +294,70 @@ class DeviceCreationClient:
                 }
             }
 
-            await self.send_command(
-                register_config,
-                f"Creating Register {idx}/45: {reg['name']} (Address: {reg['address']})"
-            )
-            await asyncio.sleep(0.5)
+            print(f"\n[{idx}/45] {reg['name']} (Addr: {reg['address']})", end=" ")
+            success = await self.send_command(register_config, "")
 
+            if success:
+                success_count += 1
+                print(f"✓")
+            else:
+                failed_count += 1
+                failed_registers.append(reg)
+                print(f"✗ FAILED")
+
+            # Increased delay to prevent BLE packet loss during low DRAM
+            await asyncio.sleep(1.5)
+
+        # =============================================================================
+        # STEP 3: Summary
+        # =============================================================================
         print("\n" + "="*70)
         print("  SUMMARY")
         print("="*70)
-        print(f"Device Name:      RTU_Device_45_Regs")
+        print(f"Device Name:      RTU_Device_45Regs")
         print(f"Device ID:        {self.device_id}")
         print(f"Protocol:         Modbus RTU")
         print(f"Serial Port:      COM8 (Port 2)")
         print(f"Baud Rate:        9600")
         print(f"Slave ID:         1")
         print(f"Timeout:          5000 ms")
-        print(f"Refresh Rate:     2000 ms")
-        print(f"\nRegisters Created: 45")
+        print(f"Refresh Rate:     10000 ms")
+        print(f"\nRegister Creation Results:")
+        print(f"  Total Attempted:  45")
+        print(f"  Success:          {success_count} ✓")
+        print(f"  Failed:           {failed_count} ✗")
+
+        if success_count == 45:
+            print(f"\n  STATUS: ALL REGISTERS CREATED SUCCESSFULLY! 🎉")
+        elif success_count >= 40:
+            print(f"\n  STATUS: Nearly complete ({success_count}/45)")
+        else:
+            print(f"\n  STATUS: Incomplete - many failures")
+
+        if failed_registers:
+            print(f"\n  Failed Registers:")
+            for reg in failed_registers:
+                print(f"    - {reg['name']} (Addr: {reg['address']})")
+            print(f"\n  [TIP] Re-run the script to retry failed registers")
+            print(f"  [TIP] Or manually create them via BLE app")
+
+        print(f"\nRegister Layout:")
+        print(f"  Temperature Zones:  0-9   (10 sensors)")
+        print(f"  Humidity Zones:     10-19 (10 sensors)")
+        print(f"  Pressure Sensors:   20-24 (5 sensors)")
+        print(f"  Voltage Lines:      25-29 (5 sensors)")
+        print(f"  Current Lines:      30-34 (5 sensors)")
+        print(f"  Power Meters:       35-39 (5 sensors)")
+        print(f"  Energy Counters:    40-44 (5 sensors)")
         print("="*70)
+
+        if success_count == 45:
+            print("\n[INFO] Expected Gateway behavior:")
+            print("  - RTU polling time: ~7-9 seconds for 45 registers")
+            print("  - Batch completion: All 45 registers attempted")
+            print("  - MQTT payload: ~1.8-2.0 KB (smaller than 50 regs)")
+            print("  - Publish interval: Every 20-25 seconds")
+            print("="*70)
 
 async def main():
     client = DeviceCreationClient()
@@ -190,8 +378,16 @@ async def main():
 
         await client.create_device_and_registers()
 
-        print("\n[SUCCESS] Program completed successfully")
-        print("[INFO] Device and 45 registers created on GATEWAY")
+        print("\n[SUCCESS] Program completed")
+        print("\n[NEXT STEPS]")
+        print("  1. Monitor Gateway serial output for RTU polling logs")
+        print("  2. Verify batch completion: (X success, Y failed, 45/45 total)")
+        print("  3. Check MQTT broker for published payload (~1.8-2.0 KB)")
+        print("  4. If some registers failed, re-run this script (it will retry)")
+        print("\n[TROUBLESHOOTING]")
+        print("  - Low DRAM warnings: Modbus slave should be running")
+        print("  - BLE packet loss: Try increasing delay in script")
+        print("  - Polling errors: Check slave simulator is running correctly")
 
     except KeyboardInterrupt:
         print("\n[INTERRUPT] Program interrupted by user")

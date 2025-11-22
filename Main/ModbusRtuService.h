@@ -165,7 +165,7 @@ private:
   double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
   double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char* baseType, const char* endianness_variant);  // BUG #31: const char* instead of String
   bool readMultipleRegisters(ModbusMaster *modbus, uint8_t functionCode, uint16_t address, int count, uint16_t *values);
-  void storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName = "");  // BUG #31: const char* instead of String
+  bool storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName = "");  // BUG #31: const char* instead of String, FIXED: Returns bool for error handling
   ModbusMaster *getModbusForBus(int serialPort);
 
   void refreshDeviceList();

@@ -419,12 +419,21 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       if (readModbusCoil(ip, port, slaveId, address, &result))
       {
         float value = result ? 1.0 : 0.0;
-        storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // CRITICAL FIX: Track successful register read
+        // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
+        bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
+
+        // Track result in batch manager
         if (batchMgr)
         {
-          batchMgr->incrementEnqueued(deviceId);
+          if (storeSuccess)
+          {
+            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+          }
+          else
+          {
+            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+          }
         }
 
         // COMPACT LOGGING: Collect reading to buffer
@@ -502,12 +511,21 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       if (readModbusRegisters(ip, port, slaveId, functionCode, address, registerCount, results))
       {
         double value = (registerCount == 1) ? processRegisterValue(reg, results[0]) : processMultiRegisterValue(reg, results, registerCount, baseType, endianness_variant);
-        storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // CRITICAL FIX: Track successful register read
+        // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
+        bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
+
+        // Track result in batch manager
         if (batchMgr)
         {
-          batchMgr->incrementEnqueued(deviceId);
+          if (storeSuccess)
+          {
+            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+          }
+          else
+          {
+            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+          }
         }
 
         // COMPACT LOGGING: Collect reading to buffer
@@ -1002,7 +1020,7 @@ bool ModbusTcpService::parseMultiModbusResponse(uint8_t *buffer, int length, uin
   return false;
 }
 
-void ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName)
+bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName)
 {
   QueueManager *queueMgr = QueueManager::getInstance();
 
@@ -1010,7 +1028,7 @@ void ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   if (!queueMgr)
   {
     Serial.println("[TCP] ERROR: QueueManager is null, cannot store register value");
-    return;
+    return false;  // FIXED: Return false on failure
   }
 
   // Create data point in simplified format for MQTT
@@ -1045,8 +1063,21 @@ void ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   dataPoint["register_id"] = reg["register_id"].as<String>();  // Internal use for deduplication
   dataPoint["register_index"] = reg["register_index"] | 0;  // For customize mode topic mapping
 
-  // Add to message queue
-  queueMgr->enqueue(dataPoint);
+  // CRITICAL FIX: Check enqueue() return value to detect data loss
+  // If enqueue fails (queue full, memory exhausted, mutex timeout), return false
+  bool enqueueSuccess = queueMgr->enqueue(dataPoint);
+
+  if (!enqueueSuccess)
+  {
+    // CRITICAL: Log detailed error for debugging
+    LOG_TCP_ERROR("Failed to enqueue register '%s' for device %s (queue full or memory exhausted)\n",
+                  reg["register_name"].as<String>().c_str(), deviceId.c_str());
+
+    // Trigger memory diagnostics to identify root cause
+    MemoryRecovery::logMemoryStatus("ENQUEUE_FAILED_TCP");
+
+    return false;  // Return failure to caller
+  }
 
   // Check if this device is being streamed
   String streamId = "";
@@ -1062,6 +1093,8 @@ void ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
     // Verbose log suppressed - summary shown in [STREAM] logs
     queueMgr->enqueueStream(dataPoint);
   }
+
+  return true;  // Success
 }
 
 void ModbusTcpService::getStatus(JsonObject &status)

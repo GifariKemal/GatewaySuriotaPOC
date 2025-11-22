@@ -176,7 +176,7 @@ private:
   void readTcpDeviceData(const JsonObject &deviceConfig);
   double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
   double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType = "", const String &endianness_variant = "");
-  void storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = "");
+  bool storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = "");  // FIXED: Returns bool for error handling
   bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient* existingClient = nullptr);
   bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient* existingClient = nullptr);
   bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient* existingClient = nullptr);

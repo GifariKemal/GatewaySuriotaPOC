@@ -387,12 +387,21 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       if (result == modbus->ku8MBSuccess)
       {
         double value = (modbus->getResponseBuffer(0) & 0x01) ? 1.0 : 0.0;
-        storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // CRITICAL FIX: Track successful register read
+        // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
+        bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
+
+        // Track result in batch manager
         if (batchMgr)
         {
-          batchMgr->incrementEnqueued(deviceId);
+          if (storeSuccess)
+          {
+            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+          }
+          else
+          {
+            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+          }
         }
 
         // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
@@ -456,12 +465,21 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       if (result == modbus->ku8MBSuccess)
       {
         double value = (modbus->getResponseBuffer(0) & 0x01) ? 1.0 : 0.0;
-        storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // CRITICAL FIX: Track successful register read
+        // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
+        bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
+
+        // Track result in batch manager
         if (batchMgr)
         {
-          batchMgr->incrementEnqueued(deviceId);
+          if (storeSuccess)
+          {
+            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+          }
+          else
+          {
+            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+          }
         }
 
         // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
@@ -567,12 +585,21 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       if (readMultipleRegisters(modbus, functionCode, address, registerCount, values))
       {
         double value = (registerCount == 1) ? processRegisterValue(reg, values[0]) : processMultiRegisterValue(reg, values, registerCount, baseType, endianness_variant);
-        storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // CRITICAL FIX: Track successful register read
+        // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
+        bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
+
+        // Track result in batch manager
         if (batchMgr)
         {
-          batchMgr->incrementEnqueued(deviceId);
+          if (storeSuccess)
+          {
+            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+          }
+          else
+          {
+            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+          }
         }
 
         // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
@@ -719,7 +746,7 @@ double ModbusRtuService::processRegisterValue(const JsonObject &reg, uint16_t ra
   return rawValue;
 }
 
-void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName)
+bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName)
 {
   QueueManager *queueMgr = QueueManager::getInstance();
 
@@ -727,7 +754,7 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
   if (!queueMgr)
   {
     Serial.println("[RTU] ERROR: QueueManager is null, cannot store register value");
-    return;
+    return false;  // FIXED: Return false on failure
   }
 
   // Create data point in simplified format for MQTT
@@ -763,8 +790,21 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
   dataPoint["register_id"] = reg["register_id"].as<String>();  // Internal use for deduplication
   dataPoint["register_index"] = reg["register_index"] | 0;  // For customize mode topic mapping
 
-  // Add to message queue
-  queueMgr->enqueue(dataPoint);
+  // CRITICAL FIX: Check enqueue() return value to detect data loss
+  // If enqueue fails (queue full, memory exhausted, mutex timeout), return false
+  bool enqueueSuccess = queueMgr->enqueue(dataPoint);
+
+  if (!enqueueSuccess)
+  {
+    // CRITICAL: Log detailed error for debugging
+    LOG_RTU_ERROR("Failed to enqueue register '%s' for device %s (queue full or memory exhausted)\n",
+                  reg["register_name"].as<String>().c_str(), deviceId);
+
+    // Trigger memory diagnostics to identify root cause
+    MemoryRecovery::logMemoryStatus("ENQUEUE_FAILED_RTU");
+
+    return false;  // Return failure to caller
+  }
 
   // Check if this device is being streamed (BUG #31: Optimized String usage)
   if (crudHandler && queueMgr)
@@ -776,6 +816,8 @@ void ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
       queueMgr->enqueueStream(dataPoint);
     }
   }
+
+  return true;  // Success
 }
 
 bool ModbusRtuService::readMultipleRegisters(ModbusMaster *modbus, uint8_t functionCode, uint16_t address, int count, uint16_t *values)

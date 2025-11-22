@@ -6,6 +6,8 @@
  * Features: CRUD operations, fragmentation, FreeRTOS tasks
  * Optimization: 9 firmware optimizations integrated
  * Debug: Development vs Production mode (PRODUCTION_MODE = 0/1)
+ *
+ * MQTT Fix: Payload corruption fix with separate buffers (2025-11-22)
  */
 
 #define PRODUCTION_MODE 0 // 0 = Development, 1 = Production

@@ -220,7 +220,7 @@ class DeviceCreationClient:
                 "address": i,
                 "name": f"Temp_Zone_{i+1}",
                 "desc": f"Temperature Zone {i+1}",
-                "unit": "°C"
+                "unit": "degC"  # FIXED: Changed from °C to avoid UTF-8 encoding issues
             })
 
         # Humidity sensors (10-19)
