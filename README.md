@@ -410,7 +410,7 @@ Comprehensive documentation is available in the `Documentation/` directory:
 
 | Document                                                                                                                      | Description                                   |
 | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md) ⭐                                                        | Changelog and migration guide (v2.1.1)        |
+| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md) ⭐                                                        | Changelog and migration guide (v2.3.0)        |
 | [**API.md**](Documentation/API_Reference/API.md)                                                                              | Complete BLE CRUD API reference with examples |
 | [**BLE_BACKUP_RESTORE.md**](Documentation/API_Reference/BLE_BACKUP_RESTORE.md) 🆕                                             | Complete configuration backup/restore via BLE |
 | [**BLE_FACTORY_RESET.md**](Documentation/API_Reference/BLE_FACTORY_RESET.md) 🆕                                               | One-command device reset to factory defaults  |
