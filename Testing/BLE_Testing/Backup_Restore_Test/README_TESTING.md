@@ -1,8 +1,9 @@
 # 🧪 PANDUAN TESTING BLE BACKUP & RESTORE
 
-**Versi:** 1.0.0
-**Tanggal:** 21 November 2025
+**Versi:** 1.1.0 (BUG #32 FIXED!)
+**Tanggal:** 22 November 2025
 **Author:** SURIOTA R&D Team
+**Firmware Required:** v2.3.1+
 
 ---
 
@@ -22,7 +23,7 @@
 
 ### 1. Kebutuhan Hardware
 
-✅ **ESP32-S3 Gateway** dengan firmware v2.3.0 atau lebih baru
+✅ **ESP32-S3 Gateway** dengan firmware v2.3.1+ (BUG #32 fixed)
 ✅ **PC/Laptop** dengan Bluetooth LE
 ✅ **Kabel USB-C** untuk monitoring serial (opsional)
 
@@ -159,11 +160,18 @@ BLE BACKUP & RESTORE TEST MENU
    2. Test Restore (from previous backup)
    3. Test Restore Error Handling (invalid payload)
    4. Test Complete Backup-Restore Cycle
+
+💾 FILE OPERATIONS:
    5. Save Backup to File
-   6. Load Backup from File and Restore
-   7. Run ALL Tests (Automated Suite)
+   6. List Available Backup Files  ← NEW in v1.1.0!
+   7. Load Backup from File and Restore
+
+🚀 AUTOMATED:
+   8. Run ALL Tests (Automated Suite)
 
    0. Exit
+
+📂 Backup Directory: C:\...\Backup_Restore_Test
 ======================================================================
 ```
 
@@ -171,9 +179,9 @@ BLE BACKUP & RESTORE TEST MENU
 
 ## 🧪 Cara Testing Otomatis
 
-### Option 1: Run ALL Tests (Pilihan 7)
+### Option 1: Run ALL Tests (Pilihan 8)
 
-Pilih **option 7** dari menu untuk menjalankan semua test otomatis.
+Pilih **option 8** dari menu untuk menjalankan semua test otomatis.
 
 Test yang akan dijalankan:
 - ✅ **Test 1**: Backup configuration
@@ -247,7 +255,7 @@ TEST 1: BACKUP CONFIGURATION (full_config)
 
 **Pilih option: 2**
 
-**⚠️ PENTING:** Harus run TEST 1 dulu, atau load backup dari file (option 6)!
+**⚠️ PENTING:** Harus run TEST 1 dulu, atau load backup dari file (option 7)!
 
 **Apa yang terjadi:**
 1. Script tanya konfirmasi (karena akan replace semua config)
@@ -392,7 +400,7 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 
 [STEP 4/4] Comparing backups...
    ✓ Device count matches: 5
-   ✓ Device IDs match
+   ✓ Device IDs match (BUG #32 fixed! IDs preserved)
    ✓ Register count matches: 15
 
 ✅ TEST PASSED: Data integrity verified
@@ -674,7 +682,7 @@ Raw response (first 500 chars): ...
 
 ### Pre-Testing Checklist
 
-- [ ] Firmware v2.3.0+ sudah uploaded
+- [ ] Firmware v2.3.1+ (BUG #32 fixed) sudah uploaded
 - [ ] Gateway punya minimal 3-5 devices configured
 - [ ] BLE sudah ON (cek serial monitor)
 - [ ] Python 3.8+ installed
@@ -736,7 +744,7 @@ Raw response (first 500 chars): ...
 - [ ] Backup kedua success
 - [ ] File saved: backup_after_restore_*.json
 - [ ] Device count match
-- [ ] Device IDs match
+- [ ] Device IDs match (BUG #32 fixed! IDs preserved from backup)
 - [ ] Register count match
 - [ ] Kedua file bisa dibuka dan valid JSON
 

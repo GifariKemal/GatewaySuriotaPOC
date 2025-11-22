@@ -2,8 +2,8 @@
 ║                                                                          ║
 ║          🧪 BLE BACKUP & RESTORE TESTING SUITE                           ║
 ║                                                                          ║
-║          Version: 1.0.0                                                  ║
-║          Date: November 21, 2025                                         ║
+║          Version: 1.1.0 (BUG #32 FIXED!)                                 ║
+║          Date: November 22, 2025                                         ║
 ║          Author: SURIOTA R&D Team                                        ║
 ║                                                                          ║
 ╚══════════════════════════════════════════════════════════════════════════╝
@@ -92,7 +92,8 @@ STEP 3: Jalankan Test Script
 
     Pilih option:
     • Option 1: Test Backup
-    • Option 7: Run ALL tests (otomatis)
+    • Option 6: List Available Backup Files (NEW in v1.1.0!)
+    • Option 8: Run ALL tests (otomatis)
 
 
 🎯 RECOMMENDED TESTING FLOW
@@ -103,7 +104,7 @@ Untuk testing pertama kali, ikuti urutan ini:
     1. Baca QUICK_START.md (5 menit)
     2. Setup environment (install dependencies)
     3. Jalankan test script
-    4. Pilih option 7 (Run ALL tests)
+    4. Pilih option 8 (Run ALL tests)
     5. Tunggu hasil (10-15 menit)
     6. Baca README_TESTING.md untuk detail lebih lanjut
 
@@ -112,7 +113,7 @@ Untuk testing formal/production:
     1. Baca README_TESTING.md (lengkap)
     2. Print TESTING_CHECKLIST.md
     3. Jalankan test script
-    4. Pilih option 1-6 (manual testing)
+    4. Pilih option 1-7 (manual testing)
     5. Isi checklist selama testing
     6. Archive hasil testing + checklist
 
@@ -147,7 +148,7 @@ Test suite ini akan menguji:
 ═══════════════════════════════════════════════════════════════════════════
 
 Hardware:
-    • ESP32-S3 Gateway with firmware v2.3.0+
+    • ESP32-S3 Gateway with firmware v2.3.1+ (BUG #32 fixed)
     • PC/Laptop with Bluetooth LE
     • USB cable (optional, for serial monitor)
 
@@ -166,8 +167,8 @@ Gateway Setup:
 ═══════════════════════════════════════════════════════════════════════════
 
     Quick Test (option 1, 3):        ~5 minutes
-    Full Automated Test (option 7):  ~10-15 minutes
-    Manual Complete Test (option 1-6): ~20-30 minutes
+    Full Automated Test (option 8):  ~10-15 minutes
+    Manual Complete Test (option 1-7): ~20-30 minutes
 
 
 ⚠️ IMPORTANT NOTES
@@ -225,6 +226,7 @@ Gateway Setup:
     Data Integrity Success:
         • Device count match
         • Register count match
+        • Device IDs preserved (BUG #32 fixed!)
         • Backup files identical
 
 
@@ -248,8 +250,13 @@ Gateway Setup:
        terlalu rendah, kurangi jumlah devices.
 
     5. Automated Test First:
-       Untuk first-time testing, gunakan option 7 (automated).
+       Untuk first-time testing, gunakan option 8 (automated).
        Setelah familiar, baru coba manual testing.
+
+    6. List Backup Files:
+       Gunakan option 6 untuk melihat semua backup files yang tersimpan
+       di directory testing. File otomatis tersimpan di folder yang sama
+       dengan test script (bukan di project root lagi!).
 
 
 ✨ READY TO START?

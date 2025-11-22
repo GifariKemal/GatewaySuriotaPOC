@@ -296,7 +296,22 @@ String ConfigManager::createDevice(JsonObjectConst config)
     return "";
   }
 
-  String deviceId = generateId("D");
+  // BUG #32 FIX: Check if device_id exists in config (for restore), otherwise generate new one
+  String deviceId;
+  JsonVariantConst idVariant = config["device_id"];
+  if (!idVariant.isNull())
+  {
+    // Use device_id from config (for restore operations)
+    deviceId = idVariant.as<String>();
+    Serial.printf("[CONFIG] Using device_id from config: %s\n", deviceId.c_str());
+  }
+  else
+  {
+    // Generate new device_id (for new device creation)
+    deviceId = generateId("D");
+    Serial.printf("[CONFIG] Generated new device_id: %s\n", deviceId.c_str());
+  }
+
   JsonObject device = (*devicesCache)[deviceId].to<JsonObject>();
 
   // Copy config with proper type conversion
@@ -314,9 +329,27 @@ String ConfigManager::createDevice(JsonObjectConst config)
       device[kv.key()] = kv.value();
     }
   }
+
+  // BUG #32 FIX: Ensure device_id is set (already correct from above logic)
   device["device_id"] = deviceId;
-  JsonArray registers = device["registers"].to<JsonArray>();
-  Serial.printf("Created device %s with empty registers array\n", deviceId.c_str());
+
+  // BUG #32 FIX: Initialize registers array if not present (for new device creation)
+  // For restore operations, registers are already copied in the loop above
+  int registerCount = 0;
+  JsonVariant registersVariant = device["registers"];
+  if (registersVariant.isNull() || !registersVariant.is<JsonArray>())
+  {
+    // New device creation - initialize empty registers array
+    device["registers"].to<JsonArray>();
+    registerCount = 0;
+    Serial.printf("[CONFIG] Created device %s with empty registers array\n", deviceId.c_str());
+  }
+  else
+  {
+    // Restore operation - registers already copied
+    registerCount = device["registers"].as<JsonArray>().size();
+    Serial.printf("[CONFIG] Created device %s with %d registers (from restore)\n", deviceId.c_str(), registerCount);
+  }
 
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache))
@@ -668,14 +701,15 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
   String registerId = generateId("R");
   JsonObject device = (*devicesCache)[deviceId];
 
-  // Ensure registers array exists
-  if (!device["registers"])
+  // Ensure registers array exists (use proper null check for ArduinoJson v7)
+  JsonVariant registersVariant = device["registers"];
+  if (registersVariant.isNull() || !registersVariant.is<JsonArray>())
   {
-    device["registers"] = JsonArray();
+    device["registers"].to<JsonArray>();
     Serial.println("Created registers array for device");
   }
 
-  JsonArray registers = device["registers"];
+  JsonArray registers = device["registers"].as<JsonArray>();
 
   // Address already parsed at the beginning for logging
   if (address < 0)

@@ -886,15 +886,67 @@ void CRUDHandler::setupCommandHandlers()
     Serial.println("[CONFIG RESTORE] INITIATED by BLE client");
     Serial.println("========================================");
 
-    // Validate that config object exists
-    if (!command["config"].is<JsonObject>())
+    // BUG #32 DEBUG: Show what's actually in the payload
+    #if PRODUCTION_MODE == 0
+      Serial.println("[CONFIG RESTORE] DEBUG: Payload analysis:");
+      Serial.printf("  - Document is null: %s\n", command.isNull() ? "YES" : "NO");
+      Serial.printf("  - Document serialized size: %u bytes\n", measureJson(command));
+      Serial.printf("  - Document is object: %s\n", command.is<JsonObject>() ? "YES" : "NO");
+
+      if (command.is<JsonObject>()) {
+        JsonObjectConst obj = command.as<JsonObjectConst>();
+        Serial.printf("  - Object has %u keys:\n", obj.size());
+        for (JsonPairConst kv : obj) {
+          Serial.printf("    - Key: '%s', Type: ", kv.key().c_str());
+          if (kv.value().is<JsonObject>()) Serial.println("JsonObject");
+          else if (kv.value().is<JsonArray>()) Serial.println("JsonArray");
+          else if (kv.value().is<const char*>()) Serial.printf("String (\"%s\")\n", kv.value().as<const char*>());
+          else if (kv.value().is<int>()) Serial.printf("Int (%d)\n", kv.value().as<int>());
+          else Serial.println("Other");
+        }
+      }
+
+      JsonVariantConst configCheck = command["config"];
+      Serial.printf("  - Has 'config' key: %s\n", !configCheck.isNull() ? "YES" : "NO");
+      if (!configCheck.isNull()) {
+        Serial.printf("  - 'config' is JsonObject: %s\n", command["config"].is<JsonObject>() ? "YES" : "NO");
+        Serial.printf("  - 'config' is null: %s\n", command["config"].isNull() ? "YES" : "NO");
+      }
+
+      // Show first 500 chars of serialized JSON for comparison
+      String serialized;
+      serializeJson(command, serialized);
+      Serial.printf("  - Serialized JSON (%u bytes):\n", serialized.length());
+      if (serialized.length() > 500) {
+        Serial.printf("    %s...\n", serialized.substring(0, 500).c_str());
+      } else {
+        Serial.printf("    %s\n", serialized.c_str());
+      }
+    #endif
+
+    // BUG #32 FIX: Try accessing config directly instead of type checking
+    // Type check may fail even when data is valid (ArduinoJson v7 quirk with PSRAM)
+    JsonVariantConst configVariant = command["config"];
+
+    if (configVariant.isNull())
     {
-      Serial.println("[CONFIG RESTORE] ERROR: Missing 'config' object in payload");
+      Serial.println("[CONFIG RESTORE] ERROR: 'config' key is null or missing");
       manager->sendError("Missing 'config' object in restore payload");
       return;
     }
 
-    JsonObjectConst restoreConfig = command["config"];
+    // Try to access as object even if type check fails
+    JsonObjectConst restoreConfig = configVariant.as<JsonObjectConst>();
+
+    if (restoreConfig.isNull())
+    {
+      Serial.println("[CONFIG RESTORE] ERROR: Cannot cast 'config' to JsonObject");
+      manager->sendError("Invalid 'config' object in restore payload");
+      return;
+    }
+
+    Serial.printf("[CONFIG RESTORE] ✓ Config object validated (%u keys)\n", restoreConfig.size());
+
     int successCount = 0;
     int failCount = 0;
     JsonArray restoredConfigs;
@@ -905,31 +957,72 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 1: Restore devices configuration
     Serial.println("[CONFIG RESTORE] [1/3] Restoring devices configuration...");
-    if (restoreConfig["devices"].is<JsonArray>())
+
+    // BUG #32 FIX: Bypass type check, access directly
+    JsonVariantConst devicesVariant = restoreConfig["devices"];
+    if (!devicesVariant.isNull())
     {
-      // Clear existing devices first
-      configManager->clearAllConfigurations();
-      Serial.println("[CONFIG RESTORE] Existing devices cleared");
-
-      // Restore each device
-      JsonArrayConst devices = restoreConfig["devices"];
-      int deviceCount = 0;
-      for (JsonObjectConst device : devices)
+      JsonArrayConst devices = devicesVariant.as<JsonArrayConst>();
+      if (!devices.isNull() && devices.size() > 0)
       {
-        String deviceId = configManager->createDevice(device);
-        if (!deviceId.isEmpty())
-        {
-          deviceCount++;
-        }
-        else
-        {
-          Serial.printf("[CONFIG RESTORE] WARNING: Failed to restore device\n");
-        }
-      }
+        // Clear existing devices first
+        configManager->clearAllConfigurations();
+        Serial.println("[CONFIG RESTORE] Existing devices cleared");
 
-      Serial.printf("[CONFIG RESTORE] Restored %d devices\n", deviceCount);
-      restoredConfigs.add("devices.json");
-      successCount++;
+        // Restore each device
+        int deviceCount = 0;
+        int deviceIndex = 0;
+        for (JsonObjectConst device : devices)
+        {
+          #if PRODUCTION_MODE == 0
+            // BUG #32 DEBUG: Show device data BEFORE createDevice
+            Serial.printf("[CONFIG RESTORE] DEBUG: Processing device %d:\n", deviceIndex);
+            String deviceJson;
+            serializeJson(device, deviceJson);
+            if (deviceJson.length() > 200) {
+              Serial.printf("  JSON: %s...\n", deviceJson.substring(0, 200).c_str());
+            } else {
+              Serial.printf("  JSON: %s\n", deviceJson.c_str());
+            }
+
+            JsonVariantConst idVariant = device["device_id"];
+            Serial.printf("  device_id present: %s\n", !idVariant.isNull() ? "YES" : "NO");
+            if (!idVariant.isNull()) {
+              Serial.printf("  device_id value: %s\n", idVariant.as<const char*>());
+            }
+
+            JsonVariantConst regsVariant = device["registers"];
+            Serial.printf("  registers present: %s\n", !regsVariant.isNull() ? "YES" : "NO");
+            if (!regsVariant.isNull()) {
+              JsonArrayConst regs = regsVariant.as<JsonArrayConst>();
+              Serial.printf("  registers count: %u\n", regs.size());
+            }
+          #endif
+
+          String deviceId = configManager->createDevice(device);
+          if (!deviceId.isEmpty())
+          {
+            deviceCount++;
+            #if PRODUCTION_MODE == 0
+              Serial.printf("[CONFIG RESTORE] ✓ Created device: %s\n", deviceId.c_str());
+            #endif
+          }
+          else
+          {
+            Serial.printf("[CONFIG RESTORE] WARNING: Failed to restore device %d\n", deviceIndex);
+          }
+
+          deviceIndex++;
+        }
+
+        Serial.printf("[CONFIG RESTORE] Restored %d devices\n", deviceCount);
+        restoredConfigs.add("devices.json");
+        successCount++;
+      }
+      else
+      {
+        Serial.printf("[CONFIG RESTORE] WARNING: devices array is null or empty (size: %u)\n", devices.size());
+      }
     }
     else
     {
@@ -938,19 +1031,29 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 2: Restore server configuration
     Serial.println("[CONFIG RESTORE] [2/3] Restoring server configuration...");
-    if (restoreConfig["server_config"].is<JsonObject>())
+
+    // BUG #32 FIX: Bypass type check, access directly
+    JsonVariantConst serverVariant = restoreConfig["server_config"];
+    if (!serverVariant.isNull())
     {
-      JsonObjectConst serverCfg = restoreConfig["server_config"];
-      if (serverConfig->updateConfig(serverCfg))
+      JsonObjectConst serverCfg = serverVariant.as<JsonObjectConst>();
+      if (!serverCfg.isNull())
       {
-        Serial.println("[CONFIG RESTORE] Server config restored successfully");
-        restoredConfigs.add("server_config.json");
-        successCount++;
+        if (serverConfig->updateConfig(serverCfg))
+        {
+          Serial.println("[CONFIG RESTORE] Server config restored successfully");
+          restoredConfigs.add("server_config.json");
+          successCount++;
+        }
+        else
+        {
+          Serial.println("[CONFIG RESTORE] ERROR: Failed to restore server config");
+          failCount++;
+        }
       }
       else
       {
-        Serial.println("[CONFIG RESTORE] ERROR: Failed to restore server config");
-        failCount++;
+        Serial.println("[CONFIG RESTORE] WARNING: server_config cast to object failed");
       }
     }
     else
@@ -960,19 +1063,29 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 3: Restore logging configuration
     Serial.println("[CONFIG RESTORE] [3/3] Restoring logging configuration...");
-    if (restoreConfig["logging_config"].is<JsonObject>())
+
+    // BUG #32 FIX: Bypass type check, access directly
+    JsonVariantConst loggingVariant = restoreConfig["logging_config"];
+    if (!loggingVariant.isNull())
     {
-      JsonObjectConst loggingCfg = restoreConfig["logging_config"];
-      if (loggingConfig->updateConfig(loggingCfg))
+      JsonObjectConst loggingCfg = loggingVariant.as<JsonObjectConst>();
+      if (!loggingCfg.isNull())
       {
-        Serial.println("[CONFIG RESTORE] Logging config restored successfully");
-        restoredConfigs.add("logging_config.json");
-        successCount++;
+        if (loggingConfig->updateConfig(loggingCfg))
+        {
+          Serial.println("[CONFIG RESTORE] Logging config restored successfully");
+          restoredConfigs.add("logging_config.json");
+          successCount++;
+        }
+        else
+        {
+          Serial.println("[CONFIG RESTORE] ERROR: Failed to restore logging config");
+          failCount++;
+        }
       }
       else
       {
-        Serial.println("[CONFIG RESTORE] ERROR: Failed to restore logging config");
-        failCount++;
+        Serial.println("[CONFIG RESTORE] WARNING: logging_config cast to object failed");
       }
     }
     else
@@ -1026,18 +1139,27 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   cmd.enqueueTime = millis();
   cmd.manager = manager; // Store BLE manager for response sending
 
-  // BUG FIX: Use PSRAM allocation for large JSON documents (restore commands can be 3-4KB)
-  cmd.payload = make_psram_unique<JsonDocument>();
+  // BUG #32 FIX: Serialize to String instead of using .set() which corrupts type info
+  size_t commandSize = measureJson(command);
 
-  if (!cmd.payload)
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD QUEUE] Serializing command payload (%u bytes JSON)...\n", commandSize);
+  #endif
+
+  // Serialize JsonDocument to String (avoids .set() corruption issue)
+  serializeJson(command, cmd.payloadJson);
+
+  if (cmd.payloadJson.isEmpty())
   {
-    Serial.println("[CRUD QUEUE] ERROR: Failed to allocate PSRAM for command payload!");
+    Serial.println("[CRUD QUEUE] ERROR: Failed to serialize command payload!");
     xSemaphoreGive(queueMutex);
-    manager->sendError("Failed to allocate memory for command");
+    manager->sendError("Failed to serialize command payload");
     return;
   }
 
-  cmd.payload->set(command);
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD QUEUE] Command serialized successfully (%u bytes String)\n", cmd.payloadJson.length());
+  #endif
 
   // Track statistics
   if (priority == CommandPriority::PRIORITY_HIGH)
@@ -1076,46 +1198,61 @@ void CRUDHandler::processPriorityQueue()
     return;
   }
 
-  // Get highest priority command using move semantics
-  // We need to create a temporary to work around priority_queue limitations
+  // Get highest priority command (copy from queue)
   Command cmd;
-  bool hasCommand = false;
 
   if (!commandQueue.empty())
   {
-    // Copy the top element's data manually to avoid const reference issues
-    const Command &topCmd = commandQueue.top();
-
-    // Check if payload exists before accessing
-    if (topCmd.payload)
-    {
-      cmd.id = topCmd.id;
-      cmd.priority = topCmd.priority;
-      cmd.enqueueTime = topCmd.enqueueTime;
-      cmd.manager = topCmd.manager; // Copy manager pointer
-
-      // BUG FIX: Use PSRAM allocation for large JSON documents
-      cmd.payload = make_psram_unique<JsonDocument>();
-
-      if (cmd.payload)
-      {
-        cmd.payload->set(*topCmd.payload);
-        hasCommand = true;
-      }
-      else
-      {
-        Serial.println("[CRUD EXEC] ERROR: Failed to allocate PSRAM for command execution!");
-      }
-    }
-
+    cmd = commandQueue.top();  // Copy command (String is copyable)
     commandQueue.pop();
   }
-  updateQueueDepth();
+  else
+  {
+    xSemaphoreGive(queueMutex);
+    return;
+  }
 
+  updateQueueDepth();
   xSemaphoreGive(queueMutex);
 
-  // Only execute if we have a valid command with payload and manager
-  if (!hasCommand || !cmd.payload || !cmd.manager)
+  // Deserialize JSON String to JsonDocument (outside mutex to prevent blocking)
+  SpiRamJsonDocument payload;
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD EXEC] Deserializing payload from queue (%u bytes String)...\n", cmd.payloadJson.length());
+  #endif
+
+  DeserializationError error = deserializeJson(payload, cmd.payloadJson);
+
+  if (error)
+  {
+    Serial.printf("[CRUD EXEC] ERROR: Failed to deserialize payload - %s\n", error.c_str());
+    Serial.printf("[CRUD EXEC] JSON String length: %u bytes\n", cmd.payloadJson.length());
+    Serial.printf("[CRUD EXEC] Free PSRAM: %u bytes\n",
+                  heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+
+    if (cmd.manager)
+    {
+      cmd.manager->sendError("Failed to deserialize command: " + String(error.c_str()));
+    }
+    return;
+  }
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
+  #endif
+
+  // BUG #32 FIX: Free DRAM by clearing String after deserialization
+  cmd.payloadJson.clear();
+  cmd.payloadJson = String();  // Force deallocation
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD EXEC] Freed %u bytes DRAM (cleared payload string)\n",
+                  heap_caps_get_free_size(MALLOC_CAP_8BIT));
+  #endif
+
+  // Only execute if we have a valid manager
+  if (!cmd.manager)
   {
     Serial.println("[CRUD] ERROR: Command has no payload or manager, skipping execution");
     return;
@@ -1124,40 +1261,40 @@ void CRUDHandler::processPriorityQueue()
   // Execute command (outside mutex to prevent blocking)
   Serial.printf("[CRUD EXEC] Processing command %lu\n", cmd.id);
 
-  String op = (*cmd.payload)["op"] | "";
-  String type = (*cmd.payload)["type"] | "";
+  String op = payload["op"] | "";
+  String type = payload["type"] | "";
 
   // Route to appropriate handler (with valid manager pointer)
   bool handlerFound = false;
 
   if (op == "read" && readHandlers.count(type))
   {
-    readHandlers[type](cmd.manager, *cmd.payload);
+    readHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
   else if (op == "create" && createHandlers.count(type))
   {
-    createHandlers[type](cmd.manager, *cmd.payload);
+    createHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
   else if (op == "update" && updateHandlers.count(type))
   {
-    updateHandlers[type](cmd.manager, *cmd.payload);
+    updateHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
   else if (op == "delete" && deleteHandlers.count(type))
   {
-    deleteHandlers[type](cmd.manager, *cmd.payload);
+    deleteHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
   else if (op == "control" && controlHandlers.count(type))
   {
-    controlHandlers[type](cmd.manager, *cmd.payload);
+    controlHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
   else if (op == "system" && systemHandlers.count(type))
   {
-    systemHandlers[type](cmd.manager, *cmd.payload);
+    systemHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
 

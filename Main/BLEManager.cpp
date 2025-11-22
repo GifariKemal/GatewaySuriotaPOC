@@ -351,27 +351,76 @@ void BLEManager::commandProcessingTask(void *parameter)
 
 void BLEManager::handleCompleteCommand(const char *command)
 {
-  Serial.printf("[BLE CMD] Raw JSON: %s\n", command);
+  // FIXED BUG #32: Improved logging for large commands (prevent serial buffer overflow)
+  // Previous: Serial.printf with %s could truncate large JSON (>1KB)
+  // New: Log length and preview only (first 200 chars for debugging)
+  size_t cmdLen = strlen(command);
 
-  auto doc = make_psram_unique<JsonDocument>();
+  #if PRODUCTION_MODE == 0
+    // Development mode: Show command preview
+    if (cmdLen > 200) {
+      char preview[201];
+      strncpy(preview, command, 200);
+      preview[200] = '\0';
+      Serial.printf("[BLE CMD] Received %u bytes JSON (preview): %s...\n", cmdLen, preview);
+    } else {
+      Serial.printf("[BLE CMD] Received %u bytes JSON: %s\n", cmdLen, command);
+    }
+  #else
+    // Production mode: Just log length
+    Serial.printf("[BLE CMD] Received %u bytes JSON\n", cmdLen);
+  #endif
 
-  if (!doc)
-  {
-    sendError("PSRAM allocation failed for JSON document.");
+  // FIXED BUG #32: Validate command length before parsing
+  // Restore commands can be 3-4KB, backup responses can be 10-20KB
+  if (cmdLen > COMMAND_BUFFER_SIZE) {
+    Serial.printf("[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n",
+                  cmdLen, COMMAND_BUFFER_SIZE);
+    sendError("Command exceeds buffer size");
     return;
   }
 
-  DeserializationError error = deserializeJson(*doc, command);
+  // FIXED BUG #32: Pre-allocate JsonDocument with sufficient size
+  // Previous: make_psram_unique<JsonDocument>() uses dynamic allocation (slow for large JSON)
+  // New: Use SpiRamJsonDocument directly with PSRAM allocator (handles any size dynamically)
+  // ArduinoJson v7 with PSRAMAllocator automatically grows as needed in PSRAM
+  SpiRamJsonDocument doc;
+
+  // Attempt deserialization
+  DeserializationError error = deserializeJson(doc, command);
 
   if (error)
   {
+    Serial.printf("[BLE CMD] ERROR: JSON parse failed - %s\n", error.c_str());
+    Serial.printf("[BLE CMD] Command length: %u bytes\n", cmdLen);
+
+    // Show where parsing failed for debugging
+    #if PRODUCTION_MODE == 0
+      if (cmdLen > 100) {
+        char context[101];
+        size_t errorPos = error.code() == DeserializationError::IncompleteInput ? cmdLen : 0;
+        size_t contextStart = (errorPos > 50) ? (errorPos - 50) : 0;
+        size_t contextLen = min((size_t)100, cmdLen - contextStart);  // Cast to size_t
+        strncpy(context, command + contextStart, contextLen);
+        context[contextLen] = '\0';
+        Serial.printf("[BLE CMD] Context: ...%s...\n", context);
+      }
+    #endif
+
     sendError("Invalid JSON: " + String(error.c_str()));
     return;
   }
 
+  // Validation successful
+  #if PRODUCTION_MODE == 0
+    // ArduinoJson v7: memoryUsage() is deprecated (always returns 0)
+    // Just log successful parse with input size
+    Serial.printf("[BLE CMD] JSON parsed successfully (%u bytes input)\n", cmdLen);
+  #endif
+
   if (handler)
   {
-    handler->handle(this, *doc);
+    handler->handle(this, doc);
   }
   else
   {

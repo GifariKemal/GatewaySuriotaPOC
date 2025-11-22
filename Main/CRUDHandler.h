@@ -47,15 +47,15 @@ struct Command
   uint64_t id;                           // Unique command ID
   CommandPriority priority;              // Priority level
   unsigned long enqueueTime;             // When command was enqueued
-  PsramUniquePtr<JsonDocument> payload;  // Command payload (PSRAM-allocated for large restore commands)
+  String payloadJson;                    // BUG #32 FIX: Store as serialized JSON String to avoid .set() corruption
   BLEManager *manager;                   // BLE Manager for sending responses
 
   // Default constructor
   Command() : id(0), priority(CommandPriority::PRIORITY_NORMAL), enqueueTime(0), manager(nullptr) {}
 
-  // Deleted copy operations (unique_ptr is non-copyable)
-  Command(const Command &) = delete;
-  Command &operator=(const Command &) = delete;
+  // Default copy operations (String is copyable)
+  Command(const Command &) = default;
+  Command &operator=(const Command &) = default;
 
   // Default move operations (allow std::priority_queue to work)
   Command(Command &&) = default;

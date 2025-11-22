@@ -5,19 +5,32 @@ BLE BACKUP & RESTORE TESTING TOOL
 
 Comprehensive testing tool for BLE Backup & Restore feature
 Supports automated testing with validation and manual testing mode
-
 Author: SURIOTA R&D Team
-Version: 1.0.0
-Date: November 21, 2025
+Version: 1.1.0
+Date: November 22, 2025
 """
 
 import asyncio
 import json
 import sys
 import os
+from pathlib import Path
 from datetime import datetime
 from bleak import BleakClient, BleakScanner
 import time
+
+# ============================================================================
+# Directory Configuration
+# ============================================================================
+# Get the directory where this script is located
+SCRIPT_DIR = Path(__file__).parent
+BACKUP_DIR = SCRIPT_DIR  # Save backups in same directory as script
+
+# Create backup directory if it doesn't exist
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+print(f"[INIT] Script directory: {SCRIPT_DIR}")
+print(f"[INIT] Backup directory: {BACKUP_DIR}")
 
 # ============================================================================
 # BLE Configuration (must match firmware)
@@ -396,9 +409,10 @@ async def test_backup_restore_cycle(client):
 
     # Save backup to file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = f"backup_before_restore_{timestamp}.json"
-    with open(backup_file, 'w') as f:
-        json.dump(backup1, f, indent=2)
+    backup_filename = f"backup_before_restore_{timestamp}.json"
+    backup_file = BACKUP_DIR / backup_filename
+    with open(backup_file, 'w', encoding='utf-8') as f:
+        json.dump(backup1, f, indent=2, ensure_ascii=False)
     print(f"   ✓ Backup saved: {backup_file}")
 
     # Step 2: Restore the backup
@@ -424,9 +438,10 @@ async def test_backup_restore_cycle(client):
     devices2_count = len(config2.get('devices', []))
 
     # Save second backup
-    backup_file2 = f"backup_after_restore_{timestamp}.json"
-    with open(backup_file2, 'w') as f:
-        json.dump(backup2, f, indent=2)
+    backup_filename2 = f"backup_after_restore_{timestamp}.json"
+    backup_file2 = BACKUP_DIR / backup_filename2
+    with open(backup_file2, 'w', encoding='utf-8') as f:
+        json.dump(backup2, f, indent=2, ensure_ascii=False)
     print(f"   ✓ Backup saved: {backup_file2}")
 
     # Step 4: Compare backups
@@ -476,27 +491,37 @@ async def test_backup_restore_cycle(client):
 
 
 async def save_backup_to_file(backup, filename=None):
-    """Save backup to JSON file"""
+    """Save backup to JSON file in backup directory"""
     if not filename:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"gateway_backup_{timestamp}.json"
 
-    with open(filename, 'w') as f:
-        json.dump(backup, f, indent=2)
+    # Ensure filename is just the name, not a path
+    filename = Path(filename).name
+    filepath = BACKUP_DIR / filename
 
-    print(f"\n💾 Backup saved to: {filename}")
-    print(f"   Size: {os.path.getsize(filename)} bytes ({os.path.getsize(filename)/1024:.2f} KB)")
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(backup, f, indent=2, ensure_ascii=False)
 
-    return filename
+    print(f"\n💾 Backup saved to: {filepath}")
+    print(f"   Size: {filepath.stat().st_size} bytes ({filepath.stat().st_size/1024:.2f} KB)")
+
+    return str(filepath)
 
 
 async def load_backup_from_file(filename):
-    """Load backup from JSON file"""
+    """Load backup from JSON file in backup directory"""
     try:
-        with open(filename, 'r') as f:
+        # If filename is just a name (no path), look in backup directory
+        filepath = Path(filename)
+        if not filepath.is_absolute() and not filepath.parent.exists():
+            filepath = BACKUP_DIR / filename
+
+        with open(filepath, 'r', encoding='utf-8') as f:
             backup = json.load(f)
 
-        print(f"\n📂 Backup loaded from: {filename}")
+        print(f"\n📂 Backup loaded from: {filepath}")
+        print(f"   Size: {filepath.stat().st_size} bytes ({filepath.stat().st_size/1024:.2f} KB)")
 
         backup_info = backup.get('backup_info', {})
         print(f"   Firmware: {backup_info.get('firmware_version', 'N/A')}")
@@ -505,11 +530,32 @@ async def load_backup_from_file(filename):
 
         return backup
     except FileNotFoundError:
-        print(f"❌ File not found: {filename}")
+        print(f"❌ File not found: {filepath if 'filepath' in locals() else filename}")
+        print(f"   Searched in: {BACKUP_DIR}")
         return None
     except json.JSONDecodeError as e:
         print(f"❌ Invalid JSON: {e}")
         return None
+
+
+def list_backup_files():
+    """List all backup JSON files in backup directory"""
+    backup_files = sorted(BACKUP_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+    if not backup_files:
+        print(f"\n📂 No backup files found in: {BACKUP_DIR}")
+        return []
+
+    print(f"\n📂 AVAILABLE BACKUP FILES ({len(backup_files)} found):")
+    print(f"   Location: {BACKUP_DIR}\n")
+
+    for i, filepath in enumerate(backup_files, 1):
+        size_kb = filepath.stat().st_size / 1024
+        mtime = datetime.fromtimestamp(filepath.stat().st_mtime)
+        print(f"   {i}. {filepath.name}")
+        print(f"      Size: {size_kb:.2f} KB | Modified: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+
+    return [f.name for f in backup_files]
 
 
 # ============================================================================
@@ -526,11 +572,15 @@ def print_menu():
     print("   2. Test Restore (from previous backup)")
     print("   3. Test Restore Error Handling (invalid payload)")
     print("   4. Test Complete Backup-Restore Cycle")
+    print("\n💾 FILE OPERATIONS:")
     print("   5. Save Backup to File")
-    print("   6. Load Backup from File and Restore")
-    print("   7. Run ALL Tests (Automated Suite)")
+    print("   6. List Available Backup Files")
+    print("   7. Load Backup from File and Restore")
+    print("\n🚀 AUTOMATED:")
+    print("   8. Run ALL Tests (Automated Suite)")
     print("\n   0. Exit")
     print("="*70)
+    print(f"\n📂 Backup Directory: {BACKUP_DIR}")
 
 
 async def interactive_mode(client):
@@ -540,7 +590,7 @@ async def interactive_mode(client):
     while True:
         print_menu()
 
-        choice = input("\n👉 Select test (0-7): ").strip()
+        choice = input("\n👉 Select test (0-8): ").strip()
 
         if choice == '0':
             print("\n👋 Exiting...")
@@ -549,11 +599,11 @@ async def interactive_mode(client):
         elif choice == '1':
             last_backup = await test_backup(client)
             if last_backup:
-                print("\n💡 TIP: Use option 2 to restore this backup")
+                print("\n💡 TIP: Use option 2 to restore this backup, or option 5 to save to file")
 
         elif choice == '2':
             if not last_backup:
-                print("\n⚠️  No backup available. Run Test 1 first or load from file (option 6)")
+                print("\n⚠️  No backup available. Run Test 1 first or load from file (option 7)")
             else:
                 config = last_backup.get('config', {})
                 await test_restore(client, config)
@@ -574,13 +624,27 @@ async def interactive_mode(client):
                 await save_backup_to_file(last_backup, filename)
 
         elif choice == '6':
-            filename = input("Enter backup filename: ").strip()
-            backup = await load_backup_from_file(filename)
-            if backup:
-                config = backup.get('config', {})
-                await test_restore(client, config)
+            list_backup_files()
 
         elif choice == '7':
+            # List available files first
+            available_files = list_backup_files()
+
+            if not available_files:
+                print("\n💡 TIP: Create a backup first (option 1) or save one (option 5)")
+            else:
+                print("\n💡 Enter filename from the list above, or type a custom path")
+                filename = input("Enter backup filename: ").strip()
+
+                if not filename:
+                    print("❌ No filename provided")
+                else:
+                    backup = await load_backup_from_file(filename)
+                    if backup:
+                        config = backup.get('config', {})
+                        await test_restore(client, config)
+
+        elif choice == '8':
             # Run all tests
             print("\n" + "="*70)
             print("🚀 RUNNING AUTOMATED TEST SUITE")
@@ -624,7 +688,7 @@ async def interactive_mode(client):
                 print(f"\n   ⚠️  {total_tests - passed_tests} test(s) failed")
 
         else:
-            print("❌ Invalid choice. Please select 0-7")
+            print("❌ Invalid choice. Please select 0-8")
 
         input("\n⏸️  Press Enter to continue...")
 
@@ -638,9 +702,10 @@ async def main():
     print("\n" + "="*70)
     print("🔧 BLE BACKUP & RESTORE TESTING TOOL")
     print("="*70)
-    print("\nVersion: 1.0.0")
+    print("\nVersion: 1.1.0")
     print("Author: SURIOTA R&D Team")
-    print("Date: November 21, 2025")
+    print("Date: November 22, 2025")
+    print(f"Backup Directory: {BACKUP_DIR}")
 
     # Connect to gateway
     client = await scan_and_connect()

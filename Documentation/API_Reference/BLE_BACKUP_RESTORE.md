@@ -1,8 +1,9 @@
 # BLE Backup & Restore API Reference
 
-**Version:** 1.0.0
-**Last Updated:** November 21, 2025
+**Version:** 1.1.0 (BUG #32 FIXED!)
+**Last Updated:** November 22, 2025
 **Component:** BLE CRUD Handler - Configuration Backup & Restore
+**Firmware Required:** v2.3.1+
 
 ---
 
@@ -37,6 +38,7 @@ The **Backup & Restore** feature provides a complete configuration management sy
 ✅ **BLE Fragmentation**: Automatic chunking for large responses
 ✅ **Restore Validation**: Validates backup structure before applying
 ✅ **Service Notification**: Automatically notifies Modbus/MQTT/HTTP services after restore
+✅ **Device ID Preservation**: Device IDs and register IDs preserved during restore (BUG #32 fixed!)
 
 ---
 
@@ -76,7 +78,7 @@ Export complete gateway configuration including all devices, registers, server s
   "status": "ok",
   "backup_info": {
     "timestamp": 1732123456,
-    "firmware_version": "2.2.0",
+    "firmware_version": "2.3.1",
     "device_name": "SURIOTA_GW",
     "total_devices": 5,
     "total_registers": 50,

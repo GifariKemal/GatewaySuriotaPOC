@@ -1,8 +1,9 @@
 # ✅ TESTING CHECKLIST - BLE Backup & Restore
 
+**Version:** 1.1.0 (BUG #32 FIXED!)
 **Tester:** _________________
 **Date:** ___________________
-**Firmware Version:** ________
+**Firmware Version:** ________ (v2.3.1+ required)
 **Gateway SN:** ______________
 
 ---
@@ -12,7 +13,7 @@
 ### Hardware & Software Setup
 
 - [ ] ESP32-S3 Gateway powered ON
-- [ ] Firmware v2.3.0+ uploaded
+- [ ] Firmware v2.3.1+ (BUG #32 fixed) uploaded
 - [ ] Serial Monitor open (115200 baud)
 - [ ] Python 3.8+ installed
 - [ ] Library `bleak` installed (`pip3 install bleak`)
@@ -55,7 +56,7 @@ _____________________________________________________________
 - [ ] Status = "ok"
 - [ ] `backup_info` object present
 - [ ] `backup_info.timestamp` present (number)
-- [ ] `backup_info.firmware_version` = "2.3.0"
+- [ ] `backup_info.firmware_version` = "2.3.1" (or higher)
 - [ ] `backup_info.device_name` = "SURIOTA_GW"
 - [ ] `backup_info.total_devices` matches actual count
 - [ ] `backup_info.total_registers` matches actual count
@@ -223,7 +224,8 @@ _____________________________________________________________
 ### Data Integrity Validation
 
 - [ ] Device count matches (before = after)
-- [ ] Device IDs match (no missing, no extra)
+- [ ] Device IDs match (no missing, no extra) ⭐ BUG #32 FIXED!
+- [ ] Device IDs preserved from backup (not auto-generated)
 - [ ] Register count matches (before = after)
 - [ ] Server config present in both backups
 - [ ] Logging config present in both backups

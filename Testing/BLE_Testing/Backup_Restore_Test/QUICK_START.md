@@ -1,5 +1,9 @@
 # ⚡ QUICK START - BLE Backup & Restore Testing
 
+**Version:** 1.1.0 (BUG #32 FIXED!)
+**Date:** November 22, 2025
+**Firmware Required:** v2.3.1+
+
 **5 Langkah Simple untuk Testing Cepat**
 
 ---
@@ -52,7 +56,13 @@ Pilih option: 3    # Error handling
 ### Test Lengkap (10 menit):
 
 ```
-Pilih option: 7    # Run ALL tests (otomatis)
+Pilih option: 8    # Run ALL tests (otomatis)
+```
+
+### Lihat Backup Files:
+
+```
+Pilih option: 6    # List available backup files (NEW in v1.1.0!)
 ```
 
 ### Test Manual (step-by-step):
@@ -81,6 +91,7 @@ Ketik: yes         # Konfirmasi restore
 - success_count = 3
 - fail_count = 0
 - requires_restart = true
+- Device IDs preserved from backup (BUG #32 fixed!)
 
 **Error Handling:**
 - Status = "error"
