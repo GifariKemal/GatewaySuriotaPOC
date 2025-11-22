@@ -23,10 +23,11 @@
 // ============================================
 namespace MemoryThresholds {
   // DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
-  constexpr uint32_t DRAM_HEALTHY     = 50000;  // 50KB - Normal operation
-  constexpr uint32_t DRAM_WARNING     = 25000;  // 25KB - Proactive cleanup (optimized for PSRAM-heavy firmware)
-  constexpr uint32_t DRAM_CRITICAL    = 15000;  // 15KB - Emergency recovery
-  constexpr uint32_t DRAM_EMERGENCY   = 10000;  // 10KB - Imminent crash
+  // OPTIMIZED for large BLE responses (up to 10KB) and device reads with 45+ registers
+  constexpr uint32_t DRAM_HEALTHY     = 80000;  // 80KB - Normal operation (increased from 50KB)
+  constexpr uint32_t DRAM_WARNING     = 40000;  // 40KB - Proactive cleanup (increased from 25KB for large responses)
+  constexpr uint32_t DRAM_CRITICAL    = 20000;  // 20KB - Emergency recovery (increased from 15KB)
+  constexpr uint32_t DRAM_EMERGENCY   = 10000;  // 10KB - Imminent crash (unchanged)
 
   // PSRAM thresholds (ESP32-S3 has 8MB OPI PSRAM)
   constexpr uint32_t PSRAM_WARNING    = 1000000; // 1MB - Warn if PSRAM low
@@ -139,6 +140,13 @@ public:
    * @return PSRAM usage percentage (0-100)
    */
   static float getPsramUsagePercent(uint32_t totalPsram = 8388608);
+
+  /**
+   * Manually trigger proactive memory cleanup
+   * Useful before large operations (e.g., reading device with 45+ registers)
+   * @return Number of bytes freed
+   */
+  static uint32_t triggerCleanup();
 
 private:
   /**

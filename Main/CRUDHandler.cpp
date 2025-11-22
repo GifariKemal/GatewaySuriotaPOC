@@ -6,6 +6,7 @@
 #include "MqttManager.h"   //For calling updateDataTransmissionInterval()
 #include "HttpManager.h"   //For calling updateDataTransmissionInterval()
 #include "MemoryManager.h" // For make_psram_unique
+#include "MemoryRecovery.h" // For triggerCleanup() - memory optimization
 #include "RTCManager.h"    // For RTC timestamp in factory reset
 #include "LEDManager.h"    // For stopping LED task during factory reset
 
@@ -155,16 +156,88 @@ void CRUDHandler::setupCommandHandlers()
     String deviceId = command["device_id"] | "";
     bool minimal = command["minimal"] | false;  // Support optional "minimal" parameter
 
+    // OPTIMIZATION: Pagination support for device registers
+    int regOffset = command["reg_offset"] | -1;  // Register offset (default: -1 = no pagination)
+    int regLimit = command["reg_limit"] | -1;    // Register limit (default: -1 = all)
+    bool usePagination = (regOffset >= 0 && regLimit > 0);
+
+    // OPTIMIZATION: Check register count for proactive memory cleanup
+    // Read device in minimal mode to get register_count field
+    JsonDocument deviceCheckDoc;
+    JsonObject deviceCheck = deviceCheckDoc.to<JsonObject>();
+    if (configManager->readDevice(deviceId, deviceCheck, true))  // Read minimal first
+    {
+      // Get register count from minimal response (ConfigManager provides this field)
+      int registerCount = deviceCheck["register_count"] | 0;
+
+      // Proactive cleanup for devices with > 20 registers
+      if (registerCount > 20 && !minimal && !usePagination)
+      {
+        // Check INTERNAL DRAM only (not PSRAM) - MALLOC_CAP_INTERNAL filters out external PSRAM
+        size_t dramBefore = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+        Serial.printf("[CRUD] Large device detected (%d regs). Free DRAM: %d bytes\n",
+                      registerCount, dramBefore);
+
+        // Trigger memory cleanup if DRAM is below 50KB
+        if (dramBefore < 50000)
+        {
+          Serial.println("[CRUD] Triggering proactive memory cleanup...");
+          uint32_t freed = MemoryRecovery::triggerCleanup();
+          delay(50);  // Give time for cleanup to complete
+
+          size_t dramAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+          Serial.printf("[CRUD] Memory cleanup complete. Free DRAM: %d bytes (freed %d bytes)\n",
+                        dramAfter, freed);
+        }
+        else
+        {
+          Serial.printf("[CRUD] DRAM healthy (%d bytes), no cleanup needed\n", dramBefore);
+        }
+      }
+    }
+
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
     JsonObject data = (*response)["data"].to<JsonObject>();
+
+    // Read device data
     if (configManager->readDevice(deviceId, data, minimal))
     {
+      // Apply pagination to registers if requested
+      if (usePagination && data["registers"].is<JsonArray>())
+      {
+        JsonArray allRegisters = data["registers"].as<JsonArray>();
+        int totalRegisters = allRegisters.size();
+
+        // Create new paginated registers array
+        JsonArray paginatedRegs;
+        data.remove("registers");  // Remove original array
+        paginatedRegs = data["registers"].to<JsonArray>();
+
+        int endIndex = min(regOffset + regLimit, totalRegisters);
+
+        // Copy only requested range
+        for (int i = regOffset; i < endIndex; i++)
+        {
+          paginatedRegs.add(allRegisters[i]);
+        }
+
+        // Add pagination metadata
+        data["total_registers"] = totalRegisters;
+        data["reg_offset"] = regOffset;
+        data["reg_limit"] = regLimit;
+        data["returned_registers"] = paginatedRegs.size();
+        data["has_more_registers"] = (endIndex < totalRegisters);
+
+        Serial.printf("[CRUD] Paginated device read: %d/%d registers (offset=%d, limit=%d)\n",
+                      paginatedRegs.size(), totalRegisters, regOffset, regLimit);
+      }
+
       // Log payload size for debugging
       String payload;
       serializeJson(*response, payload);
-      Serial.printf("[CRUD] Device read response size: %d bytes (minimal=%s)\n",
-                    payload.length(), minimal ? "true" : "false");
+      Serial.printf("[CRUD] Device read response size: %d bytes (minimal=%s, paginated=%s)\n",
+                    payload.length(), minimal ? "true" : "false", usePagination ? "true" : "false");
 
       manager->sendResponse(*response);
     }
@@ -177,11 +250,55 @@ void CRUDHandler::setupCommandHandlers()
   readHandlers["registers"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     String deviceId = command["device_id"] | "";
+
+    // OPTIMIZATION: Pagination support for large register lists
+    int offset = command["offset"] | 0;        // Start index (default: 0)
+    int limit = command["limit"] | -1;         // Max registers to return (default: all)
+
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
     JsonArray registers = (*response)["registers"].to<JsonArray>();
-    if (configManager->listRegisters(deviceId, registers))
+
+    // Get all registers first
+    JsonDocument tempDoc;
+    JsonArray allRegisters = tempDoc.to<JsonArray>();
+
+    if (configManager->listRegisters(deviceId, allRegisters))
     {
+      int totalRegisters = allRegisters.size();
+
+      // Apply pagination if limit is specified
+      if (limit > 0)
+      {
+        int endIndex = min(offset + limit, totalRegisters);
+
+        // Copy only the requested range
+        for (int i = offset; i < endIndex; i++)
+        {
+          registers.add(allRegisters[i]);
+        }
+
+        // Add pagination metadata
+        (*response)["total_registers"] = totalRegisters;
+        (*response)["offset"] = offset;
+        (*response)["limit"] = limit;
+        (*response)["returned_count"] = registers.size();
+        (*response)["has_more"] = (endIndex < totalRegisters);
+
+        Serial.printf("[CRUD] Paginated registers read: offset=%d, limit=%d, returned=%d/%d\n",
+                      offset, limit, registers.size(), totalRegisters);
+      }
+      else
+      {
+        // No pagination - return all registers
+        for (JsonVariant reg : allRegisters)
+        {
+          registers.add(reg);
+        }
+
+        Serial.printf("[CRUD] All registers read: %d registers\n", registers.size());
+      }
+
       manager->sendResponse(*response);
     }
     else

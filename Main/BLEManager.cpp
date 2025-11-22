@@ -522,7 +522,8 @@ void BLEManager::sendFragmented(const char* data, size_t length)
 
   // CRITICAL: Emergency DRAM check FIRST before ANY allocation
   // If DRAM < 5KB, even error response allocation will crash
-  size_t freeDRAM = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+  // Check INTERNAL DRAM only (not PSRAM)
+  size_t freeDRAM = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
   if (freeDRAM < 5000) { // <5KB is critically low - EMERGENCY MODE
     Serial.printf("[BLE] CRITICAL: DRAM exhausted (%zu bytes). Aborting transmission.\n", freeDRAM);
@@ -575,16 +576,24 @@ void BLEManager::sendFragmented(const char* data, size_t length)
     return;
   }
 
-  // CRITICAL FIX: Adaptive chunk size based on payload size
-  // Large payloads (>LARGE_PAYLOAD_THRESHOLD) use smaller chunks to prevent BLE stack malloc failures
+  // CRITICAL FIX: Smart chunk size based on BOTH payload size AND DRAM availability
+  // Reuse freeDRAM variable from earlier check (already measures internal DRAM only)
   size_t adaptiveChunkSize = CHUNK_SIZE;
   int adaptiveDelay = FRAGMENT_DELAY_MS;
 
   if (length > LARGE_PAYLOAD_THRESHOLD) { // >5KB payload
-    adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // Reduced chunk size for safety
-    adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;        // Increased delay for stability
-    Serial.printf("[BLE] Large payload detected (%u bytes > %d KB), using adaptive chunks (size:%zu, delay:%dms)\n",
-                  length, LARGE_PAYLOAD_THRESHOLD / 1024, adaptiveChunkSize, adaptiveDelay);
+    // Use adaptive chunks ONLY if DRAM is critically low (<30KB)
+    // For normal DRAM levels (>30KB), use normal chunks even for large payloads
+    if (freeDRAM < 30000) {
+      adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // 100 bytes - safer for low DRAM
+      adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;        // 20ms - more stable
+      Serial.printf("[BLE] Large payload (%u bytes) + LOW DRAM (%zu bytes) = using ADAPTIVE chunks (size:%zu, delay:%dms)\n",
+                    length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
+    } else {
+      // DRAM healthy - use normal chunks for faster transmission!
+      Serial.printf("[BLE] Large payload (%u bytes) but DRAM healthy (%zu bytes) = using NORMAL chunks (size:%zu, delay:%dms)\n",
+                    length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
+    }
   }
 
   // BUG #31 PART 2: Data already in PSRAM buffer (from sendResponse)

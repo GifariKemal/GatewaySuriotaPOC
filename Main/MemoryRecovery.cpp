@@ -195,6 +195,36 @@ float MemoryRecovery::getPsramUsagePercent(uint32_t totalPsram) {
 }
 
 // ============================================
+// MANUAL CLEANUP TRIGGER
+// ============================================
+
+uint32_t MemoryRecovery::triggerCleanup() {
+  uint32_t dramBefore = ESP.getFreeHeap();
+
+  LOG_MEM_INFO("Manual memory cleanup triggered. Free DRAM before: %lu bytes\n", dramBefore);
+
+  // Execute progressive cleanup actions
+  int bytesFlushed = 0;
+
+  // 1. Queue flush (remove oldest 10 entries)
+  bytesFlushed += executeQueueFlush(10);
+
+  // 2. MQTT queue cleanup (remove expired messages)
+  bytesFlushed += executeMqttQueueCleanup();
+
+  // 3. Garbage collection
+  executeGarbageCollection();
+
+  uint32_t dramAfter = ESP.getFreeHeap();
+  uint32_t dramFreed = (dramAfter > dramBefore) ? (dramAfter - dramBefore) : 0;
+
+  LOG_MEM_INFO("Manual cleanup complete. Free DRAM after: %lu bytes (freed %lu bytes)\n",
+               dramAfter, dramFreed);
+
+  return dramFreed;
+}
+
+// ============================================
 // RECOVERY ACTIONS
 // ============================================
 
