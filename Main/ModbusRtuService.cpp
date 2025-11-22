@@ -97,6 +97,7 @@ void ModbusRtuService::start()
     Serial.println("Modbus RTU service started successfully");
 
     // Start auto-recovery task
+    // MUST stay on Core 1: Modifies device status accessed by MODBUS_RTU_TASK (Core 1)
     BaseType_t recoveryResult = xTaskCreatePinnedToCore(
         autoRecoveryTask,
         "RTU_AUTO_RECOVERY",
@@ -104,7 +105,7 @@ void ModbusRtuService::start()
         this,
         1,
         &autoRecoveryTaskHandle,
-        1);
+        1); // Core 1 (must stay with RTU polling task to avoid race conditions)
 
     if (recoveryResult == pdPASS)
     {

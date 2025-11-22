@@ -145,6 +145,7 @@ bool BLEManager::begin()
       1);
 
   // Create metrics monitoring task
+  // MUST stay on Core 1: Accesses BLE data structures managed by BLE_CMD_TASK (Core 1)
   xTaskCreatePinnedToCore(
       metricsMonitorTask,
       "BLE_METRICS_TASK",
@@ -152,7 +153,7 @@ bool BLEManager::begin()
       this,
       0, // Lower priority for monitoring
       &metricsTaskHandle,
-      1);
+      1); // Core 1 (must stay with other BLE tasks to avoid race conditions)
 
   Serial.println("BLE Manager initialized: " + serviceName);
   Serial.println("[BLE] MTU Metrics and Queue Monitoring enabled");

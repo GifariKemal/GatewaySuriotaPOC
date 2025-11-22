@@ -69,6 +69,7 @@ void RTCManager::startSync()
     return;
 
   syncRunning = true;
+  // OPTIMIZATION: Moved to Core 0 to balance load (background sync task)
   xTaskCreatePinnedToCore(
       timeSyncTask,
       "RTC_SYNC_TASK",
@@ -76,7 +77,7 @@ void RTCManager::startSync()
       this,
       1,
       &syncTaskHandle,
-      1);
+      0); // Core 0 (moved from Core 1 for load balancing)
   Serial.println("RTC sync service started");
 }
 

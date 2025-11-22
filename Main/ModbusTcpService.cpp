@@ -77,6 +77,7 @@ void ModbusTcpService::start()
     Serial.println("Custom Modbus TCP service started successfully");
 
     // Start auto-recovery task
+    // MUST stay on Core 1: Modifies device status accessed by MODBUS_TCP_TASK (Core 1)
     BaseType_t recoveryResult = xTaskCreatePinnedToCore(
         autoRecoveryTask,
         "TCP_AUTO_RECOVERY",
@@ -84,7 +85,7 @@ void ModbusTcpService::start()
         this,
         1,
         &autoRecoveryTaskHandle,
-        1);
+        1); // Core 1 (must stay with TCP polling task to avoid race conditions)
 
     if (recoveryResult == pdPASS)
     {

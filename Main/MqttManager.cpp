@@ -278,13 +278,21 @@ bool MqttManager::connectToMqtt()
   if (bufferSizeNeedsRecalculation || cachedBufferSize == 0) {
     cachedBufferSize = calculateOptimalBufferSize();
     bufferSizeNeedsRecalculation = false;
-    Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
-  } else {
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
+    #endif
+  }
+  #if PRODUCTION_MODE == 0
+  else {
     Serial.printf("[MQTT] Buffer size using cached value: %u bytes\n", cachedBufferSize);
   }
+  #endif
 
   mqttClient.setBufferSize(cachedBufferSize, cachedBufferSize);
-  Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
+  #endif
 
   // FIXED: Increased keep_alive to 120s to prevent timeouts during long Modbus polling cycles
   // Previous: 60s was too short when RTU polling takes ~50s + publish interval 70s
@@ -312,12 +320,14 @@ bool MqttManager::connectToMqtt()
     connected = mqttClient.connect(clientId.c_str());
   }
 
-  // Log connection duration for diagnostics
-  unsigned long connectDuration = millis() - connectStartTime;
-  if (connectDuration > 2000)
-  {
-    Serial.printf("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
-  }
+  // Log connection duration for diagnostics (only in development mode)
+  #if PRODUCTION_MODE == 0
+    unsigned long connectDuration = millis() - connectStartTime;
+    if (connectDuration > 2000)
+    {
+      Serial.printf("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
+    }
+  #endif
 
   if (connected)
   {
@@ -360,10 +370,12 @@ void MqttManager::loadMqttConfig()
     // Load publish mode
     publishMode = mqttConfig["publish_mode"] | "default";
 
-    Serial.printf("[MQTT] Config loaded - Broker: %s:%d, Client: %s\n",
-                  brokerAddress.c_str(), brokerPort, clientId.c_str());
-    Serial.printf("[MQTT] Auth: %s, Mode: %s\n",
-                  (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Config loaded - Broker: %s:%d, Client: %s\n",
+                    brokerAddress.c_str(), brokerPort, clientId.c_str());
+      Serial.printf("[MQTT] Auth: %s, Mode: %s\n",
+                    (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
+    #endif
 
     // Load default mode configuration
     if (mqttConfig["default_mode"])
@@ -384,10 +396,12 @@ void MqttManager::loadMqttConfig()
       defaultInterval = convertToMilliseconds(intervalValue, defaultIntervalUnit);
       lastDefaultPublish = 0;
 
-      Serial.printf("[MQTT] Default Mode: %s, Topic: %s, Interval: %u%s (%ums)\n",
-                    defaultModeEnabled ? "ENABLED" : "DISABLED",
-                    defaultTopicPublish.c_str(), intervalValue,
-                    defaultIntervalUnit.c_str(), defaultInterval);
+      #if PRODUCTION_MODE == 0
+        Serial.printf("[MQTT] Default Mode: %s, Topic: %s, Interval: %u%s (%ums)\n",
+                      defaultModeEnabled ? "ENABLED" : "DISABLED",
+                      defaultTopicPublish.c_str(), intervalValue,
+                      defaultIntervalUnit.c_str(), defaultInterval);
+      #endif
     }
 
     // Load customize mode configuration
@@ -427,16 +441,20 @@ void MqttManager::loadMqttConfig()
           if (!ct.topic.isEmpty() && ct.registers.size() > 0)
           {
             customTopics.push_back(ct);
-            Serial.printf("[MQTT] Custom Topic: %s, Registers: %d, Interval: %u%s (%ums)\n",
-                          ct.topic.c_str(), ct.registers.size(), intervalValue,
-                          ct.intervalUnit.c_str(), ct.interval);
+            #if PRODUCTION_MODE == 0
+              Serial.printf("[MQTT] Custom Topic: %s, Registers: %d, Interval: %u%s (%ums)\n",
+                            ct.topic.c_str(), ct.registers.size(), intervalValue,
+                            ct.intervalUnit.c_str(), ct.interval);
+            #endif
           }
         }
       }
 
-      Serial.printf("[MQTT] Customize Mode: %s, Topics: %d\n",
-                    customizeModeEnabled ? "ENABLED" : "DISABLED",
-                    customTopics.size());
+      #if PRODUCTION_MODE == 0
+        Serial.printf("[MQTT] Customize Mode: %s, Topics: %d\n",
+                      customizeModeEnabled ? "ENABLED" : "DISABLED",
+                      customTopics.size());
+      #endif
     }
   }
   else
@@ -471,10 +489,12 @@ void MqttManager::publishQueueData()
   if (persistentQueueEnabled && persistentQueue)
   {
     uint32_t persistedSent = persistentQueue->processQueue();
-    if (persistedSent > 0)
-    {
-      Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
-    }
+    #if PRODUCTION_MODE == 0
+      if (persistedSent > 0)
+      {
+        Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
+      }
+    #endif
   }
 
   // Check if any publish mode is ready (interval elapsed) BEFORE dequeuing
@@ -751,8 +771,10 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     }
   }
 
-  Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
-                serializedSize, estimatedSize);
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
+                  serializedSize, estimatedSize);
+  #endif
 
   // FIXED BUG #15: Check against dynamic buffer size
   // FIXED BUG #7: Use cached buffer size (already set in connectToMqtt)
@@ -768,17 +790,16 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
                 payload.length(), defaultTopicPublish.c_str());
 
-  // DEBUG: Print payload preview (first 500 chars) and LAST 200 chars for troubleshooting
-  if (payload.length() > 0) {
-    Serial.println("[MQTT] Payload FIRST 500 chars:");
-    Serial.println(payload.substring(0, min(500, (int)payload.length())));
-    if (payload.length() > 500) {
-      Serial.println("[MQTT] ... (middle truncated) ...");
-      Serial.println("[MQTT] Payload LAST 200 chars:");
-      Serial.println(payload.substring(max(0, (int)payload.length() - 200)));
+  // DEBUG: Print payload preview (only in verbose mode)
+  #if PRODUCTION_MODE == 0
+    // Development mode: Show payload preview for debugging
+    if (payload.length() > 0 && payload.length() <= 2000) {
+      // Only show for small payloads (≤2KB) to avoid log spam
+      Serial.printf("[MQTT] Payload preview (%u bytes): %s\n",
+                    payload.length(),
+                    payload.substring(0, min(200, (int)payload.length())).c_str());
     }
-    Serial.println("[MQTT] ---");
-  }
+  #endif
 
   // CRITICAL FIX: Use BINARY publish with explicit length for large JSON payloads (>2KB)
   // PREVIOUS BUG: Text publish uses strlen() which STOPS at null terminator (\x00)
@@ -786,21 +807,24 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   // SOLUTION: Binary publish treats payload as byte array with explicit length
   // Reference: PubSubClient documentation - binary publish for non-text data
 
-  // DEBUG: Check MQTT connection state before publish
+  // Check MQTT connection state before publish
   if (!mqttClient.connected()) {
-    Serial.println("[MQTT] ERROR: MQTT client not connected before publish!");
-    Serial.printf("[MQTT] Connection state: %d\n", mqttClient.state());
+    LOG_MQTT_ERROR("MQTT client not connected before publish! State: %d", mqttClient.state());
     return;
   }
 
-  Serial.printf("[MQTT] Publishing to broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
-  Serial.printf("[MQTT] Topic: %s (length: %d)\n", defaultTopicPublish.c_str(), defaultTopicPublish.length());
-  Serial.printf("[MQTT] Payload size: %u bytes (using BINARY publish with explicit length)\n", payload.length());
-
-  // CRITICAL: Calculate total MQTT packet size for validation
+  // Calculate total MQTT packet size for validation
   // MQTT Packet = Fixed Header (5) + Topic Length (2) + Topic Name + Payload
   uint32_t mqttPacketSize = 5 + 2 + defaultTopicPublish.length() + payload.length();
-  Serial.printf("[MQTT] Total MQTT packet size: %u bytes (buffer: %u bytes)\n", mqttPacketSize, cachedBufferSize);
+
+  #if PRODUCTION_MODE == 0
+    // Development mode: Show detailed publish info
+    Serial.printf("[MQTT] Broker: %s:%d | Topic: %s | Payload: %u bytes | Packet: %u/%u bytes\n",
+                  brokerAddress.c_str(), brokerPort,
+                  defaultTopicPublish.c_str(),
+                  payload.length(),
+                  mqttPacketSize, cachedBufferSize);
+  #endif
 
   // Validate packet size doesn't exceed buffer
   if (mqttPacketSize > cachedBufferSize) {
@@ -833,9 +857,6 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   memcpy(payloadBuffer, payload.c_str(), payload.length());
   uint32_t payloadLen = payload.length();
 
-  Serial.printf("[MQTT] Payload copied to dedicated buffer (%u bytes at 0x%p)\n",
-                payloadLen, payloadBuffer);
-
   // FIXED: Use binary publish (3 params) with explicit length for reliable transmission
   bool published = mqttClient.publish(
     topicBuffer,                // Topic (separate buffer)
@@ -846,9 +867,18 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   // Free payload buffer after publish
   heap_caps_free(payloadBuffer);
 
-  Serial.printf("[MQTT] Publish result: %s (return value: %d)\n",
-                published ? "SUCCESS" : "FAILED", published);
-  Serial.printf("[MQTT] MQTT state after publish: %d (0=connected)\n", mqttClient.state());
+  #if PRODUCTION_MODE == 0
+    // Development mode: Show detailed publish result
+    Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
+                  published ? "✓ SUCCESS" : "✗ FAILED",
+                  mqttClient.state(),
+                  mqttClient.state() == 0 ? "connected" : "disconnected");
+  #else
+    // Production mode: Only log if failed
+    if (!published) {
+      LOG_MQTT_ERROR("Publish FAILED! State: %d", mqttClient.state());
+    }
+  #endif
 
   // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
   // This prevents premature disconnect detection on slow/public brokers
@@ -1059,14 +1089,16 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       String payload;
       serializeJson(topicDoc, payload);
 
-      // DEBUG: Print payload preview for troubleshooting
-      Serial.printf("[MQTT] Customize Mode - Publishing %u bytes to: %s\n",
-                    payload.length(), customTopic.topic.c_str());
-      if (payload.length() > 0 && payload.length() <= 300) {
-        Serial.println("[MQTT] Payload preview:");
-        Serial.println(payload);
-        Serial.println("[MQTT] ---");
-      }
+      #if PRODUCTION_MODE == 0
+        // DEBUG: Print payload preview for troubleshooting (development mode only)
+        Serial.printf("[MQTT] Customize Mode - Publishing %u bytes to: %s\n",
+                      payload.length(), customTopic.topic.c_str());
+        if (payload.length() > 0 && payload.length() <= 300) {
+          Serial.println("[MQTT] Payload preview:");
+          Serial.println(payload);
+          Serial.println("[MQTT] ---");
+        }
+      #endif
 
       // CRITICAL FIX: Use BINARY publish with explicit length (same as default mode)
       // Prevents data truncation for large payloads or JSON with special chars
@@ -1323,8 +1355,10 @@ uint16_t MqttManager::calculateOptimalBufferSize()
     optimalSize = (uint16_t)calculatedSize;
   }
 
-  Serial.printf("[MQTT] Buffer calculation: %u registers → %u bytes (min: %u, max: %u)\n",
-                totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Buffer calculation: %u registers → %u bytes (min: %u, max: %u)\n",
+                  totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
+  #endif
 
   return optimalSize;
 }

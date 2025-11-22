@@ -196,6 +196,7 @@ void NetworkMgr::startFailoverTask()
 {
   if (failoverTaskHandle == nullptr)
   {
+    // OPTIMIZATION: Moved to Core 0 to balance load (network monitoring background task)
     xTaskCreatePinnedToCore(
         failoverTask,
         "NET_FAILOVER_TASK",
@@ -203,7 +204,7 @@ void NetworkMgr::startFailoverTask()
         this,
         1, // Priority
         &failoverTaskHandle,
-        1 // Core 1
+        0 // Core 0 (moved from Core 1 for load balancing)
     );
     Serial.println("Network failover task started.");
   }

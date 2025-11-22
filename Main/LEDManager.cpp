@@ -35,6 +35,7 @@ void LEDManager::begin()
   }
 
   // Create LED blinking task
+  // OPTIMIZATION: Moved to Core 0 to balance load (low-priority task)
   xTaskCreatePinnedToCore(
       ledBlinkTask,
       "LED_Blink_Task",
@@ -42,7 +43,7 @@ void LEDManager::begin()
       this,
       1, // Priority (low but higher than 0)
       &ledTaskHandle,
-      APP_CPU_NUM // Pin to APP_CPU_NUM (core 1 on ESP32)
+      0 // Core 0 (moved from Core 1 for load balancing)
   );
   Serial.println("[LED] Manager initialized");
 }

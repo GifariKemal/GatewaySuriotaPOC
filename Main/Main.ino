@@ -8,6 +8,7 @@
  * Debug: Development vs Production mode (PRODUCTION_MODE = 0/1)
  *
  * MQTT Fix: Payload corruption fix with separate buffers (2025-11-22)
+ * Task Optimization: Low-priority tasks moved to Core 0 for load balancing (2025-11-22)
  */
 
 #define PRODUCTION_MODE 0 // 0 = Development, 1 = Production
