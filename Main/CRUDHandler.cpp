@@ -985,7 +985,18 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   cmd.priority = priority;
   cmd.enqueueTime = millis();
   cmd.manager = manager; // Store BLE manager for response sending
-  cmd.payload = std::make_unique<JsonDocument>();
+
+  // BUG FIX: Use PSRAM allocation for large JSON documents (restore commands can be 3-4KB)
+  cmd.payload = make_psram_unique<JsonDocument>();
+
+  if (!cmd.payload)
+  {
+    Serial.println("[CRUD QUEUE] ERROR: Failed to allocate PSRAM for command payload!");
+    xSemaphoreGive(queueMutex);
+    manager->sendError("Failed to allocate memory for command");
+    return;
+  }
+
   cmd.payload->set(command);
 
   // Track statistics
@@ -1042,9 +1053,19 @@ void CRUDHandler::processPriorityQueue()
       cmd.priority = topCmd.priority;
       cmd.enqueueTime = topCmd.enqueueTime;
       cmd.manager = topCmd.manager; // Copy manager pointer
-      cmd.payload = std::make_unique<JsonDocument>();
-      cmd.payload->set(*topCmd.payload);
-      hasCommand = true;
+
+      // BUG FIX: Use PSRAM allocation for large JSON documents
+      cmd.payload = make_psram_unique<JsonDocument>();
+
+      if (cmd.payload)
+      {
+        cmd.payload->set(*topCmd.payload);
+        hasCommand = true;
+      }
+      else
+      {
+        Serial.println("[CRUD EXEC] ERROR: Failed to allocate PSRAM for command execution!");
+      }
     }
 
     commandQueue.pop();
@@ -1067,29 +1088,43 @@ void CRUDHandler::processPriorityQueue()
   String type = (*cmd.payload)["type"] | "";
 
   // Route to appropriate handler (with valid manager pointer)
+  bool handlerFound = false;
+
   if (op == "read" && readHandlers.count(type))
   {
     readHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
   }
   else if (op == "create" && createHandlers.count(type))
   {
     createHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
   }
   else if (op == "update" && updateHandlers.count(type))
   {
     updateHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
   }
   else if (op == "delete" && deleteHandlers.count(type))
   {
     deleteHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
   }
   else if (op == "control" && controlHandlers.count(type))
   {
     controlHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
   }
   else if (op == "system" && systemHandlers.count(type))
   {
     systemHandlers[type](cmd.manager, *cmd.payload);
+    handlerFound = true;
+  }
+
+  if (!handlerFound)
+  {
+    Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
+    cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
   }
 
   batchStats.totalCommandsProcessed++;
