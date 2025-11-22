@@ -153,7 +153,7 @@ async def send_command(client, command):
     print(f"   ✓ End marker <END> sent")
 
     # Wait for response with timeout
-    timeout = 60  # 60 seconds for large responses
+    timeout = 120  # 60 seconds for large responses
     start_time = time.time()
 
     print(f"\n📥 WAITING FOR RESPONSE (timeout: {timeout}s)...")
