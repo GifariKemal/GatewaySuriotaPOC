@@ -1,7 +1,7 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.1
-**Last Updated:** November 21, 2025
+**Version:** 2.3.3
+**Last Updated:** November 22, 2025
 **Repository:** GatewaySuriotaPOC (ESP32-S3 Industrial IoT Gateway)
 
 ---
@@ -34,7 +34,7 @@
 - **RTOS:** FreeRTOS with 11+ dedicated tasks
 - **Language:** C++ (Arduino framework)
 - **IDE:** Arduino IDE 2.0+
-- **Current Version:** 2.3.0 (November 21, 2025)
+- **Current Version:** 2.3.3 (November 22, 2025)
 
 ### Primary Protocols
 

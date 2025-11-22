@@ -26,16 +26,19 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Version History
 
-### Current Version: 2.3.0 (November 14, 2025)
+### Current Version: 2.3.3 (November 22, 2025)
 
-**Breaking Changes:**
-- `data_interval` removed from root configuration
-- `http_config.interval` now controls HTTP polling interval
+**Latest Bug Fix (v2.3.3):**
+- Fixed BUG #32: Restore config failure for large JSON payloads (3420+ bytes)
+- Fixed register_index stuck at 0 during device creation with registers
+- Fixed device ID not preserved during restore operations
 
-**Key Improvements:**
+**Key Improvements (v2.3.0-v2.3.2):**
 - Clean API structure with dedicated config sections
 - Enhanced network configuration documentation
 - Improved error handling and recovery
+- MQTT partial publish bug fix (all devices complete before publish)
+- Memory leak fixes (device deletion cache clearing)
 
 **See:** [VERSION_HISTORY.md](VERSION_HISTORY.md) for complete details
 
@@ -43,7 +46,10 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
-| **v2.3.0** | Nov 14, 2025 | Clean API structure, breaking changes |
+| **v2.3.3** | Nov 22, 2025 | BUG #32 fix (restore config), register index fix |
+| **v2.3.2** | Nov 21, 2025 | MQTT partial publish bug fix |
+| **v2.3.1** | Nov 21, 2025 | Memory leak & device deletion bug fixes |
+| **v2.3.0** | Nov 21, 2025 | Backup/restore system, factory reset, device control |
 | **v2.1.1** | Nov 2025 | 28x faster BLE transmission, enhanced CRUD |
 | **v2.1.0** | Oct 2025 | Priority queue, batch operations |
 | **v2.0** | Oct 2024 | Initial stable release |
@@ -63,7 +69,17 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## What's New
 
-### v2.3.0 Highlights (Current)
+### v2.3.3 Highlights (Current)
+
+**Bug Fixes:**
+- Fixed BUG #32: Restore config failure for large JSON payloads
+- Fixed register_index stuck at 0 during device creation
+- Fixed device ID not preserved during restore operations
+- All backup/restore operations now fully stable (100% success rate)
+
+**See:** [VERSION_HISTORY.md](VERSION_HISTORY.md#v233) for details
+
+### v2.3.0-2.3.2 Highlights
 
 **Breaking Changes:**
 - API structure reorganization
@@ -252,8 +268,8 @@ Found a bug or have a feature request?
 
 ---
 
-**Last Updated:** November 21, 2025
-**Current Version:** 2.3.0
+**Last Updated:** November 22, 2025
+**Current Version:** 2.3.3
 **Next Release:** TBA
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#changelog)

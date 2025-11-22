@@ -10,9 +10,9 @@ This folder contains documentation from previous development iterations that are
 **Date:** October 2024
 **Status:** ❌ Outdated
 
-Bug analysis from firmware v2.0.0 development. Most issues have been resolved in subsequent versions.
+Bug analysis from firmware v2.0.0 development. Most issues have been resolved in subsequent versions (v2.3.3 current).
 
-**Replaced by:** [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) - Current issue diagnostics
+**Replaced by:** [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) - Current issue diagnostics (v2.3.3)
 
 ---
 
@@ -34,7 +34,7 @@ Delivery summary for the streaming data fix package (v2.0.0).
 
 **Context:** Project completion report for streaming fix implementation.
 
-**Replaced by:** [VERSION_HISTORY.md](../VERSION_HISTORY.md) - Complete version changelog
+**Replaced by:** [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) - Complete version changelog (v2.3.3 current)
 
 ---
 

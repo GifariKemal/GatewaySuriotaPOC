@@ -8,7 +8,180 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.3.2 (Current)
+## 📦 Version 2.3.3 (Current)
+
+**Release Date:** November 22, 2025 (Friday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🐛 BLE Backup/Restore Bug Fixes (Critical)
+
+**Type:** Bug Fix Release
+
+This patch release fixes **3 critical bugs** related to BLE backup/restore functionality and register creation.
+
+---
+
+#### 🔴 BUG #32 (CRITICAL): Restore Config Failure for Large JSON Payloads
+
+**Problem:**
+- BLE restore command with 3420-byte payload fails with "Missing 'config' object in payload"
+- Device IDs auto-generated during restore (e.g., "Def004") instead of using backup IDs
+- Registers lost during restore (0 registers after restoring 5 registers)
+- ConfigManager creates empty devices without registers from backup
+
+**Root Cause:**
+1. **JsonDocument allocation issue**: `make_psram_unique<JsonDocument>()` created document with NO SIZE parameter
+2. **Missing `.set()` error checking**: Deep copy to queue payload failed silently without validation
+3. **Device creation logic**: ConfigManager auto-generated device_id instead of checking config first
+4. **Register array handling**: Registers array not properly initialized/copied during device creation
+
+**Reproduction:**
+```
+Configure:
+- Create device D7227b with 5 registers
+- Create device Dcf946 with 5 registers
+- Backup configuration (3519 bytes, 2 devices, 10 registers)
+- Perform factory reset
+- Restore configuration
+
+Result (BEFORE FIX):
+- Device Def004 created (auto-generated, NOT D7227b!) ❌
+- Device Dcf946 created but with 0 registers ❌
+- File size: 243 bytes (only 1 register saved) ❌
+- register_index stuck at 0 for all registers ❌
+```
+
+**Files Changed:**
+1. `Main/BLEManager.cpp:352-429` - `handleCompleteCommand()`
+2. `Main/CRUDHandler.cpp:1040-1058` - `enqueueCommand()`
+3. `Main/CRUDHandler.cpp:1120-1140` - `processPriorityQueue()`
+4. `Main/ConfigManager.cpp:299-352` - `createDevice()`
+5. `Main/ConfigManager.cpp:694-702` - `createRegister()`
+
+**Fix Details:**
+
+**1. BLEManager.cpp - Use SpiRamJsonDocument directly:**
+```cpp
+// OLD (BUGGY):
+auto doc = make_psram_unique<JsonDocument>();  // No size parameter!
+DeserializationError error = deserializeJson(*doc, command);
+
+// NEW (FIXED):
+SpiRamJsonDocument doc;  // Uses PSRAMAllocator, dynamic growth
+DeserializationError error = deserializeJson(doc, command);
+```
+
+**2. CRUDHandler.cpp - Check .set() return value (2 locations):**
+```cpp
+// OLD (BUGGY):
+cmd.payload->set(command);  // No error checking!
+
+// NEW (FIXED):
+size_t commandSize = measureJson(command);
+if (!cmd.payload->set(command)) {
+  Serial.printf("[CRUD QUEUE] ERROR: Failed to copy command payload (%u bytes)!\n", commandSize);
+  Serial.printf("[CRUD QUEUE] Free PSRAM: %u bytes\n",
+                heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+  manager->sendError("Failed to copy command payload - insufficient memory");
+  return;
+}
+```
+
+**3. ConfigManager.cpp - Check device_id in config before generating:**
+```cpp
+// OLD (BUGGY):
+String device_id = generateDeviceId();  // Always generates new ID!
+
+// NEW (FIXED):
+String device_id;
+if (device.containsKey("device_id") && device["device_id"].is<const char*>()) {
+  device_id = device["device_id"].as<String>();
+  Serial.printf("[CONFIG] Using device_id from config: %s\n", device_id.c_str());
+} else {
+  device_id = generateDeviceId();
+  Serial.printf("[CONFIG] Generated new device_id: %s\n", device_id.c_str());
+}
+```
+
+**4. ConfigManager.cpp - Initialize empty registers array for new devices:**
+```cpp
+// OLD (BUGGY):
+// No registers array initialization for new devices!
+
+// NEW (FIXED):
+if (!devicesMap.containsKey(device_id)) {
+  // New device - initialize empty registers array
+  devicesMap[device_id] = JsonObject();
+  devicesMap[device_id]["registers"] = JsonArray();
+  Serial.printf("[CONFIG] Initialized new device %s with empty registers array\n",
+                device_id.c_str());
+}
+```
+
+**5. ConfigManager.cpp - Preserve registers from restore config:**
+```cpp
+// OLD (BUGGY):
+// Registers copied but array not properly initialized
+
+// NEW (FIXED):
+if (device.containsKey("registers") && device["registers"].is<JsonArray>()) {
+  JsonArray sourceRegs = device["registers"].as<JsonArray>();
+  devicesMap[device_id]["registers"] = sourceRegs;  // Preserve from restore
+  Serial.printf("[CONFIG] Preserved %d registers from config\n", sourceRegs.size());
+}
+```
+
+**6. ConfigManager.cpp - Fix register index assignment:**
+```cpp
+// OLD (BUGGY):
+int nextIndex = 0;  // Always 0 for every register!
+
+// NEW (FIXED):
+int nextIndex = 1;  // Start from 1
+if (!regArray.isNull() && regArray.is<JsonArray>()) {
+  JsonArray existingRegs = regArray.as<JsonArray>();
+  for (JsonObject r : existingRegs) {
+    if (r.containsKey("register_index")) {
+      int idx = r["register_index"].as<int>();
+      if (idx >= nextIndex) {
+        nextIndex = idx + 1;
+      }
+    }
+  }
+}
+```
+
+**Impact:**
+- ✅ Restore config with large payloads (3420+ bytes) now works
+- ✅ Device IDs preserved during restore (D7227b, Dcf946, etc.)
+- ✅ All registers preserved during restore (100% success rate)
+- ✅ register_index properly increments (1, 2, 3, 4, 5...)
+- ✅ File size correct after restore (2362 bytes for 10 registers)
+
+**Test Results:**
+```
+Before fix:
+- Restore: FAILED - "Missing 'config' object"
+- Device ID: Auto-generated "Def004" ❌
+- Registers: 0 registers restored ❌
+- File size: 243 bytes ❌
+
+After fix:
+- Restore: SUCCESS ✅
+- Device IDs: D7227b, Dcf946 (preserved) ✅
+- Registers: 10 registers restored ✅
+- File size: 2362 bytes ✅
+- Backup-Restore-Compare: Data integrity verified ✅
+```
+
+**Related Issues:**
+- BUG #31: PSRAM Allocator for JsonDocument (fixed in v2.3.0)
+- Backup/restore test failures with large configurations
+
+---
+
+## 📦 Version 2.3.2
 
 **Release Date:** November 21, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)
