@@ -1,8 +1,8 @@
 # SRT-MGATE-1210 Documentation
 
 **Modbus IIoT Gateway Documentation Hub**
-**Current Version:** 2.3.0
-**Last Updated:** November 21, 2025
+**Current Version:** 2.3.3
+**Last Updated:** November 22, 2025
 
 ---
 
@@ -111,7 +111,7 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 - **MCU:** ESP32-S3-WROOM-1-N16R8 (16MB Flash, 8MB PSRAM)
 - **Protocols:** Modbus RTU, Modbus TCP, MQTT, HTTP, BLE 5.0
 - **Network:** WiFi 802.11 b/g/n, Ethernet (optional)
-- **Firmware:** v2.3.0 (November 2025)
+- **Firmware:** v2.3.3 (November 2025)
 
 ### Key Features
 - ✅ **Multi-Protocol:** Bridge Modbus devices to MQTT/HTTP/BLE
@@ -135,20 +135,28 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 
 ## 🔄 Version Information
 
-### Current Version: 2.3.0 (November 21, 2025)
+### Current Version: 2.3.3 (November 22, 2025)
 
-**New Features:**
+**Latest Bug Fix:**
+- ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads (backup/restore now fully stable)
+- ✅ **Register Index Bug** - Fixed register_index stuck at 0 during device creation
+- ✅ **Device ID Preservation** - Device IDs now properly preserved during restore operations
+
+**Recent Features (v2.3.0-2.3.2):**
 - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
 - ✅ **Factory Reset Command** - One-command device reset to factory defaults
 - ✅ **Device Control API** - Enable/disable devices with health metrics and auto-recovery
 - ✅ **BLE Response Size** - Increased from 10KB to 200KB for large configurations
-- ✅ **Bug Status Report** - Active bug tracking with root cause analysis
+- ✅ **MQTT Partial Publish Fix** - All devices now complete before MQTT publish
 
-**Migration:** No breaking changes. All new features are additive and backward compatible.
+**Migration:** No breaking changes. All fixes are backward compatible.
 
-**Migration:** See [Version History](Changelog/VERSION_HISTORY.md) for full migration guide.
+**Full Details:** See [Version History](Changelog/VERSION_HISTORY.md) for complete migration guide.
 
 ### Previous Versions
+- **v2.3.2** - MQTT partial publish bug fix (November 21, 2025)
+- **v2.3.1** - Memory leak & device deletion bug fixes (November 21, 2025)
+- **v2.3.0** - Backup/restore system, factory reset, device control (November 21, 2025)
 - **v2.2.0** - Documentation excellence (100% English, comprehensive navigation)
 - **v2.1.1** - 28x faster BLE transmission, enhanced CRUD responses
 - **v2.1.0** - Priority queue, batch operations
