@@ -531,8 +531,8 @@ Now that your gateway is running, explore these topics:
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Last Updated:** November 22, 2025
+**Firmware Version:** 2.3.3
 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md)
