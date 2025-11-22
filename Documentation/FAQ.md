@@ -555,8 +555,8 @@ Then read logs via:
 Response includes:
 ```json
 {
-  "firmware_version": "2.3.0",
-  "build_date": "2025-11-14"
+  "firmware_version": "2.3.3",
+  "build_date": "2025-11-22"
 }
 ```
 
@@ -572,15 +572,29 @@ Response includes:
 
 **⚠️ Warning:** Some versions have breaking changes. Read migration guide first!
 
-### Q: What's new in v2.3.0?
+### Q: What's new in v2.3.x (v2.3.0 - v2.3.3)?
 
-**A:** Key changes:
+**A:** Latest v2.3.3 (November 22, 2025):
+- ✅ **BUG #32 Fix** - Restore config now works with large JSON payloads (3420+ bytes)
+- ✅ **Register Index Fix** - register_index increments correctly (1→2→3→4→5)
+- ✅ **Device ID Preservation** - Device IDs preserved during restore operations
+
+**v2.3.2** (November 21, 2025):
+- ✅ MQTT partial publish fix - All devices complete before publish
+
+**v2.3.1** (November 21, 2025):
+- ✅ Memory leak fix - Cache properly cleared after device deletion
+- ✅ Polling stop fix - Devices stop polling immediately after deletion
+
+**v2.3.0** (November 21, 2025):
 - Clean API structure
 - HTTP configuration moved to `http_config`
 - Breaking change: `data_interval` removed from root
-- Enhanced network configuration documentation
+- Backup & Restore System (up to 200KB)
+- Factory Reset Command
+- Device Control API (enable/disable)
 
-**Migration Required:** Yes, see [VERSION_HISTORY.md - v2.3.0 Migration](Changelog/VERSION_HISTORY.md#v220-migration-guide)
+**Migration:** v2.3.1-2.3.3 are backward compatible. v2.3.0 has breaking changes, see [VERSION_HISTORY.md](Changelog/VERSION_HISTORY.md#v220-migration-guide)
 
 ### Q: How do I update the firmware?
 
@@ -611,7 +625,7 @@ Response includes:
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Last Updated:** November 22, 2025
+**Firmware Version:** 2.3.3
 
 [← Back to Documentation Index](README.md) | [↑ Top](#frequently-asked-questions-faq)
