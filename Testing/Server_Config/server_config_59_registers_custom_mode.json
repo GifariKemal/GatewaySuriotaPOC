@@ -1,0 +1,116 @@
+{
+  "protocol": "mqtt",
+  "mqtt": {
+    "broker_address": "broker.hivemq.com",
+    "broker_port": 1883,
+    "client_id": "SURIOTA_GW_001",
+    "username": "",
+    "password": "",
+    "publish_mode": "customize",
+    "default_mode": {
+      "enabled": false,
+      "topic_publish": "v1/devices/me/telemetry",
+      "topic_subscribe": "device/control",
+      "interval": 60,
+      "interval_unit": "s"
+    },
+    "customize_mode": {
+      "enabled": true,
+      "custom_topics": [
+        {
+          "topic": "suriota/device/temperature",
+          "interval": 60,
+          "interval_unit": "s",
+          "registers": [
+            "D57ff4_Temp_Zone_1",
+            "D57ff4_Temp_Zone_2",
+            "D57ff4_Temp_Zone_3",
+            "D57ff4_Temp_Zone_4",
+            "D57ff4_Temp_Zone_5",
+            "D57ff4_Temp_Zone_6",
+            "D57ff4_Temp_Zone_7",
+            "D57ff4_Temp_Zone_8",
+            "D57ff4_Temp_Zone_9",
+            "D57ff4_Temp_Zone_10"
+          ]
+        },
+        {
+          "topic": "suriota/device/humidity",
+          "interval": 60,
+          "interval_unit": "s",
+          "registers": [
+            "D57ff4_Humid_Zone_1",
+            "D57ff4_Humid_Zone_2",
+            "D57ff4_Humid_Zone_3",
+            "D57ff4_Humid_Zone_4",
+            "D57ff4_Humid_Zone_5",
+            "D57ff4_Humid_Zone_6",
+            "D57ff4_Humid_Zone_7",
+            "D57ff4_Humid_Zone_8",
+            "D57ff4_Humid_Zone_9",
+            "D57ff4_Humid_Zone_10"
+          ]
+        },
+        {
+          "topic": "suriota/device/electrical",
+          "interval": 30,
+          "interval_unit": "s",
+          "registers": [
+            "D57ff4_Voltage_L1",
+            "D57ff4_Voltage_L2",
+            "D57ff4_Voltage_L3",
+            "D57ff4_Voltage_L4",
+            "D57ff4_Voltage_L5",
+            "D57ff4_Current_L1",
+            "D57ff4_Current_L2",
+            "D57ff4_Current_L3",
+            "D57ff4_Current_L4",
+            "D57ff4_Current_L5",
+            "D57ff4_Power_1",
+            "D57ff4_Power_2",
+            "D57ff4_Power_3",
+            "D57ff4_Power_4",
+            "D57ff4_Power_5",
+            "D57ff4_Energy_1",
+            "D57ff4_Energy_2",
+            "D57ff4_Energy_3",
+            "D57ff4_Energy_4",
+            "D57ff4_Energy_5"
+          ]
+        },
+        {
+          "topic": "suriota/device/sensors",
+          "interval": 120,
+          "interval_unit": "s",
+          "registers": [
+            "D57ff4_Press_Sensor_1",
+            "D57ff4_Press_Sensor_2",
+            "D57ff4_Press_Sensor_3",
+            "D57ff4_Press_Sensor_4",
+            "D57ff4_Press_Sensor_5",
+            "D57ff4_Temp_Zone_11",
+            "D57ff4_Temp_Zone_12",
+            "D57ff4_Temp_Zone_13",
+            "D57ff4_Temp_Zone_14",
+            "D57ff4_Humid_Zone_11",
+            "D57ff4_Humid_Zone_12",
+            "D57ff4_Humid_Zone_13",
+            "D57ff4_Humid_Zone_14",
+            "D57ff4_Voltage_L6",
+            "D57ff4_Current_L6",
+            "D57ff4_Power_6",
+            "D57ff4_Energy_6",
+            "D57ff4_Press_Sensor_6",
+            "D57ff4_Press_Sensor_7"
+          ]
+        }
+      ]
+    }
+  },
+  "http": {
+    "server_url": "https://api.example.com/data",
+    "method": "POST",
+    "interval_ms": 5000,
+    "headers": {}
+  }
+}
