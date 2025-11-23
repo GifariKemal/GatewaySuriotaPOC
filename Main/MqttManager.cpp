@@ -40,6 +40,28 @@ MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, Network
 {
   queueManager = QueueManager::getInstance();
   persistentQueue = MQTTPersistentQueue::getInstance();
+
+  // FIX CRITICAL BUG: Register publish callback for persistent queue
+  // Without this, processQueue() tries to publish with nullptr callback
+  // causing undefined behavior and TCP connection loss (state -3)
+  if (persistentQueue)
+  {
+    persistentQueue->setPublishCallback([this](const String &topic, const String &payload) -> bool {
+      // Call mqttClient.loop() before publish to maintain connection
+      mqttClient.loop();
+
+      // Publish message using MQTT client
+      bool published = mqttClient.publish(topic.c_str(),
+                                          (const uint8_t*)payload.c_str(),
+                                          payload.length());
+
+      // Call loop() after publish too
+      mqttClient.loop();
+
+      return published;
+    });
+  }
+
   Serial.println("[MQTT] Persistent queue initialized");
 }
 
@@ -191,7 +213,28 @@ void MqttManager::mqttLoop()
     {
       if (wasConnected)
       {
-        Serial.println("[MQTT] Connection lost, attempting reconnect...");
+        // FIX: Add diagnostic logging to identify disconnect reason
+        int mqttState = mqttClient.state();
+        Serial.printf("[MQTT] Connection lost (state: %d), attempting reconnect...\n", mqttState);
+
+        // Decode MQTT state for debugging
+        #if PRODUCTION_MODE == 0
+          const char* stateMsg = "UNKNOWN";
+          switch(mqttState) {
+            case -4: stateMsg = "TIMEOUT (server didn't respond)"; break;
+            case -3: stateMsg = "CONNECTION_LOST (network broken)"; break;
+            case -2: stateMsg = "CONNECT_FAILED (network failed)"; break;
+            case -1: stateMsg = "DISCONNECTED (clean disconnect)"; break;
+            case 0: stateMsg = "CONNECTED"; break;
+            case 1: stateMsg = "BAD_PROTOCOL"; break;
+            case 2: stateMsg = "BAD_CLIENT_ID"; break;
+            case 3: stateMsg = "UNAVAILABLE"; break;
+            case 4: stateMsg = "BAD_CREDENTIALS"; break;
+            case 5: stateMsg = "UNAUTHORIZED"; break;
+          }
+          Serial.printf("[MQTT] Disconnect reason: %s\n", stateMsg);
+        #endif
+
         wasConnected = false;
 
         // Update LED status - connection lost
@@ -269,7 +312,20 @@ bool MqttManager::connectToMqtt()
     return false;
   }
 
-  mqttClient.setClient(*activeClient);
+  // FIX CRITICAL BUG: Only set client if it's different from current client
+  // Calling setClient() on already-connected client will reset the connection!
+  // This was causing the immediate disconnect after connection
+  static Client *lastClient = nullptr;
+  if (activeClient != lastClient)
+  {
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Network client changed (%s -> %s), updating MQTT client\n",
+                    lastClient ? "active" : "none",
+                    networkMode.c_str());
+    #endif
+    mqttClient.setClient(*activeClient);
+    lastClient = activeClient;
+  }
 
   // FIXED BUG #15: Dynamic buffer sizing based on actual device configuration
   // FIXED BUG #5 & #7: Use cached buffer size to avoid repeated calculations
@@ -306,6 +362,11 @@ bool MqttManager::connectToMqtt()
   mqttClient.setSocketTimeout(15);  // Socket timeout in seconds
 
   mqttClient.setServer(brokerAddress.c_str(), brokerPort);
+
+  // FIX CRITICAL BUG: Register callback BEFORE connecting
+  // Without this, incoming MQTT messages (from subscribe) are not handled
+  // and can cause buffer overflow or undefined behavior
+  mqttClient.setCallback(MqttManager::mqttCallback);
 
   // Track connection attempt time
   unsigned long connectStartTime = millis();
@@ -485,6 +546,9 @@ void MqttManager::publishQueueData()
 
   unsigned long now = millis();
 
+  // FIX: Call loop() before processing queue to maintain connection
+  mqttClient.loop();
+
   // Process persistent queue first (retry failed messages)
   if (persistentQueueEnabled && persistentQueue)
   {
@@ -495,6 +559,9 @@ void MqttManager::publishQueueData()
         Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
       }
     #endif
+
+    // FIX: Call loop() after persistent queue processing
+    mqttClient.loop();
   }
 
   // Check if any publish mode is ready (interval elapsed) BEFORE dequeuing
@@ -577,6 +644,11 @@ void MqttManager::publishQueueData()
       if (batchWaitingThrottle.shouldLog("MQTT waiting for batch completion")) {
         LOG_MQTT_DEBUG("Waiting for device batch to complete... (%lus elapsed)\n", elapsed / 1000);
       }
+
+      // FIX: CRITICAL - Call loop() before returning to maintain MQTT connection during batch wait
+      // Without this, connection drops during long batch completion times (up to 60s)
+      mqttClient.loop();
+
       return;  // Wait for batch completion
     }
   } else {
@@ -857,6 +929,9 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   memcpy(payloadBuffer, payload.c_str(), payload.length());
   uint32_t payloadLen = payload.length();
 
+  // FIX: Call loop() immediately before publish to ensure connection is alive
+  mqttClient.loop();
+
   // FIXED: Use binary publish (3 params) with explicit length for reliable transmission
   bool published = mqttClient.publish(
     topicBuffer,                // Topic (separate buffer)
@@ -1100,6 +1175,9 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         }
       #endif
 
+      // FIX: Call loop() immediately before publish to ensure connection is alive
+      mqttClient.loop();
+
       // CRITICAL FIX: Use BINARY publish with explicit length (same as default mode)
       // Prevents data truncation for large payloads or JSON with special chars
       bool published = mqttClient.publish(
@@ -1339,9 +1417,19 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   // Apply constraints
   uint16_t optimalSize = MqttConfig::DEFAULT_BUFFER_SIZE;
 
-  if (calculatedSize < MqttConfig::MIN_BUFFER_SIZE)
+  // FIX CRITICAL BUG: Ensure minimum 8KB buffer for incoming MQTT messages
+  // calculateOptimalBufferSize() only considers OUTGOING data (publish)
+  // But if we subscribe to topics, broker may send LARGE retained messages or commands
+  // Without this, buffer overflow causes immediate disconnect after subscribe
+  const uint16_t MIN_INCOMING_BUFFER = 8192;  // 8KB minimum for incoming messages
+
+  if (calculatedSize < MIN_INCOMING_BUFFER)
   {
-    optimalSize = MqttConfig::MIN_BUFFER_SIZE;
+    // Outgoing data is small, but we need buffer for potential incoming messages
+    optimalSize = MIN_INCOMING_BUFFER;
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Buffer size increased to %u bytes (min for incoming messages)\n", optimalSize);
+    #endif
   }
   else if (calculatedSize > MqttConfig::MAX_BUFFER_SIZE)
   {
@@ -1361,6 +1449,48 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   #endif
 
   return optimalSize;
+}
+
+// FIX CRITICAL BUG: MQTT callback implementation for incoming messages
+// Static callback required by PubSubClient library
+void MqttManager::mqttCallback(char* topic, byte* payload, unsigned int length)
+{
+  // Get instance to call member function
+  MqttManager* instance = MqttManager::getInstance();
+  if (instance)
+  {
+    instance->handleIncomingMessage(topic, payload, length);
+  }
+}
+
+// Handle incoming MQTT messages (subscribe callback)
+void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int length)
+{
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Message received on topic: %s (length: %u bytes)\n", topic, length);
+
+    // Safety check: prevent buffer overflow
+    if (length > 512)
+    {
+      Serial.printf("[MQTT] WARNING: Large incoming message (%u bytes), truncating preview\n", length);
+      length = 512;
+    }
+
+    // Print payload preview (max 512 bytes)
+    char preview[513];
+    memcpy(preview, payload, length);
+    preview[length] = '\0';
+    Serial.printf("[MQTT] Payload preview: %s\n", preview);
+  #endif
+
+  // TODO: Add message handling logic here based on topic
+  // Example topics to handle:
+  // - v1/devices/me/rpc/request/+ (RPC commands)
+  // - v1/devices/me/attributes (attribute updates)
+  // - config/update (configuration updates)
+
+  // For now, just log that message was received
+  // You can add CRUDHandler integration here for remote configuration
 }
 
 // FIXED BUG #5: Notify MQTT manager when device configuration changes

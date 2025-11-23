@@ -96,6 +96,10 @@ private:
   void debugNetworkConnectivity();
   bool isNetworkAvailable();
 
+  // FIX: Add MQTT callback for incoming messages (subscribe support)
+  static void mqttCallback(char* topic, byte* payload, unsigned int length);
+  void handleIncomingMessage(char* topic, byte* payload, unsigned int length);
+
   // FIXED BUG #15: Dynamic MQTT buffer sizing
   uint16_t calculateOptimalBufferSize();
 
