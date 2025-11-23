@@ -125,11 +125,11 @@ private:
   MTUMetrics mtuMetrics;
   QueueMetrics queueMetrics;
   ConnectionMetrics connectionMetrics;
-  SemaphoreHandle_t metricsMutex; // Thread-safe metrics access
+  mutable SemaphoreHandle_t metricsMutex; // Thread-safe metrics access (mutable for const methods)
 
   // MTU Negotiation Timeout Control
   MTUNegotiationControl mtuControl;
-  SemaphoreHandle_t mtuControlMutex; // Separate mutex for MTU control
+  mutable SemaphoreHandle_t mtuControlMutex; // Separate mutex for MTU control (mutable for const methods)
 
   // BLE Transmission Protection
   SemaphoreHandle_t transmissionMutex; // Protect BLE transmission from race conditions

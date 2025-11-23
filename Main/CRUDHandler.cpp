@@ -969,11 +969,23 @@ void CRUDHandler::setupCommandHandlers()
     File auditLog = LittleFS.open("/factory_reset_audit.log", "a");
     if (auditLog)
     {
-      auditLog.printf("%s|%s|BLE Client|SUCCESS\n",
-                      timestamp.c_str(),
-                      reason.c_str());
+      size_t bytesWritten = auditLog.printf("%s|%s|BLE Client|SUCCESS\n",
+                                             timestamp.c_str(),
+                                             reason.c_str());
       auditLog.close();
-      Serial.println("[FACTORY RESET] Audit log written to /factory_reset_audit.log");
+
+      if (bytesWritten > 0)
+      {
+        Serial.println("[FACTORY RESET] Audit log written to /factory_reset_audit.log");
+      }
+      else
+      {
+        Serial.println("[FACTORY RESET] WARNING: Failed to write to audit log");
+      }
+    }
+    else
+    {
+      Serial.println("[FACTORY RESET] ERROR: Failed to open audit log file");
     }
 
     // Send confirmation response BEFORE reset

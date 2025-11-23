@@ -8,11 +8,10 @@ RTCManager::RTCManager()
 
 RTCManager *RTCManager::getInstance()
 {
-  if (!instance)
-  {
-    instance = new RTCManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static RTCManager instance;
+  static RTCManager *ptr = &instance;
+  return ptr;
 }
 
 bool RTCManager::init()

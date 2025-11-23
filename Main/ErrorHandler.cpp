@@ -15,11 +15,10 @@ ErrorHandler::ErrorHandler()
 // Singleton access
 ErrorHandler *ErrorHandler::getInstance()
 {
-  if (instance == nullptr)
-  {
-    instance = new ErrorHandler();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static ErrorHandler instance;
+  static ErrorHandler *ptr = &instance;
+  return ptr;
 }
 
 // Core error reporting

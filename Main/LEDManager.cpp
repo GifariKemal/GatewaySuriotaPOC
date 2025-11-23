@@ -13,11 +13,10 @@ LEDManager::LEDManager()
 // Singleton getInstance method
 LEDManager *LEDManager::getInstance()
 {
-  if (instance == nullptr)
-  {
-    instance = new LEDManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static LEDManager instance;
+  static LEDManager *ptr = &instance;
+  return ptr;
 }
 
 // Initialize the LED pin and start the task

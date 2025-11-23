@@ -169,6 +169,13 @@ void BLEManager::stop()
     return;
   }
 
+  // Tasks will exit gracefully when they check 'started' flag in their loop
+  // Give them a moment to finish current iteration before cleanup
+  if (commandTaskHandle || streamTaskHandle)
+  {
+    vTaskDelay(pdMS_TO_TICKS(50)); // Brief delay for graceful exit
+  }
+
   if (commandTaskHandle)
   {
     vTaskDelete(commandTaskHandle);
@@ -341,11 +348,14 @@ void BLEManager::commandProcessingTask(void *parameter)
 
   while (true)
   {
-    if (xQueueReceive(manager->commandQueue, &command, portMAX_DELAY))
+    // Use timeout instead of portMAX_DELAY to allow graceful task deletion
+    // 1000ms timeout allows task to respond to vTaskDelete() within reasonable time
+    if (xQueueReceive(manager->commandQueue, &command, pdMS_TO_TICKS(1000)))
     {
       manager->handleCompleteCommand(command);
       heap_caps_free(command); // Free the memory allocated in receiveFragment
     }
+    // If timeout, loop continues and checks for task deletion
   }
 }
 
@@ -697,10 +707,12 @@ void BLEManager::streamingTask(void *parameter)
 
 void BLEManager::initializeMetrics()
 {
+  // Atomic initialization: all mutexes created or none (cleanup on failure)
   metricsMutex = xSemaphoreCreateMutex();
   if (!metricsMutex)
   {
     Serial.println("[BLE] ERROR: Failed to create metrics mutex");
+    // No cleanup needed, first allocation
     return;
   }
 
@@ -709,6 +721,9 @@ void BLEManager::initializeMetrics()
   if (!mtuControlMutex)
   {
     Serial.println("[BLE] ERROR: Failed to create MTU control mutex");
+    // Cleanup partial allocations
+    vSemaphoreDelete(metricsMutex);
+    metricsMutex = nullptr;
     return;
   }
 
@@ -717,6 +732,11 @@ void BLEManager::initializeMetrics()
   if (!transmissionMutex)
   {
     Serial.println("[BLE] ERROR: Failed to create transmission mutex");
+    // Cleanup partial allocations
+    vSemaphoreDelete(metricsMutex);
+    vSemaphoreDelete(mtuControlMutex);
+    metricsMutex = nullptr;
+    mtuControlMutex = nullptr;
     return;
   }
 
@@ -725,6 +745,13 @@ void BLEManager::initializeMetrics()
   if (!streamingStateMutex)
   {
     Serial.println("[BLE] ERROR: Failed to create streaming state mutex");
+    // Cleanup partial allocations
+    vSemaphoreDelete(metricsMutex);
+    vSemaphoreDelete(mtuControlMutex);
+    vSemaphoreDelete(transmissionMutex);
+    metricsMutex = nullptr;
+    mtuControlMutex = nullptr;
+    transmissionMutex = nullptr;
     return;
   }
   streamingActive = false; // Initially not streaming
@@ -1133,7 +1160,8 @@ bool BLEManager::isMTUNegotiationActive() const
   // Previous code accessed mtuControl.state without lock → data race!
   bool isActive = false;
 
-  if (xSemaphoreTake(const_cast<SemaphoreHandle_t>(mtuControlMutex), pdMS_TO_TICKS(100)) == pdTRUE)
+  // mtuControlMutex is mutable, no const_cast needed
+  if (xSemaphoreTake(mtuControlMutex, pdMS_TO_TICKS(100)) == pdTRUE)
   {
     isActive = (mtuControl.state == MTU_STATE_INITIATING || mtuControl.state == MTU_STATE_IN_PROGRESS);
     xSemaphoreGive(mtuControlMutex);

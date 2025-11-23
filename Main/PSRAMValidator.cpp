@@ -15,11 +15,10 @@ PSRAMValidator::PSRAMValidator()
 
 PSRAMValidator *PSRAMValidator::getInstance()
 {
-  if (!instance)
-  {
-    instance = new PSRAMValidator();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static PSRAMValidator instance;
+  static PSRAMValidator *ptr = &instance;
+  return ptr;
 }
 
 // Pre-allocation validation

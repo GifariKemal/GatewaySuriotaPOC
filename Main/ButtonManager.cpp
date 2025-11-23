@@ -15,11 +15,10 @@ ButtonManager::ButtonManager()
 // Singleton getInstance method
 ButtonManager *ButtonManager::getInstance()
 {
-  if (instance == nullptr)
-  {
-    instance = new ButtonManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static ButtonManager instance;
+  static ButtonManager *ptr = &instance;
+  return ptr;
 }
 
 // Initialize button and LED

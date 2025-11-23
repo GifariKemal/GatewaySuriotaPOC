@@ -12,11 +12,11 @@ EthernetManager::EthernetManager()
 
 EthernetManager *EthernetManager::getInstance()
 {
-  if (!instance)
-  {
-    instance = new EthernetManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  // Avoids race condition in getInstance() that could create multiple instances
+  static EthernetManager instance;
+  static EthernetManager *ptr = &instance;
+  return ptr;
 }
 
 void EthernetManager::generateMacAddress()
