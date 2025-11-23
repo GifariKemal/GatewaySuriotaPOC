@@ -173,7 +173,7 @@ bool NetworkMgr::initWiFi(const JsonObject &wifiConfig)
   wifiManager = WiFiManager::getInstance();
   if (wifiManager->init(ssid, password))
   {
-    Serial.printf("Network initialized: WiFi (%s)\n", ssid.c_str());
+    Serial.printf("[NETWORK] Initialized | Mode: WiFi | SSID: %s\n", ssid.c_str());
     return true;
   }
 
@@ -185,7 +185,7 @@ bool NetworkMgr::initEthernet(bool useDhcp, IPAddress staticIp, IPAddress gatewa
   ethernetManager = EthernetManager::getInstance();
   if (ethernetManager->init(useDhcp, staticIp, gateway, subnet))
   {
-    Serial.println("Network initialized: Ethernet");
+    Serial.println("[NETWORK] Initialized | Mode: Ethernet");
     return true;
   }
 
@@ -206,7 +206,7 @@ void NetworkMgr::startFailoverTask()
         &failoverTaskHandle,
         0 // Core 0 (moved from Core 1 for load balancing)
     );
-    Serial.println("Network failover task started.");
+    Serial.println("[NETWORK] Failover task started");
   }
 }
 

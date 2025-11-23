@@ -15,7 +15,7 @@ bool LoggingConfig::begin()
     Serial.println("No logging config found, using defaults");
     return saveConfig();
   }
-  Serial.println("LoggingConfig initialized");
+  Serial.println("[LOGGING] Config initialized");
   return true;
 }
 

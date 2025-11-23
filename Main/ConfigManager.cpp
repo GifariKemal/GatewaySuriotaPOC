@@ -1112,7 +1112,7 @@ bool ConfigManager::loadDevicesCache()
 
     devicesCacheValid = true;
     lastDevicesCacheTime = millis(); // Update TTL timestamp
-    Serial.printf("Devices cache loaded successfully. Found %d devices.\n", devices.size());
+    Serial.printf("[CACHE] Loaded successfully | Devices: %d\n", devices.size());
     logMemoryStats("after loadDevicesCache success"); // Phase 4: Memory tracking
     xSemaphoreGive(cacheMutex);
     return true;
@@ -1273,11 +1273,11 @@ void ConfigManager::logMemoryStats(const String &context) const
   size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
   size_t totalPsram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
 
-  Serial.printf("[CONFIG] Memory Stats [%s]:\n", context.c_str());
-  Serial.printf("  PSRAM: %u/%u bytes free (%.1f%%)\n",
+  Serial.printf("[CONFIG] Memory [%s]: PSRAM %u/%u free (%.1f%%) | DRAM %u free\n",
+                context.c_str(),
                 freePsram, totalPsram,
-                (totalPsram > 0) ? (100.0f * freePsram / totalPsram) : 0.0f);
-  Serial.printf("  DRAM: %u bytes free\n", freeDram);
+                (totalPsram > 0) ? (100.0f * freePsram / totalPsram) : 0.0f,
+                freeDram);
 }
 
 void ConfigManager::refreshCache()
