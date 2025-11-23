@@ -1333,12 +1333,12 @@ void ConfigManager::debugDevicesFile()
 
 void ConfigManager::fixCorruptDeviceIds()
 {
-  Serial.println("=== FIXING CORRUPT DEVICE IDS ===");
+  Serial.println("\n[CONFIG] FIXING CORRUPT DEVICE IDS");
 
   JsonDocument originalDoc;
   if (!loadJson(DEVICES_FILE, originalDoc))
   {
-    Serial.println("Failed to load devices file for fixing");
+    Serial.println("  Status: Failed to load devices file");
     return;
   }
 
@@ -1355,7 +1355,7 @@ void ConfigManager::fixCorruptDeviceIds()
     // Check if device ID is corrupt
     if (deviceId.isEmpty() || deviceId == "{}" || deviceId.indexOf('{') != -1 || deviceId.length() < 3)
     {
-      Serial.printf("Found corrupt device ID: '%s' - generating new ID\n", deviceId.c_str());
+      Serial.printf("  Found corrupt device ID: '%s' - generating new ID\n", deviceId.c_str());
 
       // Generate new device ID
       String newDeviceId = generateId("D");
@@ -1365,52 +1365,51 @@ void ConfigManager::fixCorruptDeviceIds()
       fixedDevices[newDeviceId] = deviceObj;
       foundCorruption = true;
 
-      Serial.printf("Replaced with new ID: %s\n", newDeviceId.c_str());
+      Serial.printf("  Replaced with new ID: %s\n", newDeviceId.c_str());
     }
     else
     {
       // Keep valid device ID
       fixedDevices[deviceId] = kv.value();
-      Serial.printf("Kept valid device ID: %s\n", deviceId.c_str());
+      Serial.printf("  Kept valid device ID: %s\n", deviceId.c_str());
     }
   }
 
   if (foundCorruption)
   {
-    Serial.println("Saving fixed devices file...");
+    Serial.println("  Saving fixed devices file...");
     if (saveJson(DEVICES_FILE, fixedDoc))
     {
-      Serial.println("Fixed devices file saved successfully");
+      Serial.println("  Status: Fixed devices file saved successfully");
       // Force invalidate cache to reload fixed data
       invalidateDevicesCache();
       devicesCacheValid = false;
     }
     else
     {
-      Serial.println("Failed to save fixed devices file");
+      Serial.println("  Status: Failed to save fixed devices file");
     }
   }
   else
   {
-    Serial.println("No corruption found in device IDs");
+    Serial.println("  Status: No corruption found in device IDs");
   }
 
   // Always invalidate cache after this operation
   invalidateDevicesCache();
   devicesCacheValid = false;
-
-  Serial.println("=== END FIXING ===");
+  Serial.println();
 }
 
 void ConfigManager::removeCorruptKeys()
 {
-  Serial.println("=== REMOVING CORRUPT KEYS ===");
+  Serial.println("\n[CONFIG] REMOVING CORRUPT KEYS");
 
   // Force load current cache
   devicesCacheValid = false;
   if (!loadDevicesCache())
   {
-    Serial.println("Failed to load cache for corrupt key removal");
+    Serial.println("  Status: Failed to load cache for corrupt key removal");
     return;
   }
 
@@ -1427,7 +1426,7 @@ void ConfigManager::removeCorruptKeys()
     if (deviceId.isEmpty() || deviceId == "{}" || deviceId.indexOf('{') != -1 || deviceId.length() < 3)
     {
       keysToRemove.push_back(deviceId);
-      Serial.printf("Marking corrupt key for removal: '%s'\n", deviceId.c_str());
+      Serial.printf("  Marking corrupt key for removal: '%s'\n", deviceId.c_str());
     }
   }
 
@@ -1435,7 +1434,7 @@ void ConfigManager::removeCorruptKeys()
   for (const String &key : keysToRemove)
   {
     devicesCache->remove(key);
-    Serial.printf("Removed corrupt key: '%s'\n", key.c_str());
+    Serial.printf("  Removed corrupt key: '%s'\n", key.c_str());
   }
 
   if (keysToRemove.size() > 0)
@@ -1443,19 +1442,18 @@ void ConfigManager::removeCorruptKeys()
     // Save cleaned cache
     if (saveJson(DEVICES_FILE, *devicesCache))
     {
-      Serial.printf("Removed %d corrupt keys and saved file\n", keysToRemove.size());
+      Serial.printf("  Status: Removed %d corrupt keys and saved file\n", keysToRemove.size());
     }
     else
     {
-      Serial.println("Failed to save cleaned devices file");
+      Serial.println("  Status: Failed to save cleaned devices file");
     }
   }
   else
   {
-    Serial.println("No corrupt keys found to remove");
+    Serial.println("  Status: No corrupt keys found to remove");
   }
-
-  Serial.println("=== END REMOVING ===");
+  Serial.println();
 }
 
 void ConfigManager::clearAllConfigurations()

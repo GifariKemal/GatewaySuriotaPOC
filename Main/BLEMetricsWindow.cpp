@@ -345,63 +345,63 @@ void BLEMetricsCollector::resetTrends()
 // Diagnostics
 void BLEMetricsCollector::printMetrics1Min()
 {
-  Serial.println("\n=== BLE METRICS (1 Minute) ===");
-  Serial.printf("Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
+  Serial.println("\n[BLE METRICS] 1 Minute Window");
+  Serial.printf("  Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
                 metrics1Min.successfulOperations,
                 metrics1Min.failedOperations,
                 metrics1Min.successRate);
-  Serial.printf("Latency: Min=%ldms, Avg=%ldms, Max=%ldms, P95=%ldms, P99=%ldms\n",
+  Serial.printf("  Latency: Min=%ldms, Avg=%ldms, Max=%ldms, P95=%ldms, P99=%ldms\n",
                 metrics1Min.minLatencyMs,
                 metrics1Min.avgLatencyMs,
                 metrics1Min.maxLatencyMs,
                 metrics1Min.p95LatencyMs,
                 metrics1Min.p99LatencyMs);
-  Serial.printf("Signal: Avg=%ddBm, Min=%ddBm, Max=%ddBm (%ld%% quality)\n",
+  Serial.printf("  Signal: Avg=%ddBm, Min=%ddBm, Max=%ddBm (%ld%% quality)\n",
                 metrics1Min.avgRssiDbm,
                 metrics1Min.minRssiDbm,
                 metrics1Min.maxRssiDbm,
                 metrics1Min.signalQualityPercent);
-  Serial.printf("Throughput: Avg=%.2f B/s, Peak=%.2f B/s\n",
+  Serial.printf("  Throughput: Avg=%.2f B/s, Peak=%.2f B/s\n",
                 metrics1Min.avgThroughputBytesPerSec,
                 metrics1Min.peakThroughputBytesPerSec);
-  Serial.printf("MTU: %d bytes (optimized: %s)\n",
+  Serial.printf("  MTU: %d bytes (optimized: %s)\n\n",
                 metrics1Min.avgMtuSize,
                 metrics1Min.mtuOptimized ? "YES" : "NO");
 }
 
 void BLEMetricsCollector::printMetrics5Min()
 {
-  Serial.println("\n=== BLE METRICS (5 Minutes) ===");
-  Serial.printf("Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
+  Serial.println("\n[BLE METRICS] 5 Minutes Window");
+  Serial.printf("  Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
                 metrics5Min.successfulOperations,
                 metrics5Min.failedOperations,
                 metrics5Min.successRate);
-  Serial.printf("Latency: Avg=%ldms, P95=%ldms, P99=%ldms\n",
+  Serial.printf("  Latency: Avg=%ldms, P95=%ldms, P99=%ldms\n",
                 metrics5Min.avgLatencyMs,
                 metrics5Min.p95LatencyMs,
                 metrics5Min.p99LatencyMs);
-  Serial.printf("Signal: Avg=%ddBm (%ld%% quality)\n",
+  Serial.printf("  Signal: Avg=%ddBm (%ld%% quality)\n\n",
                 metrics5Min.avgRssiDbm,
                 metrics5Min.signalQualityPercent);
 }
 
 void BLEMetricsCollector::printMetrics15Min()
 {
-  Serial.println("\n=== BLE METRICS (15 Minutes) ===");
-  Serial.printf("Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
+  Serial.println("\n[BLE METRICS] 15 Minutes Window");
+  Serial.printf("  Operations: %ld successful, %ld failed (%.1f%% success rate)\n",
                 metrics15Min.successfulOperations,
                 metrics15Min.failedOperations,
                 metrics15Min.successRate);
-  Serial.printf("Latency: Avg=%ldms, P95=%ldms\n",
+  Serial.printf("  Latency: Avg=%ldms, P95=%ldms\n\n",
                 metrics15Min.avgLatencyMs,
                 metrics15Min.p95LatencyMs);
 }
 
 void BLEMetricsCollector::printTrendAnalysis()
 {
-  Serial.println("\n=== BLE TREND ANALYSIS ===");
+  Serial.println("\n[BLE METRICS] TREND ANALYSIS");
 
-  Serial.printf("Latency Trend: ");
+  Serial.printf("  Latency Trend: ");
   switch (latestTrend.latencyTrend)
   {
   case TrendInfo::TREND_IMPROVING:
@@ -418,7 +418,7 @@ void BLEMetricsCollector::printTrendAnalysis()
     break;
   }
 
-  Serial.printf("Throughput Trend: ");
+  Serial.printf("  Throughput Trend: ");
   switch (latestTrend.throughputTrend)
   {
   case TrendInfo::TREND_IMPROVING:
@@ -435,7 +435,7 @@ void BLEMetricsCollector::printTrendAnalysis()
     break;
   }
 
-  Serial.printf("Signal Trend: ");
+  Serial.printf("  Signal Trend: ");
   switch (latestTrend.signalTrend)
   {
   case TrendInfo::TREND_IMPROVING:
@@ -452,7 +452,7 @@ void BLEMetricsCollector::printTrendAnalysis()
     break;
   }
 
-  Serial.printf("Success Rate Trend: ");
+  Serial.printf("  Success Rate Trend: ");
   switch (latestTrend.successRateTrend)
   {
   case TrendInfo::TREND_IMPROVING:
@@ -468,13 +468,12 @@ void BLEMetricsCollector::printTrendAnalysis()
     Serial.println("? UNKNOWN");
     break;
   }
+  Serial.println();
 }
 
 void BLEMetricsCollector::printDetailedReport()
 {
-  Serial.println("\n╔════════════════════════════════════════════════╗");
-  Serial.println("║         BLE METRICS - DETAILED REPORT           ║");
-  Serial.println("╚════════════════════════════════════════════════╝");
+  Serial.println("\n[BLE METRICS] DETAILED REPORT\n");
 
   printMetrics1Min();
   printMetrics5Min();
@@ -486,15 +485,15 @@ void BLEMetricsCollector::printDetailedReport()
 void BLEMetricsCollector::printHealthScore()
 {
   uint32_t score = getHealthScore();
-  Serial.printf("\nHealth Score: %ld/100 (%s)\n", score, getHealthAssessment().c_str());
+  Serial.printf("\n[BLE HEALTH] Score: %ld/100 (%s)\n", score, getHealthAssessment().c_str());
 
   // Draw simple progress bar
-  Serial.print("Progress: [");
+  Serial.print("  Progress: [");
   for (int i = 0; i < 20; i++)
   {
     if (i < (score / 5))
     {
-      Serial.print("=");
+      Serial.print("#");
     }
     else
     {
@@ -505,27 +504,27 @@ void BLEMetricsCollector::printHealthScore()
 
   if (isHealthy())
   {
-    Serial.println("Status: HEALTHY");
+    Serial.println("  Status: HEALTHY\n");
   }
   else
   {
-    Serial.println("Status: NEEDS ATTENTION");
+    Serial.println("  Status: NEEDS ATTENTION\n");
   }
 }
 
 void BLEMetricsCollector::printWindowComparison()
 {
-  Serial.println("\n=== WINDOW COMPARISON ===");
-  Serial.printf("         1-Min    5-Min    15-Min\n");
-  Serial.printf("Success: %.1f%%    %.1f%%    %.1f%%\n",
+  Serial.println("\n[BLE METRICS] WINDOW COMPARISON");
+  Serial.printf("           1-Min    5-Min    15-Min\n");
+  Serial.printf("  Success: %.1f%%    %.1f%%    %.1f%%\n",
                 metrics1Min.successRate,
                 metrics5Min.successRate,
                 metrics15Min.successRate);
-  Serial.printf("Latency: %ldms    %ldms    %ldms\n",
+  Serial.printf("  Latency: %ldms    %ldms    %ldms\n",
                 metrics1Min.avgLatencyMs,
                 metrics5Min.avgLatencyMs,
                 metrics15Min.avgLatencyMs);
-  Serial.printf("Signal:  %ddBm    %ddBm    %ddBm\n",
+  Serial.printf("  Signal:  %ddBm    %ddBm    %ddBm\n\n",
                 metrics1Min.avgRssiDbm,
                 metrics5Min.avgRssiDbm,
                 metrics15Min.avgRssiDbm);

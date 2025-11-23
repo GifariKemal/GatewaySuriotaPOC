@@ -346,11 +346,9 @@ public:
 #if PRODUCTION_MODE == 0
 inline void debugPrintMode()
 {
-  Serial.println("\n=================================================");
-  Serial.println("   DEVELOPMENT MODE - DEBUG ACTIVE");
-  Serial.println("   All monitoring & debug output enabled");
-  Serial.printf("   Default log level: %s\n", getLogLevelName(currentLogLevel));
-  Serial.println("=================================================");
+  Serial.println("\n[SYSTEM] DEVELOPMENT MODE - DEBUG ACTIVE");
+  Serial.println("  All monitoring & debug output enabled");
+  Serial.printf("  Default log level: %s\n\n", getLogLevelName(currentLogLevel));
 }
 #else
 inline void debugPrintMode() {}
