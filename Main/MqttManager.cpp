@@ -500,43 +500,62 @@ void MqttManager::publishQueueData()
     #endif
   }
 
-  // Check if any publish mode is ready (interval elapsed) BEFORE dequeuing
-  bool defaultReady = (publishMode == "default" && defaultModeEnabled &&
-                       (now - lastDefaultPublish) >= defaultInterval);
+  // ============================================
+  // SOLUTION #1: SEPARATE INTERVAL TIMER FROM BATCH WAITING
+  // v2.3.7: Fix MQTT publish interval inconsistency
+  // ============================================
 
-  bool customizeReady = false;
+  // Step 1: Check if interval has elapsed (TIME-BASED TRIGGER)
+  bool defaultIntervalElapsed = (publishMode == "default" && defaultModeEnabled &&
+                                 (now - lastDefaultPublish) >= defaultInterval);
+
+  bool customizeIntervalElapsed = false;
   if (publishMode == "customize" && customizeModeEnabled)
   {
     for (auto &customTopic : customTopics)
     {
       if ((now - customTopic.lastPublish) >= customTopic.interval)
       {
-        customizeReady = true;
+        customizeIntervalElapsed = true;
         break;
       }
     }
   }
 
-  // If no mode is ready, don't dequeue data (prevent data loss)
-  if (!defaultReady && !customizeReady)
+  // If interval not elapsed, don't publish yet (precise timing)
+  if (!defaultIntervalElapsed && !customizeIntervalElapsed)
   {
     return;
   }
 
-  // CRITICAL FIX: Wait for device batch completion before publishing
-  // This ensures ALL registers are enqueued before MQTT dequeues them
+  // Step 2: Interval ELAPSED - Update timestamp IMMEDIATELY for consistent timing
+  // This ensures next interval starts from exact target time, not delayed time
+  unsigned long publishTargetTime = now;
 
+  if (defaultIntervalElapsed) {
+    lastDefaultPublish = publishTargetTime;  // ✅ Lock timestamp NOW
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Default mode interval elapsed - target time locked at %lu ms\n", publishTargetTime);
+    #endif
+  }
+
+  if (customizeIntervalElapsed) {
+    for (auto &customTopic : customTopics) {
+      if ((now - customTopic.lastPublish) >= customTopic.interval) {
+        customTopic.lastPublish = publishTargetTime;  // ✅ Lock timestamp NOW
+      }
+    }
+  }
+
+  // Step 3: Wait for device batch completion with SHORT TIMEOUT
   DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
 
   // OPTIMIZATION: Skip batch waiting if no devices configured
-  // This prevents log spam when queue has old persisted data but no active devices
   if (batchMgr && !batchMgr->hasAnyBatches())
   {
-    // No devices being polled - clear any old persisted data
     QueueManager *queueMgr = QueueManager::getInstance();
     if (queueMgr && !queueMgr->isEmpty())
     {
-      // Flush old data from previous session
       static bool flushedOnce = false;
       if (!flushedOnce)
       {
@@ -555,10 +574,10 @@ void MqttManager::publishQueueData()
     return;
   }
 
-  // FIXED BUG #2: Add timeout for batch completion wait to prevent deadlock
-  // If RTU/TCP service crashes or hangs, MQTT should still publish available data
+  // IMPROVED: Reduced timeout from 60s to 2s for better interval consistency
+  // Interval timer already updated above, so this won't affect next publish timing
   static unsigned long batchWaitStartTime = 0;
-  const unsigned long BATCH_WAIT_TIMEOUT = 60000;  // 60 seconds timeout
+  const unsigned long BATCH_WAIT_TIMEOUT = 2000;  // 2 seconds timeout (was 60s)
 
   if (batchMgr && !batchMgr->hasCompleteBatch())
   {
@@ -570,16 +589,12 @@ void MqttManager::publishQueueData()
     // Check timeout
     unsigned long elapsed = millis() - batchWaitStartTime;
     if (elapsed > BATCH_WAIT_TIMEOUT) {
-      Serial.printf("[MQTT] WARNING: Batch completion timeout (%lus)! Force publishing available data...\n",
-                    elapsed / 1000);
+      Serial.printf("[MQTT] Batch wait timeout (%lums) - publishing available data for consistent interval\n", elapsed);
       batchWaitStartTime = 0;  // Reset timer
       // Continue to publish whatever is in queue (don't return)
     } else {
-      // Still waiting for batch - log progress
-      static LogThrottle batchWaitingThrottle(60000);
-      if (batchWaitingThrottle.shouldLog("MQTT waiting for batch completion")) {
-        LOG_MQTT_DEBUG("Waiting for device batch to complete... (%lus elapsed)\n", elapsed / 1000);
-      }
+      // Still waiting for batch - but don't log spam (removed throttle logging)
+      // Timestamp already updated, so next interval will be consistent
       return;  // Wait for batch completion
     }
   } else {
@@ -623,11 +638,11 @@ void MqttManager::publishQueueData()
   }
 
   // Route to appropriate publish mode
-  if (defaultReady)
+  if (defaultIntervalElapsed)
   {
     publishDefaultMode(uniqueRegisters, now);
   }
-  else if (customizeReady)
+  else if (customizeIntervalElapsed)
   {
     publishCustomizeMode(uniqueRegisters, now);
   }
@@ -921,7 +936,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                   totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(),
                   payload.length() / 1024.0, displayInterval, displayUnit);
-    lastDefaultPublish = now;
+    // NOTE: lastDefaultPublish already updated in publishQueueData() for consistent interval timing
 
     // CRITICAL FIX: Clear batch status after successful publish (once per device)
     DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
@@ -1147,7 +1162,7 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
                       payload.length() / 1024.0, displayInterval, displayUnit);
-        customTopic.lastPublish = now;
+        // NOTE: customTopic.lastPublish already updated in publishQueueData() for consistent interval timing
 
         // FIXED BUG #1 (CRITICAL): Clear batch status after successful publish
         // Without this, hasCompleteBatch() will always return false after first publish
