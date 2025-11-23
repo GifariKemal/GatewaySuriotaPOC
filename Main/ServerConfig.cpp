@@ -35,7 +35,7 @@ bool ServerConfig::begin()
     Serial.println("No server config found, using defaults");
     return saveConfig();
   }
-  Serial.println("ServerConfig initialized");
+  Serial.println("[SERVER] Config initialized");
   return true;
 }
 

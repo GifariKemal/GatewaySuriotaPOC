@@ -1420,6 +1420,11 @@ void CRUDHandler::processPriorityQueue()
     Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
     cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
   }
+  else
+  {
+    // Add newline after successful command processing for better readability
+    Serial.println();
+  }
 
   batchStats.totalCommandsProcessed++;
 }

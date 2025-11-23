@@ -48,48 +48,48 @@ bool EthernetManager::init(bool useDhcp, IPAddress staticIp, IPAddress gateway, 
 
   if (useDhcp)
   {
-    Serial.println("Starting Ethernet with DHCP...");
+    Serial.println("[ETHERNET] Starting with DHCP...");
     if (Ethernet.begin(mac) == 0)
     {
-      Serial.println("Failed to configure Ethernet using DHCP");
+      Serial.println("[ETHERNET] ERROR: Failed to configure using DHCP");
       if (Ethernet.hardwareStatus() == EthernetNoHardware)
       {
-        Serial.println("  Error: Ethernet shield was not found.");
+        Serial.println("[ETHERNET] ERROR: Shield not found");
       }
       if (Ethernet.linkStatus() == LinkOFF)
       {
-        Serial.println("  Error: Ethernet cable is not connected.");
+        Serial.println("[ETHERNET] ERROR: Cable not connected");
       }
       return false;
     }
     else
     {
-      Serial.printf("Ethernet configured with DHCP IP: %s\n", Ethernet.localIP().toString().c_str());
+      Serial.printf("[ETHERNET] Configured | Mode: DHCP | IP: %s\n", Ethernet.localIP().toString().c_str());
     }
   }
   else
   {
-    Serial.printf("Starting Ethernet with static IP: %s\n", staticIp.toString().c_str());
+    Serial.printf("[ETHERNET] Starting with static IP: %s\n", staticIp.toString().c_str());
     Ethernet.begin(mac, staticIp, gateway, subnet);
-    Serial.printf("Ethernet configured with static IP: %s\n", Ethernet.localIP().toString().c_str());
+    Serial.printf("[ETHERNET] Configured | Mode: Static | IP: %s\n", Ethernet.localIP().toString().c_str());
   }
 
   // Check for Ethernet hardware
   if (Ethernet.hardwareStatus() == EthernetNoHardware)
   {
-    Serial.println("Ethernet shield was not found");
+    Serial.println("[ETHERNET] ERROR: Shield not found");
     return false;
   }
 
   if (Ethernet.linkStatus() == LinkOFF)
   {
-    Serial.println("Ethernet cable is not connected");
+    Serial.println("[ETHERNET] ERROR: Cable not connected");
     return false;
   }
 
   initialized = true;
   referenceCount = 1;
-  Serial.println("Ethernet initialized successfully");
+  Serial.println("[ETHERNET] Initialized successfully");
   return true;
 }
 

@@ -48,7 +48,7 @@ bool QueueManager::init()
     return false;
   }
 
-  Serial.println("QueueManager initialized successfully");
+  Serial.println("[QUEUE] Manager initialized");
   return true;
 }
 
