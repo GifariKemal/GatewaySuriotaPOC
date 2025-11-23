@@ -19,7 +19,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   if (initialized)
   {
     referenceCount++;
-    Serial.printf("WiFi already initialized (refs: %d)\n", referenceCount);
+    Serial.printf("[WiFi] Already initialized (refs: %d)\n", referenceCount);
     return true;
   }
 
@@ -31,7 +31,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   {
     initialized = true;
     referenceCount = 1;
-    Serial.printf("WiFi already connected to: %s\n", ssid.c_str());
+    Serial.printf("[WiFi] Already connected to: %s\n", ssid.c_str());
     return true;
   }
 
@@ -42,7 +42,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
     delay(1000);
   }
 
-  Serial.printf("Connecting to WiFi: %s\n", ssid.c_str());
+  Serial.printf("[WiFi] Connecting to: %s\n", ssid.c_str());
   WiFi.begin(ssid.c_str(), password.c_str());
 
   // Wait for connection with timeout
@@ -58,12 +58,12 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   {
     initialized = true;
     referenceCount = 1;
-    Serial.printf("\nWiFi connected! IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("\n[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
     return true;
   }
   else
   {
-    Serial.println("\nWiFi connection failed");
+    Serial.println("\n[WiFi] ERROR: Connection failed");
     return false;
   }
 }
@@ -73,7 +73,7 @@ void WiFiManager::addReference()
   if (initialized)
   {
     referenceCount++;
-    Serial.printf("WiFi reference added (refs: %d)\n", referenceCount);
+    Serial.printf("[WiFi] Reference added (refs: %d)\n", referenceCount);
   }
 }
 
@@ -82,7 +82,7 @@ void WiFiManager::removeReference()
   if (referenceCount > 0)
   {
     referenceCount--;
-    Serial.printf("WiFi reference removed (refs: %d)\n", referenceCount);
+    Serial.printf("[WiFi] Reference removed (refs: %d)\n", referenceCount);
 
     if (referenceCount == 0)
     {
@@ -99,7 +99,7 @@ void WiFiManager::cleanup()
     initialized = false;
   }
   referenceCount = 0;
-  Serial.println("WiFi resources cleaned up");
+  Serial.println("[WiFi] Resources cleaned up");
 }
 
 bool WiFiManager::isAvailable()
