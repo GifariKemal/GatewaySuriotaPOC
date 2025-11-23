@@ -162,9 +162,7 @@ void setup()
 
   #if PRODUCTION_MODE == 0
     // Development mode: show log status
-    Serial.println("\n========================================");
-    Serial.println("  DEVELOPMENT MODE - ENHANCED LOGGING");
-    Serial.println("========================================");
+    Serial.println("\n[SYSTEM] DEVELOPMENT MODE - ENHANCED LOGGING");
     printLogLevelStatus();
   #endif
 
@@ -176,15 +174,13 @@ void setup()
   MemoryRecovery::logMemoryStatus("STARTUP");  // Log initial memory state
 
   #if PRODUCTION_MODE == 0
-    Serial.println("\n========================================");
-    Serial.println("  MEMORY RECOVERY SYSTEM ACTIVE");
-    Serial.println("  - Auto-recovery: ENABLED");
-    Serial.println("  - Check interval: 5 seconds");
-    Serial.println("  - Thresholds:");
-    Serial.printf("      WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
-    Serial.printf("      CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
-    Serial.printf("      EMERGENCY: %lu bytes\n", MemoryThresholds::DRAM_EMERGENCY);
-    Serial.println("========================================\n");
+    Serial.println("[SYSTEM] MEMORY RECOVERY SYSTEM");
+    Serial.println("  Auto-recovery: ENABLED");
+    Serial.println("  Check interval: 5 seconds");
+    Serial.println("  Thresholds:");
+    Serial.printf("    WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
+    Serial.printf("    CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
+    Serial.printf("    EMERGENCY: %lu bytes\n\n", MemoryThresholds::DRAM_EMERGENCY);
   #endif
 
   // FIXED BUG #2: Serial.end() moved to END of setup() to avoid crash

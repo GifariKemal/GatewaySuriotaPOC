@@ -1108,11 +1108,7 @@ void CRUDHandler::setupCommandHandlers()
             Serial.printf("[CONFIG RESTORE] DEBUG: Processing device %d:\n", deviceIndex);
             String deviceJson;
             serializeJson(device, deviceJson);
-            if (deviceJson.length() > 200) {
-              Serial.printf("  JSON: %s...\n", deviceJson.substring(0, 200).c_str());
-            } else {
-              Serial.printf("  JSON: %s\n", deviceJson.c_str());
-            }
+            Serial.printf("  JSON (%u bytes): %s\n", deviceJson.length(), deviceJson.c_str());
 
             JsonVariantConst idVariant = device["device_id"];
             Serial.printf("  device_id present: %s\n", !idVariant.isNull() ? "YES" : "NO");

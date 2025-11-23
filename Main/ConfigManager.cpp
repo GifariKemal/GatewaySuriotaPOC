@@ -1303,32 +1303,32 @@ void ConfigManager::refreshCache()
 
 void ConfigManager::debugDevicesFile()
 {
-  Serial.println("=== DEBUG DEVICES FILE ===");
+  Serial.println("\n[CONFIG] DEVICES FILE DEBUG");
 
   if (!LittleFS.exists(DEVICES_FILE))
   {
-    Serial.println("Devices file does not exist");
+    Serial.println("  Status: File does not exist");
     return;
   }
 
   File file = LittleFS.open(DEVICES_FILE, "r");
   if (!file)
   {
-    Serial.println("Failed to open devices file");
+    Serial.println("  Status: Failed to open file");
     return;
   }
 
-  Serial.printf("File size: %d bytes\n", file.size());
-  Serial.println("File content:");
+  Serial.printf("  File size: %d bytes\n", file.size());
+  Serial.println("  Content:");
+  Serial.println();
 
   while (file.available())
   {
     Serial.write(file.read());
   }
-  Serial.println();
+  Serial.println("\n");
 
   file.close();
-  Serial.println("=== END DEBUG ===");
 }
 
 void ConfigManager::fixCorruptDeviceIds()
