@@ -20,11 +20,11 @@ ModbusRtuService::ModbusRtuService(ConfigManager *config)
 
 bool ModbusRtuService::init()
 {
-  Serial.println("Initializing Modbus RTU service with ModbusMaster library...");
+  Serial.println("[RTU] Initializing service with ModbusMaster library...");
 
   if (!configManager)
   {
-    Serial.println("ConfigManager is null");
+    Serial.println("[RTU] ERROR: ConfigManager is null");
     return false;
   }
 
@@ -69,13 +69,13 @@ bool ModbusRtuService::init()
   }
   modbus2->begin(1, *serial2);
 
-  Serial.println("Modbus RTU service initialized successfully");
+  Serial.println("[RTU] Service initialized");
   return true;
 }
 
 void ModbusRtuService::start()
 {
-  Serial.println("Starting Modbus RTU service...");
+  Serial.println("[RTU] Starting service...");
 
   if (running)
   {
@@ -94,7 +94,7 @@ void ModbusRtuService::start()
 
   if (result == pdPASS)
   {
-    Serial.println("Modbus RTU service started successfully");
+    Serial.println("[RTU] Service started successfully");
 
     // Start auto-recovery task
     // MUST stay on Core 1: Modifies device status accessed by MODBUS_RTU_TASK (Core 1)
@@ -118,7 +118,7 @@ void ModbusRtuService::start()
   }
   else
   {
-    Serial.println("Failed to create Modbus RTU task");
+    Serial.println("[RTU] ERROR: Failed to create Modbus RTU task");
     running = false;
     rtuTaskHandle = nullptr;
   }
@@ -145,7 +145,7 @@ void ModbusRtuService::stop()
     rtuTaskHandle = nullptr;
   }
 
-  Serial.println("Modbus RTU service stopped");
+  Serial.println("[RTU] Service stopped");
 }
 
 void ModbusRtuService::notifyConfigChange()
