@@ -388,32 +388,32 @@ void ErrorHandler::printLastError()
     return;
   }
 
-  Serial.println("\n=== LAST ERROR ===");
+  Serial.println("\n[ERROR HANDLER] LAST ERROR");
   printErrorWithRecovery(errorHistory.front());
 }
 
 void ErrorHandler::printErrorStatistics()
 {
-  Serial.println("\n=== ERROR STATISTICS ===");
-  Serial.printf("Total Errors: %ld\n", statistics.totalErrorsReported);
-  Serial.printf("Critical: %ld | Error: %ld | Warning: %ld | Info: %ld\n",
+  Serial.println("\n[ERROR HANDLER] ERROR STATISTICS");
+  Serial.printf("  Total Errors: %ld\n", statistics.totalErrorsReported);
+  Serial.printf("  Critical: %ld | Error: %ld | Warning: %ld | Info: %ld\n",
                 statistics.criticalErrorCount,
                 statistics.errorErrorCount,
                 statistics.warningCount,
                 statistics.infoCount);
-  Serial.printf("Errors This Hour: %ld | This Day: %ld\n",
+  Serial.printf("  Errors This Hour: %ld | This Day: %ld\n",
                 statistics.errorsThisHour,
                 statistics.errorsThisDay);
-  Serial.printf("Most Frequent Domain: %s\n",
+  Serial.printf("  Most Frequent Domain: %s\n",
                 getErrorDomainString(statistics.mostFrequentDomain));
-  Serial.printf("Error Rate: %.2f/hour, %.2f/day\n",
+  Serial.printf("  Error Rate: %.2f/hour, %.2f/day\n\n",
                 getErrorRatePerHour(),
                 getErrorRatePerDay());
 }
 
 void ErrorHandler::printErrorHistory(uint32_t count)
 {
-  Serial.printf("\n=== ERROR HISTORY (Last %ld) ===\n", count);
+  Serial.printf("\n[ERROR HANDLER] ERROR HISTORY (Last %ld)\n", count);
 
   if (errorHistory.empty())
   {
@@ -433,24 +433,25 @@ void ErrorHandler::printErrorHistory(uint32_t count)
 
 void ErrorHandler::printErrorsByDomain()
 {
-  Serial.println("\n=== ERRORS BY DOMAIN ===");
+  Serial.println("\n[ERROR HANDLER] ERRORS BY DOMAIN");
 
   for (int i = 0; i < 7; i++)
   {
     ErrorDomain domain = (ErrorDomain)i;
     uint32_t count = getErrorCountByDomain(domain);
-    Serial.printf("%s: %ld\n", getErrorDomainString(domain), count);
+    Serial.printf("  %s: %ld\n", getErrorDomainString(domain), count);
   }
+  Serial.println();
 }
 
 void ErrorHandler::printErrorsBySeverity()
 {
-  Serial.println("\n=== ERRORS BY SEVERITY ===");
+  Serial.println("\n[ERROR HANDLER] ERRORS BY SEVERITY");
 
-  Serial.printf("CRITICAL: %ld\n", getErrorCount(SEVERITY_CRITICAL));
-  Serial.printf("ERROR:    %ld\n", getErrorCount(SEVERITY_ERROR));
-  Serial.printf("WARNING:  %ld\n", getErrorCount(SEVERITY_WARNING));
-  Serial.printf("INFO:     %ld\n", getErrorCount(SEVERITY_INFO));
+  Serial.printf("  CRITICAL: %ld\n", getErrorCount(SEVERITY_CRITICAL));
+  Serial.printf("  ERROR:    %ld\n", getErrorCount(SEVERITY_ERROR));
+  Serial.printf("  WARNING:  %ld\n", getErrorCount(SEVERITY_WARNING));
+  Serial.printf("  INFO:     %ld\n\n", getErrorCount(SEVERITY_INFO));
 }
 
 void ErrorHandler::printDetailedErrorReport()
@@ -467,28 +468,29 @@ void ErrorHandler::printDetailedErrorReport()
 
 void ErrorHandler::printErrorTrends()
 {
-  Serial.println("\n=== ERROR TRENDS ===");
-  Serial.printf("Errors this hour: %ld (rate: %.2f/hour)\n",
+  Serial.println("\n[ERROR HANDLER] ERROR TRENDS");
+  Serial.printf("  Errors this hour: %ld (rate: %.2f/hour)\n",
                 errorCounterThisHour,
                 getErrorRatePerHour());
-  Serial.printf("Errors this day: %ld (rate: %.2f/day)\n",
+  Serial.printf("  Errors this day: %ld (rate: %.2f/day)\n",
                 errorCounterThisDay,
                 getErrorRatePerDay());
 
   // Most frequent domain
   ErrorDomain frequent = getMostFrequentErrorDomain(3600000);
-  Serial.printf("Most frequent domain (1h): %s\n", getErrorDomainString(frequent));
+  Serial.printf("  Most frequent domain (1h): %s\n", getErrorDomainString(frequent));
 
   // Check for repeating errors
-  Serial.println("\nRepeating errors (last hour):");
+  Serial.println("\n  Repeating errors (last hour):");
   for (const auto &error : errorHistory)
   {
     if (isErrorRepeating(error.code, 3600000))
     {
       uint32_t count = getRepeatingErrorCount(error.code, 3600000);
-      Serial.printf("  - %s: %ld times\n", getErrorCodeDescription(error.code), count);
+      Serial.printf("    - %s: %ld times\n", getErrorCodeDescription(error.code), count);
     }
   }
+  Serial.println();
 }
 
 // Utility methods

@@ -955,15 +955,11 @@ void CRUDHandler::setupCommandHandlers()
       timestamp = String(millis() / 1000) + "s uptime";
     }
 
-    // Serial log audit trail (without emoji)
-    Serial.println("");
-    Serial.println("========================================");
-    Serial.println("[FACTORY RESET] WARNING - INITIATED by BLE client");
-    Serial.printf("[FACTORY RESET] Timestamp: %s\n", timestamp.c_str());
-    Serial.printf("[FACTORY RESET] Reason: %s\n", reason.c_str());
-    Serial.println("[FACTORY RESET] This will ERASE all device, server, and network configurations!");
-    Serial.println("========================================");
-    Serial.println("");
+    // Serial log audit trail
+    Serial.println("\n[FACTORY RESET] WARNING - INITIATED by BLE client");
+    Serial.printf("  Timestamp: %s\n", timestamp.c_str());
+    Serial.printf("  Reason: %s\n", reason.c_str());
+    Serial.println("  This will ERASE all device, server, and network configurations!\n");
 
     // Write to persistent audit log file
     File auditLog = LittleFS.open("/factory_reset_audit.log", "a");
@@ -1010,10 +1006,7 @@ void CRUDHandler::setupCommandHandlers()
   // Config Restore - Import full configuration from backup
   systemHandlers["restore_config"] = [this](BLEManager *manager, const JsonDocument &command)
   {
-    Serial.println("");
-    Serial.println("========================================");
-    Serial.println("[CONFIG RESTORE] INITIATED by BLE client");
-    Serial.println("========================================");
+    Serial.println("\n[CONFIG RESTORE] INITIATED by BLE client");
 
     // BUG #32 DEBUG: Show what's actually in the payload
     #if PRODUCTION_MODE == 0
@@ -1224,11 +1217,10 @@ void CRUDHandler::setupCommandHandlers()
     (*response)["message"] = "Configuration restore completed. Device restart recommended.";
     (*response)["requires_restart"] = true;
 
-    Serial.println("[CONFIG RESTORE] ========================================");
-    Serial.printf("[CONFIG RESTORE] Restore complete: %d succeeded, %d failed\n", successCount, failCount);
-    Serial.println("[CONFIG RESTORE] Device restart recommended to apply all changes");
-    Serial.println("[CONFIG RESTORE] ========================================");
-    Serial.println("");
+    Serial.println("\n[CONFIG RESTORE] RESTORE COMPLETE");
+    Serial.printf("  Succeeded: %d\n", successCount);
+    Serial.printf("  Failed: %d\n", failCount);
+    Serial.println("  Device restart recommended to apply all changes\n");
 
     manager->sendResponse(*response);
 
@@ -1730,16 +1722,15 @@ void CRUDHandler::logBatchStats()
     return;
   }
 
-  Serial.println("[CRUD STATS] ==================== BATCH STATISTICS ====================");
-  Serial.printf("[CRUD STATS] Total Batches Processed: %lu\n", batchStats.totalBatchesProcessed);
-  Serial.printf("[CRUD STATS] Total Commands Processed: %lu\n", batchStats.totalCommandsProcessed);
-  Serial.printf("[CRUD STATS] Total Commands Failed: %lu\n", batchStats.totalCommandsFailed);
-  Serial.printf("[CRUD STATS] High Priority Commands: %lu\n", batchStats.highPriorityCount);
-  Serial.printf("[CRUD STATS] Normal Priority Commands: %lu\n", batchStats.normalPriorityCount);
-  Serial.printf("[CRUD STATS] Low Priority Commands: %lu\n", batchStats.lowPriorityCount);
-  Serial.printf("[CRUD STATS] Current Queue Depth: %lu\n", batchStats.currentQueueDepth);
-  Serial.printf("[CRUD STATS] Queue Peak Depth: %lu\n", batchStats.queuePeakDepth);
-  Serial.println("[CRUD STATS] =============================================================");
+  Serial.println("\n[CRUD STATS] BATCH STATISTICS");
+  Serial.printf("  Total Batches Processed: %lu\n", batchStats.totalBatchesProcessed);
+  Serial.printf("  Total Commands Processed: %lu\n", batchStats.totalCommandsProcessed);
+  Serial.printf("  Total Commands Failed: %lu\n", batchStats.totalCommandsFailed);
+  Serial.printf("  High Priority Commands: %lu\n", batchStats.highPriorityCount);
+  Serial.printf("  Normal Priority Commands: %lu\n", batchStats.normalPriorityCount);
+  Serial.printf("  Low Priority Commands: %lu\n", batchStats.lowPriorityCount);
+  Serial.printf("  Current Queue Depth: %lu\n", batchStats.currentQueueDepth);
+  Serial.printf("  Queue Peak Depth: %lu\n\n", batchStats.queuePeakDepth);
 
   xSemaphoreGive(queueMutex);
 }
@@ -1783,9 +1774,7 @@ void CRUDHandler::reportStats(JsonObject &statsObj)
 
 void CRUDHandler::performFactoryReset()
 {
-  Serial.println("[FACTORY RESET] ========================================");
-  Serial.println("[FACTORY RESET] Starting graceful shutdown sequence...");
-  Serial.println("[FACTORY RESET] ========================================");
+  Serial.println("\n[FACTORY RESET] Starting graceful shutdown sequence...");
 
   // Step 1: Stop all services (Modbus + LED + Button)
   Serial.println("[FACTORY RESET] [1/6] Stopping all services...");
