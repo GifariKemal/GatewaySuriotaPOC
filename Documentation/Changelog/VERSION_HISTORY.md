@@ -8,7 +8,83 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.3.3 (Current)
+## 📦 Version 2.3.4 (Current)
+
+**Release Date:** November 23, 2025 (Saturday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🐛 BLE Transmission Timeout Fix
+
+**Type:** Bug Fix Release
+
+This patch release fixes **BLE transmission timeout** issue when loading large amounts of data in mobile apps.
+
+---
+
+#### 🔴 BLE Chunk Timeout - Large Data Transmission Too Fast
+
+**Problem:**
+- Mobile app experiences timeout when loading large data (backup/restore operations)
+- BLE transmission speed too fast for some mobile devices to process
+- Issue occurs when DRAM is healthy but payload is very large (>50KB)
+
+**Root Cause:**
+- Previous adaptive chunking logic only slowed down transmission when **BOTH** conditions met:
+  1. Payload > 5KB
+  2. DRAM < 30KB
+- When DRAM was healthy, system used aggressive settings (244 bytes chunks, 10ms delay)
+- For 200KB backup response: ~820 chunks × 10ms = ~8.2 seconds
+- Too fast for mobile devices to process, causing timeout/buffer overflow
+
+**Files Changed:**
+1. `Main/BLEManager.h:34-39` - Added `XLARGE_PAYLOAD_THRESHOLD` and `ADAPTIVE_DELAY_XLARGE_MS`
+2. `Main/BLEManager.cpp:586-622` - Implemented three-tier adaptive delay system
+
+**Fix Details:**
+
+**New Three-Tier Adaptive Delay System:**
+```cpp
+// Tier 1: Small payloads (<5KB)
+// - Chunk size: 244 bytes
+// - Delay: 10ms (FAST - original speed)
+// - Use case: Normal CRUD operations
+
+// Tier 2: Large payloads (5-50KB)
+// - Chunk size: 244 bytes (or 100 bytes if DRAM low)
+// - Delay: 20ms (SLOW - 2x slower)
+// - Use case: Device lists, multi-device reads
+
+// Tier 3: Extra-large payloads (>50KB)
+// - Chunk size: 244 bytes (or 100 bytes if DRAM low)
+// - Delay: 50ms (XSLOW - 5x slower)
+// - Use case: Backup/restore operations
+```
+
+**Key Changes:**
+1. **Delay based on payload size**: ALWAYS slow down for large payloads (regardless of DRAM)
+2. **Chunk size based on DRAM**: Only reduce chunk size when DRAM is low (<30KB)
+3. **Extra-large threshold**: Added 50KB threshold for backup/restore operations (50ms delay)
+
+**Impact:**
+- ✅ Small payloads (<5KB): No change - still fast (10ms)
+- ✅ Large payloads (5-50KB): 2x slower - prevents timeout (20ms)
+- ✅ Extra-large payloads (>50KB): 5x slower - critical for backups (50ms)
+- ✅ Mobile app compatibility: Improved - devices have more time to process chunks
+
+**Example Transmission Times:**
+- 5KB payload: ~21 chunks × 20ms = **~0.4s** (was ~0.2s)
+- 50KB payload: ~205 chunks × 20ms = **~4.1s** (was ~2.1s)
+- 200KB payload: ~820 chunks × 50ms = **~41s** (was ~8.2s)
+
+**Compatibility:**
+- ✅ Backward compatible - no API changes
+- ✅ All existing mobile apps benefit automatically
+- ✅ No configuration required
+
+---
+
+## 📦 Version 2.3.3
 
 **Release Date:** November 22, 2025 (Friday)
 **Developer:** Kemal (with Claude Code)
