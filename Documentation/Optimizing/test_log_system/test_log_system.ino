@@ -75,20 +75,20 @@ void setup() {
   setLogLevel(LOG_INFO);
 
   Serial.println("Testing all modules:");
-  LOG_RTU_INFO("✓ RTU module working\n");
-  LOG_TCP_INFO("✓ TCP module working\n");
-  LOG_MQTT_INFO("✓ MQTT module working\n");
-  LOG_HTTP_INFO("✓ HTTP module working\n");
-  LOG_BLE_INFO("✓ BLE module working\n");
-  LOG_BATCH_INFO("✓ BATCH module working\n");
-  LOG_CONFIG_INFO("✓ CONFIG module working\n");
-  LOG_NET_INFO("✓ NETWORK module working\n");
-  LOG_MEM_INFO("✓ MEMORY module working\n");
-  LOG_QUEUE_INFO("✓ QUEUE module working\n");
-  LOG_DATA_INFO("✓ DATA module working\n");
-  LOG_LED_INFO("✓ LED module working\n");
-  LOG_CRUD_INFO("✓ CRUD module working\n");
-  LOG_RTC_INFO("✓ RTC module working\n");
+  LOG_RTU_INFO("OK: RTU module working\n");
+  LOG_TCP_INFO("OK: TCP module working\n");
+  LOG_MQTT_INFO("OK: MQTT module working\n");
+  LOG_HTTP_INFO("OK: HTTP module working\n");
+  LOG_BLE_INFO("OK: BLE module working\n");
+  LOG_BATCH_INFO("OK: BATCH module working\n");
+  LOG_CONFIG_INFO("OK: CONFIG module working\n");
+  LOG_NET_INFO("OK: NETWORK module working\n");
+  LOG_MEM_INFO("OK: MEMORY module working\n");
+  LOG_QUEUE_INFO("OK: QUEUE module working\n");
+  LOG_DATA_INFO("OK: DATA module working\n");
+  LOG_LED_INFO("OK: LED module working\n");
+  LOG_CRUD_INFO("OK: CRUD module working\n");
+  LOG_RTC_INFO("OK: RTC module working\n");
 
   delay(2000);
 
@@ -153,7 +153,7 @@ void setup() {
   DEBUG_MODBUS_PRINT("Legacy DEBUG_MODBUS_PRINT works");
   DEBUG_MQTT_PRINT("Legacy DEBUG_MQTT_PRINT works");
 
-  Serial.println("\n✓ Backward compatibility confirmed");
+  Serial.println("\n[OK] Backward compatibility confirmed");
 
   delay(2000);
 
@@ -163,15 +163,15 @@ void setup() {
   Serial.println("\n\n=================================================");
   Serial.println("  TEST RESULTS");
   Serial.println("=================================================");
-  Serial.println("✓ Test 1: Default log level (INFO) - PASS");
-  Serial.println("✓ Test 2: ERROR level filtering - PASS");
-  Serial.println("✓ Test 3: VERBOSE level (all logs) - PASS");
-  Serial.println("✓ Test 4: All module macros - PASS");
-  Serial.println("✓ Test 5: Log throttling - PASS");
-  Serial.println("✓ Test 6: Performance overhead - PASS");
-  Serial.println("✓ Test 7: Backward compatibility - PASS");
+  Serial.println("[PASS] Test 1: Default log level (INFO) - PASS");
+  Serial.println("[PASS] Test 2: ERROR level filtering - PASS");
+  Serial.println("[PASS] Test 3: VERBOSE level (all logs) - PASS");
+  Serial.println("[PASS] Test 4: All module macros - PASS");
+  Serial.println("[PASS] Test 5: Log throttling - PASS");
+  Serial.println("[PASS] Test 6: Performance overhead - PASS");
+  Serial.println("[PASS] Test 7: Backward compatibility - PASS");
   Serial.println("=================================================");
-  Serial.println("\n✅ ALL TESTS PASSED - Log system ready for migration\n");
+  Serial.println("\n[SUCCESS] ALL TESTS PASSED - Log system ready for migration\n");
 
   // Set to production default
   setLogLevel(LOG_INFO);

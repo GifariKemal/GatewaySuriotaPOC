@@ -523,13 +523,13 @@ const char *MQTTPersistentQueue::getHealthStatusString(QueueHealthStatus status)
   case QUEUE_HEALTHY:
     return "HEALTHY";
   case QUEUE_WARNING:
-    return " WARNING (>80% full)";
+    return "WARNING (>80% full)";
   case QUEUE_CRITICAL:
-    return "🔴 CRITICAL (>95% full)";
+    return "CRITICAL (>95% full)";
   case QUEUE_HEALTH_FULL:
     return "FULL (at max capacity)";
   default:
-    return "❓ UNKNOWN";
+    return "UNKNOWN";
   }
 }
 
