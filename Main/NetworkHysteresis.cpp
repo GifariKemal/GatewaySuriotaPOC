@@ -456,63 +456,61 @@ void NetworkHysteresis::clearPendingTransition()
 // Reporting and diagnostics
 void NetworkHysteresis::printHysteresisStatus()
 {
-  Serial.println("\n[HYSTERESIS] ═══════════════════════════════════════════════");
-  Serial.printf("[HYSTERESIS] Current Active Mode: %s\n", currentActiveMode.c_str());
-  Serial.printf("[HYSTERESIS] Uptime on current mode: %lu ms\n", getCurrentModeUptime());
+  Serial.println("\n[HYSTERESIS] STATUS");
+  Serial.printf("  Current Active Mode: %s\n", currentActiveMode.c_str());
+  Serial.printf("  Uptime on current mode: %lu ms\n", getCurrentModeUptime());
 
   if (isHysteresisActive())
   {
     unsigned long remaining = getHysteresisTimeRemaining();
-    Serial.printf("[HYSTERESIS] Hysteresis ACTIVE (%.1f seconds remaining)\n",
+    Serial.printf("  Hysteresis ACTIVE (%.1f seconds remaining)\n",
                   remaining / 1000.0f);
   }
   else
   {
-    Serial.println("[HYSTERESIS] Hysteresis inactive");
+    Serial.println("  Hysteresis inactive");
   }
 
-  Serial.println("[HYSTERESIS] ═══════════════════════════════════════════════\n");
+  Serial.println();
 }
 
 void NetworkHysteresis::printNetworkStates()
 {
-  Serial.println("\n[HYSTERESIS] ─── PRIMARY NETWORK ───");
+  Serial.println("\n[HYSTERESIS] PRIMARY NETWORK");
   Serial.printf("  Status: %s\n", primaryNetworkState.isActive ? "ACTIVE" : "INACTIVE");
   Serial.printf("  RSSI: %d dBm\n", primaryNetworkState.rssi);
   Serial.printf("  Quality: %u%% (%s)\n", primaryNetworkState.signalQuality,
                 getQualityLevelString(getRSSIQualityLevel(primaryNetworkState.rssi)));
   Serial.printf("  State changes: %lu ms ago\n", millis() - primaryNetworkState.stateChangeTime);
-  Serial.printf("  Consecutive failures: %u\n", primaryNetworkState.consecutiveFailureCount);
+  Serial.printf("  Consecutive failures: %u\n\n", primaryNetworkState.consecutiveFailureCount);
 
-  Serial.println("[HYSTERESIS] ─── SECONDARY NETWORK ───");
+  Serial.println("[HYSTERESIS] SECONDARY NETWORK");
   Serial.printf("  Status: %s\n", secondaryNetworkState.isActive ? "ACTIVE" : "INACTIVE");
   Serial.printf("  RSSI: %d dBm\n", secondaryNetworkState.rssi);
   Serial.printf("  Quality: %u%% (%s)\n", secondaryNetworkState.signalQuality,
                 getQualityLevelString(getRSSIQualityLevel(secondaryNetworkState.rssi)));
   Serial.printf("  State changes: %lu ms ago\n", millis() - secondaryNetworkState.stateChangeTime);
-  Serial.printf("  Consecutive failures: %u\n", secondaryNetworkState.consecutiveFailureCount);
-  Serial.println("[HYSTERESIS] ─────────────────────────────\n");
+  Serial.printf("  Consecutive failures: %u\n\n", secondaryNetworkState.consecutiveFailureCount);
 }
 
 void NetworkHysteresis::printQualityThresholds()
 {
-  Serial.println("\n[HYSTERESIS] ─── QUALITY THRESHOLDS ───");
+  Serial.println("\n[HYSTERESIS] QUALITY THRESHOLDS");
   Serial.printf("  RSSI Thresholds:\n");
   Serial.printf("    Poor: < %d dBm\n", config.signalPoorThreshold);
   Serial.printf("    Fair: %d to %d dBm\n", config.signalPoorThreshold, config.signalFairThreshold);
   Serial.printf("    Good: %d to %d dBm\n", config.signalFairThreshold, config.signalGoodThreshold);
-  Serial.printf("    Excellent: > %d dBm\n", config.signalGoodThreshold);
+  Serial.printf("    Excellent: > %d dBm\n\n", config.signalGoodThreshold);
 
   Serial.printf("  Switching Thresholds:\n");
   Serial.printf("    Primary minimum: %u (0=poor, 3=excellent)\n", config.primaryQualityMin);
   Serial.printf("    Secondary minimum: %u (0=poor, 3=excellent)\n", config.secondaryQualityMin);
-  Serial.printf("    Switch to secondary at: %u (0=poor, 3=excellent)\n", config.switchToSecondaryQuality);
-  Serial.println("[HYSTERESIS] ─────────────────────────────\n");
+  Serial.printf("    Switch to secondary at: %u (0=poor, 3=excellent)\n\n", config.switchToSecondaryQuality);
 }
 
 void NetworkHysteresis::printSwitchDecisionRationale()
 {
-  Serial.println("\n[HYSTERESIS] ─── SWITCH DECISION ANALYSIS ───");
+  Serial.println("\n[HYSTERESIS] SWITCH DECISION ANALYSIS");
 
   bool canSwitchToPrimary = shouldSwitchToPrimary();
   bool canSwitchToSecondary = shouldSwitchToSecondary();
@@ -571,7 +569,7 @@ void NetworkHysteresis::printSwitchDecisionRationale()
       }
     }
   }
-  Serial.println("[HYSTERESIS] ─────────────────────────────\n");
+  Serial.println();
 }
 
 // Statistics

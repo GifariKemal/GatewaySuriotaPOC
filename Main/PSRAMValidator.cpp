@@ -316,36 +316,34 @@ void PSRAMValidator::printMemoryStatus()
   MemoryStats stats = getMemoryStats();
   MemoryHealthStatus health = getHealthStatus();
 
-  Serial.println("[PSRAM] ════════════════════════════════════════");
-  Serial.printf("[PSRAM] Status: %s\n", getHealthStatusString(health));
-  Serial.printf("[PSRAM] PSRAM: %zu / %zu bytes (%.1f%%)\n",
+  Serial.println("\n[PSRAM] MEMORY STATUS");
+  Serial.printf("  Status: %s\n", getHealthStatusString(health));
+  Serial.printf("  PSRAM: %zu / %zu bytes (%.1f%%)\n",
                 stats.usedPSRAM, stats.totalPSRAM, stats.psramUtilization);
-  Serial.printf("[PSRAM] DRAM:  %zu bytes (%.1f%% of %zu)\n",
+  Serial.printf("  DRAM:  %zu bytes (%.1f%% of %zu)\n",
                 stats.freeDRAM, stats.dramUtilization,
                 stats.usedDRAM + stats.freeDRAM);
-  Serial.printf("[PSRAM] Free: %zu KB, Largest block: %zu KB\n",
+  Serial.printf("  Free: %zu KB, Largest block: %zu KB\n",
                 stats.freePSRAM / 1024, stats.largestFreeBlock / 1024);
-  Serial.printf("[PSRAM] Fragmentation: %d%%\n", stats.fragmentation);
-  Serial.println("[PSRAM] ════════════════════════════════════════");
+  Serial.printf("  Fragmentation: %d%%\n\n", stats.fragmentation);
 }
 
 void PSRAMValidator::printDetailedStats()
 {
   MemoryStats stats = getMemoryStats();
 
-  Serial.println("[PSRAM] ──── DETAILED MEMORY STATISTICS ────");
-  Serial.printf("Total PSRAM:        %zu KB (%zu bytes)\n",
+  Serial.println("\n[PSRAM] DETAILED MEMORY STATISTICS");
+  Serial.printf("  Total PSRAM:        %zu KB (%zu bytes)\n",
                 stats.totalPSRAM / 1024, stats.totalPSRAM);
-  Serial.printf("Used PSRAM:         %zu KB (%.1f%%)\n",
+  Serial.printf("  Used PSRAM:         %zu KB (%.1f%%)\n",
                 stats.usedPSRAM / 1024, stats.psramUtilization);
-  Serial.printf("Free PSRAM:         %zu KB\n", stats.freePSRAM / 1024);
-  Serial.printf("Largest free block: %zu KB\n", stats.largestFreeBlock / 1024);
-  Serial.printf("Fragmentation:      %d%%\n", stats.fragmentation);
-  Serial.printf("Allocations:        %lu active\n", stats.allocationCount);
-  Serial.printf("Avg alloc size:     %zu bytes\n", stats.avgAllocationSize);
-  Serial.printf("Peak memory usage:  %zu KB\n", peakMemoryUsage / 1024);
-  Serial.printf("Peak allocations:   %lu\n", peakAllocationCount);
-  Serial.println("[PSRAM] ──────────────────────────────────────");
+  Serial.printf("  Free PSRAM:         %zu KB\n", stats.freePSRAM / 1024);
+  Serial.printf("  Largest free block: %zu KB\n", stats.largestFreeBlock / 1024);
+  Serial.printf("  Fragmentation:      %d%%\n", stats.fragmentation);
+  Serial.printf("  Allocations:        %lu active\n", stats.allocationCount);
+  Serial.printf("  Avg alloc size:     %zu bytes\n", stats.avgAllocationSize);
+  Serial.printf("  Peak memory usage:  %zu KB\n", peakMemoryUsage / 1024);
+  Serial.printf("  Peak allocations:   %lu\n\n", peakAllocationCount);
 }
 
 void PSRAMValidator::printAllocationReport()
@@ -356,7 +354,7 @@ void PSRAMValidator::printAllocationReport()
     return;
   }
 
-  Serial.printf("[PSRAM] ──── ALLOCATION REPORT (%lu active) ────\n", allocations.size());
+  Serial.printf("\n[PSRAM] ALLOCATION REPORT (%lu active)\n", allocations.size());
 
   for (const auto &alloc : allocations)
   {
@@ -366,8 +364,7 @@ void PSRAMValidator::printAllocationReport()
                   alloc.address,
                   millis() - alloc.timestamp);
   }
-
-  Serial.println("[PSRAM] ──────────────────────────────────────");
+  Serial.println();
 }
 
 void PSRAMValidator::printMemoryWarnings()

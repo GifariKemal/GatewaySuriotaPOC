@@ -370,12 +370,12 @@ void ErrorHandler::printErrorWithRecovery(const ErrorContext &context)
 
   if (!context.description.isEmpty())
   {
-    Serial.printf("  └─ %s\n", context.description.c_str());
+    Serial.printf("  Description: %s\n", context.description.c_str());
   }
 
   if (context.severity >= SEVERITY_ERROR)
   {
-    Serial.printf("  └─ Recovery: %s\n", getRecoverySuggestion(context.code));
+    Serial.printf("  Recovery: %s\n", getRecoverySuggestion(context.code));
   }
 }
 
@@ -456,9 +456,7 @@ void ErrorHandler::printErrorsBySeverity()
 
 void ErrorHandler::printDetailedErrorReport()
 {
-  Serial.println("\n╔════════════════════════════════════════════════╗");
-  Serial.println("║     UNIFIED ERROR HANDLER - DETAILED REPORT    ║");
-  Serial.println("╚════════════════════════════════════════════════╝");
+  Serial.println("\n[ERROR HANDLER] DETAILED REPORT\n");
 
   printErrorStatistics();
   printErrorsByDomain();

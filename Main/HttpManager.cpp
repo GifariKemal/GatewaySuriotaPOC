@@ -400,22 +400,22 @@ bool HttpManager::isNetworkAvailable()
 
 void HttpManager::debugNetworkConnectivity()
 {
-  Serial.println("[HTTP] === Network Debug ===");
-  Serial.printf("[HTTP] Current Mode: %s\n", networkManager->getCurrentMode().c_str());
-  Serial.printf("[HTTP] Network Available: %s\n", networkManager->isAvailable() ? "YES" : "NO");
-  Serial.printf("[HTTP] Local IP: %s\n", networkManager->getLocalIP().toString().c_str());
+  Serial.println("\n[HTTP] NETWORK DEBUG");
+  Serial.printf("  Current Mode: %s\n", networkManager->getCurrentMode().c_str());
+  Serial.printf("  Network Available: %s\n", networkManager->isAvailable() ? "YES" : "NO");
+  Serial.printf("  Local IP: %s\n", networkManager->getLocalIP().toString().c_str());
 
   // Show specific network details
   String mode = networkManager->getCurrentMode();
   if (mode == "WIFI")
   {
-    Serial.printf("[HTTP] WiFi Status: %d\n", WiFi.status());
-    Serial.printf("[HTTP] WiFi SSID: %s\n", WiFi.SSID().c_str());
-    Serial.printf("[HTTP] WiFi RSSI: %d dBm\n", WiFi.RSSI());
+    Serial.printf("  WiFi Status: %d\n", WiFi.status());
+    Serial.printf("  WiFi SSID: %s\n", WiFi.SSID().c_str());
+    Serial.printf("  WiFi RSSI: %d dBm\n\n", WiFi.RSSI());
   }
   else if (mode == "ETH")
   {
-    Serial.println("[HTTP] Using Ethernet connection");
+    Serial.println("  Using Ethernet connection\n");
   }
 }
 

@@ -1100,9 +1100,9 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         Serial.printf("[MQTT] Customize Mode - Publishing %u bytes to: %s\n",
                       payload.length(), customTopic.topic.c_str());
         if (payload.length() > 0 && payload.length() <= 300) {
-          Serial.println("[MQTT] Payload preview:");
+          Serial.printf("[MQTT] Payload preview (%u bytes):\n", payload.length());
           Serial.println(payload);
-          Serial.println("[MQTT] ---");
+          Serial.println();
         }
       #endif
 
@@ -1362,7 +1362,7 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   }
 
   #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Buffer calculation: %u registers → %u bytes (min: %u, max: %u)\n",
+    Serial.printf("[MQTT] Buffer calculation: %u registers = %u bytes (min: %u, max: %u)\n",
                   totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
   #endif
 

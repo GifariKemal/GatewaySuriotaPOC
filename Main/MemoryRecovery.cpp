@@ -364,19 +364,16 @@ bool MemoryRecovery::executeGarbageCollection() {
 }
 
 void MemoryRecovery::executeEmergencyRestart() {
-  LOG_MEM_ERROR("========================================\n");
-  LOG_MEM_ERROR("EMERGENCY RESTART INITIATED\n");
-  LOG_MEM_ERROR("========================================\n");
+  LOG_MEM_ERROR("\n[MEMORY] EMERGENCY RESTART INITIATED\n");
 
   uint32_t freeDram, freePsram;
   getMemoryStats(freeDram, freePsram);
 
-  LOG_MEM_ERROR("Final Memory State:\n");
-  LOG_MEM_ERROR("  DRAM: %lu bytes\n", freeDram);
-  LOG_MEM_ERROR("  PSRAM: %lu bytes\n", freePsram);
-  LOG_MEM_ERROR("  Low Memory Events: %lu\n", lowMemoryEventCount);
-  LOG_MEM_ERROR("  Critical Events: %lu\n", criticalEventCount);
-  LOG_MEM_ERROR("========================================\n");
+  LOG_MEM_ERROR("  Final Memory State:\n");
+  LOG_MEM_ERROR("    DRAM: %lu bytes\n", freeDram);
+  LOG_MEM_ERROR("    PSRAM: %lu bytes\n", freePsram);
+  LOG_MEM_ERROR("    Low Memory Events: %lu\n", lowMemoryEventCount);
+  LOG_MEM_ERROR("    Critical Events: %lu\n\n", criticalEventCount);
 
   delay(1000); // Allow logs to flush
   ESP.restart();
