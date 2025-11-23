@@ -8,11 +8,10 @@ QueueManager::QueueManager()
 
 QueueManager *QueueManager::getInstance()
 {
-  if (instance == nullptr)
-  {
-    instance = new QueueManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static QueueManager instance;
+  static QueueManager *ptr = &instance;
+  return ptr;
 }
 
 bool QueueManager::init()
@@ -166,8 +165,8 @@ bool QueueManager::peek(const JsonObject &dataPoint) const
     return false;
   }
 
-  // Use configurable timeout
-  if (xSemaphoreTake(const_cast<SemaphoreHandle_t>(queueMutex), pdMS_TO_TICKS(queueMutexTimeout)) != pdTRUE)
+  // Use configurable timeout (queueMutex is mutable, no const_cast needed)
+  if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(queueMutexTimeout)) != pdTRUE)
   {
     return false;
   }

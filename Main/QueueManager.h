@@ -13,8 +13,8 @@ private:
   static QueueManager *instance;
   QueueHandle_t dataQueue;
   QueueHandle_t streamQueue;
-  SemaphoreHandle_t queueMutex;
-  SemaphoreHandle_t streamMutex;
+  mutable SemaphoreHandle_t queueMutex;   // Mutable: mutex operations don't change logical state
+  mutable SemaphoreHandle_t streamMutex;  // Mutable: mutex operations don't change logical state
   static const int MAX_QUEUE_SIZE = 1000;  // CRITICAL FIX: Increased from 200 to 1000 to prevent queue overflow during slow MQTT publish intervals (60s+). Supports ~60s publish interval with 2 devices × 50 registers each.
   static const int MAX_STREAM_QUEUE_SIZE = 50;
 

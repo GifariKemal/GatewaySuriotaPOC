@@ -15,11 +15,10 @@ NetworkHysteresis::NetworkHysteresis()
 // Singleton access
 NetworkHysteresis *NetworkHysteresis::getInstance()
 {
-  if (!instance)
-  {
-    instance = new NetworkHysteresis();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static NetworkHysteresis instance;
+  static NetworkHysteresis *ptr = &instance;
+  return ptr;
 }
 
 // Configuration methods

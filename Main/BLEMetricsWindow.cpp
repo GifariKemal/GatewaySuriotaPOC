@@ -13,11 +13,10 @@ BLEMetricsCollector::BLEMetricsCollector()
 // Singleton access
 BLEMetricsCollector *BLEMetricsCollector::getInstance()
 {
-  if (instance == nullptr)
-  {
-    instance = new BLEMetricsCollector();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static BLEMetricsCollector instance;
+  static BLEMetricsCollector *ptr = &instance;
+  return ptr;
 }
 
 // Metrics recording

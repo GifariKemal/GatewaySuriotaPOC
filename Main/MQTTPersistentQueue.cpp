@@ -36,11 +36,10 @@ MQTTPersistentQueue::MQTTPersistentQueue()
 // Singleton access
 MQTTPersistentQueue *MQTTPersistentQueue::getInstance()
 {
-  if (!instance)
-  {
-    instance = new MQTTPersistentQueue();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  static MQTTPersistentQueue instance;
+  static MQTTPersistentQueue *ptr = &instance;
+  return ptr;
 }
 
 // Configuration methods
@@ -972,6 +971,8 @@ void MQTTPersistentQueue::cleanupPersistenceStorage()
   File queueDir = LittleFS.open(config.persistenceDir, "r");
   if (!queueDir)
   {
+    // No valid handle to close - LittleFS returns invalid File object on failure
+    Serial.printf("[MQTT_QUEUE] ERROR: Failed to open persistence directory: %s\n", config.persistenceDir);
     return;
   }
 

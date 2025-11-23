@@ -117,12 +117,15 @@ void MqttManager::start()
 void MqttManager::stop()
 {
   running = false;
+
+  // Give task time to exit gracefully (checks 'running' flag in loop)
   if (taskHandle)
   {
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(50)); // Brief delay for current iteration to complete
     vTaskDelete(taskHandle);
     taskHandle = nullptr;
   }
+
   if (mqttClient.connected())
   {
     mqttClient.disconnect();

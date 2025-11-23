@@ -7,11 +7,11 @@ WiFiManager::WiFiManager()
 
 WiFiManager *WiFiManager::getInstance()
 {
-  if (!instance)
-  {
-    instance = new WiFiManager();
-  }
-  return instance;
+  // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
+  // Avoids race condition in getInstance() that could create multiple instances
+  static WiFiManager instance;
+  static WiFiManager *ptr = &instance;
+  return ptr;
 }
 
 bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
