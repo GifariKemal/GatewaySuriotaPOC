@@ -99,6 +99,9 @@ private:
   // FIXED BUG #15: Dynamic MQTT buffer sizing
   uint16_t calculateOptimalBufferSize();
 
+  // v2.3.7: Adaptive batch timeout based on device configuration
+  uint32_t calculateAdaptiveBatchTimeout();
+
 public:
   static MqttManager *getInstance(ConfigManager *config = nullptr, ServerConfig *serverCfg = nullptr, NetworkMgr *netMgr = nullptr);
 

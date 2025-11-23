@@ -252,8 +252,9 @@ void MqttManager::mqttLoop()
       vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    // Yield between polling cycles
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // v2.3.7 OPTIMIZED: Reduced from 100ms to 50ms for better timing precision
+    // This improves interval detection accuracy from ±100ms to ±50ms
+    vTaskDelay(pdMS_TO_TICKS(50));
   }
 
   Serial.println("[MQTT] Task stopped");
@@ -488,18 +489,6 @@ void MqttManager::publishQueueData()
 
   unsigned long now = millis();
 
-  // Process persistent queue first (retry failed messages)
-  if (persistentQueueEnabled && persistentQueue)
-  {
-    uint32_t persistedSent = persistentQueue->processQueue();
-    #if PRODUCTION_MODE == 0
-      if (persistedSent > 0)
-      {
-        Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
-      }
-    #endif
-  }
-
   // ============================================
   // SOLUTION #1: SEPARATE INTERVAL TIMER FROM BATCH WAITING
   // v2.3.7: Fix MQTT publish interval inconsistency
@@ -528,24 +517,34 @@ void MqttManager::publishQueueData()
     return;
   }
 
-  // Step 2: Interval ELAPSED - Update timestamp IMMEDIATELY for consistent timing
-  // This ensures next interval starts from exact target time, not delayed time
-  unsigned long publishTargetTime = now;
+  // Step 2: Interval ELAPSED - Capture target timestamp ONCE
+  // v2.3.7 CRITICAL FIX: Use static variable to preserve first interval elapsed time
+  // This prevents timestamp from drifting during batch wait period
+  static unsigned long publishTargetTime = 0;
+  static bool targetTimeLocked = false;
 
-  if (defaultIntervalElapsed) {
-    lastDefaultPublish = publishTargetTime;  // ✅ Lock timestamp NOW
+  // Capture target time ONCE when interval first elapses
+  if ((defaultIntervalElapsed || customizeIntervalElapsed) && !targetTimeLocked) {
+    publishTargetTime = now;  // Lock this time for this publish cycle
+    targetTimeLocked = true;
+
     #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Default mode interval elapsed - target time locked at %lu ms\n", publishTargetTime);
+      Serial.printf("[MQTT] ✓ Target time captured at %lu ms (interval elapsed)\n", publishTargetTime);
     #endif
   }
 
-  if (customizeIntervalElapsed) {
-    for (auto &customTopic : customTopics) {
-      if ((now - customTopic.lastPublish) >= customTopic.interval) {
-        customTopic.lastPublish = publishTargetTime;  // ✅ Lock timestamp NOW
-      }
+  // v2.3.7 FIX: Only log ONCE per interval (not every loop!)
+  static unsigned long lastLoggedInterval = 0;
+  #if PRODUCTION_MODE == 0
+    if (defaultIntervalElapsed && (publishTargetTime - lastLoggedInterval) > 1000) {
+      Serial.printf("[MQTT] Default mode interval elapsed - checking batch status at %lu ms\n", publishTargetTime);
+      lastLoggedInterval = publishTargetTime;
     }
-  }
+    if (customizeIntervalElapsed && (publishTargetTime - lastLoggedInterval) > 1000) {
+      Serial.printf("[MQTT] Customize mode interval elapsed - checking batch status at %lu ms\n", publishTargetTime);
+      lastLoggedInterval = publishTargetTime;
+    }
+  #endif
 
   // Step 3: Wait for device batch completion with SHORT TIMEOUT
   DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
@@ -563,6 +562,7 @@ void MqttManager::publishQueueData()
         flushedOnce = true;
       }
     }
+    targetTimeLocked = false;  // Reset for next interval
     return;
   }
 
@@ -571,13 +571,22 @@ void MqttManager::publishQueueData()
   if (queueMgr && queueMgr->isEmpty())
   {
     // Queue is empty - no data to publish, skip silently
+    targetTimeLocked = false;  // Reset for next interval
     return;
   }
 
-  // IMPROVED: Reduced timeout from 60s to 2s for better interval consistency
+  // v2.3.7 IMPROVED: ADAPTIVE batch timeout based on device configuration
+  // - Fast devices (few registers): 1s timeout
+  // - Medium devices (10-50 registers): max_refresh_rate + 1s
+  // - Slow devices (>50 registers or slow RTU): max_refresh_rate + 2s
   // Interval timer already updated above, so this won't affect next publish timing
   static unsigned long batchWaitStartTime = 0;
-  const unsigned long BATCH_WAIT_TIMEOUT = 2000;  // 2 seconds timeout (was 60s)
+  static unsigned long cachedBatchTimeout = 0;
+
+  // Calculate adaptive timeout once (cache it)
+  if (cachedBatchTimeout == 0) {
+    cachedBatchTimeout = calculateAdaptiveBatchTimeout();
+  }
 
   if (batchMgr && !batchMgr->hasCompleteBatch())
   {
@@ -586,10 +595,11 @@ void MqttManager::publishQueueData()
       batchWaitStartTime = millis();
     }
 
-    // Check timeout
+    // Check adaptive timeout
     unsigned long elapsed = millis() - batchWaitStartTime;
-    if (elapsed > BATCH_WAIT_TIMEOUT) {
-      Serial.printf("[MQTT] Batch wait timeout (%lums) - publishing available data for consistent interval\n", elapsed);
+    if (elapsed > cachedBatchTimeout) {
+      Serial.printf("[MQTT] Batch wait timeout (%lums/%lums) - publishing available data for consistent interval\n",
+                    elapsed, cachedBatchTimeout);
       batchWaitStartTime = 0;  // Reset timer
       // Continue to publish whatever is in queue (don't return)
     } else {
@@ -600,6 +610,39 @@ void MqttManager::publishQueueData()
   } else {
     // Batch complete or no batches - reset timer
     batchWaitStartTime = 0;
+  }
+
+  // v2.3.7 FIX: Lock timestamp NOW (right before publish)
+  // This ensures interval consistency while avoiding early-return bugs
+  if (defaultIntervalElapsed) {
+    lastDefaultPublish = publishTargetTime;
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishTargetTime);
+    #endif
+  }
+
+  if (customizeIntervalElapsed) {
+    for (auto &customTopic : customTopics) {
+      if ((now - customTopic.lastPublish) >= customTopic.interval) {
+        customTopic.lastPublish = publishTargetTime;
+      }
+    }
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishTargetTime);
+    #endif
+  }
+
+  // v2.3.7 OPTIMIZED: Process persistent queue AFTER batch wait (before dequeue)
+  // This prevents queue processing delays from affecting interval precision
+  if (persistentQueueEnabled && persistentQueue)
+  {
+    uint32_t persistedSent = persistentQueue->processQueue();
+    #if PRODUCTION_MODE == 0
+      if (persistedSent > 0)
+      {
+        Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
+      }
+    #endif
   }
 
   // Only dequeue if we're actually going to publish
@@ -634,6 +677,7 @@ void MqttManager::publishQueueData()
 
   if (uniqueRegisters.empty())
   {
+    targetTimeLocked = false;  // Reset for next interval
     return; // Nothing to publish
   }
 
@@ -646,6 +690,14 @@ void MqttManager::publishQueueData()
   {
     publishCustomizeMode(uniqueRegisters, now);
   }
+
+  // v2.3.7 CRITICAL FIX: Reset target time lock for next interval
+  // This allows the next interval to capture a fresh timestamp
+  targetTimeLocked = false;
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] ✓ Publish cycle complete - ready for next interval\n");
+  #endif
 }
 
 void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegisters, unsigned long now)
@@ -901,11 +953,11 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     }
   #endif
 
-  // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
-  // This prevents premature disconnect detection on slow/public brokers
-  // 100ms is sufficient for TCP stack to flush ~2KB payload over typical network
+  // v2.3.7 OPTIMIZED: Reduced from 100ms to 20ms (adequate for TCP flush)
+  // With v2.3.7 timestamp locking, this delay no longer affects interval timing
+  // 20ms is sufficient for TCP stack to flush payload (tested with 16KB payloads)
   if (published) {
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 
   if (published)
@@ -1129,9 +1181,9 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         payload.length()                         // Explicit length
       );
 
-      // FIXED: Add small delay after publish to ensure TCP buffer fully flushed
+      // v2.3.7 OPTIMIZED: Reduced from 100ms to 20ms (same as default mode)
       if (published) {
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(20));
       }
 
       if (published)
@@ -1382,6 +1434,139 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   #endif
 
   return optimalSize;
+}
+
+// ============================================
+// v2.3.7: ADAPTIVE BATCH TIMEOUT CALCULATION
+// ============================================
+uint32_t MqttManager::calculateAdaptiveBatchTimeout()
+{
+  if (!configManager)
+  {
+    #if PRODUCTION_MODE == 0
+      Serial.println("[MQTT][DEBUG] No ConfigManager - returning default 2000ms");
+    #endif
+    return 2000;  // Default 2s if no config
+  }
+
+  // Load all devices to analyze configuration
+  JsonDocument devicesDoc;
+  JsonArray devices = devicesDoc.to<JsonArray>();
+  configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT][DEBUG] Loaded %d devices for timeout calculation\n", devices.size());
+  #endif
+
+  if (devices.size() == 0)
+  {
+    #if PRODUCTION_MODE == 0
+      Serial.println("[MQTT][DEBUG] No devices - returning default 1000ms");
+    #endif
+    return 1000;  // 1s default if no devices
+  }
+
+  uint32_t maxRefreshRate = 0;
+  uint32_t totalRegisters = 0;
+  bool hasSlowRTU = false;
+
+  // Analyze device configurations
+  int deviceIndex = 0;
+  for (JsonVariant deviceVar : devices)
+  {
+    JsonObject device = deviceVar.as<JsonObject>();
+    String protocol = device["protocol"] | "RTU";
+    uint32_t refreshRate = device["refresh_rate_ms"] | 5000;
+    uint32_t baudRate = device["baud_rate"] | 9600;
+    JsonArray registers = device["registers"];
+    uint32_t registerCount = registers.size();
+
+    #if PRODUCTION_MODE == 0
+      String deviceId = device["device_id"] | "UNKNOWN";
+      Serial.printf("[MQTT][DEBUG] Device %d (%s): protocol=%s, refresh=%lums, baud=%lu, registers=%lu\n",
+                    deviceIndex, deviceId.c_str(), protocol.c_str(), refreshRate, baudRate, registerCount);
+    #endif
+
+    totalRegisters += registerCount;
+
+    // Track slowest refresh rate
+    if (refreshRate > maxRefreshRate)
+    {
+      maxRefreshRate = refreshRate;
+      #if PRODUCTION_MODE == 0
+        Serial.printf("[MQTT][DEBUG]   → New maxRefreshRate: %lums\n", maxRefreshRate);
+      #endif
+    }
+
+    // Detect slow RTU configurations (9600 baud with many registers)
+    if (protocol == "RTU" && baudRate <= 9600 && registerCount > 20)
+    {
+      hasSlowRTU = true;
+      #if PRODUCTION_MODE == 0
+        Serial.printf("[MQTT][DEBUG]   → Slow RTU detected! (baud=%lu, registers=%lu)\n", baudRate, registerCount);
+      #endif
+    }
+
+    deviceIndex++;
+  }
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT][DEBUG] Analysis summary: totalRegisters=%lu, maxRefreshRate=%lums, hasSlowRTU=%s\n",
+                  totalRegisters, maxRefreshRate, hasSlowRTU ? "YES" : "NO");
+  #endif
+
+  // Calculate adaptive timeout
+  uint32_t timeout;
+  String calculationReason = "";
+
+  if (totalRegisters == 0)
+  {
+    timeout = 1000;  // 1s for empty config
+    calculationReason = "no registers";
+  }
+  else if (hasSlowRTU)
+  {
+    // Slow RTU detected - use longer timeout
+    timeout = maxRefreshRate + 2000;  // Refresh rate + 2s margin
+    calculationReason = "slow RTU (refresh + 2000ms)";
+  }
+  else if (totalRegisters <= 10)
+  {
+    // Fast scenario: Few registers
+    timeout = 1000;  // 1s timeout
+    calculationReason = "few registers (≤10)";
+  }
+  else if (totalRegisters <= 50)
+  {
+    // Medium scenario: Moderate registers
+    timeout = maxRefreshRate + 1000;  // Refresh rate + 1s margin
+    calculationReason = "moderate registers (≤50, refresh + 1000ms)";
+  }
+  else
+  {
+    // Heavy scenario: Many registers
+    timeout = maxRefreshRate + 2000;  // Refresh rate + 2s margin
+    calculationReason = "many registers (>50, refresh + 2000ms)";
+  }
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT][DEBUG] Timeout BEFORE clamp: %lums (reason: %s)\n", timeout, calculationReason.c_str());
+  #endif
+
+  // Clamp between 1s and 10s
+  uint32_t timeoutBeforeClamp = timeout;
+  timeout = constrain(timeout, 1000, 10000);
+
+  #if PRODUCTION_MODE == 0
+    if (timeout != timeoutBeforeClamp)
+    {
+      Serial.printf("[MQTT][DEBUG] Timeout AFTER clamp: %lums (clamped from %lums)\n", timeout, timeoutBeforeClamp);
+    }
+    Serial.printf("[MQTT] ✓ Adaptive batch timeout: %lums (devices: %d, registers: %lu, max_refresh: %lums)\n",
+                  timeout, devices.size(), totalRegisters, maxRefreshRate);
+  #endif
+
+  return timeout;
 }
 
 // FIXED BUG #5: Notify MQTT manager when device configuration changes
