@@ -55,12 +55,10 @@ const char* getLogLevelName(LogLevel level) {
 }
 
 void printLogLevelStatus() {
-  Serial.println("\n========================================");
-  Serial.println("  LOG LEVEL STATUS");
-  Serial.println("========================================");
-  Serial.printf("Current Level: %s (%d)\n", getLogLevelName(currentLogLevel), currentLogLevel);
-  Serial.printf("Production Mode: %s\n", IS_PRODUCTION_MODE() ? "YES" : "NO");
-  Serial.printf("Compile Log Level: ");
+  Serial.println("\n[SYSTEM] LOG LEVEL STATUS");
+  Serial.printf("  Current Level: %s (%d)\n", getLogLevelName(currentLogLevel), currentLogLevel);
+  Serial.printf("  Production Mode: %s\n", IS_PRODUCTION_MODE() ? "YES" : "NO");
+  Serial.printf("  Compile Level: ");
 
   #if PRODUCTION_MODE == 1
     Serial.println("INFO (production)");
@@ -68,17 +66,16 @@ void printLogLevelStatus() {
     Serial.println("VERBOSE (development)");
   #endif
 
-  Serial.println("\nAvailable Levels:");
-  Serial.println("  0 = NONE    (silent)");
-  Serial.println("  1 = ERROR   (critical errors only)");
-  Serial.println("  2 = WARN    (warnings + errors)");
-  Serial.println("  3 = INFO    (info + warn + errors) [DEFAULT]");
-  Serial.println("  4 = DEBUG   (debug + info + warn + errors)");
-  Serial.println("  5 = VERBOSE (all logs)");
+  Serial.println("\n  Available Levels:");
+  Serial.println("    0 = NONE    (silent)");
+  Serial.println("    1 = ERROR   (critical errors only)");
+  Serial.println("    2 = WARN    (warnings + errors)");
+  Serial.println("    3 = INFO    (info + warn + errors) [DEFAULT]");
+  Serial.println("    4 = DEBUG   (debug + info + warn + errors)");
+  Serial.println("    5 = VERBOSE (all logs)");
 
-  Serial.println("\nChange level: setLogLevel(LOG_INFO)");
-  Serial.printf("Timestamps: %s\n", logTimestampsEnabled ? "ENABLED" : "DISABLED");
-  Serial.println("========================================\n");
+  Serial.println("\n  Change level: setLogLevel(LOG_INFO)");
+  Serial.printf("  Timestamps: %s\n\n", logTimestampsEnabled ? "ENABLED" : "DISABLED");
 }
 
 // ============================================

@@ -362,19 +362,16 @@ void BLEManager::commandProcessingTask(void *parameter)
 void BLEManager::handleCompleteCommand(const char *command)
 {
   // FIXED BUG #32: Improved logging for large commands (prevent serial buffer overflow)
-  // Previous: Serial.printf with %s could truncate large JSON (>1KB)
-  // New: Log length and preview only (first 200 chars for debugging)
+  // Log complete command for debugging (with size limit for very large commands)
   size_t cmdLen = strlen(command);
 
   #if PRODUCTION_MODE == 0
-    // Development mode: Show command preview
-    if (cmdLen > 200) {
-      char preview[201];
-      strncpy(preview, command, 200);
-      preview[200] = '\0';
-      Serial.printf("[BLE CMD] Received %u bytes JSON (preview): %s...\n", cmdLen, preview);
+    // Development mode: Show full command for normal operations
+    if (cmdLen <= 2000) {
+      Serial.printf("\n[BLE CMD] Received command (%u bytes):\n", cmdLen);
+      Serial.printf("  %s\n\n", command);
     } else {
-      Serial.printf("[BLE CMD] Received %u bytes JSON: %s\n", cmdLen, command);
+      Serial.printf("\n[BLE CMD] Received large command (%u bytes) - too large to display\n\n", cmdLen);
     }
   #else
     // Production mode: Just log length
@@ -891,14 +888,13 @@ void BLEManager::logConnectionMetrics()
     return;
   }
 
-  Serial.println("[BLE] ==================== CONNECTION METRICS ====================");
-  Serial.printf("[BLE] Status: %s\n", connectionMetrics.isConnected ? "CONNECTED" : "DISCONNECTED");
-  Serial.printf("[BLE] Fragments Sent: %lu\n", connectionMetrics.fragmentsSent);
-  Serial.printf("[BLE] Fragments Received: %lu\n", connectionMetrics.fragmentsReceived);
-  Serial.printf("[BLE] Bytes Transmitted: %lu\n", connectionMetrics.bytesTransmitted);
-  Serial.printf("[BLE] Bytes Received: %lu\n", connectionMetrics.bytesReceived);
-  Serial.printf("[BLE] Total Connection Time: %lu ms\n", connectionMetrics.totalConnectionTime);
-  Serial.println("[BLE] =============================================================");
+  Serial.println("\n[BLE] CONNECTION METRICS");
+  Serial.printf("  Status: %s\n", connectionMetrics.isConnected ? "CONNECTED" : "DISCONNECTED");
+  Serial.printf("  Fragments Sent: %lu\n", connectionMetrics.fragmentsSent);
+  Serial.printf("  Fragments Received: %lu\n", connectionMetrics.fragmentsReceived);
+  Serial.printf("  Bytes Transmitted: %lu\n", connectionMetrics.bytesTransmitted);
+  Serial.printf("  Bytes Received: %lu\n", connectionMetrics.bytesReceived);
+  Serial.printf("  Total Connection Time: %lu ms\n\n", connectionMetrics.totalConnectionTime);
 
   xSemaphoreGive(metricsMutex);
 }

@@ -767,9 +767,13 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}') {
       Serial.printf("[MQTT] ERROR: Payload is not valid JSON! First char: '%c', Last char: '%c'\n",
                     payload.charAt(0), payload.charAt(payload.length() - 1));
-      Serial.printf("[MQTT] Payload (first 100): %s\n", payload.substring(0, 100).c_str());
-      Serial.printf("[MQTT] Payload (last 100): %s\n",
-                    payload.substring(max(0, (int)payload.length() - 100)).c_str());
+      if (payload.length() <= 2000) {
+        Serial.printf("[MQTT] Invalid payload (%u bytes): %s\n", payload.length(), payload.c_str());
+      } else {
+        Serial.printf("[MQTT] Invalid payload too large (%u bytes)\n", payload.length());
+        Serial.printf("  First 200 chars: %s\n", payload.substring(0, 200).c_str());
+        Serial.printf("  Last 200 chars: %s\n", payload.substring(max(0, (int)payload.length() - 200)).c_str());
+      }
       return;
     }
   }
@@ -790,17 +794,19 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
 
   // Publish single message with all data
-  Serial.printf("[MQTT] Publishing payload: %u bytes to topic: %s\n",
-                payload.length(), defaultTopicPublish.c_str());
+  Serial.printf("\n[MQTT] PUBLISH REQUEST\n");
+  Serial.printf("  Topic: %s\n", defaultTopicPublish.c_str());
+  Serial.printf("  Size: %u bytes\n", payload.length());
 
-  // DEBUG: Print payload preview (only in verbose mode)
+  // DEBUG: Print payload (only in verbose mode)
   #if PRODUCTION_MODE == 0
-    // Development mode: Show payload preview for debugging
+    // Development mode: Show full payload for debugging
     if (payload.length() > 0 && payload.length() <= 2000) {
-      // Only show for small payloads (≤2KB) to avoid log spam
-      Serial.printf("[MQTT] Payload preview (%u bytes): %s\n",
-                    payload.length(),
-                    payload.substring(0, min(200, (int)payload.length())).c_str());
+      // Show complete payload for small payloads (≤2KB)
+      Serial.printf("  Payload: %s\n", payload.c_str());
+    } else if (payload.length() > 2000) {
+      // For large payloads, show size only to avoid log spam
+      Serial.printf("  Payload: [%u bytes - too large to display]\n", payload.length());
     }
   #endif
 
@@ -822,11 +828,8 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
 
   #if PRODUCTION_MODE == 0
     // Development mode: Show detailed publish info
-    Serial.printf("[MQTT] Broker: %s:%d | Topic: %s | Payload: %u bytes | Packet: %u/%u bytes\n",
-                  brokerAddress.c_str(), brokerPort,
-                  defaultTopicPublish.c_str(),
-                  payload.length(),
-                  mqttPacketSize, cachedBufferSize);
+    Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
+    Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
   #endif
 
   // Validate packet size doesn't exceed buffer
