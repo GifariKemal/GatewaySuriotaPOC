@@ -41,8 +41,12 @@ bool ServerConfig::begin()
 
 void ServerConfig::restartDeviceTask(void *parameter)
 {
-  Serial.println("[RESTART] Device will restart in 5 seconds after server config update...");
-  vTaskDelay(pdMS_TO_TICKS(5000));
+  // v2.3.5: Increased from 5s to 20s to allow post-restore operations to complete
+  // - Large backup responses can take 4-10 seconds with low DRAM (100-byte chunks)
+  // - Python test scripts need time to complete final verification
+  // - 20-second delay provides safe margin for all scenarios
+  Serial.println("[RESTART] Device will restart in 20 seconds after server config update...");
+  vTaskDelay(pdMS_TO_TICKS(20000));  // 20 seconds (was 5 seconds)
   Serial.println("[RESTART] Restarting device now!");
   ESP.restart();
 }

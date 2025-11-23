@@ -1359,19 +1359,19 @@ void CRUDHandler::processPriorityQueue()
     Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
   #endif
 
-  // BUG #32 FIX: Free DRAM by clearing String after deserialization
-  cmd.payloadJson.clear();
-  cmd.payloadJson = String();  // Force deallocation
-
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD EXEC] Freed %u bytes DRAM (cleared payload string)\n",
-                  heap_caps_get_free_size(MALLOC_CAP_8BIT));
-  #endif
+  // CRITICAL FIX (v2.3.5): DO NOT free String yet!
+  // Zero-copy deserialization means payload JsonDocument holds pointers to cmd.payloadJson
+  // Freeing it now causes Guru Meditation Error when handlers access payload["config"]
+  // We'll free it AFTER all handlers complete (below)
 
   // Only execute if we have a valid manager
   if (!cmd.manager)
   {
     Serial.println("[CRUD] ERROR: Command has no payload or manager, skipping execution");
+
+    // Safe to free here since we're returning early
+    cmd.payloadJson.clear();
+    cmd.payloadJson = String();
     return;
   }
 
@@ -1420,6 +1420,16 @@ void CRUDHandler::processPriorityQueue()
     Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
     cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
   }
+
+  // CRITICAL FIX (v2.3.5): NOW safe to free payload String after handlers complete
+  // All handlers have finished accessing payload, so zero-copy references are no longer needed
+  cmd.payloadJson.clear();
+  cmd.payloadJson = String();  // Force deallocation
+
+  #if PRODUCTION_MODE == 0
+    Serial.printf("[CRUD EXEC] Freed payload string after processing (%u bytes DRAM free)\n",
+                  heap_caps_get_free_size(MALLOC_CAP_8BIT));
+  #endif
 
   batchStats.totalCommandsProcessed++;
 }

@@ -134,7 +134,7 @@ async def send_command(client, command):
     print(f"   {command_json}")
 
     # Fragmentation: 18 bytes per chunk (matching ble_test.py)
-    chunk_size = 18
+    chunk_size = 100
     total_chunks = (len(command_json) + chunk_size - 1) // chunk_size
 
     print(f"   Fragmenting into {total_chunks} chunk(s) ({chunk_size} bytes/chunk)...")
@@ -153,7 +153,7 @@ async def send_command(client, command):
     print(f"   ✓ End marker <END> sent")
 
     # Wait for response with timeout
-    timeout = 120  # 60 seconds for large responses
+    timeout = 120  # 120 seconds for large responses
     start_time = time.time()
 
     print(f"\n📥 WAITING FOR RESPONSE (timeout: {timeout}s)...")
