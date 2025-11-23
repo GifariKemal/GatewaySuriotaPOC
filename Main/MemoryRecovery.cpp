@@ -114,7 +114,7 @@ RecoveryAction MemoryRecovery::checkAndRecover() {
 
     // Throttle DRAM warnings - log only every 60 seconds to reduce noise
     // System is stable at ~29KB when BLE connected with no devices configured
-    static LogThrottle dramWarnThrottle(60000); // Log every 60 seconds
+    static LogThrottle dramWarnThrottle(120000); // Log every 120 seconds
     char dramContext[64];
     snprintf(dramContext, sizeof(dramContext), "DRAM at %lu KB (event #%lu)", freeDram / 1024, lowMemoryEventCount);
     if (dramWarnThrottle.shouldLog(dramContext)) {
