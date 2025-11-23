@@ -23,7 +23,7 @@
 // Impact: 21KB payload transmission time: 58s → 2.1s (28x faster)
 #define CHUNK_SIZE 244
 #define FRAGMENT_DELAY_MS 10
-#define COMMAND_BUFFER_SIZE 4096         // Increased for PSRAM usage
+#define COMMAND_BUFFER_SIZE 16384        // 16KB - supports CREATE/UPDATE with ~80 registers (v2.3.1)
 #define BLE_QUEUE_MONITOR_INTERVAL 60000 // Monitor queue every 60 seconds
 
 // FIXED BUG #21: Define named constants for magic numbers
