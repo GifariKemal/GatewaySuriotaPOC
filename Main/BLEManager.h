@@ -31,9 +31,11 @@
 #define BLE_MTU_MAX_REQUESTED 517        // Maximum MTU we request (not all clients support)
 #define BLE_MTU_MAX_SUPPORTED 512        // Maximum MTU we actually support
 #define MAX_RESPONSE_SIZE_BYTES 204800   // 200KB maximum response size (for full_config backup with 50+ devices)
-#define LARGE_PAYLOAD_THRESHOLD 5120     // 5KB threshold for adaptive chunking
+#define LARGE_PAYLOAD_THRESHOLD 5120     // 5KB threshold for adaptive chunking (medium payloads)
+#define XLARGE_PAYLOAD_THRESHOLD 51200   // 50KB threshold for extra-large payloads (backup/restore)
 #define ADAPTIVE_CHUNK_SIZE_LARGE 100    // Chunk size for large payloads
-#define ADAPTIVE_DELAY_LARGE_MS 20       // Delay for large payload chunks
+#define ADAPTIVE_DELAY_LARGE_MS 20       // Delay for large payload chunks (5-50KB)
+#define ADAPTIVE_DELAY_XLARGE_MS 50      // Delay for extra-large payload chunks (>50KB) - prevents mobile app timeout
 #define ERROR_BUFFER_SIZE 256            // Buffer size for error messages
 
 // MTU Negotiation Timeout Control

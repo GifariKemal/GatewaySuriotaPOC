@@ -365,7 +365,7 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.3.1";
+    backupInfo["firmware_version"] = "2.3.4";
     backupInfo["device_name"] = "SURIOTA_GW";
 
     // Get all configurations
