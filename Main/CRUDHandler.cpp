@@ -1459,6 +1459,11 @@ void CRUDHandler::processPriorityQueue()
     Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
     cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
   }
+  else
+  {
+    // Add newline after successful command processing for better readability
+    Serial.println();
+  }
 
   // CRITICAL FIX (v2.3.5): NOW safe to free payload String after handlers complete
   // All handlers have finished accessing payload, so zero-copy references are no longer needed
