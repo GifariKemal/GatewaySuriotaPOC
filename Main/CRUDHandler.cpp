@@ -1074,7 +1074,7 @@ void CRUDHandler::setupCommandHandlers()
       return;
     }
 
-    Serial.printf("[CONFIG RESTORE] ✓ Config object validated (%u keys)\n", restoreConfig.size());
+    Serial.printf("[CONFIG RESTORE] OK: Config object validated (%u keys)\n", restoreConfig.size());
 
     int successCount = 0;
     int failCount = 0;
@@ -1133,7 +1133,7 @@ void CRUDHandler::setupCommandHandlers()
           {
             deviceCount++;
             #if PRODUCTION_MODE == 0
-              Serial.printf("[CONFIG RESTORE] ✓ Created device: %s\n", deviceId.c_str());
+              Serial.printf("[CONFIG RESTORE] OK: Created device: %s\n", deviceId.c_str());
             #endif
           }
           else

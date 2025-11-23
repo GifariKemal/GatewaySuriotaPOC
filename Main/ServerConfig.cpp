@@ -262,8 +262,8 @@ bool ServerConfig::getConfig(JsonObject &result)
   // Ensure individual fields exist
   if (http["enabled"].isNull()) http["enabled"] = false;
   if (http["endpoint_url"].isNull()) http["endpoint_url"] = "";
-  if (http["method"].isNull()) http["method"] = "POST";  // ⚡ CRITICAL for mobile app!
-  if (http["body_format"].isNull()) http["body_format"] = "json";  // ⚡ CRITICAL for mobile app!
+  if (http["method"].isNull()) http["method"] = "POST";  // CRITICAL for mobile app!
+  if (http["body_format"].isNull()) http["body_format"] = "json";  // CRITICAL for mobile app!
   if (http["timeout"].isNull()) http["timeout"] = 5000;
   if (http["retry"].isNull()) http["retry"] = 3;
   if (http["interval"].isNull()) http["interval"] = 5;  // v2.2.0: HTTP transmission interval

@@ -873,7 +873,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   #if PRODUCTION_MODE == 0
     // Development mode: Show detailed publish result
     Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
-                  published ? "✓ SUCCESS" : "✗ FAILED",
+                  published ? "SUCCESS" : "FAILED",
                   mqttClient.state(),
                   mqttClient.state() == 0 ? "connected" : "disconnected");
   #else

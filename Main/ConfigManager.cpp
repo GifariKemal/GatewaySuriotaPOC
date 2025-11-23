@@ -575,7 +575,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
   JsonDocument devices;
   if (!loadJson(DEVICES_FILE, devices))
   {
-    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] ❌ Failed to load devices file");
+    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] ERROR: Failed to load devices file");
     return;
   }
 
