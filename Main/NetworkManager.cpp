@@ -772,18 +772,16 @@ void NetworkMgr::configureHysteresis(const HysteresisConfig &config)
 
 void NetworkMgr::printNetworkStatus() const
 {
-  Serial.println("\n╔════════════════════════════════════════════════════════════╗");
-  Serial.println("║         NETWORK FAILOVER & HYSTERESIS STATUS REPORT        ║");
-  Serial.println("╚════════════════════════════════════════════════════════════╝");
+  Serial.println("\n[NETWORK MGR] NETWORK FAILOVER & HYSTERESIS STATUS REPORT\n");
 
-  Serial.printf("[NetworkMgr] Current Active Mode: %s\n", activeMode.c_str());
-  Serial.printf("[NetworkMgr] Primary Mode: %s\n", primaryMode.c_str());
-  Serial.printf("[NetworkMgr] Overall Network Available: %s\n", networkAvailable ? "YES" : "NO");
-  Serial.printf("[NetworkMgr] Hysteresis Enabled: %s\n", hysteresisEnabled ? "YES" : "NO");
+  Serial.printf("  Current Active Mode: %s\n", activeMode.c_str());
+  Serial.printf("  Primary Mode: %s\n", primaryMode.c_str());
+  Serial.printf("  Overall Network Available: %s\n", networkAvailable ? "YES" : "NO");
+  Serial.printf("  Hysteresis Enabled: %s\n\n", hysteresisEnabled ? "YES" : "NO");
 
   if (wifiManager && wifiManager->isAvailable())
   {
-    Serial.printf("[NetworkMgr] WiFi Signal: RSSI=%ld dBm, Quality=%d%%\n",
+    Serial.printf("  WiFi Signal: RSSI=%ld dBm, Quality=%d%%\n\n",
                   wifiSignalMetrics.rssi, wifiSignalMetrics.signalQuality);
   }
 
@@ -795,7 +793,7 @@ void NetworkMgr::printNetworkStatus() const
     hysteresis->printSwitchDecisionRationale();
   }
 
-  Serial.println("╔════════════════════════════════════════════════════════════╗\n");
+  Serial.println();
 }
 
 NetworkMgr::~NetworkMgr()

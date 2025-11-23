@@ -570,20 +570,19 @@ const char *MQTTPersistentQueue::getPriorityString(MessagePriority priority) con
 // Diagnostics
 void MQTTPersistentQueue::printQueueStatus()
 {
-  Serial.println("\n[MQTT_QUEUE] ════════════════════════════════════════");
-  Serial.printf("[MQTT_QUEUE] Queue Status: %s\n", getHealthStatusString(stats.health));
-  Serial.printf("[MQTT_QUEUE] Pending messages: %ld / %ld (%.1f%%)\n",
+  Serial.println("\n[MQTT_QUEUE] QUEUE STATUS");
+  Serial.printf("  Health: %s\n", getHealthStatusString(stats.health));
+  Serial.printf("  Pending messages: %ld / %ld (%.1f%%)\n",
                 stats.totalMessages, config.maxQueueSize, stats.utilizationPercent);
-  Serial.printf("[MQTT_QUEUE] Total payload: %ld bytes\n", stats.totalPayloadSize);
-  Serial.printf("[MQTT_QUEUE] Success rate: %.1f%% (%ld/%ld)\n",
+  Serial.printf("  Total payload: %ld bytes\n", stats.totalPayloadSize);
+  Serial.printf("  Success rate: %.1f%% (%ld/%ld)\n\n",
                 stats.successRate, stats.successfulMessages,
                 stats.successfulMessages + stats.failedMessages);
-  Serial.println("[MQTT_QUEUE] ════════════════════════════════════════\n");
 }
 
 void MQTTPersistentQueue::printQueueDetails()
 {
-  Serial.println("\n[MQTT_QUEUE] ─── HIGH PRIORITY QUEUE ───");
+  Serial.println("\n[MQTT_QUEUE] HIGH PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", highPriorityQueue.size());
   for (const auto &msg : highPriorityQueue)
   {
@@ -593,7 +592,7 @@ void MQTTPersistentQueue::printQueueDetails()
                   msg.retryCount);
   }
 
-  Serial.println("[MQTT_QUEUE] ─── NORMAL PRIORITY QUEUE ───");
+  Serial.println("\n[MQTT_QUEUE] NORMAL PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", normalPriorityQueue.size());
   for (const auto &msg : normalPriorityQueue)
   {
@@ -603,7 +602,7 @@ void MQTTPersistentQueue::printQueueDetails()
                   msg.retryCount);
   }
 
-  Serial.println("[MQTT_QUEUE] ─── LOW PRIORITY QUEUE ───");
+  Serial.println("\n[MQTT_QUEUE] LOW PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", lowPriorityQueue.size());
   for (const auto &msg : lowPriorityQueue)
   {
@@ -617,24 +616,23 @@ void MQTTPersistentQueue::printQueueDetails()
 
 void MQTTPersistentQueue::printStatistics()
 {
-  Serial.println("\n[MQTT_QUEUE] ─── STATISTICS ───");
-  Serial.printf("Total queued: %ld\n", stats.totalMessages);
-  Serial.printf("By priority: HIGH=%ld, NORMAL=%ld, LOW=%ld\n",
+  Serial.println("\n[MQTT_QUEUE] STATISTICS");
+  Serial.printf("  Total queued: %ld\n", stats.totalMessages);
+  Serial.printf("  By priority: HIGH=%ld, NORMAL=%ld, LOW=%ld\n",
                 stats.highPriorityCount, stats.normalPriorityCount,
                 stats.lowPriorityCount);
-  Serial.printf("Total payload: %ld bytes (avg: %ld, max: %ld)\n",
+  Serial.printf("  Total payload: %ld bytes (avg: %ld, max: %ld)\n",
                 stats.totalPayloadSize, stats.averagePayloadSize,
                 stats.largestPayloadSize);
-  Serial.printf("Successful: %ld | Failed: %ld | Expired: %ld\n",
+  Serial.printf("  Successful: %ld | Failed: %ld | Expired: %ld\n",
                 stats.successfulMessages, stats.failedMessages,
                 stats.expiredMessages);
-  Serial.printf("Retries: %ld attempts\n", stats.totalRetries);
-  Serial.println("[MQTT_QUEUE] ───────────────────────\n");
+  Serial.printf("  Retries: %ld attempts\n\n", stats.totalRetries);
 }
 
 void MQTTPersistentQueue::printRetryQueueStatus()
 {
-  Serial.println("\n[MQTT_QUEUE] ─── MESSAGES WAITING FOR RETRY ───");
+  Serial.println("\n[MQTT_QUEUE] MESSAGES WAITING FOR RETRY");
 
   uint32_t waitingCount = 0;
   unsigned long now = millis();
@@ -679,12 +677,12 @@ void MQTTPersistentQueue::printRetryQueueStatus()
   {
     Serial.println("  None");
   }
-  Serial.println("[MQTT_QUEUE] ─────────────────────────────────\n");
+  Serial.println();
 }
 
 void MQTTPersistentQueue::printFailedMessages()
 {
-  Serial.println("\n[MQTT_QUEUE] ─── FAILED MESSAGES ───");
+  Serial.println("\n[MQTT_QUEUE] FAILED MESSAGES");
 
   uint32_t failedCount = 0;
 
@@ -725,21 +723,17 @@ void MQTTPersistentQueue::printFailedMessages()
   {
     Serial.println("  None - all messages successful!");
   }
-  Serial.println("[MQTT_QUEUE] ──────────────────────────\n");
+  Serial.println();
 }
 
 void MQTTPersistentQueue::printHealthReport()
 {
-  Serial.println("\n╔════════════════════════════════════════╗");
-  Serial.println("║   MQTT PERSISTENT QUEUE HEALTH REPORT  ║");
-  Serial.println("╚════════════════════════════════════════╝");
+  Serial.println("\n[MQTT QUEUE] HEALTH REPORT\n");
 
   printQueueStatus();
   printStatistics();
   printRetryQueueStatus();
   printFailedMessages();
-
-  Serial.println("╔════════════════════════════════════════╗\n");
 }
 
 // Queue management

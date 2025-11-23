@@ -1916,9 +1916,7 @@ void CRUDHandler::performFactoryReset()
 
   // Step 6: Restart device
   Serial.println("[FACTORY RESET] [6/6] All configurations cleared successfully");
-  Serial.println("[FACTORY RESET] ========================================");
-  Serial.println("[FACTORY RESET] Device will restart in 3 seconds...");
-  Serial.println("[FACTORY RESET] ========================================");
+  Serial.println("[FACTORY RESET] Device will restart in 3 seconds...\n");
 
   delay(3000);
 

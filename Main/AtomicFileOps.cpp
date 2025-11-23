@@ -413,15 +413,15 @@ void AtomicFileOps::forceWALCleanup()
 
 void AtomicFileOps::printWALStatus()
 {
-  Serial.println("[ATOMIC] === WAL STATUS ===");
-  Serial.printf("WAL Entries: %d\n", walLog.size());
+  Serial.println("\n[ATOMIC] WAL STATUS");
+  Serial.printf("  WAL Entries: %d\n", walLog.size());
 
   if (xSemaphoreTake(walMutex, pdMS_TO_TICKS(1000)) == pdTRUE)
   {
     for (size_t i = 0; i < walLog.size(); i++)
     {
       const auto &entry = walLog[i];
-      Serial.printf("  [%d] %s on %s - %s\n",
+      Serial.printf("    [%d] %s on %s - %s\n",
                     i,
                     entry.operation.c_str(),
                     entry.targetFile.c_str(),
@@ -429,6 +429,5 @@ void AtomicFileOps::printWALStatus()
     }
     xSemaphoreGive(walMutex);
   }
-
-  Serial.println("[ATOMIC] ==================");
+  Serial.println();
 }
