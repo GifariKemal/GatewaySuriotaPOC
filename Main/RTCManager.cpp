@@ -18,7 +18,7 @@ bool RTCManager::init()
 {
   if (initialized)
   {
-    Serial.println("RTC already initialized");
+    Serial.println("[RTC] Already initialized");
     return true;
   }
 
@@ -26,13 +26,13 @@ bool RTCManager::init()
 
   if (!rtc.begin())
   {
-    Serial.println("Couldn't find RTC");
+    Serial.println("[RTC] ERROR: Couldn't find RTC");
     return false;
   }
 
   if (rtc.lostPower())
   {
-    Serial.println("RTC lost power, setting time from compile time");
+    Serial.println("[RTC] Lost power, setting time from compile time");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 
@@ -41,17 +41,17 @@ bool RTCManager::init()
   // Check if RTC time is invalid or too old (before 2024)
   if (rtcTime.year() < 2024)
   {
-    Serial.printf("RTC has invalid time (year=%d), setting from compile time\n", rtcTime.year());
+    Serial.printf("[RTC] Invalid time (year=%d), setting from compile time\n", rtcTime.year());
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     rtcTime = rtc.now();
   }
 
-  Serial.printf("RTC current time: %04d-%02d-%02d %02d:%02d:%02d\n",
+  Serial.printf("[RTC] Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
                 rtcTime.year(), rtcTime.month(), rtcTime.day(),
                 rtcTime.hour(), rtcTime.minute(), rtcTime.second());
 
   initialized = true;
-  Serial.println("RTC initialized successfully");
+  Serial.println("[RTC] Initialized successfully");
 
   // Update system time from RTC immediately
   updateSystemTime(rtcTime);
@@ -77,7 +77,7 @@ void RTCManager::startSync()
       1,
       &syncTaskHandle,
       0); // Core 0 (moved from Core 1 for load balancing)
-  Serial.println("RTC sync service started");
+  Serial.println("[RTC] Sync service started");
 }
 
 void RTCManager::stopSync()
@@ -88,7 +88,7 @@ void RTCManager::stopSync()
     vTaskDelete(syncTaskHandle);
     syncTaskHandle = nullptr;
   }
-  Serial.println("RTC sync service stopped");
+  Serial.println("[RTC] Sync service stopped");
 }
 
 void RTCManager::timeSyncTask(void *parameter)
@@ -286,7 +286,7 @@ bool RTCManager::setTime(DateTime newTime)
   rtc.adjust(newTime);
   updateSystemTime(newTime);
 
-  Serial.printf("RTC time set: %04d-%02d-%02d %02d:%02d:%02d\n",
+  Serial.printf("[RTC] Time set: %04d-%02d-%02d %02d:%02d:%02d\n",
                 newTime.year(), newTime.month(), newTime.day(),
                 newTime.hour(), newTime.minute(), newTime.second());
 
