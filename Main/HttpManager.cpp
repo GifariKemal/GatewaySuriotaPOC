@@ -22,22 +22,22 @@ HttpManager *HttpManager::getInstance(ConfigManager *config, ServerConfig *serve
 
 bool HttpManager::init()
 {
-  Serial.println("Initializing HTTP Manager...");
+  Serial.println("[HTTP] Initializing manager...");
 
   if (!configManager || !queueManager || !serverConfig || !networkManager)
   {
-    Serial.println("ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
+    Serial.println("[HTTP] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
     return false;
   }
 
   loadHttpConfig();
-  Serial.println("HTTP Manager initialized successfully");
+  Serial.println("[HTTP] Manager initialized");
   return true;
 }
 
 void HttpManager::start()
 {
-  Serial.println("Starting HTTP Manager...");
+  Serial.println("[HTTP] Starting manager...");
 
   if (running)
   {
@@ -56,11 +56,11 @@ void HttpManager::start()
 
   if (result == pdPASS)
   {
-    Serial.println("HTTP Manager started successfully");
+    Serial.println("[HTTP] Manager started successfully");
   }
   else
   {
-    Serial.println("Failed to create HTTP task");
+    Serial.println("[HTTP] ERROR: Failed to create HTTP task");
     running = false;
     taskHandle = nullptr;
   }
@@ -78,7 +78,7 @@ void HttpManager::stop()
     taskHandle = nullptr;
   }
 
-  Serial.println("HTTP Manager stopped");
+  Serial.println("[HTTP] Manager stopped");
 }
 
 void HttpManager::httpTask(void *parameter)
@@ -111,7 +111,7 @@ void HttpManager::httpLoop()
           ledManager->setHttpConnectionStatus(false);
         }
       }
-      Serial.printf("[HTTP] Waiting for network... Mode: %s, IP: %s\n",
+      Serial.printf("[HTTP] Waiting for network | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
 
@@ -120,7 +120,7 @@ void HttpManager::httpLoop()
     }
     else if (!networkWasAvailable)
     {
-      Serial.printf("[HTTP] Network available - %s IP: %s\n",
+      Serial.printf("[HTTP] Network available | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
       networkWasAvailable = true;
@@ -268,7 +268,7 @@ void HttpManager::loadHttpConfig()
     timeout = httpConfig["timeout"] | 10000;
     retryCount = httpConfig["retry"] | 3;
 
-    Serial.printf("[HTTP] Config loaded - URL: %s, Method: %s, Timeout: %d, Retry: %d\n",
+    Serial.printf("[HTTP] Config loaded | URL: %s | Method: %s | Timeout: %d | Retry: %d\n",
                   endpointUrl.c_str(), method.c_str(), timeout, retryCount);
   }
   else

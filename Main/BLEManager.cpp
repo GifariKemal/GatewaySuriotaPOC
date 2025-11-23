@@ -155,7 +155,7 @@ bool BLEManager::begin()
       &metricsTaskHandle,
       1); // Core 1 (must stay with other BLE tasks to avoid race conditions)
 
-  Serial.println("BLE Manager initialized: " + serviceName);
+  Serial.println("[BLE] Manager initialized: " + serviceName);
   Serial.println("[BLE] MTU Metrics and Queue Monitoring enabled");
   return true;
 }

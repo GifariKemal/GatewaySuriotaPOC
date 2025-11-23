@@ -33,32 +33,32 @@ ModbusTcpService::ModbusTcpService(ConfigManager *config, EthernetManager *ether
 
 bool ModbusTcpService::init()
 {
-  Serial.println("Initializing custom Modbus TCP service...");
+  Serial.println("[TCP] Initializing service...");
 
   if (!configManager)
   {
-    Serial.println("ConfigManager is null");
+    Serial.println("[TCP] ERROR: ConfigManager is null");
     return false;
   }
 
   if (!ethernetManager)
   {
-    Serial.println("EthernetManager is null");
+    Serial.println("[TCP] ERROR: EthernetManager is null");
     return false;
   }
 
-  Serial.printf("Ethernet available: %s\n", ethernetManager->isAvailable() ? "YES" : "NO");
-  Serial.println("Custom Modbus TCP service initialized successfully");
+  Serial.printf("[TCP] Ethernet available: %s\n", ethernetManager->isAvailable() ? "YES" : "NO");
+  Serial.println("[TCP] Service initialized");
   return true;
 }
 
 void ModbusTcpService::start()
 {
-  Serial.println("Starting custom Modbus TCP service...");
+  Serial.println("[TCP] Starting service...");
 
   if (running)
   {
-    Serial.println("Service already running");
+    Serial.println("[TCP] Service already running");
     return;
   }
 
@@ -74,7 +74,7 @@ void ModbusTcpService::start()
 
   if (result == pdPASS)
   {
-    Serial.println("Custom Modbus TCP service started successfully");
+    Serial.println("[TCP] Service started successfully");
 
     // Start auto-recovery task
     // MUST stay on Core 1: Modifies device status accessed by MODBUS_TCP_TASK (Core 1)
@@ -98,7 +98,7 @@ void ModbusTcpService::start()
   }
   else
   {
-    Serial.println("Failed to create Modbus TCP task");
+    Serial.println("[TCP] ERROR: Failed to create Modbus TCP task");
     running = false;
     tcpTaskHandle = nullptr;
   }
@@ -125,7 +125,7 @@ void ModbusTcpService::stop()
     tcpTaskHandle = nullptr;
   }
 
-  Serial.println("Custom Modbus TCP service stopped");
+  Serial.println("[TCP] Service stopped");
 }
 
 void ModbusTcpService::notifyConfigChange()
