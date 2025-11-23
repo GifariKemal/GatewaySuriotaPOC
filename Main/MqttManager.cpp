@@ -54,11 +54,11 @@ MqttManager *MqttManager::getInstance(ConfigManager *config, ServerConfig *serve
 
 bool MqttManager::init()
 {
-  Serial.println("Initializing MQTT Manager...");
+  Serial.println("[MQTT] Initializing manager...");
 
   if (!configManager || !queueManager || !serverConfig || !networkManager)
   {
-    Serial.println("ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
+    Serial.println("[MQTT] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
     return false;
   }
 
@@ -77,13 +77,13 @@ bool MqttManager::init()
     }
   }
 
-  Serial.println("MQTT Manager initialized successfully");
+  Serial.println("[MQTT] Manager initialized");
   return true;
 }
 
 void MqttManager::start()
 {
-  Serial.println("Starting MQTT Manager...");
+  Serial.println("[MQTT] Starting manager...");
 
   if (running)
   {
@@ -104,11 +104,11 @@ void MqttManager::start()
 
   if (result == pdPASS)
   {
-    Serial.println("MQTT Manager started successfully");
+    Serial.println("[MQTT] Manager started successfully");
   }
   else
   {
-    Serial.println("Failed to create MQTT task");
+    Serial.println("[MQTT] ERROR: Failed to create MQTT task");
     running = false;
     taskHandle = nullptr;
   }
@@ -130,7 +130,7 @@ void MqttManager::stop()
   {
     mqttClient.disconnect();
   }
-  Serial.println("MQTT Manager stopped");
+  Serial.println("[MQTT] Manager stopped");
 }
 
 void MqttManager::disconnect()
@@ -173,7 +173,7 @@ void MqttManager::mqttLoop()
         wifiWasConnected = false;
         wasConnected = false;
       }
-      Serial.printf("[MQTT] Waiting for network... Mode: %s, IP: %s\n",
+      Serial.printf("[MQTT] Waiting for network | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
 
@@ -183,7 +183,7 @@ void MqttManager::mqttLoop()
     }
     else if (!wifiWasConnected)
     {
-      Serial.printf("[MQTT] Network available - %s IP: %s\n",
+      Serial.printf("[MQTT] Network available | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
       wifiWasConnected = true;
@@ -335,12 +335,12 @@ bool MqttManager::connectToMqtt()
 
   if (connected)
   {
-    Serial.printf("[MQTT] Connected to %s:%d via %s (%s)\n",
+    Serial.printf("[MQTT] Connected | Broker: %s:%d | Network: %s (%s)\n",
                   brokerAddress.c_str(), brokerPort, networkMode.c_str(), localIP.toString().c_str());
   }
   else
   {
-    Serial.printf("[MQTT] Connection failed: error %d\n", mqttClient.state());
+    Serial.printf("[MQTT] ERROR: Connection failed | Error code: %d\n", mqttClient.state());
   }
 
   return connected;
@@ -375,9 +375,8 @@ void MqttManager::loadMqttConfig()
     publishMode = mqttConfig["publish_mode"] | "default";
 
     #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Config loaded - Broker: %s:%d, Client: %s\n",
-                    brokerAddress.c_str(), brokerPort, clientId.c_str());
-      Serial.printf("[MQTT] Auth: %s, Mode: %s\n",
+      Serial.printf("[MQTT] Config loaded | Broker: %s:%d | Client: %s | Auth: %s | Mode: %s\n",
+                    brokerAddress.c_str(), brokerPort, clientId.c_str(),
                     (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
     #endif
 
@@ -401,7 +400,7 @@ void MqttManager::loadMqttConfig()
       lastDefaultPublish = 0;
 
       #if PRODUCTION_MODE == 0
-        Serial.printf("[MQTT] Default Mode: %s, Topic: %s, Interval: %u%s (%ums)\n",
+        Serial.printf("[MQTT] Default Mode: %s | Topic: %s | Interval: %u%s (%ums)\n",
                       defaultModeEnabled ? "ENABLED" : "DISABLED",
                       defaultTopicPublish.c_str(), intervalValue,
                       defaultIntervalUnit.c_str(), defaultInterval);
@@ -446,7 +445,7 @@ void MqttManager::loadMqttConfig()
           {
             customTopics.push_back(ct);
             #if PRODUCTION_MODE == 0
-              Serial.printf("[MQTT] Custom Topic: %s, Registers: %d, Interval: %u%s (%ums)\n",
+              Serial.printf("[MQTT] Custom Topic: %s | Registers: %d | Interval: %u%s (%ums)\n",
                             ct.topic.c_str(), ct.registers.size(), intervalValue,
                             ct.intervalUnit.c_str(), ct.interval);
             #endif
@@ -455,7 +454,7 @@ void MqttManager::loadMqttConfig()
       }
 
       #if PRODUCTION_MODE == 0
-        Serial.printf("[MQTT] Customize Mode: %s, Topics: %d\n",
+        Serial.printf("[MQTT] Customize Mode: %s | Topics: %d\n",
                       customizeModeEnabled ? "ENABLED" : "DISABLED",
                       customTopics.size());
       #endif
