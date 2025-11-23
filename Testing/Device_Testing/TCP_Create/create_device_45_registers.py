@@ -121,7 +121,7 @@ class DeviceCreationClient:
                 "timeout": 5000,
                 "retry_count": 3,
                 "refresh_rate_ms": 2000,
-                "ip": "192.168.1.8",
+                "ip": "192.168.1.6",
                 "port": 502
             }
         }

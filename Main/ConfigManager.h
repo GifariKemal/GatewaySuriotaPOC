@@ -70,6 +70,7 @@ public:
 
   // Cache management
   void refreshCache();
+  void clearCache();  // v2.3.6: Clear caches without reload (for DRAM optimization)
   void debugDevicesFile();
   void fixCorruptDeviceIds();
   void removeCorruptKeys();

@@ -596,7 +596,8 @@ void BLEManager::sendFragmented(const char* data, size_t length)
     adaptiveDelay = ADAPTIVE_DELAY_XLARGE_MS;  // 50ms - critical for large backups
 
     // Chunk size depends on DRAM availability
-    if (freeDRAM < 30000) {
+    // v2.3.6 OPTIMIZED: Lowered from 30KB to 25KB to accommodate post-restore DRAM levels (~28KB)
+    if (freeDRAM < 25000) {
       adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // 100 bytes
       Serial.printf("[BLE] XLARGE payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
@@ -610,7 +611,8 @@ void BLEManager::sendFragmented(const char* data, size_t length)
     adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;  // 20ms
 
     // Chunk size depends on DRAM availability
-    if (freeDRAM < 30000) {
+    // v2.3.6 OPTIMIZED: Lowered from 30KB to 25KB to accommodate post-restore DRAM levels (~28KB)
+    if (freeDRAM < 25000) {
       adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // 100 bytes
       Serial.printf("[BLE] Large payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with SLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);

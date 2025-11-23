@@ -41,12 +41,12 @@ bool ServerConfig::begin()
 
 void ServerConfig::restartDeviceTask(void *parameter)
 {
-  // v2.3.5: Increased from 5s to 20s to allow post-restore operations to complete
-  // - Large backup responses can take 4-10 seconds with low DRAM (100-byte chunks)
-  // - Python test scripts need time to complete final verification
-  // - 20-second delay provides safe margin for all scenarios
-  Serial.println("[RESTART] Device will restart in 20 seconds after server config update...");
-  vTaskDelay(pdMS_TO_TICKS(20000));  // 20 seconds (was 5 seconds)
+  // v2.3.6 OPTIMIZED: Reduced from 20s to 10s after threshold optimization
+  // - Post-restore backup now takes ~1.5s (optimized from 3.5s via 25KB threshold)
+  // - Python processing: ~1s, Script delay: ~3s = Total ~5.5s
+  // - 10-second delay provides 4.5s safety margin (adequate for production)
+  Serial.println("[RESTART] Device will restart in 10 seconds after server config update...");
+  vTaskDelay(pdMS_TO_TICKS(10000));  // 10 seconds (was 20s in v2.3.5, 5s before that)
   Serial.println("[RESTART] Restarting device now!");
   ESP.restart();
 }

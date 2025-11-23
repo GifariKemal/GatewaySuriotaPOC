@@ -1301,6 +1301,26 @@ void ConfigManager::refreshCache()
                 registersLoaded ? "OK" : "FAIL");
 }
 
+void ConfigManager::clearCache()
+{
+  // v2.3.6 OPTIMIZATION: Clear caches without reload
+  // Purpose: Free DRAM after restore operations
+  // Unlike refreshCache(), this does NOT reload from files
+  // Cache will be lazily reloaded on next access
+
+  Serial.println("[CACHE] Clearing caches to free DRAM...");
+
+  // Invalidate cache flags
+  devicesCacheValid = false;
+  registersCacheValid = false;
+
+  // Free JsonDocument memory
+  devicesCache->clear();
+  registersCache->clear();
+
+  Serial.println("[CACHE] Devices and registers caches cleared (will reload on next access)");
+}
+
 void ConfigManager::debugDevicesFile()
 {
   Serial.println("\n[CONFIG] DEVICES FILE DEBUG");
