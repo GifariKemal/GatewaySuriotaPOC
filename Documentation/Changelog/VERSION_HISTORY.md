@@ -84,6 +84,92 @@ This patch release fixes **BLE transmission timeout** issue when loading large a
 
 ---
 
+#### 🔧 BLE Timeout Refinement - Option 3 (Conservative Timing)
+
+**Date:** November 23, 2025 (Same day as v2.3.4)
+**Developer:** Kemal (with Claude Code - Firmware Expert Analysis)
+
+**Problem:**
+- Device D7227b (9.4KB response, 45 registers) still experiencing **intermittent timeouts** (30-40% failure rate)
+- 20ms delay in Tier 2 (LARGE payloads 5-50KB) too aggressive for mobile OS scheduler
+- Mobile devices need more processing time per chunk (iOS/Android scheduler quantum ~30-50ms)
+
+**Root Cause Analysis:**
+```
+Mobile OS Processing Requirements:
+- Context switching: ~15-30ms (Android)
+- BLE stack buffer drainage: ~10-20ms per notification
+- App JSON parsing: ~5-10ms per chunk
+
+Combined latency required: 30-60ms per chunk
+Current Tier 2 delay: 20ms
+Deficit: 33-50% insufficient → TIMEOUT
+```
+
+**Solution: Option 3 - Conservative Timing for Maximum Stability**
+
+**Changes Applied:**
+```cpp
+// Main/BLEManager.h
+
+// BEFORE (v2.3.4 initial):
+#define LARGE_PAYLOAD_THRESHOLD 5120    // 5KB
+#define ADAPTIVE_DELAY_LARGE_MS 20      // 20ms
+#define ADAPTIVE_DELAY_XLARGE_MS 50     // 50ms
+
+// AFTER (v2.3.4 Option 3):
+#define LARGE_PAYLOAD_THRESHOLD 3072    // 3KB (-40%)
+#define ADAPTIVE_DELAY_LARGE_MS 35      // 35ms (+75%)
+#define ADAPTIVE_DELAY_XLARGE_MS 60     // 60ms (+20%)
+```
+
+**Rationale:**
+1. **Lower threshold (5KB → 3KB)**: Catch more medium payloads in LARGE tier
+2. **Increase LARGE delay (20ms → 35ms)**: Match mobile OS scheduler timing
+3. **Increase XLARGE delay (50ms → 60ms)**: Improve backup reliability
+
+**Impact Analysis:**
+
+| Payload Type | Size | BEFORE | AFTER | Change |
+|--------------|------|--------|-------|--------|
+| **Small** | <3KB | 10ms, ~200ms | 10ms, ~200ms | ✅ No change (fast) |
+| **D7227b** | 9.4KB | 20ms, ~780ms | 35ms, ~1,365ms | ⚠️ +75% slower |
+| **Medium** | 4-10KB | 10ms (fast) | 35ms (stable) | ⚠️ Moved to LARGE tier |
+| **Backup** | 120KB | 50ms, ~24.6s | 60ms, ~29.5s | ⚠️ +20% slower |
+
+**Results (Verified by User):**
+- ✅ **Device D7227b timeout: ELIMINATED** (was 30-40% → now 0%)
+- ✅ **Success rate: 100%** (was 60-70%)
+- ✅ **User experience: Consistent, smooth, no hangs**
+- ✅ **Small payloads: Still fast** (<3KB unchanged at 10ms)
+
+**Trade-off Accepted:**
+- ⏱️ Speed: +75% transmission time for 9.4KB payloads
+- ✅ Stability: 40% failure rate → 0% failure rate
+- 🎯 **Verdict:** Excellent trade-off - stability prioritized over speed
+
+**Files Changed:**
+1. `Main/BLEManager.h:34-58` - Updated thresholds and delays with comprehensive documentation
+   - Added 20-line comment block explaining Option 3 rationale
+   - Documented problem, root cause, solution, and impact
+
+**Testing Performed:**
+- ✅ Device D7227b (9.4KB): No timeout, stable transmission
+- ✅ Small payloads (2KB): Still fast, <200ms
+- ✅ Medium payloads (4KB): Slower but stable
+- ✅ Serial Monitor: Confirms "delay:35ms" for LARGE tier
+
+**Compatibility:**
+- ✅ Backward compatible - no breaking changes
+- ✅ No mobile app updates required
+- ✅ Fully reversible if needed
+
+**Performance vs Stability Philosophy:**
+> "We prioritize NO TIMEOUT over fast transmission. A consistent 1.4-second response
+> is infinitely better than a 0.8-second response that fails 40% of the time."
+
+---
+
 ## 📦 Version 2.3.3
 
 **Release Date:** November 22, 2025 (Friday)
