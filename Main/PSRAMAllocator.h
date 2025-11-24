@@ -14,91 +14,106 @@
 #include <ArduinoJson.h>
 #include <esp_heap_caps.h>
 
-namespace ArduinoJson {
+namespace ArduinoJson
+{
 
-// Custom allocator that uses PSRAM instead of DRAM
-class PSRAMAllocator : public Allocator {
-public:
-  void* allocate(size_t size) override {
-    // Try PSRAM first
-    void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  // Custom allocator that uses PSRAM instead of DRAM
+  class PSRAMAllocator : public Allocator
+  {
+  public:
+    void *allocate(size_t size) override
+    {
+      // Try PSRAM first
+      void *ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    if (ptr) {
-      #ifdef DEBUG_PSRAM_ALLOCATOR
-      Serial.printf("[PSRAM_ALLOC] Allocated %u bytes in PSRAM\n", size);
-      #endif
+      if (ptr)
+      {
+#ifdef DEBUG_PSRAM_ALLOCATOR
+        Serial.printf("[PSRAM_ALLOC] Allocated %u bytes in PSRAM\n", size);
+#endif
+        return ptr;
+      }
+
+      // Fallback to DRAM if PSRAM allocation fails
+      ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT);
+
+      if (ptr)
+      {
+#ifdef DEBUG_PSRAM_ALLOCATOR
+        Serial.printf("[PSRAM_ALLOC] PSRAM failed, fallback to DRAM (%u bytes)\n", size);
+#endif
+      }
+      else
+      {
+        Serial.printf("[PSRAM_ALLOC] ERROR: Failed to allocate %u bytes (both PSRAM and DRAM)\n", size);
+      }
+
       return ptr;
     }
 
-    // Fallback to DRAM if PSRAM allocation fails
-    ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT);
-
-    if (ptr) {
-      #ifdef DEBUG_PSRAM_ALLOCATOR
-      Serial.printf("[PSRAM_ALLOC] PSRAM failed, fallback to DRAM (%u bytes)\n", size);
-      #endif
-    } else {
-      Serial.printf("[PSRAM_ALLOC] ERROR: Failed to allocate %u bytes (both PSRAM and DRAM)\n", size);
+    void deallocate(void *ptr) override
+    {
+      if (ptr)
+      {
+        heap_caps_free(ptr);
+      }
     }
 
-    return ptr;
-  }
+    void *reallocate(void *ptr, size_t new_size) override
+    {
+      // Simplified: Always try PSRAM first (consistent with allocate())
+      // If ptr is null, just allocate new
+      if (!ptr)
+      {
+        return allocate(new_size);
+      }
 
-  void deallocate(void* ptr) override {
-    if (ptr) {
-      heap_caps_free(ptr);
-    }
-  }
+      // If new_size is 0, deallocate
+      if (new_size == 0)
+      {
+        deallocate(ptr);
+        return nullptr;
+      }
 
-  void* reallocate(void* ptr, size_t new_size) override {
-    // Simplified: Always try PSRAM first (consistent with allocate())
-    // If ptr is null, just allocate new
-    if (!ptr) {
-      return allocate(new_size);
-    }
+      // Try to reallocate in PSRAM first (our preferred memory)
+      void *new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    // If new_size is 0, deallocate
-    if (new_size == 0) {
-      deallocate(ptr);
-      return nullptr;
-    }
+      if (new_ptr)
+      {
+#ifdef DEBUG_PSRAM_ALLOCATOR
+        Serial.printf("[PSRAM_ALLOC] Reallocated to %u bytes in PSRAM\n", new_size);
+#endif
+        return new_ptr;
+      }
 
-    // Try to reallocate in PSRAM first (our preferred memory)
-    void* new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+      // PSRAM realloc failed, try allocate new + copy + free old
+      new_ptr = allocate(new_size);
+      if (new_ptr && ptr)
+      {
+        // Copy old data (use smaller of old/new size)
+        size_t old_size = heap_caps_get_allocated_size(ptr);
+        size_t copy_size = (old_size < new_size) ? old_size : new_size;
+        memcpy(new_ptr, ptr, copy_size);
+        deallocate(ptr);
 
-    if (new_ptr) {
-      #ifdef DEBUG_PSRAM_ALLOCATOR
-      Serial.printf("[PSRAM_ALLOC] Reallocated to %u bytes in PSRAM\n", new_size);
-      #endif
+#ifdef DEBUG_PSRAM_ALLOCATOR
+        Serial.printf("[PSRAM_ALLOC] Reallocated via copy (%u bytes)\n", new_size);
+#endif
+      }
+
       return new_ptr;
     }
 
-    // PSRAM realloc failed, try allocate new + copy + free old
-    new_ptr = allocate(new_size);
-    if (new_ptr && ptr) {
-      // Copy old data (use smaller of old/new size)
-      size_t old_size = heap_caps_get_allocated_size(ptr);
-      size_t copy_size = (old_size < new_size) ? old_size : new_size;
-      memcpy(new_ptr, ptr, copy_size);
-      deallocate(ptr);
-
-      #ifdef DEBUG_PSRAM_ALLOCATOR
-      Serial.printf("[PSRAM_ALLOC] Reallocated via copy (%u bytes)\n", new_size);
-      #endif
+    // Singleton instance
+    static PSRAMAllocator *instance()
+    {
+      static PSRAMAllocator allocator;
+      return &allocator;
     }
 
-    return new_ptr;
-  }
-
-  // Singleton instance
-  static PSRAMAllocator* instance() {
-    static PSRAMAllocator allocator;
-    return &allocator;
-  }
-
-private:
-  PSRAMAllocator() = default;
-};
+  private:
+    PSRAMAllocator() = default;
+  };
 
 } // namespace ArduinoJson
 

@@ -3,14 +3,14 @@
 #include "QueueManager.h"
 #include "MemoryManager.h" // Include the new memory manager
 #include <esp_heap_caps.h>
-#include <esp_bt.h>         // For BT controller memory release
+#include <esp_bt.h> // For BT controller memory release
 #include <new>
 
 BLEManager::BLEManager(const String &name, CRUDHandler *cmdHandler)
     : serviceName(name), handler(cmdHandler), processing(false),
       pServer(nullptr), pService(nullptr), pCommandChar(nullptr), pResponseChar(nullptr),
       streamTaskHandle(nullptr), metricsTaskHandle(nullptr), commandBufferIndex(0),
-      lastFragmentTime(0)  // CRITICAL FIX: Initialize fragment timeout tracking
+      lastFragmentTime(0) // CRITICAL FIX: Initialize fragment timeout tracking
 {
   memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
   commandQueue = xQueueCreate(20, sizeof(char *)); // Queue now holds char pointers
@@ -62,7 +62,7 @@ bool BLEManager::begin()
     Serial.println("[BLE] CRITICAL ERROR: Mutex initialization failed!");
     Serial.printf("[BLE] metricsMutex: %p, mtuControlMutex: %p, transmissionMutex: %p, streamingStateMutex: %p\n",
                   metricsMutex, mtuControlMutex, transmissionMutex, streamingStateMutex);
-    return false;  // Abort initialization - unsafe to continue
+    return false; // Abort initialization - unsafe to continue
   }
 
   // CRITICAL FIX: Release Classic Bluetooth memory BEFORE BLE init
@@ -86,7 +86,7 @@ bool BLEManager::begin()
   // FIXED BUG #12: Use conservative MTU for better compatibility
   // Previous: Hardcoded 517 bytes - not all clients support this (especially iOS)
   // New: Start with BLE_MTU_SAFE_DEFAULT (safe for all devices), negotiate higher if supported
-  BLEDevice::setMTU(BLE_MTU_SAFE_DEFAULT);  // Conservative MTU for maximum compatibility
+  BLEDevice::setMTU(BLE_MTU_SAFE_DEFAULT); // Conservative MTU for maximum compatibility
   Serial.printf("[BLE] MTU set to %d bytes (safe default, will negotiate higher if supported)\n", BLE_MTU_SAFE_DEFAULT);
 
   // Create BLE Server
@@ -229,7 +229,7 @@ void BLEManager::onConnect(BLEServer *pServer)
 
   // OPTIMIZED: Wait for MTU negotiation to complete before logging
   // BLE MTU negotiation is asynchronous and takes ~100-200ms
-  vTaskDelay(pdMS_TO_TICKS(200));  // Wait 200ms for negotiation
+  vTaskDelay(pdMS_TO_TICKS(200)); // Wait 200ms for negotiation
 
   // Log MTU negotiation
   logMTUNegotiation();
@@ -284,7 +284,7 @@ void BLEManager::receiveFragment(const String &fragment)
 
   // CRITICAL FIX: Timeout protection - clear buffer if incomplete command stuck
   // If buffer has data but no fragment received for 5 seconds, assume command failed
-  constexpr unsigned long COMMAND_TIMEOUT_MS = 5000;  // 5 seconds timeout
+  constexpr unsigned long COMMAND_TIMEOUT_MS = 5000; // 5 seconds timeout
   unsigned long now = millis();
 
   if (commandBufferIndex > 0 && (now - lastFragmentTime) > COMMAND_TIMEOUT_MS)
@@ -312,12 +312,12 @@ void BLEManager::receiveFragment(const String &fragment)
   // Prevents data corruption from incomplete previous commands
   if (fragment == "<START>")
   {
-    #if PRODUCTION_MODE == 0
-      Serial.println("[BLE] <START> marker received - clearing buffer");
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.println("[BLE] <START> marker received - clearing buffer");
+#endif
     commandBufferIndex = 0;
     memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
-    processing = false;  // Ensure we're ready for new command
+    processing = false; // Ensure we're ready for new command
     return;
   }
 
@@ -333,9 +333,9 @@ void BLEManager::receiveFragment(const String &fragment)
     processing = true;
     commandBuffer[commandBufferIndex] = '\0'; // Null-terminate the command
 
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[BLE] <END> marker received - assembling command (%d bytes)\n", commandBufferIndex);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[BLE] <END> marker received - assembling command (%d bytes)\n", commandBufferIndex);
+#endif
 
     // Allocate a buffer in PSRAM for the complete command
     char *cmdBuffer = (char *)heap_caps_malloc(commandBufferIndex + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -375,16 +375,16 @@ void BLEManager::receiveFragment(const String &fragment)
       memcpy(commandBuffer + commandBufferIndex, fragment.c_str(), fragmentLen);
       commandBufferIndex += fragmentLen;
 
-      #if PRODUCTION_MODE == 0
-        // Only log every 5th fragment to reduce serial spam
-        static uint32_t fragmentCount = 0;
-        fragmentCount++;
-        if (fragmentCount % 5 == 0)
-        {
-          Serial.printf("[BLE] Fragment received (%d bytes, total: %d bytes)\n",
-                        fragmentLen, commandBufferIndex);
-        }
-      #endif
+#if PRODUCTION_MODE == 0
+      // Only log every 5th fragment to reduce serial spam
+      static uint32_t fragmentCount = 0;
+      fragmentCount++;
+      if (fragmentCount % 5 == 0)
+      {
+        Serial.printf("[BLE] Fragment received (%d bytes, total: %d bytes)\n",
+                      fragmentLen, commandBufferIndex);
+      }
+#endif
     }
     else
     {
@@ -421,22 +421,26 @@ void BLEManager::handleCompleteCommand(const char *command)
   // Log complete command for debugging (with size limit for very large commands)
   size_t cmdLen = strlen(command);
 
-  #if PRODUCTION_MODE == 0
-    // Development mode: Show full command for normal operations
-    if (cmdLen <= 2000) {
-      Serial.printf("\n[BLE CMD] Received command (%u bytes):\n", cmdLen);
-      Serial.printf("  %s\n\n", command);
-    } else {
-      Serial.printf("\n[BLE CMD] Received large command (%u bytes) - too large to display\n\n", cmdLen);
-    }
-  #else
-    // Production mode: Just log length
-    Serial.printf("[BLE CMD] Received %u bytes JSON\n", cmdLen);
-  #endif
+#if PRODUCTION_MODE == 0
+  // Development mode: Show full command for normal operations
+  if (cmdLen <= 2000)
+  {
+    Serial.printf("\n[BLE CMD] Received command (%u bytes):\n", cmdLen);
+    Serial.printf("  %s\n\n", command);
+  }
+  else
+  {
+    Serial.printf("\n[BLE CMD] Received large command (%u bytes) - too large to display\n\n", cmdLen);
+  }
+#else
+  // Production mode: Just log length
+  Serial.printf("[BLE CMD] Received %u bytes JSON\n", cmdLen);
+#endif
 
   // FIXED BUG #32: Validate command length before parsing
   // Restore commands can be 3-4KB, backup responses can be 10-20KB
-  if (cmdLen > COMMAND_BUFFER_SIZE) {
+  if (cmdLen > COMMAND_BUFFER_SIZE)
+  {
     Serial.printf("[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n",
                   cmdLen, COMMAND_BUFFER_SIZE);
     sendError("Command exceeds buffer size");
@@ -457,29 +461,30 @@ void BLEManager::handleCompleteCommand(const char *command)
     Serial.printf("[BLE CMD] ERROR: JSON parse failed - %s\n", error.c_str());
     Serial.printf("[BLE CMD] Command length: %u bytes\n", cmdLen);
 
-    // Show where parsing failed for debugging
-    #if PRODUCTION_MODE == 0
-      if (cmdLen > 100) {
-        char context[101];
-        size_t errorPos = error.code() == DeserializationError::IncompleteInput ? cmdLen : 0;
-        size_t contextStart = (errorPos > 50) ? (errorPos - 50) : 0;
-        size_t contextLen = min((size_t)100, cmdLen - contextStart);  // Cast to size_t
-        strncpy(context, command + contextStart, contextLen);
-        context[contextLen] = '\0';
-        Serial.printf("[BLE CMD] Context: ...%s...\n", context);
-      }
-    #endif
+// Show where parsing failed for debugging
+#if PRODUCTION_MODE == 0
+    if (cmdLen > 100)
+    {
+      char context[101];
+      size_t errorPos = error.code() == DeserializationError::IncompleteInput ? cmdLen : 0;
+      size_t contextStart = (errorPos > 50) ? (errorPos - 50) : 0;
+      size_t contextLen = min((size_t)100, cmdLen - contextStart); // Cast to size_t
+      strncpy(context, command + contextStart, contextLen);
+      context[contextLen] = '\0';
+      Serial.printf("[BLE CMD] Context: ...%s...\n", context);
+    }
+#endif
 
     sendError("Invalid JSON: " + String(error.c_str()));
     return;
   }
 
-  // Validation successful
-  #if PRODUCTION_MODE == 0
-    // ArduinoJson v7: memoryUsage() is deprecated (always returns 0)
-    // Just log successful parse with input size
-    Serial.printf("[BLE CMD] JSON parsed successfully (%u bytes input)\n", cmdLen);
-  #endif
+// Validation successful
+#if PRODUCTION_MODE == 0
+  // ArduinoJson v7: memoryUsage() is deprecated (always returns 0)
+  // Just log successful parse with input size
+  Serial.printf("[BLE CMD] JSON parsed successfully (%u bytes input)\n", cmdLen);
+#endif
 
   if (handler)
   {
@@ -505,7 +510,7 @@ void BLEManager::sendResponse(const JsonDocument &data)
                   estimatedSize, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Create minimal error response (< 200 bytes, safe)
-    const char* errorMsg = "{\"status\":\"error\",\"message\":\"Response too large\",\"size\":";
+    const char *errorMsg = "{\"status\":\"error\",\"message\":\"Response too large\",\"size\":";
     char buffer[ERROR_BUFFER_SIZE];
     snprintf(buffer, sizeof(buffer), "%s%u,\"max\":%d}", errorMsg, estimatedSize, MAX_RESPONSE_SIZE_BYTES);
 
@@ -515,7 +520,7 @@ void BLEManager::sendResponse(const JsonDocument &data)
     pResponseChar->setValue("<END>");
     pResponseChar->notify();
 
-    return;  // Abort large response
+    return; // Abort large response
   }
 
   // Size OK - proceed with PSRAM-based serialization
@@ -523,18 +528,20 @@ void BLEManager::sendResponse(const JsonDocument &data)
   // String class ALWAYS uses DRAM → causes exhaustion with large responses
 
   // Allocate buffer in PSRAM with some margin for JSON overhead
-  size_t bufferSize = estimatedSize + 512;  // +512 bytes margin
-  char* psramBuffer = (char*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  size_t bufferSize = estimatedSize + 512; // +512 bytes margin
+  char *psramBuffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-  if (!psramBuffer) {
+  if (!psramBuffer)
+  {
     // PSRAM allocation failed - try DRAM as last resort
     Serial.printf("[BLE] WARNING: PSRAM allocation failed, trying DRAM (%u bytes)\n", bufferSize);
-    psramBuffer = (char*)heap_caps_malloc(bufferSize, MALLOC_CAP_8BIT);
+    psramBuffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_8BIT);
 
-    if (!psramBuffer) {
+    if (!psramBuffer)
+    {
       // Both failed - send error
       Serial.printf("[BLE] ERROR: Buffer allocation failed (%u bytes)\n", bufferSize);
-      const char* errorMsg = "{\"status\":\"error\",\"message\":\"Memory allocation failed\"}";
+      const char *errorMsg = "{\"status\":\"error\",\"message\":\"Memory allocation failed\"}";
       pResponseChar->setValue(errorMsg);
       pResponseChar->notify();
       vTaskDelay(pdMS_TO_TICKS(50));
@@ -547,7 +554,8 @@ void BLEManager::sendResponse(const JsonDocument &data)
   // Serialize directly to PSRAM buffer
   size_t serializedLength = serializeJson(data, psramBuffer, bufferSize);
 
-  if (serializedLength == 0) {
+  if (serializedLength == 0)
+  {
     Serial.printf("[BLE] ERROR: Serialization failed\n");
     heap_caps_free(psramBuffer);
     return;
@@ -578,7 +586,7 @@ void BLEManager::sendSuccess()
   sendResponse(doc);
 }
 
-void BLEManager::sendFragmented(const char* data, size_t length)
+void BLEManager::sendFragmented(const char *data, size_t length)
 {
   if (!pResponseChar || !data)
     return;
@@ -588,11 +596,12 @@ void BLEManager::sendFragmented(const char* data, size_t length)
   // Check INTERNAL DRAM only (not PSRAM)
   size_t freeDRAM = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
-  if (freeDRAM < 5000) { // <5KB is critically low - EMERGENCY MODE
+  if (freeDRAM < 5000)
+  { // <5KB is critically low - EMERGENCY MODE
     Serial.printf("[BLE] CRITICAL: DRAM exhausted (%zu bytes). Aborting transmission.\n", freeDRAM);
 
     // Use stack-allocated const char* - NO heap allocation
-    const char* emergencyMsg = "{\"status\":\"error\",\"msg\":\"Out of memory\"}";
+    const char *emergencyMsg = "{\"status\":\"error\",\"msg\":\"Out of memory\"}";
     pResponseChar->setValue(emergencyMsg);
     pResponseChar->notify();
     vTaskDelay(pdMS_TO_TICKS(50));
@@ -604,12 +613,13 @@ void BLEManager::sendFragmented(const char* data, size_t length)
 
   // CRITICAL FIX: Reject payloads that are too large (>MAX_RESPONSE_SIZE_BYTES)
   // This should never happen since sendResponse() already checks, but double-check for safety
-  if (length > MAX_RESPONSE_SIZE_BYTES) {
+  if (length > MAX_RESPONSE_SIZE_BYTES)
+  {
     Serial.printf("[BLE] ERROR: Payload too large (%u bytes > %d KB limit).\n",
                   length, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Send error response instead (stack-allocated, no heap)
-    const char* errorMsg = "{\"status\":\"error\",\"message\":\"Response too large for BLE transmission\"}";
+    const char *errorMsg = "{\"status\":\"error\",\"message\":\"Response too large for BLE transmission\"}";
     pResponseChar->setValue(errorMsg);
     pResponseChar->notify();
     vTaskDelay(pdMS_TO_TICKS(50));
@@ -624,7 +634,8 @@ void BLEManager::sendFragmented(const char* data, size_t length)
   // - BLE connected with no devices: stable at 28-29KB DRAM
   // - 30KB threshold caused excessive warnings during normal operation
   // - 25KB threshold provides safety margin while reducing log noise
-  if (freeDRAM < 25000) { // <25KB free DRAM
+  if (freeDRAM < 25000)
+  { // <25KB free DRAM
     Serial.printf("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
   }
 
@@ -647,32 +658,40 @@ void BLEManager::sendFragmented(const char* data, size_t length)
   size_t adaptiveChunkSize = CHUNK_SIZE;
   int adaptiveDelay = FRAGMENT_DELAY_MS;
 
-  if (length > XLARGE_PAYLOAD_THRESHOLD) { // >50KB payload (backup/restore operations)
+  if (length > XLARGE_PAYLOAD_THRESHOLD)
+  { // >50KB payload (backup/restore operations)
     // Extra-large payload: slowest delay to prevent mobile app timeout
-    adaptiveDelay = ADAPTIVE_DELAY_XLARGE_MS;  // 50ms - critical for large backups
+    adaptiveDelay = ADAPTIVE_DELAY_XLARGE_MS; // 50ms - critical for large backups
 
     // Chunk size depends on DRAM availability
     // v2.3.6 OPTIMIZED: Lowered from 30KB to 25KB to accommodate post-restore DRAM levels (~28KB)
-    if (freeDRAM < 25000) {
-      adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // 100 bytes
+    if (freeDRAM < 25000)
+    {
+      adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE; // 100 bytes
       Serial.printf("[BLE] XLARGE payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
-    } else {
+    }
+    else
+    {
       Serial.printf("[BLE] XLARGE payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
   }
-  else if (length > LARGE_PAYLOAD_THRESHOLD) { // 5-50KB payload
+  else if (length > LARGE_PAYLOAD_THRESHOLD)
+  { // 5-50KB payload
     // Large payload: moderate delay
-    adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS;  // 20ms
+    adaptiveDelay = ADAPTIVE_DELAY_LARGE_MS; // 20ms
 
     // Chunk size depends on DRAM availability
     // v2.3.6 OPTIMIZED: Lowered from 30KB to 25KB to accommodate post-restore DRAM levels (~28KB)
-    if (freeDRAM < 25000) {
-      adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE;  // 100 bytes
+    if (freeDRAM < 25000)
+    {
+      adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE; // 100 bytes
       Serial.printf("[BLE] Large payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with SLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
-    } else {
+    }
+    else
+    {
       Serial.printf("[BLE] Large payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with SLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
@@ -681,7 +700,7 @@ void BLEManager::sendFragmented(const char* data, size_t length)
 
   // BUG #31 PART 2: Data already in PSRAM buffer (from sendResponse)
   // No String overhead, no DRAM allocation
-  const char* dataPtr = data;
+  const char *dataPtr = data;
   size_t dataLen = length;
   size_t i = 0;
 
@@ -693,7 +712,8 @@ void BLEManager::sendFragmented(const char* data, size_t length)
     size_t chunkLen = min(adaptiveChunkSize, dataLen - i);
 
     // SAFETY: Ensure chunk size doesn't exceed buffer
-    if (chunkLen > 255) {
+    if (chunkLen > 255)
+    {
       chunkLen = 255;
     }
 
@@ -850,11 +870,11 @@ void BLEManager::logMTUNegotiation()
   }
 
   // FIXED: Get actual MTU size from BLE layer after negotiation
-  uint16_t actualMTU = BLEDevice::getMTU();  // Returns full MTU (includes overhead)
-  uint16_t effectiveMTU = (actualMTU > 3) ? (actualMTU - 3) : 20;  // Subtract ATT header (3 bytes)
+  uint16_t actualMTU = BLEDevice::getMTU();                       // Returns full MTU (includes overhead)
+  uint16_t effectiveMTU = (actualMTU > 3) ? (actualMTU - 3) : 20; // Subtract ATT header (3 bytes)
 
   mtuMetrics.mtuSize = effectiveMTU;
-  mtuMetrics.maxMTUSize = BLE_MTU_MAX_SUPPORTED;  // Our maximum supported MTU
+  mtuMetrics.maxMTUSize = BLE_MTU_MAX_SUPPORTED; // Our maximum supported MTU
   mtuMetrics.lastNegotiationTime = millis();
   mtuMetrics.negotiationAttempts++;
 
@@ -868,7 +888,7 @@ void BLEManager::logMTUNegotiation()
     // CRITICAL FIX: Mark negotiation as completed to stop timeout monitoring
     // Without this, checkMTUNegotiationTimeout() continues checking and triggers
     // false positive timeouts (e.g., after 54s even though negotiation succeeded at 10s)
-    xSemaphoreGive(metricsMutex);  // Release metrics mutex before acquiring MTU mutex
+    xSemaphoreGive(metricsMutex); // Release metrics mutex before acquiring MTU mutex
     completeMTUNegotiation();
   }
   else
@@ -910,8 +930,8 @@ void BLEManager::metricsMonitorTask(void *parameter)
   Serial.println("[BLE METRICS] Monitoring task started");
 
   uint32_t lastMetricsPublish = 0;
-  const uint32_t METRICS_PUBLISH_INTERVAL = 60000;  // Publish metrics every 60s
-  const uint32_t MTU_CHECK_INTERVAL = 500;          // Check MTU timeout every 500ms
+  const uint32_t METRICS_PUBLISH_INTERVAL = 60000; // Publish metrics every 60s
+  const uint32_t MTU_CHECK_INTERVAL = 500;         // Check MTU timeout every 500ms
 
   while (true)
   {

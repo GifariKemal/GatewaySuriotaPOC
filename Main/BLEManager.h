@@ -1,7 +1,7 @@
 #ifndef BLE_MANAGER_H
 #define BLE_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -27,10 +27,10 @@
 #define BLE_QUEUE_MONITOR_INTERVAL 60000 // Monitor queue every 60 seconds
 
 // FIXED BUG #21: Define named constants for magic numbers
-#define BLE_MTU_SAFE_DEFAULT 247         // Conservative MTU for all devices (iOS compatible)
-#define BLE_MTU_MAX_REQUESTED 517        // Maximum MTU we request (not all clients support)
-#define BLE_MTU_MAX_SUPPORTED 512        // Maximum MTU we actually support
-#define MAX_RESPONSE_SIZE_BYTES 204800   // 200KB maximum response size (for full_config backup with 50+ devices)
+#define BLE_MTU_SAFE_DEFAULT 247       // Conservative MTU for all devices (iOS compatible)
+#define BLE_MTU_MAX_REQUESTED 517      // Maximum MTU we request (not all clients support)
+#define BLE_MTU_MAX_SUPPORTED 512      // Maximum MTU we actually support
+#define MAX_RESPONSE_SIZE_BYTES 204800 // 200KB maximum response size (for full_config backup with 50+ devices)
 
 // ============================================
 // ADAPTIVE TRANSMISSION TUNING (v2.3.4 - Option 3)
@@ -51,12 +51,12 @@
 //
 // Trade-off: Speed vs Stability - prioritize NO TIMEOUT over fast transmission
 // ============================================
-#define LARGE_PAYLOAD_THRESHOLD 3072     // 3KB threshold for adaptive chunking (medium payloads) - v2.3.4 Option 3: Lowered from 5KB for better stability
-#define XLARGE_PAYLOAD_THRESHOLD 51200   // 50KB threshold for extra-large payloads (backup/restore)
-#define ADAPTIVE_CHUNK_SIZE_LARGE 100    // Chunk size for large payloads
-#define ADAPTIVE_DELAY_LARGE_MS 35       // Delay for large payload chunks (3-50KB) - v2.3.4 Option 3: Increased from 20ms for mobile OS compatibility
-#define ADAPTIVE_DELAY_XLARGE_MS 60      // Delay for extra-large payload chunks (>50KB) - v2.3.4 Option 3: Increased from 50ms for backup reliability
-#define ERROR_BUFFER_SIZE 256            // Buffer size for error messages
+#define LARGE_PAYLOAD_THRESHOLD 3072   // 3KB threshold for adaptive chunking (medium payloads) - v2.3.4 Option 3: Lowered from 5KB for better stability
+#define XLARGE_PAYLOAD_THRESHOLD 51200 // 50KB threshold for extra-large payloads (backup/restore)
+#define ADAPTIVE_CHUNK_SIZE_LARGE 100  // Chunk size for large payloads
+#define ADAPTIVE_DELAY_LARGE_MS 35     // Delay for large payload chunks (3-50KB) - v2.3.4 Option 3: Increased from 20ms for mobile OS compatibility
+#define ADAPTIVE_DELAY_XLARGE_MS 60    // Delay for extra-large payload chunks (>50KB) - v2.3.4 Option 3: Increased from 50ms for backup reliability
+#define ERROR_BUFFER_SIZE 256          // Buffer size for error messages
 
 // MTU Negotiation Timeout Control
 enum MTUNegotiationState
@@ -76,7 +76,7 @@ struct MTUNegotiationControl
   unsigned long negotiationStartTime = 0;
   unsigned long negotiationTimeoutMs = 5000; // Phase 4: 5-second timeout (optimized from 3s)
   uint8_t retryCount = 0;
-  uint8_t maxRetries = 2; // Phase 4: 2 retries (optimized from 3, total ~15s)
+  uint8_t maxRetries = 2;     // Phase 4: 2 retries (optimized from 3, total ~15s)
   uint16_t fallbackMTU = 100; // Fallback MTU size (min safe value)
   bool usesFallback = false;
 };
@@ -138,7 +138,7 @@ private:
   char commandBuffer[COMMAND_BUFFER_SIZE];
   size_t commandBufferIndex;
   bool processing;
-  unsigned long lastFragmentTime;  // CRITICAL FIX: Track last fragment reception time for timeout detection
+  unsigned long lastFragmentTime; // CRITICAL FIX: Track last fragment reception time for timeout detection
   QueueHandle_t commandQueue;
   TaskHandle_t commandTaskHandle;
   TaskHandle_t streamTaskHandle;
@@ -186,7 +186,7 @@ private:
   // Fragment handling
   void receiveFragment(const String &fragment);
   void handleCompleteCommand(const char *command);
-  void sendFragmented(const char* data, size_t length);
+  void sendFragmented(const char *data, size_t length);
 
 public:
   BLEManager(const String &name, CRUDHandler *cmdHandler);

@@ -17,11 +17,11 @@
 // This MUST be defined here (not in MqttManager.h) to ensure Arduino IDE
 // compiles TBPubSubClient library with the correct packet size limit
 #ifndef MQTT_MAX_PACKET_SIZE
-#define MQTT_MAX_PACKET_SIZE 16384  // 16KB - allows large payloads without truncation
+#define MQTT_MAX_PACKET_SIZE 16384 // 16KB - allows large payloads without truncation
 #endif
 
-#include "DebugConfig.h" // ← MUST BE FIRST (before all other includes)
-#include "MemoryRecovery.h" // Phase 2 optimization
+#include "DebugConfig.h"       // ← MUST BE FIRST (before all other includes)
+#include "MemoryRecovery.h"    // Phase 2 optimization
 #include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
 
 #include "BLEManager.h"
@@ -79,14 +79,14 @@ void cleanup()
   if (mqttManager)
   {
     mqttManager->stop();
-    delete mqttManager;  // Singleton - uses regular delete
+    delete mqttManager; // Singleton - uses regular delete
     mqttManager = nullptr;
   }
 
   if (httpManager)
   {
     httpManager->stop();
-    delete httpManager;  // Singleton - uses regular delete
+    delete httpManager; // Singleton - uses regular delete
     httpManager = nullptr;
   }
 
@@ -160,28 +160,28 @@ void setup()
   setLogTimestamps(true); // Enable timestamps (default: true)
   // To disable: setLogTimestamps(false);
 
-  #if PRODUCTION_MODE == 0
-    // Development mode: show log status
-    Serial.println("\n[SYSTEM] DEVELOPMENT MODE - ENHANCED LOGGING");
-    printLogLevelStatus();
-  #endif
+#if PRODUCTION_MODE == 0
+                          // Development mode: show log status
+  Serial.println("\n[SYSTEM] DEVELOPMENT MODE - ENHANCED LOGGING");
+  printLogLevelStatus();
+#endif
 
   // ============================================
   // MEMORY RECOVERY INITIALIZATION (Phase 2)
   // ============================================
-  MemoryRecovery::setAutoRecovery(true);       // Enable automatic recovery
-  MemoryRecovery::setCheckInterval(5000);      // Check every 5 seconds
-  MemoryRecovery::logMemoryStatus("STARTUP");  // Log initial memory state
+  MemoryRecovery::setAutoRecovery(true);      // Enable automatic recovery
+  MemoryRecovery::setCheckInterval(5000);     // Check every 5 seconds
+  MemoryRecovery::logMemoryStatus("STARTUP"); // Log initial memory state
 
-  #if PRODUCTION_MODE == 0
-    Serial.println("[SYSTEM] MEMORY RECOVERY SYSTEM");
-    Serial.println("  Auto-recovery: ENABLED");
-    Serial.println("  Check interval: 5 seconds");
-    Serial.println("  Thresholds:");
-    Serial.printf("    WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
-    Serial.printf("    CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
-    Serial.printf("    EMERGENCY: %lu bytes\n\n", MemoryThresholds::DRAM_EMERGENCY);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.println("[SYSTEM] MEMORY RECOVERY SYSTEM");
+  Serial.println("  Auto-recovery: ENABLED");
+  Serial.println("  Check interval: 5 seconds");
+  Serial.println("  Thresholds:");
+  Serial.printf("    WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
+  Serial.printf("    CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
+  Serial.printf("    EMERGENCY: %lu bytes\n\n", MemoryThresholds::DRAM_EMERGENCY);
+#endif
 
   // FIXED BUG #2: Serial.end() moved to END of setup() to avoid crash
   // Previously called here, causing all subsequent Serial.printf() to crash
@@ -503,14 +503,14 @@ void setup()
 
   Serial.println("[MAIN] BLE CRUD Manager started successfully");
 
-  // FIXED BUG #2: Disable Serial in production mode AFTER all initialization
-  // This prevents crashes from Serial.printf() calls during startup
-  #if PRODUCTION_MODE == 1
-    Serial.flush();  // Ensure all buffered output is sent first
-    vTaskDelay(pdMS_TO_TICKS(100));  // Allow flush to complete
-    Serial.end();
-    // All subsequent Serial calls will be no-ops (safe, but output nothing)
-  #endif
+// FIXED BUG #2: Disable Serial in production mode AFTER all initialization
+// This prevents crashes from Serial.printf() calls during startup
+#if PRODUCTION_MODE == 1
+  Serial.flush();                 // Ensure all buffered output is sent first
+  vTaskDelay(pdMS_TO_TICKS(100)); // Allow flush to complete
+  Serial.end();
+  // All subsequent Serial calls will be no-ops (safe, but output nothing)
+#endif
 }
 
 void loop()

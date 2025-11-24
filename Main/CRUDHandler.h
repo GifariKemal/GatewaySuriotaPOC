@@ -1,12 +1,12 @@
 #ifndef CRUD_HANDLER_H
 #define CRUD_HANDLER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include "ConfigManager.h"
 #include "ServerConfig.h"
 #include "LoggingConfig.h"
-#include "MemoryManager.h"  // For PsramUniquePtr and make_psram_unique
+#include "MemoryManager.h" // For PsramUniquePtr and make_psram_unique
 #include <map>
 #include <functional>
 #include <queue>
@@ -16,8 +16,9 @@
 
 // FIXED BUG #30: Define CRUD task stack size constant
 // Updated: 24KB insufficient for 26+ registers, increased to 32KB
-namespace CRUDConfig {
-  constexpr uint32_t CRUD_TASK_STACK_SIZE = 32768;  // 32KB stack for CREATE operations with 50+ registers
+namespace CRUDConfig
+{
+  constexpr uint32_t CRUD_TASK_STACK_SIZE = 32768; // 32KB stack for CREATE operations with 50+ registers
 }
 
 // Forward declarations to avoid circular dependencies
@@ -44,11 +45,11 @@ enum class BatchMode : uint8_t
 // Individual Command Structure
 struct Command
 {
-  uint64_t id;                           // Unique command ID
-  CommandPriority priority;              // Priority level
-  unsigned long enqueueTime;             // When command was enqueued
-  String payloadJson;                    // BUG #32 FIX: Store as serialized JSON String to avoid .set() corruption
-  BLEManager *manager;                   // BLE Manager for sending responses
+  uint64_t id;               // Unique command ID
+  CommandPriority priority;  // Priority level
+  unsigned long enqueueTime; // When command was enqueued
+  String payloadJson;        // BUG #32 FIX: Store as serialized JSON String to avoid .set() corruption
+  BLEManager *manager;       // BLE Manager for sending responses
 
   // Default constructor
   Command() : id(0), priority(CommandPriority::PRIORITY_NORMAL), enqueueTime(0), manager(nullptr) {}
@@ -100,7 +101,7 @@ struct BatchStats
   uint32_t currentQueueDepth = 0;
 };
 
-class BLEManager; // Forward declaration
+class BLEManager;       // Forward declaration
 class ModbusRtuService; // Forward declaration
 class ModbusTcpService; // Forward declaration
 
@@ -110,8 +111,8 @@ private:
   ConfigManager *configManager;
   ServerConfig *serverConfig;
   LoggingConfig *loggingConfig;
-  MqttManager *mqttManager; // For notifying data interval updates
-  HttpManager *httpManager; // For notifying data interval updates
+  MqttManager *mqttManager;           // For notifying data interval updates
+  HttpManager *httpManager;           // For notifying data interval updates
   ModbusRtuService *modbusRtuService; // NEW: For device control commands
   ModbusTcpService *modbusTcpService; // NEW: For device control commands
   String streamDeviceId;
@@ -124,8 +125,8 @@ private:
   std::map<String, CommandHandler> createHandlers;
   std::map<String, CommandHandler> updateHandlers;
   std::map<String, CommandHandler> deleteHandlers;
-  std::map<String, CommandHandler> controlHandlers;  // NEW: Device control operations
-  std::map<String, CommandHandler> systemHandlers;   // NEW: System operations (factory reset, etc.)
+  std::map<String, CommandHandler> controlHandlers; // NEW: Device control operations
+  std::map<String, CommandHandler> systemHandlers;  // NEW: System operations (factory reset, etc.)
 
   // Private method to populate the handler maps
   void setupCommandHandlers();

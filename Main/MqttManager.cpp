@@ -1,10 +1,10 @@
 #include "MqttManager.h"
 #include "LEDManager.h"
 #include "RTCManager.h"
-#include "DeviceBatchManager.h"  // CRITICAL FIX: Wait for batch completion
+#include "DeviceBatchManager.h" // CRITICAL FIX: Wait for batch completion
 #include "DebugConfig.h"
 #include "MemoryRecovery.h"
-#include <set>  // For std::set to track cleared devices
+#include <set> // For std::set to track cleared devices
 
 // Helper function: Convert interval to milliseconds based on unit
 // Supports multiple unit variants for flexibility:
@@ -36,8 +36,8 @@ MqttManager *MqttManager::instance = nullptr;
 MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, NetworkMgr *netMgr)
     : configManager(config), queueManager(nullptr), serverConfig(serverCfg), networkManager(netMgr), mqttClient(PubSubClient()),
       running(false), taskHandle(nullptr), brokerPort(1883), lastReconnectAttempt(0),
-      cachedBufferSize(0), bufferSizeNeedsRecalculation(true),  // FIXED BUG #5: Initialize cache
-      lastDebugTime(0)  // v2.3.8 PHASE 1: Initialize connection state
+      cachedBufferSize(0), bufferSizeNeedsRecalculation(true), // FIXED BUG #5: Initialize cache
+      lastDebugTime(0)                                         // v2.3.8 PHASE 1: Initialize connection state
 {
   queueManager = QueueManager::getInstance();
   persistentQueue = MQTTPersistentQueue::getInstance();
@@ -54,9 +54,12 @@ MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, Network
   bufferCacheMutex = xSemaphoreCreateMutex();
   publishStateMutex = xSemaphoreCreateMutex();
 
-  if (bufferCacheMutex == NULL || publishStateMutex == NULL) {
+  if (bufferCacheMutex == NULL || publishStateMutex == NULL)
+  {
     Serial.println("[MQTT] CRITICAL: Failed to create mutexes!");
-  } else {
+  }
+  else
+  {
     Serial.println("[MQTT] Thread safety mutexes created successfully");
   }
 
@@ -116,11 +119,11 @@ void MqttManager::start()
       "MQTT_TASK",
       MqttConfig::MQTT_TASK_STACK_SIZE,
       this,
-      2,  // FIXED: Priority 2 (equal to Modbus RTU task) to ensure fair CPU time for MQTT PINGREQ
-          // Previous: Priority 1 was too low - MQTT task was starved during long RTU polling
-          // New: Priority 2 ensures MQTT keep-alive packets are sent even during heavy RTU load
+      2, // FIXED: Priority 2 (equal to Modbus RTU task) to ensure fair CPU time for MQTT PINGREQ
+         // Previous: Priority 1 was too low - MQTT task was starved during long RTU polling
+         // New: Priority 2 ensures MQTT keep-alive packets are sent even during heavy RTU load
       &taskHandle,
-      1);  // FIXED: Run on Core 1 to avoid blocking IDLE0 on Core 0
+      1); // FIXED: Run on Core 1 to avoid blocking IDLE0 on Core 0
 
   if (result == pdPASS)
   {
@@ -301,26 +304,28 @@ bool MqttManager::connectToMqtt()
   // New: Calculate once, cache result, recalculate only on config change
   // v2.3.8 PHASE 1: Added mutex protection for thread safety
   xSemaphoreTake(bufferCacheMutex, portMAX_DELAY);
-  if (bufferSizeNeedsRecalculation || cachedBufferSize == 0) {
+  if (bufferSizeNeedsRecalculation || cachedBufferSize == 0)
+  {
     cachedBufferSize = calculateOptimalBufferSize();
     bufferSizeNeedsRecalculation = false;
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
+#endif
   }
-  #if PRODUCTION_MODE == 0
-  else {
+#if PRODUCTION_MODE == 0
+  else
+  {
     Serial.printf("[MQTT] Buffer size using cached value: %u bytes\n", cachedBufferSize);
   }
-  #endif
-  uint16_t bufferSize = cachedBufferSize;  // Copy under mutex protection
+#endif
+  uint16_t bufferSize = cachedBufferSize; // Copy under mutex protection
   xSemaphoreGive(bufferCacheMutex);
 
-  mqttClient.setBufferSize(bufferSize, bufferSize);  // Use local copy (thread-safe)
+  mqttClient.setBufferSize(bufferSize, bufferSize); // Use local copy (thread-safe)
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
+#endif
 
   // FIXED: Increased keep_alive to 120s to prevent timeouts during long Modbus polling cycles
   // Previous: 60s was too short when RTU polling takes ~50s + publish interval 70s
@@ -331,7 +336,7 @@ bool MqttManager::connectToMqtt()
   // Previous: 5s timeout caused reconnection failures (error -4) on slow/overloaded public brokers
   // New: 15s provides adequate time for broker.hivemq.com to respond during high load
   // Note: Public brokers often have slow response times (5-10s is common)
-  mqttClient.setSocketTimeout(15);  // Socket timeout in seconds
+  mqttClient.setSocketTimeout(15); // Socket timeout in seconds
 
   mqttClient.setServer(brokerAddress.c_str(), brokerPort);
 
@@ -348,14 +353,14 @@ bool MqttManager::connectToMqtt()
     connected = mqttClient.connect(clientId.c_str());
   }
 
-  // Log connection duration for diagnostics (only in development mode)
-  #if PRODUCTION_MODE == 0
-    unsigned long connectDuration = millis() - connectStartTime;
-    if (connectDuration > 2000)
-    {
-      Serial.printf("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
-    }
-  #endif
+// Log connection duration for diagnostics (only in development mode)
+#if PRODUCTION_MODE == 0
+  unsigned long connectDuration = millis() - connectStartTime;
+  if (connectDuration > 2000)
+  {
+    Serial.printf("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
+  }
+#endif
 
   if (connected)
   {
@@ -420,7 +425,7 @@ void MqttManager::loadMqttConfig()
  * @param doc JsonDocument to add timestamp to
  * @param now Fallback timestamp (millis) if RTC unavailable
  */
-void MqttManager::buildTimestamp(JsonDocument& doc, unsigned long now)
+void MqttManager::buildTimestamp(JsonDocument &doc, unsigned long now)
 {
   RTCManager *rtcMgr = RTCManager::getInstance();
   if (rtcMgr)
@@ -447,10 +452,10 @@ void MqttManager::buildTimestamp(JsonDocument& doc, unsigned long now)
  * @return Number of valid registers added
  */
 int MqttManager::validateAndGroupRegisters(
-    std::map<String, JsonDocument>& uniqueRegisters,
-    JsonObject& devicesObject,
-    std::map<String, JsonObject>& deviceObjects,
-    const std::vector<String>* filterRegisters)
+    std::map<String, JsonDocument> &uniqueRegisters,
+    JsonObject &devicesObject,
+    std::map<String, JsonObject> &deviceObjects,
+    const std::vector<String> *filterRegisters)
 {
   // Track deleted devices to avoid spam logging
   std::map<String, int> deletedDevices; // device_id -> skipped register count
@@ -551,27 +556,33 @@ int MqttManager::validateAndGroupRegisters(
  * @return true if serialization successful and valid, false otherwise
  */
 bool MqttManager::serializeAndValidatePayload(
-    JsonDocument& doc,
-    String& payload,
+    JsonDocument &doc,
+    String &payload,
     uint32_t estimatedSize)
 {
   // Serialize batch payload
   size_t serializedSize = serializeJson(doc, payload);
 
   // Validate serialization success
-  if (serializedSize == 0) {
+  if (serializedSize == 0)
+  {
     Serial.println("[MQTT] ERROR: serializeJson() returned 0 bytes!");
     return false;
   }
 
   // Validate payload is valid JSON (check first and last characters)
-  if (payload.length() > 0) {
-    if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}') {
+  if (payload.length() > 0)
+  {
+    if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}')
+    {
       Serial.printf("[MQTT] ERROR: Payload is not valid JSON! First char: '%c', Last char: '%c'\n",
                     payload.charAt(0), payload.charAt(payload.length() - 1));
-      if (payload.length() <= 2000) {
+      if (payload.length() <= 2000)
+      {
         Serial.printf("[MQTT] Invalid payload (%u bytes): %s\n", payload.length(), payload.c_str());
-      } else {
+      }
+      else
+      {
         Serial.printf("[MQTT] Invalid payload too large (%u bytes)\n", payload.length());
         Serial.printf("  First 200 chars: %s\n", payload.substring(0, 200).c_str());
         Serial.printf("  Last 200 chars: %s\n", payload.substring(max(0, (int)payload.length() - 200)).c_str());
@@ -580,10 +591,10 @@ bool MqttManager::serializeAndValidatePayload(
     }
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
-                  serializedSize, estimatedSize);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
+                serializedSize, estimatedSize);
+#endif
 
   return true;
 }
@@ -596,9 +607,9 @@ bool MqttManager::serializeAndValidatePayload(
  * @return true if publish successful, false otherwise
  */
 bool MqttManager::publishPayload(
-    const String& topic,
-    const String& payload,
-    const char* modeLabel)
+    const String &topic,
+    const String &payload,
+    const char *modeLabel)
 {
   // Check buffer size
   if (payload.length() > cachedBufferSize)
@@ -614,17 +625,21 @@ bool MqttManager::publishPayload(
   Serial.printf("  Topic: %s\n", topic.c_str());
   Serial.printf("  Size: %u bytes\n", payload.length());
 
-  // DEBUG: Print payload (only in verbose mode)
-  #if PRODUCTION_MODE == 0
-    if (payload.length() > 0 && payload.length() <= 2000) {
-      Serial.printf("  Payload: %s\n", payload.c_str());
-    } else if (payload.length() > 2000) {
-      Serial.printf("  Payload: [%u bytes - too large to display]\n", payload.length());
-    }
-  #endif
+// DEBUG: Print payload (only in verbose mode)
+#if PRODUCTION_MODE == 0
+  if (payload.length() > 0 && payload.length() <= 2000)
+  {
+    Serial.printf("  Payload: %s\n", payload.c_str());
+  }
+  else if (payload.length() > 2000)
+  {
+    Serial.printf("  Payload: [%u bytes - too large to display]\n", payload.length());
+  }
+#endif
 
   // Check MQTT connection state before publish
-  if (!mqttClient.connected()) {
+  if (!mqttClient.connected())
+  {
     LOG_MQTT_ERROR("MQTT client not connected before publish! State: %d", mqttClient.state());
     return false;
   }
@@ -632,20 +647,22 @@ bool MqttManager::publishPayload(
   // Calculate total MQTT packet size for validation
   uint32_t mqttPacketSize = 5 + 2 + topic.length() + payload.length();
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
-    Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
+  Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
+#endif
 
   // Validate packet size doesn't exceed buffer
-  if (mqttPacketSize > cachedBufferSize) {
+  if (mqttPacketSize > cachedBufferSize)
+  {
     Serial.printf("[MQTT] ERROR: Packet size (%u) exceeds buffer (%u)! Cannot publish.\n",
                   mqttPacketSize, cachedBufferSize);
     return false;
   }
 
   // Validate payload is not empty or corrupted
-  if (payload.length() == 0 || payload.length() > 16000) {
+  if (payload.length() == 0 || payload.length() > 16000)
+  {
     Serial.printf("[MQTT] ERROR: Invalid payload size: %u bytes\n", payload.length());
     return false;
   }
@@ -654,7 +671,8 @@ bool MqttManager::publishPayload(
   // MQTT spec allows topics up to 65535 bytes, but practically limit to 512 bytes
   constexpr uint16_t MAX_TOPIC_LENGTH = 512;
 
-  if (topic.length() > MAX_TOPIC_LENGTH) {
+  if (topic.length() > MAX_TOPIC_LENGTH)
+  {
     Serial.printf("[MQTT] ERROR: Topic too long (%u bytes > %u bytes max)\n",
                   topic.length(), MAX_TOPIC_LENGTH);
     Serial.printf("[MQTT] Topic: %s\n", topic.substring(0, 100).c_str());
@@ -662,18 +680,20 @@ bool MqttManager::publishPayload(
   }
 
   // Allocate topic buffer dynamically based on actual topic length
-  char* topicBuffer = (char*)heap_caps_malloc(topic.length() + 1, MALLOC_CAP_8BIT);
-  if (!topicBuffer) {
+  char *topicBuffer = (char *)heap_caps_malloc(topic.length() + 1, MALLOC_CAP_8BIT);
+  if (!topicBuffer)
+  {
     Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for topic buffer!\n", topic.length() + 1);
     return false;
   }
   strcpy(topicBuffer, topic.c_str());
 
   // Allocate separate buffer for payload to prevent String memory issues
-  uint8_t* payloadBuffer = (uint8_t*)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
-  if (!payloadBuffer) {
+  uint8_t *payloadBuffer = (uint8_t *)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
+  if (!payloadBuffer)
+  {
     Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for payload buffer!\n", payload.length());
-    heap_caps_free(topicBuffer);  // Free topic buffer before returning
+    heap_caps_free(topicBuffer); // Free topic buffer before returning
     return false;
   }
 
@@ -683,28 +703,30 @@ bool MqttManager::publishPayload(
 
   // Use binary publish with explicit length for reliable transmission
   bool published = mqttClient.publish(
-    topicBuffer,      // Topic (dynamically allocated buffer)
-    payloadBuffer,    // Payload (dedicated buffer)
-    payloadLen        // Explicit length
+      topicBuffer,   // Topic (dynamically allocated buffer)
+      payloadBuffer, // Payload (dedicated buffer)
+      payloadLen     // Explicit length
   );
 
   // CRITICAL: Free buffers after publish to prevent memory leak
   heap_caps_free(topicBuffer);   // Free topic buffer (dynamic allocation)
   heap_caps_free(payloadBuffer); // Free payload buffer
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
-                  published ? "SUCCESS" : "FAILED",
-                  mqttClient.state(),
-                  mqttClient.state() == 0 ? "connected" : "disconnected");
-  #else
-    if (!published) {
-      LOG_MQTT_ERROR("Publish FAILED! State: %d", mqttClient.state());
-    }
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
+                published ? "SUCCESS" : "FAILED",
+                mqttClient.state(),
+                mqttClient.state() == 0 ? "connected" : "disconnected");
+#else
+  if (!published)
+  {
+    LOG_MQTT_ERROR("Publish FAILED! State: %d", mqttClient.state());
+  }
+#endif
 
   // Delay for TCP flush (20ms sufficient for 16KB payloads)
-  if (published) {
+  if (published)
+  {
     vTaskDelay(pdMS_TO_TICKS(20));
   }
 
@@ -720,25 +742,30 @@ bool MqttManager::publishPayload(
  */
 void MqttManager::calculateDisplayInterval(
     uint32_t intervalMs,
-    const String& unit,
-    uint32_t& displayInterval,
-    const char*& displayUnit)
+    const String &unit,
+    uint32_t &displayInterval,
+    const char *&displayUnit)
 {
   // Normalize unit for comparison (case-insensitive)
   String unitLower = unit;
   unitLower.toLowerCase();
 
   if (unitLower == "m" || unitLower == "min" || unitLower == "mins" ||
-      unitLower == "minute" || unitLower == "minutes") {
+      unitLower == "minute" || unitLower == "minutes")
+  {
     // Convert milliseconds to minutes
     displayInterval = intervalMs / 60000;
     displayUnit = "min";
-  } else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" ||
-             unitLower == "second" || unitLower == "seconds") {
+  }
+  else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" ||
+           unitLower == "second" || unitLower == "seconds")
+  {
     // Convert milliseconds to seconds
     displayInterval = intervalMs / 1000;
     displayUnit = "s";
-  } else {
+  }
+  else
+  {
     // Unit is "ms" or unknown - keep as milliseconds
     displayInterval = intervalMs;
     displayUnit = "ms";
@@ -750,16 +777,19 @@ void MqttManager::calculateDisplayInterval(
  * @param uniqueRegisters Map of published registers
  */
 void MqttManager::clearBatchesAfterPublish(
-    std::map<String, JsonDocument>& uniqueRegisters)
+    std::map<String, JsonDocument> &uniqueRegisters)
 {
   DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
-  if (batchMgr) {
+  if (batchMgr)
+  {
     // Track cleared devices to avoid duplicate clears
     std::set<String> clearedDevices;
-    for (auto &entry : uniqueRegisters) {
+    for (auto &entry : uniqueRegisters)
+    {
       JsonObject dataPoint = entry.second.as<JsonObject>();
       String deviceId = dataPoint["device_id"].as<String>();
-      if (!deviceId.isEmpty() && clearedDevices.find(deviceId) == clearedDevices.end()) {
+      if (!deviceId.isEmpty() && clearedDevices.find(deviceId) == clearedDevices.end())
+      {
         batchMgr->clearBatch(deviceId);
         clearedDevices.insert(deviceId);
       }
@@ -781,7 +811,7 @@ void MqttManager::clearBatchesAfterPublish(
  * Helper 7: Load broker configuration (address, port, credentials)
  * @param mqttConfig MQTT configuration JSON object
  */
-void MqttManager::loadBrokerConfig(JsonObject& mqttConfig)
+void MqttManager::loadBrokerConfig(JsonObject &mqttConfig)
 {
   // FIXED BUG #6: Consistent whitespace trimming for all string configs
   brokerAddress = mqttConfig["broker_address"] | "broker.hivemq.com";
@@ -800,18 +830,18 @@ void MqttManager::loadBrokerConfig(JsonObject& mqttConfig)
 
   publishMode = mqttConfig["publish_mode"] | "default";
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Config loaded | Broker: %s:%d | Client: %s | Auth: %s | Mode: %s\n",
-                  brokerAddress.c_str(), brokerPort, clientId.c_str(),
-                  (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] Config loaded | Broker: %s:%d | Client: %s | Auth: %s | Mode: %s\n",
+                brokerAddress.c_str(), brokerPort, clientId.c_str(),
+                (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
+#endif
 }
 
 /**
  * Helper 8: Load default mode configuration (topic, interval)
  * @param mqttConfig MQTT configuration JSON object
  */
-void MqttManager::loadDefaultModeConfig(JsonObject& mqttConfig)
+void MqttManager::loadDefaultModeConfig(JsonObject &mqttConfig)
 {
   if (mqttConfig["default_mode"])
   {
@@ -831,12 +861,12 @@ void MqttManager::loadDefaultModeConfig(JsonObject& mqttConfig)
     defaultInterval = convertToMilliseconds(intervalValue, defaultIntervalUnit);
     lastDefaultPublish = 0;
 
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Default Mode: %s | Topic: %s | Interval: %u%s (%ums)\n",
-                    defaultModeEnabled ? "ENABLED" : "DISABLED",
-                    defaultTopicPublish.c_str(), intervalValue,
-                    defaultIntervalUnit.c_str(), defaultInterval);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Default Mode: %s | Topic: %s | Interval: %u%s (%ums)\n",
+                  defaultModeEnabled ? "ENABLED" : "DISABLED",
+                  defaultTopicPublish.c_str(), intervalValue,
+                  defaultIntervalUnit.c_str(), defaultInterval);
+#endif
   }
 }
 
@@ -844,7 +874,7 @@ void MqttManager::loadDefaultModeConfig(JsonObject& mqttConfig)
  * Helper 9: Load customize mode configuration (custom topics with registers)
  * @param mqttConfig MQTT configuration JSON object
  */
-void MqttManager::loadCustomizeModeConfig(JsonObject& mqttConfig)
+void MqttManager::loadCustomizeModeConfig(JsonObject &mqttConfig)
 {
   customTopics.clear();
 
@@ -883,20 +913,20 @@ void MqttManager::loadCustomizeModeConfig(JsonObject& mqttConfig)
         if (!ct.topic.isEmpty() && ct.registers.size() > 0)
         {
           customTopics.push_back(ct);
-          #if PRODUCTION_MODE == 0
-            Serial.printf("[MQTT] Custom Topic: %s | Registers: %d | Interval: %u%s (%ums)\n",
-                          ct.topic.c_str(), ct.registers.size(), intervalValue,
-                          ct.intervalUnit.c_str(), ct.interval);
-          #endif
+#if PRODUCTION_MODE == 0
+          Serial.printf("[MQTT] Custom Topic: %s | Registers: %d | Interval: %u%s (%ums)\n",
+                        ct.topic.c_str(), ct.registers.size(), intervalValue,
+                        ct.intervalUnit.c_str(), ct.interval);
+#endif
         }
       }
     }
 
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Customize Mode: %s | Topics: %d\n",
-                    customizeModeEnabled ? "ENABLED" : "DISABLED",
-                    customTopics.size());
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Customize Mode: %s | Topics: %d\n",
+                  customizeModeEnabled ? "ENABLED" : "DISABLED",
+                  customTopics.size());
+#endif
   }
 }
 
@@ -907,7 +937,7 @@ void MqttManager::loadCustomizeModeConfig(JsonObject& mqttConfig)
  * @param totalRegisters Output: Total register count
  * @param hasSlowRTU Output: Whether slow RTU detected
  */
-void MqttManager::analyzeDeviceConfigurations(JsonArray& devices, uint32_t& maxRefreshRate, uint32_t& totalRegisters, bool& hasSlowRTU)
+void MqttManager::analyzeDeviceConfigurations(JsonArray &devices, uint32_t &maxRefreshRate, uint32_t &totalRegisters, bool &hasSlowRTU)
 {
   maxRefreshRate = 0;
   totalRegisters = 0;
@@ -923,11 +953,11 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray& devices, uint32_t& maxR
     JsonArray registers = device["registers"];
     uint32_t registerCount = registers.size();
 
-    #if PRODUCTION_MODE == 0
-      String deviceId = device["device_id"] | "UNKNOWN";
-      Serial.printf("[MQTT][DEBUG] Device %d (%s): protocol=%s, refresh=%lums, baud=%lu, registers=%lu\n",
-                    deviceIndex, deviceId.c_str(), protocol.c_str(), refreshRate, baudRate, registerCount);
-    #endif
+#if PRODUCTION_MODE == 0
+    String deviceId = device["device_id"] | "UNKNOWN";
+    Serial.printf("[MQTT][DEBUG] Device %d (%s): protocol=%s, refresh=%lums, baud=%lu, registers=%lu\n",
+                  deviceIndex, deviceId.c_str(), protocol.c_str(), refreshRate, baudRate, registerCount);
+#endif
 
     totalRegisters += registerCount;
 
@@ -935,27 +965,27 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray& devices, uint32_t& maxR
     if (refreshRate > maxRefreshRate)
     {
       maxRefreshRate = refreshRate;
-      #if PRODUCTION_MODE == 0
-        Serial.printf("[MQTT][DEBUG]   → New maxRefreshRate: %lums\n", maxRefreshRate);
-      #endif
+#if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT][DEBUG]   → New maxRefreshRate: %lums\n", maxRefreshRate);
+#endif
     }
 
     // Detect slow RTU configurations (9600 baud with many registers)
     if (protocol == "RTU" && baudRate <= 9600 && registerCount > 20)
     {
       hasSlowRTU = true;
-      #if PRODUCTION_MODE == 0
-        Serial.printf("[MQTT][DEBUG]   → Slow RTU detected! (baud=%lu, registers=%lu)\n", baudRate, registerCount);
-      #endif
+#if PRODUCTION_MODE == 0
+      Serial.printf("[MQTT][DEBUG]   → Slow RTU detected! (baud=%lu, registers=%lu)\n", baudRate, registerCount);
+#endif
     }
 
     deviceIndex++;
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT][DEBUG] Analysis summary: totalRegisters=%lu, maxRefreshRate=%lums, hasSlowRTU=%s\n",
-                  totalRegisters, maxRefreshRate, hasSlowRTU ? "YES" : "NO");
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT][DEBUG] Analysis summary: totalRegisters=%lu, maxRefreshRate=%lums, hasSlowRTU=%s\n",
+                totalRegisters, maxRefreshRate, hasSlowRTU ? "YES" : "NO");
+#endif
 }
 
 /**
@@ -972,48 +1002,48 @@ uint32_t MqttManager::determineTimeoutStrategy(uint32_t totalRegisters, uint32_t
 
   if (totalRegisters == 0)
   {
-    timeout = 1000;  // 1s for empty config
+    timeout = 1000; // 1s for empty config
     calculationReason = "no registers";
   }
   else if (hasSlowRTU)
   {
     // Slow RTU detected - use longer timeout
-    timeout = maxRefreshRate + 2000;  // Refresh rate + 2s margin
+    timeout = maxRefreshRate + 2000; // Refresh rate + 2s margin
     calculationReason = "slow RTU (refresh + 2000ms)";
   }
   else if (totalRegisters <= 10)
   {
     // Fast scenario: Few registers
-    timeout = 1000;  // 1s timeout
+    timeout = 1000; // 1s timeout
     calculationReason = "few registers (≤10)";
   }
   else if (totalRegisters <= 50)
   {
     // Medium scenario: Moderate registers
-    timeout = maxRefreshRate + 1000;  // Refresh rate + 1s margin
+    timeout = maxRefreshRate + 1000; // Refresh rate + 1s margin
     calculationReason = "moderate registers (≤50, refresh + 1000ms)";
   }
   else
   {
     // Heavy scenario: Many registers
-    timeout = maxRefreshRate + 2000;  // Refresh rate + 2s margin
+    timeout = maxRefreshRate + 2000; // Refresh rate + 2s margin
     calculationReason = "many registers (>50, refresh + 2000ms)";
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT][DEBUG] Timeout BEFORE clamp: %lums (reason: %s)\n", timeout, calculationReason.c_str());
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT][DEBUG] Timeout BEFORE clamp: %lums (reason: %s)\n", timeout, calculationReason.c_str());
+#endif
 
   // Clamp between 1s and 10s
   uint32_t timeoutBeforeClamp = timeout;
   timeout = constrain(timeout, 1000, 10000);
 
-  #if PRODUCTION_MODE == 0
-    if (timeout != timeoutBeforeClamp)
-    {
-      Serial.printf("[MQTT][DEBUG] Timeout AFTER clamp: %lums (clamped from %lums)\n", timeout, timeoutBeforeClamp);
-    }
-  #endif
+#if PRODUCTION_MODE == 0
+  if (timeout != timeoutBeforeClamp)
+  {
+    Serial.printf("[MQTT][DEBUG] Timeout AFTER clamp: %lums (clamped from %lums)\n", timeout, timeoutBeforeClamp);
+  }
+#endif
 
   return timeout;
 }
@@ -1066,27 +1096,30 @@ void MqttManager::publishQueueData()
   xSemaphoreTake(publishStateMutex, portMAX_DELAY);
 
   // Capture target time ONCE when interval first elapses
-  if ((defaultIntervalElapsed || customizeIntervalElapsed) && !publishState.timeLocked) {
-    publishState.targetTime = now;  // Lock this time for this publish cycle
+  if ((defaultIntervalElapsed || customizeIntervalElapsed) && !publishState.timeLocked)
+  {
+    publishState.targetTime = now; // Lock this time for this publish cycle
     publishState.timeLocked = true;
 
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] ✓ Target time captured at %lu ms (interval elapsed)\n", publishState.targetTime);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] ✓ Target time captured at %lu ms (interval elapsed)\n", publishState.targetTime);
+#endif
   }
 
-  // v2.3.7 FIX: Only log ONCE per interval (not every loop!)
-  // v2.3.8 PHASE 1: Moved from static to instance member for thread safety
-  #if PRODUCTION_MODE == 0
-    if (defaultIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000) {
-      Serial.printf("[MQTT] Default mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
-      publishState.lastLoggedInterval = publishState.targetTime;
-    }
-    if (customizeIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000) {
-      Serial.printf("[MQTT] Customize mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
-      publishState.lastLoggedInterval = publishState.targetTime;
-    }
-  #endif
+// v2.3.7 FIX: Only log ONCE per interval (not every loop!)
+// v2.3.8 PHASE 1: Moved from static to instance member for thread safety
+#if PRODUCTION_MODE == 0
+  if (defaultIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000)
+  {
+    Serial.printf("[MQTT] Default mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
+    publishState.lastLoggedInterval = publishState.targetTime;
+  }
+  if (customizeIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000)
+  {
+    Serial.printf("[MQTT] Customize mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
+    publishState.lastLoggedInterval = publishState.targetTime;
+  }
+#endif
 
   // Step 3: Wait for device batch completion with SHORT TIMEOUT
   DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
@@ -1104,7 +1137,7 @@ void MqttManager::publishQueueData()
         publishState.flushedOnce = true;
       }
     }
-    publishState.timeLocked = false;  // Reset for next interval
+    publishState.timeLocked = false; // Reset for next interval
     xSemaphoreGive(publishStateMutex);
     return;
   }
@@ -1114,7 +1147,7 @@ void MqttManager::publishQueueData()
   if (queueMgr && queueMgr->isEmpty())
   {
     // Queue is empty - no data to publish, skip silently
-    publishState.timeLocked = false;  // Reset for next interval
+    publishState.timeLocked = false; // Reset for next interval
     xSemaphoreGive(publishStateMutex);
     return;
   }
@@ -1131,53 +1164,64 @@ void MqttManager::publishQueueData()
   // publishState.batchTimeout = 0;  // INSTANT MODE: Publish immediately when interval elapsed
 
   // Calculate adaptive timeout once (cache it)
-  if (publishState.batchTimeout == 0) {
+  if (publishState.batchTimeout == 0)
+  {
     publishState.batchTimeout = calculateAdaptiveBatchTimeout();
   }
 
   if (batchMgr && !batchMgr->hasCompleteBatch())
   {
     // Start timer on first wait
-    if (publishState.batchWaitStart == 0) {
+    if (publishState.batchWaitStart == 0)
+    {
       publishState.batchWaitStart = millis();
     }
 
     // Check adaptive timeout
     unsigned long elapsed = millis() - publishState.batchWaitStart;
-    if (elapsed > publishState.batchTimeout) {
+    if (elapsed > publishState.batchTimeout)
+    {
       Serial.printf("[MQTT] Batch wait timeout (%lums/%lums) - publishing available data for consistent interval\n",
                     elapsed, publishState.batchTimeout);
-      publishState.batchWaitStart = 0;  // Reset timer
+      publishState.batchWaitStart = 0; // Reset timer
       // Continue to publish whatever is in queue (don't return)
-    } else {
+    }
+    else
+    {
       // Still waiting for batch - but don't log spam (removed throttle logging)
       // Timestamp already updated, so next interval will be consistent
       xSemaphoreGive(publishStateMutex);
-      return;  // Wait for batch completion
+      return; // Wait for batch completion
     }
-  } else {
+  }
+  else
+  {
     // Batch complete or no batches - reset timer
     publishState.batchWaitStart = 0;
   }
 
   // v2.3.7 FIX: Lock timestamp NOW (right before publish)
   // This ensures interval consistency while avoiding early-return bugs
-  if (defaultIntervalElapsed) {
+  if (defaultIntervalElapsed)
+  {
     lastDefaultPublish = publishState.targetTime;
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishState.targetTime);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishState.targetTime);
+#endif
   }
 
-  if (customizeIntervalElapsed) {
-    for (auto &customTopic : customTopics) {
-      if ((now - customTopic.lastPublish) >= customTopic.interval) {
+  if (customizeIntervalElapsed)
+  {
+    for (auto &customTopic : customTopics)
+    {
+      if ((now - customTopic.lastPublish) >= customTopic.interval)
+      {
         customTopic.lastPublish = publishState.targetTime;
       }
     }
-    #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishState.targetTime);
-    #endif
+#if PRODUCTION_MODE == 0
+    Serial.printf("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishState.targetTime);
+#endif
   }
 
   // v2.3.7 OPTIMIZED: Process persistent queue AFTER batch wait (before dequeue)
@@ -1185,12 +1229,12 @@ void MqttManager::publishQueueData()
   if (persistentQueueEnabled && persistentQueue)
   {
     uint32_t persistedSent = persistentQueue->processQueue();
-    #if PRODUCTION_MODE == 0
-      if (persistedSent > 0)
-      {
-        Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
-      }
-    #endif
+#if PRODUCTION_MODE == 0
+    if (persistedSent > 0)
+    {
+      Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
+    }
+#endif
   }
 
   // Only dequeue if we're actually going to publish
@@ -1225,7 +1269,7 @@ void MqttManager::publishQueueData()
 
   if (uniqueRegisters.empty())
   {
-    publishState.timeLocked = false;  // Reset for next interval
+    publishState.timeLocked = false; // Reset for next interval
     xSemaphoreGive(publishStateMutex);
     return; // Nothing to publish
   }
@@ -1244,9 +1288,9 @@ void MqttManager::publishQueueData()
   // This allows the next interval to capture a fresh timestamp
   publishState.timeLocked = false;
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] ✓ Publish cycle complete - ready for next interval\n");
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] ✓ Publish cycle complete - ready for next interval\n");
+#endif
 
   // v2.3.8 PHASE 1: Release mutex at end of publish cycle
   xSemaphoreGive(publishStateMutex);
@@ -1277,7 +1321,8 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
 
   // Helper 3: Serialize and validate JSON payload
   String payload;
-  if (!serializeAndValidatePayload(batchDoc, payload, estimatedSize)) {
+  if (!serializeAndValidatePayload(batchDoc, payload, estimatedSize))
+  {
     return; // Serialization or validation failed
   }
 
@@ -1288,7 +1333,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   {
     // Helper 5: Calculate display interval with unit conversion
     uint32_t displayInterval;
-    const char* displayUnit;
+    const char *displayUnit;
     calculateDisplayInterval(defaultInterval, defaultIntervalUnit, displayInterval, displayUnit);
 
     LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
@@ -1298,7 +1343,8 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     // Helper 6: Clear device batches after successful publish
     clearBatchesAfterPublish(uniqueRegisters);
 
-    if (ledManager) {
+    if (ledManager)
+    {
       ledManager->notifyDataTransmission();
     }
   }
@@ -1309,12 +1355,15 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
 
     // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
     // If payload exceeds buffer size, it will fail again when retried, creating infinite loop
-    if (payload.length() > cachedBufferSize) {
+    if (payload.length() > cachedBufferSize)
+    {
       Serial.printf("[MQTT] ERROR: Payload dropped (too large: %d bytes > %u bytes buffer)\n",
                     payload.length(), cachedBufferSize);
       Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce device/register count");
       // Don't enqueue - message is permanently dropped to prevent queue poisoning
-    } else if (persistentQueueEnabled && persistentQueue) {
+    }
+    else if (persistentQueueEnabled && persistentQueue)
+    {
       // Only enqueue if size is reasonable (failed for other reasons like network)
       JsonObject cleanPayload = batchDoc.as<JsonObject>();
       persistentQueue->enqueueJsonMessage(defaultTopicPublish, cleanPayload, PRIORITY_NORMAL, 86400000);
@@ -1329,7 +1378,8 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
   for (auto &customTopic : customTopics)
   {
     // Check if interval elapsed for this topic
-    if ((now - customTopic.lastPublish) < customTopic.interval) {
+    if ((now - customTopic.lastPublish) < customTopic.interval)
+    {
       continue; // Wait for this topic's interval
     }
 
@@ -1358,7 +1408,8 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
     {
       // Helper 3: Serialize and validate JSON payload
       String payload;
-      if (!serializeAndValidatePayload(topicDoc, payload, estimatedSize)) {
+      if (!serializeAndValidatePayload(topicDoc, payload, estimatedSize))
+      {
         continue; // Skip to next topic if serialization failed
       }
 
@@ -1369,7 +1420,7 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       {
         // Helper 5: Calculate display interval with unit conversion
         uint32_t displayInterval;
-        const char* displayUnit;
+        const char *displayUnit;
         calculateDisplayInterval(customTopic.interval, customTopic.intervalUnit, displayInterval, displayUnit);
 
         Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
@@ -1379,7 +1430,8 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         // Helper 6: Clear device batches after successful publish
         clearBatchesAfterPublish(uniqueRegisters);
 
-        if (ledManager) {
+        if (ledManager)
+        {
           ledManager->notifyDataTransmission();
         }
       }
@@ -1388,12 +1440,15 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         Serial.printf("[MQTT] Customize Mode: Publish failed for topic %s\n", customTopic.topic.c_str());
 
         // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
-        if (payload.length() > cachedBufferSize) {
+        if (payload.length() > cachedBufferSize)
+        {
           Serial.printf("[MQTT] ERROR: Payload dropped for topic %s (too large: %d bytes > %u bytes buffer)\n",
                         customTopic.topic.c_str(), payload.length(), cachedBufferSize);
           Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce registers in this topic");
           // Don't enqueue - message is permanently dropped to prevent queue poisoning
-        } else if (persistentQueueEnabled && persistentQueue) {
+        }
+        else if (persistentQueueEnabled && persistentQueue)
+        {
           // Only enqueue if size is reasonable (failed for other reasons like network)
           JsonObject cleanPayload = topicDoc.as<JsonObject>();
           persistentQueue->enqueueJsonMessage(customTopic.topic, cleanPayload, PRIORITY_NORMAL, 86400000);
@@ -1463,7 +1518,7 @@ void MqttManager::getStatus(JsonObject &status)
   status["client_id"] = clientId;
   status["topic_publish"] = topicPublish;
   status["queue_size"] = queueManager->size();
-  status["publish_mode"] = publishMode;  // v2.2.0: Show current publish mode instead of legacy data_interval_ms
+  status["publish_mode"] = publishMode; // v2.2.0: Show current publish mode instead of legacy data_interval_ms
 }
 
 // Persistent queue management methods
@@ -1522,19 +1577,19 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   if (!configManager)
   {
     // Fallback to conservative default if no config
-    return 4096;  // 4KB default
+    return 4096; // 4KB default
   }
 
   // Load all devices to count total registers
   // Use getAllDevicesWithRegisters() to get device data
   // BUG #31: JsonDocument will use PSRAM via DefaultAllocator override (JsonDocumentPSRAM.h)
-  JsonDocument devicesDoc;  // Automatically uses PSRAM allocator from JsonDocumentPSRAM.h
+  JsonDocument devicesDoc; // Automatically uses PSRAM allocator from JsonDocumentPSRAM.h
   JsonArray devices = devicesDoc.to<JsonArray>();
-  configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
+  configManager->getAllDevicesWithRegisters(devices, true); // minimal fields
 
   if (devices.size() == 0)
   {
-    return 4096;  // 4KB default if no devices
+    return 4096; // 4KB default if no devices
   }
 
   uint32_t totalRegisters = 0;
@@ -1579,10 +1634,10 @@ uint16_t MqttManager::calculateOptimalBufferSize()
     optimalSize = (uint16_t)calculatedSize;
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Buffer calculation: %u registers = %u bytes (min: %u, max: %u)\n",
-                  totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] Buffer calculation: %u registers = %u bytes (min: %u, max: %u)\n",
+                totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
+#endif
 
   return optimalSize;
 }
@@ -1595,27 +1650,27 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout()
 {
   if (!configManager)
   {
-    #if PRODUCTION_MODE == 0
-      Serial.println("[MQTT][DEBUG] No ConfigManager - returning default 2000ms");
-    #endif
-    return 2000;  // Default 2s if no config
+#if PRODUCTION_MODE == 0
+    Serial.println("[MQTT][DEBUG] No ConfigManager - returning default 2000ms");
+#endif
+    return 2000; // Default 2s if no config
   }
 
   // Load all devices to analyze configuration
   JsonDocument devicesDoc;
   JsonArray devices = devicesDoc.to<JsonArray>();
-  configManager->getAllDevicesWithRegisters(devices, true);  // minimal fields
+  configManager->getAllDevicesWithRegisters(devices, true); // minimal fields
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT][DEBUG] Loaded %d devices for timeout calculation\n", devices.size());
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT][DEBUG] Loaded %d devices for timeout calculation\n", devices.size());
+#endif
 
   if (devices.size() == 0)
   {
-    #if PRODUCTION_MODE == 0
-      Serial.println("[MQTT][DEBUG] No devices - returning default 1000ms");
-    #endif
-    return 1000;  // 1s default if no devices
+#if PRODUCTION_MODE == 0
+    Serial.println("[MQTT][DEBUG] No devices - returning default 1000ms");
+#endif
+    return 1000; // 1s default if no devices
   }
 
   // Helper 10: Analyze device configurations (refresh rates, register counts, RTU detection)
@@ -1627,10 +1682,10 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout()
   // Helper 11: Determine timeout strategy based on analysis results
   uint32_t timeout = determineTimeoutStrategy(totalRegisters, maxRefreshRate, hasSlowRTU);
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] ✓ Adaptive batch timeout: %lums (devices: %d, registers: %lu, max_refresh: %lums)\n",
-                  timeout, devices.size(), totalRegisters, maxRefreshRate);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[MQTT] ✓ Adaptive batch timeout: %lums (devices: %d, registers: %lu, max_refresh: %lums)\n",
+                timeout, devices.size(), totalRegisters, maxRefreshRate);
+#endif
 
   return timeout;
 }
@@ -1651,11 +1706,13 @@ MqttManager::~MqttManager()
   stop();
 
   // v2.3.8 PHASE 1: Delete mutexes for cleanup
-  if (bufferCacheMutex != NULL) {
+  if (bufferCacheMutex != NULL)
+  {
     vSemaphoreDelete(bufferCacheMutex);
     bufferCacheMutex = NULL;
   }
-  if (publishStateMutex != NULL) {
+  if (publishStateMutex != NULL)
+  {
     vSemaphoreDelete(publishStateMutex);
     publishStateMutex = NULL;
   }

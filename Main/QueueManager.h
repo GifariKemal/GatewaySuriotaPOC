@@ -1,7 +1,7 @@
 #ifndef QUEUE_MANAGER_H
 #define QUEUE_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -15,7 +15,7 @@ private:
   QueueHandle_t streamQueue;
   mutable SemaphoreHandle_t queueMutex;   // Mutable: mutex operations don't change logical state
   mutable SemaphoreHandle_t streamMutex;  // Mutable: mutex operations don't change logical state
-  static const int MAX_QUEUE_SIZE = 1000;  // CRITICAL FIX: Increased from 200 to 1000 to prevent queue overflow during slow MQTT publish intervals (60s+). Supports ~60s publish interval with 2 devices × 50 registers each.
+  static const int MAX_QUEUE_SIZE = 1000; // CRITICAL FIX: Increased from 200 to 1000 to prevent queue overflow during slow MQTT publish intervals (60s+). Supports ~60s publish interval with 2 devices × 50 registers each.
   static const int MAX_STREAM_QUEUE_SIZE = 50;
 
   // Configurable mutex timeout (milliseconds)

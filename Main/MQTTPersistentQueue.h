@@ -1,7 +1,7 @@
 #ifndef MQTT_PERSISTENT_QUEUE_H
 #define MQTT_PERSISTENT_QUEUE_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <Arduino.h>
 #include <vector>
 #include <deque>

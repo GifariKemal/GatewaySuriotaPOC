@@ -1,6 +1,6 @@
 #include "ModbusTcpService.h"
 #include "QueueManager.h"
-#include "DeviceBatchManager.h"  // CRITICAL FIX: Track batch completion
+#include "DeviceBatchManager.h" // CRITICAL FIX: Track batch completion
 #include "CRUDHandler.h"
 #include "RTCManager.h"
 #include "NetworkManager.h"
@@ -24,9 +24,12 @@ ModbusTcpService::ModbusTcpService(ConfigManager *config, EthernetManager *ether
 
   // FIXED BUG #14: Initialize connection pool mutex
   poolMutex = xSemaphoreCreateMutex();
-  if (!poolMutex) {
+  if (!poolMutex)
+  {
     Serial.println("[TCP] ERROR: Failed to create pool mutex!");
-  } else {
+  }
+  else
+  {
     Serial.println("[TCP] Connection pool initialized");
   }
 }
@@ -334,7 +337,8 @@ void ModbusTcpService::readTcpDevicesLoop()
 
     // FIXED BUG #14: Periodic cleanup of idle connections
     static unsigned long lastCleanup = 0;
-    if (millis() - lastCleanup > 30000) {  // Cleanup every 30 seconds
+    if (millis() - lastCleanup > 30000)
+    { // Cleanup every 30 seconds
       closeIdleConnections();
       lastCleanup = millis();
     }
@@ -364,17 +368,17 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   if (!validatedIP.fromString(ip))
   {
     static unsigned long lastWarning = 0;
-    if (millis() - lastWarning > 30000)  // Log max once per 30s per device
+    if (millis() - lastWarning > 30000) // Log max once per 30s per device
     {
       Serial.printf("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId.c_str(), ip.c_str());
       Serial.println("[TCP] HINT: IP must be in format A.B.C.D where 0 <= A,B,C,D <= 255");
       lastWarning = millis();
     }
-    return;  // Skip device with invalid IP
+    return; // Skip device with invalid IP
   }
 
   // Determine network type for log
-  String networkType = "TCP/WiFi";  // Default assume WiFi
+  String networkType = "TCP/WiFi"; // Default assume WiFi
   NetworkMgr *networkMgr = NetworkMgr::getInstance();
   if (networkMgr)
   {
@@ -429,29 +433,33 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         {
           if (storeSuccess)
           {
-            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
           }
           else
           {
-            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
           }
         }
 
         // COMPACT LOGGING: Collect reading to buffer
         String unit = reg["unit"] | "";
-        unit.replace("°", "deg");  // Replace UTF-8 degree symbol with ASCII "deg"
+        unit.replace("°", "deg"); // Replace UTF-8 degree symbol with ASCII "deg"
 
         // Add header on first success
-        if (successCount == 0) {
+        if (successCount == 0)
+        {
           outputBuffer += "[DATA] " + deviceId + ":\n";
         }
 
         compactLine += registerName + ":" + String(value, 1) + unit;
         successCount++;
-        if (successCount % 6 == 0) {
+        if (successCount % 6 == 0)
+        {
           outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
           compactLine = "";
-        } else {
+        }
+        else
+        {
           compactLine += " | ";
         }
       }
@@ -521,29 +529,33 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         {
           if (storeSuccess)
           {
-            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
           }
           else
           {
-            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
           }
         }
 
         // COMPACT LOGGING: Collect reading to buffer
         String unit = reg["unit"] | "";
-        unit.replace("°", "deg");  // Replace UTF-8 degree symbol with ASCII "deg"
+        unit.replace("°", "deg"); // Replace UTF-8 degree symbol with ASCII "deg"
 
         // Add header on first success
-        if (successCount == 0) {
+        if (successCount == 0)
+        {
           outputBuffer += "[DATA] " + deviceId + ":\n";
         }
 
         compactLine += registerName + ":" + String(value, 1) + unit;
         successCount++;
-        if (successCount % 6 == 0) {
+        if (successCount % 6 == 0)
+        {
           outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
           compactLine = "";
-        } else {
+        }
+        else
+        {
           compactLine += " | ";
         }
       }
@@ -563,10 +575,13 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
-  if (successCount > 0) {
-    if (!compactLine.isEmpty()) {
+  if (successCount > 0)
+  {
+    if (!compactLine.isEmpty())
+    {
       // Remove trailing " | "
-      if (compactLine.endsWith(" | ")) {
+      if (compactLine.endsWith(" | "))
+      {
         compactLine = compactLine.substring(0, compactLine.length() - 3);
       }
       outputBuffer += "  L" + String(lineNumber) + ": " + compactLine + "\n";
@@ -654,7 +669,8 @@ double ModbusTcpService::processMultiRegisterValue(const JsonObject &reg, uint16
     else if (baseType == "FLOAT32")
     {
       // FIXED Bug #5: Use union for safe type conversion (no strict aliasing violation)
-      union {
+      union
+      {
         uint32_t bits;
         float value;
       } converter;
@@ -745,7 +761,7 @@ double ModbusTcpService::processMultiRegisterValue(const JsonObject &reg, uint16
   return values[0]; // Fallback
 }
 
-bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient* existingClient)
+bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient)
 {
   // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
   // For now, ignore existingClient parameter and create new connection (backward compatible)
@@ -800,7 +816,7 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
   return parseModbusResponse(response.data(), bytesRead, functionCode, result, &dummy);
 }
 
-bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient* existingClient)
+bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient)
 {
   // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
   // For now, ignore existingClient parameter and create new connection (backward compatible)
@@ -856,7 +872,7 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
   return parseMultiModbusResponse(response.data(), bytesRead, functionCode, count, results);
 }
 
-bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient* existingClient)
+bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient)
 {
   // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
   // For now, ignore existingClient parameter and create new connection (backward compatible)
@@ -1029,7 +1045,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   if (!queueMgr)
   {
     Serial.println("[TCP] ERROR: QueueManager is null, cannot store register value");
-    return false;  // FIXED: Return false on failure
+    return false; // FIXED: Return false on failure
   }
 
   // Create data point in simplified format for MQTT
@@ -1057,12 +1073,12 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
     dataPoint["device_name"] = deviceName;
   }
 
-  dataPoint["address"] = reg["address"];  // Register address (e.g., 4112) for BLE streaming
-  dataPoint["value"] = calibratedValue;  // Use calibrated value
-  dataPoint["description"] = reg["description"] | "";  // Optional field from BLE config
-  dataPoint["unit"] = reg["unit"] | "";  // Unit field for measurement
-  dataPoint["register_id"] = reg["register_id"].as<String>();  // Internal use for deduplication
-  dataPoint["register_index"] = reg["register_index"] | 0;  // For customize mode topic mapping
+  dataPoint["address"] = reg["address"];                      // Register address (e.g., 4112) for BLE streaming
+  dataPoint["value"] = calibratedValue;                       // Use calibrated value
+  dataPoint["description"] = reg["description"] | "";         // Optional field from BLE config
+  dataPoint["unit"] = reg["unit"] | "";                       // Unit field for measurement
+  dataPoint["register_id"] = reg["register_id"].as<String>(); // Internal use for deduplication
+  dataPoint["register_index"] = reg["register_index"] | 0;    // For customize mode topic mapping
 
   // CRITICAL FIX: Check enqueue() return value to detect data loss
   // If enqueue fails (queue full, memory exhausted, mutex timeout), return false
@@ -1077,7 +1093,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
     // Trigger memory diagnostics to identify root cause
     MemoryRecovery::logMemoryStatus("ENQUEUE_FAILED_TCP");
 
-    return false;  // Return failure to caller
+    return false; // Return failure to caller
   }
 
   // Check if this device is being streamed
@@ -1095,7 +1111,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
     queueMgr->enqueueStream(dataPoint);
   }
 
-  return true;  // Success
+  return true; // Success
 }
 
 void ModbusTcpService::getStatus(JsonObject &status)
@@ -1211,52 +1227,65 @@ void ModbusTcpService::setDataTransmissionInterval(uint32_t intervalMs)
 // - For 10 devices polled every 5s: saves ~1000ms per cycle (20% improvement)
 // ============================================
 
-String ModbusTcpService::getDeviceKey(const String &ip, int port) {
+String ModbusTcpService::getDeviceKey(const String &ip, int port)
+{
   return ip + ":" + String(port);
 }
 
-TCPClient* ModbusTcpService::getPooledConnection(const String &ip, int port) {
-  if (!poolMutex) {
-    return nullptr;  // Pool not initialized
+TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
+{
+  if (!poolMutex)
+  {
+    return nullptr; // Pool not initialized
   }
 
   String deviceKey = getDeviceKey(ip, port);
-  TCPClient* client = nullptr;
+  TCPClient *client = nullptr;
   unsigned long now = millis();
 
   // Lock pool for thread-safe access
-  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE)
+  {
     LOG_TCP_WARN("Pool mutex timeout in getPooledConnection\n");
     return nullptr;
   }
 
   // Search for existing connection
-  for (auto &entry : connectionPool) {
-    if (entry.deviceKey == deviceKey) {
+  for (auto &entry : connectionPool)
+  {
+    if (entry.deviceKey == deviceKey)
+    {
       // Check if connection is still healthy
-      if (entry.client && entry.client->connected() && entry.isHealthy) {
+      if (entry.client && entry.client->connected() && entry.isHealthy)
+      {
         // Check connection age
-        if ((now - entry.createdAt) < CONNECTION_MAX_AGE_MS) {
+        if ((now - entry.createdAt) < CONNECTION_MAX_AGE_MS)
+        {
           // Connection is good - reuse it
           entry.lastUsed = now;
           entry.useCount++;
           client = entry.client;
 
           LOG_TCP_DEBUG("Reusing pooled connection to %s (uses: %u, age: %lums)\n",
-                       deviceKey.c_str(), entry.useCount, (now - entry.createdAt));
-        } else {
+                        deviceKey.c_str(), entry.useCount, (now - entry.createdAt));
+        }
+        else
+        {
           // Connection too old - close and recreate
           LOG_TCP_INFO("Connection to %s expired (age: %lums), recreating\n",
-                      deviceKey.c_str(), (now - entry.createdAt));
+                       deviceKey.c_str(), (now - entry.createdAt));
           entry.client->stop();
           delete entry.client;
           entry.client = nullptr;
           entry.isHealthy = false;
         }
-      } else {
+      }
+      else
+      {
         // Connection dead - mark for cleanup
         LOG_TCP_WARN("Connection to %s is dead, marking for cleanup\n", deviceKey.c_str());
-        if (entry.client) {
+        if (entry.client)
+        {
           entry.client->stop();
           delete entry.client;
           entry.client = nullptr;
@@ -1271,30 +1300,37 @@ TCPClient* ModbusTcpService::getPooledConnection(const String &ip, int port) {
   return client;
 }
 
-void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPClient* client, bool healthy) {
-  if (!poolMutex || !client) {
+void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPClient *client, bool healthy)
+{
+  if (!poolMutex || !client)
+  {
     return;
   }
 
   String deviceKey = getDeviceKey(ip, port);
   unsigned long now = millis();
 
-  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE)
+  {
     LOG_TCP_WARN("Pool mutex timeout in returnPooledConnection\n");
     return;
   }
 
   // Find existing entry or create new one
   bool found = false;
-  for (auto &entry : connectionPool) {
-    if (entry.deviceKey == deviceKey) {
+  for (auto &entry : connectionPool)
+  {
+    if (entry.deviceKey == deviceKey)
+    {
       entry.lastUsed = now;
       entry.isHealthy = healthy;
       found = true;
 
-      if (!healthy) {
+      if (!healthy)
+      {
         LOG_TCP_WARN("Connection to %s marked as unhealthy\n", deviceKey.c_str());
-        if (entry.client) {
+        if (entry.client)
+        {
           entry.client->stop();
           delete entry.client;
           entry.client = nullptr;
@@ -1304,9 +1340,11 @@ void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPCli
     }
   }
 
-  if (!found && healthy) {
+  if (!found && healthy)
+  {
     // New connection - add to pool if not full
-    if (connectionPool.size() < MAX_POOL_SIZE) {
+    if (connectionPool.size() < MAX_POOL_SIZE)
+    {
       ConnectionPoolEntry newEntry;
       newEntry.deviceKey = deviceKey;
       newEntry.client = client;
@@ -1317,21 +1355,26 @@ void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPCli
       connectionPool.push_back(newEntry);
 
       LOG_TCP_INFO("Added new connection to pool: %s (pool size: %d)\n",
-                  deviceKey.c_str(), connectionPool.size());
-    } else {
+                   deviceKey.c_str(), connectionPool.size());
+    }
+    else
+    {
       // Pool full - close oldest connection
       LOG_TCP_WARN("Connection pool full (%d), closing oldest connection\n", MAX_POOL_SIZE);
 
       unsigned long oldestTime = now;
       size_t oldestIdx = 0;
-      for (size_t i = 0; i < connectionPool.size(); i++) {
-        if (connectionPool[i].lastUsed < oldestTime) {
+      for (size_t i = 0; i < connectionPool.size(); i++)
+      {
+        if (connectionPool[i].lastUsed < oldestTime)
+        {
           oldestTime = connectionPool[i].lastUsed;
           oldestIdx = i;
         }
       }
 
-      if (connectionPool[oldestIdx].client) {
+      if (connectionPool[oldestIdx].client)
+      {
         connectionPool[oldestIdx].client->stop();
         delete connectionPool[oldestIdx].client;
       }
@@ -1354,30 +1397,38 @@ void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPCli
   xSemaphoreGive(poolMutex);
 }
 
-void ModbusTcpService::closeIdleConnections() {
-  if (!poolMutex) {
+void ModbusTcpService::closeIdleConnections()
+{
+  if (!poolMutex)
+  {
     return;
   }
 
   unsigned long now = millis();
 
-  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE)
+  {
     return;
   }
 
   // Remove idle connections
-  for (auto it = connectionPool.begin(); it != connectionPool.end(); ) {
+  for (auto it = connectionPool.begin(); it != connectionPool.end();)
+  {
     unsigned long idleTime = now - it->lastUsed;
-    if (idleTime > CONNECTION_IDLE_TIMEOUT_MS || !it->isHealthy) {
+    if (idleTime > CONNECTION_IDLE_TIMEOUT_MS || !it->isHealthy)
+    {
       LOG_TCP_INFO("Closing idle/unhealthy connection to %s (idle: %lums)\n",
-                  it->deviceKey.c_str(), idleTime);
+                   it->deviceKey.c_str(), idleTime);
 
-      if (it->client) {
+      if (it->client)
+      {
         it->client->stop();
         delete it->client;
       }
       it = connectionPool.erase(it);
-    } else {
+    }
+    else
+    {
       ++it;
     }
   }
@@ -1385,19 +1436,24 @@ void ModbusTcpService::closeIdleConnections() {
   xSemaphoreGive(poolMutex);
 }
 
-void ModbusTcpService::closeAllConnections() {
-  if (!poolMutex) {
+void ModbusTcpService::closeAllConnections()
+{
+  if (!poolMutex)
+  {
     return;
   }
 
-  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+  if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
+  {
     return;
   }
 
   LOG_TCP_INFO("Closing all pooled connections (%d)\n", connectionPool.size());
 
-  for (auto &entry : connectionPool) {
-    if (entry.client) {
+  for (auto &entry : connectionPool)
+  {
+    if (entry.client)
+    {
       entry.client->stop();
       delete entry.client;
       entry.client = nullptr;
@@ -1560,21 +1616,21 @@ void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState:
   state->disableReasonDetail = reasonDetail;
   state->disabledTimestamp = millis();
 
-  const char* reasonText = "";
+  const char *reasonText = "";
   switch (reason)
   {
-    case DeviceFailureState::MANUAL:
-      reasonText = "MANUAL";
-      break;
-    case DeviceFailureState::AUTO_RETRY:
-      reasonText = "AUTO_RETRY";
-      break;
-    case DeviceFailureState::AUTO_TIMEOUT:
-      reasonText = "AUTO_TIMEOUT";
-      break;
-    default:
-      reasonText = "UNKNOWN";
-      break;
+  case DeviceFailureState::MANUAL:
+    reasonText = "MANUAL";
+    break;
+  case DeviceFailureState::AUTO_RETRY:
+    reasonText = "AUTO_RETRY";
+    break;
+  case DeviceFailureState::AUTO_TIMEOUT:
+    reasonText = "AUTO_TIMEOUT";
+    break;
+  default:
+    reasonText = "UNKNOWN";
+    break;
   }
 
   Serial.printf("[TCP] Device %s disabled (reason: %s, detail: %s)\n",
@@ -1722,21 +1778,21 @@ bool ModbusTcpService::getDeviceStatusInfo(const String &deviceId, JsonObject &s
   statusInfo["consecutive_failures"] = state->consecutiveFailures;
   statusInfo["retry_count"] = state->retryCount;
 
-  const char* reasonText = "";
+  const char *reasonText = "";
   switch (state->disableReason)
   {
-    case DeviceFailureState::NONE:
-      reasonText = "NONE";
-      break;
-    case DeviceFailureState::MANUAL:
-      reasonText = "MANUAL";
-      break;
-    case DeviceFailureState::AUTO_RETRY:
-      reasonText = "AUTO_RETRY";
-      break;
-    case DeviceFailureState::AUTO_TIMEOUT:
-      reasonText = "AUTO_TIMEOUT";
-      break;
+  case DeviceFailureState::NONE:
+    reasonText = "NONE";
+    break;
+  case DeviceFailureState::MANUAL:
+    reasonText = "MANUAL";
+    break;
+  case DeviceFailureState::AUTO_RETRY:
+    reasonText = "AUTO_RETRY";
+    break;
+  case DeviceFailureState::AUTO_TIMEOUT:
+    reasonText = "AUTO_TIMEOUT";
+    break;
   }
   statusInfo["disable_reason"] = reasonText;
   statusInfo["disable_reason_detail"] = state->disableReasonDetail;
@@ -1835,7 +1891,8 @@ ModbusTcpService::~ModbusTcpService()
   // FIXED BUG #14: Clean up connection pool
   closeAllConnections();
 
-  if (poolMutex) {
+  if (poolMutex)
+  {
     vSemaphoreDelete(poolMutex);
     poolMutex = nullptr;
   }

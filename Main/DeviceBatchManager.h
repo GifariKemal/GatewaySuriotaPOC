@@ -34,12 +34,12 @@ private:
 
     struct BatchInfo
     {
-        int expected;   // How many registers expected
-        int attempted;  // How many registers attempted (success + failure)
-        int enqueued;   // How many registers successfully enqueued
-        int failed;     // How many registers failed to read
+        int expected;            // How many registers expected
+        int attempted;           // How many registers attempted (success + failure)
+        int enqueued;            // How many registers successfully enqueued
+        int failed;              // How many registers failed to read
         unsigned long startTime; // When batch started
-        bool complete;  // Is batch complete?
+        bool complete;           // Is batch complete?
 
         BatchInfo() : expected(0), attempted(0), enqueued(0), failed(0), startTime(0), complete(false) {}
     };
@@ -103,8 +103,8 @@ public:
         if (it != deviceBatches.end())
         {
             BatchInfo &batch = it->second;
-            batch.attempted++;  // Track attempt
-            batch.enqueued++;   // Track success
+            batch.attempted++; // Track attempt
+            batch.enqueued++;  // Track success
 
             // Check if batch is complete (all registers attempted)
             if (batch.attempted >= batch.expected && !batch.complete)
@@ -133,8 +133,8 @@ public:
         if (it != deviceBatches.end())
         {
             BatchInfo &batch = it->second;
-            batch.attempted++;  // Track attempt
-            batch.failed++;     // Track failure
+            batch.attempted++; // Track attempt
+            batch.failed++;    // Track failure
 
             // Check if batch is complete (all registers attempted)
             if (batch.attempted >= batch.expected && !batch.complete)

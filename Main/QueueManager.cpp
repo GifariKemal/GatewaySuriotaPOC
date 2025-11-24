@@ -95,7 +95,7 @@ bool QueueManager::enqueue(const JsonObject &dataPoint)
     {
       // Fallback successful - log warning
       static unsigned long lastWarning = 0;
-      if (millis() - lastWarning > 30000)  // Log max once per 30s to avoid spam
+      if (millis() - lastWarning > 30000) // Log max once per 30s to avoid spam
       {
         Serial.printf("[QUEUE] WARNING: PSRAM exhausted, using DRAM fallback (%d bytes)\n", jsonString.length());
         lastWarning = millis();

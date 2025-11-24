@@ -46,7 +46,7 @@ void ServerConfig::restartDeviceTask(void *parameter)
   // - Python processing: ~1s, Script delay: ~3s = Total ~5.5s
   // - 10-second delay provides 4.5s safety margin (adequate for production)
   Serial.println("[RESTART] Device will restart in 10 seconds after server config update...");
-  vTaskDelay(pdMS_TO_TICKS(10000));  // 10 seconds (was 20s in v2.3.5, 5s before that)
+  vTaskDelay(pdMS_TO_TICKS(10000)); // 10 seconds (was 20s in v2.3.5, 5s before that)
   Serial.println("[RESTART] Restarting device now!");
   ESP.restart();
 }
@@ -70,7 +70,7 @@ void ServerConfig::createDefaultConfig()
 
   // Communication config (mobile app structure)
   JsonObject comm = root["communication"].to<JsonObject>();
-  comm["mode"] = "ETH";  // Mobile app expects this field
+  comm["mode"] = "ETH"; // Mobile app expects this field
 
   // WiFi at root level (mobile app structure)
   JsonObject wifi = root["wifi"].to<JsonObject>();
@@ -97,15 +97,15 @@ void ServerConfig::createDefaultConfig()
   mqtt["client_id"] = "";
   mqtt["username"] = "";
   mqtt["password"] = "";
-  mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app compatibility
-  mqtt["topic_subscribe"] = "";  // Top level for mobile app compatibility
+  mqtt["topic_publish"] = "v1/devices/me/telemetry"; // Top level for mobile app compatibility
+  mqtt["topic_subscribe"] = "";                      // Top level for mobile app compatibility
 
   // FIXED: Increased default keep_alive from 60s to 120s
   // This prevents MQTT disconnections during long Modbus RTU polling cycles (50s+)
   mqtt["keep_alive"] = 120;
   mqtt["clean_session"] = true;
   mqtt["use_tls"] = false;
-  mqtt["publish_mode"] = "default";  // "default" or "customize"
+  mqtt["publish_mode"] = "default"; // "default" or "customize"
 
   // Default mode configuration (for MQTT modes feature)
   JsonObject defaultMode = mqtt["default_mode"].to<JsonObject>();
@@ -113,7 +113,7 @@ void ServerConfig::createDefaultConfig()
   defaultMode["topic_publish"] = "v1/devices/me/telemetry";
   defaultMode["topic_subscribe"] = "";
   defaultMode["interval"] = 5;
-  defaultMode["interval_unit"] = "s";  // "ms" (milliseconds), "s" (seconds), "m" (minutes)
+  defaultMode["interval_unit"] = "s"; // "ms" (milliseconds), "s" (seconds), "m" (minutes)
 
   // Customize mode configuration (for MQTT modes feature)
   JsonObject customizeMode = mqtt["customize_mode"].to<JsonObject>();
@@ -128,8 +128,8 @@ void ServerConfig::createDefaultConfig()
   http["body_format"] = "json";
   http["timeout"] = 5000;
   http["retry"] = 3;
-  http["interval"] = 5;           // HTTP transmission interval
-  http["interval_unit"] = "s";    // "ms", "s", or "m"
+  http["interval"] = 5;        // HTTP transmission interval
+  http["interval_unit"] = "s"; // "ms", "s", or "m"
 
   JsonObject headers = http["headers"].to<JsonObject>();
   headers["Authorization"] = "Bearer token";
@@ -189,20 +189,32 @@ bool ServerConfig::getConfig(JsonObject &result)
   }
   JsonObject mqtt = result["mqtt_config"];
 
-  if (mqtt["enabled"].isNull()) mqtt["enabled"] = true;
-  if (mqtt["broker_address"].isNull()) mqtt["broker_address"] = "broker.hivemq.com";
-  if (mqtt["broker_port"].isNull()) mqtt["broker_port"] = 1883;
-  if (mqtt["client_id"].isNull()) mqtt["client_id"] = "";
-  if (mqtt["username"].isNull()) mqtt["username"] = "";
-  if (mqtt["password"].isNull()) mqtt["password"] = "";
-  if (mqtt["topic_publish"].isNull()) mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app
-  if (mqtt["topic_subscribe"].isNull()) mqtt["topic_subscribe"] = "";  // Top level for mobile app
+  if (mqtt["enabled"].isNull())
+    mqtt["enabled"] = true;
+  if (mqtt["broker_address"].isNull())
+    mqtt["broker_address"] = "broker.hivemq.com";
+  if (mqtt["broker_port"].isNull())
+    mqtt["broker_port"] = 1883;
+  if (mqtt["client_id"].isNull())
+    mqtt["client_id"] = "";
+  if (mqtt["username"].isNull())
+    mqtt["username"] = "";
+  if (mqtt["password"].isNull())
+    mqtt["password"] = "";
+  if (mqtt["topic_publish"].isNull())
+    mqtt["topic_publish"] = "v1/devices/me/telemetry"; // Top level for mobile app
+  if (mqtt["topic_subscribe"].isNull())
+    mqtt["topic_subscribe"] = ""; // Top level for mobile app
 
   // FIXED: Increased default keep_alive from 60s to 120s
-  if (mqtt["keep_alive"].isNull()) mqtt["keep_alive"] = 120;
-  if (mqtt["clean_session"].isNull()) mqtt["clean_session"] = true;
-  if (mqtt["use_tls"].isNull()) mqtt["use_tls"] = false;
-  if (mqtt["publish_mode"].isNull()) mqtt["publish_mode"] = "default";
+  if (mqtt["keep_alive"].isNull())
+    mqtt["keep_alive"] = 120;
+  if (mqtt["clean_session"].isNull())
+    mqtt["clean_session"] = true;
+  if (mqtt["use_tls"].isNull())
+    mqtt["use_tls"] = false;
+  if (mqtt["publish_mode"].isNull())
+    mqtt["publish_mode"] = "default";
 
   // Ensure default_mode exists (for MQTT modes feature)
   if (!mqtt["default_mode"])
@@ -229,7 +241,8 @@ bool ServerConfig::getConfig(JsonObject &result)
     result["communication"].to<JsonObject>();
   }
   JsonObject comm = result["communication"];
-  if (comm["mode"].isNull()) comm["mode"] = "ETH";  // Mobile app expects this field
+  if (comm["mode"].isNull())
+    comm["mode"] = "ETH"; // Mobile app expects this field
 
   // WiFi at root level (mobile app structure)
   if (!result["wifi"])
@@ -237,9 +250,12 @@ bool ServerConfig::getConfig(JsonObject &result)
     result["wifi"].to<JsonObject>();
   }
   JsonObject wifi = result["wifi"];
-  if (wifi["enabled"].isNull()) wifi["enabled"] = true;
-  if (wifi["ssid"].isNull()) wifi["ssid"] = "";
-  if (wifi["password"].isNull()) wifi["password"] = "";
+  if (wifi["enabled"].isNull())
+    wifi["enabled"] = true;
+  if (wifi["ssid"].isNull())
+    wifi["ssid"] = "";
+  if (wifi["password"].isNull())
+    wifi["password"] = "";
 
   // Ethernet at root level (mobile app structure)
   if (!result["ethernet"])
@@ -247,14 +263,20 @@ bool ServerConfig::getConfig(JsonObject &result)
     result["ethernet"].to<JsonObject>();
   }
   JsonObject ethernet = result["ethernet"];
-  if (ethernet["enabled"].isNull()) ethernet["enabled"] = true;
-  if (ethernet["use_dhcp"].isNull()) ethernet["use_dhcp"] = true;
-  if (ethernet["static_ip"].isNull()) ethernet["static_ip"] = "";
-  if (ethernet["gateway"].isNull()) ethernet["gateway"] = "";
-  if (ethernet["subnet"].isNull()) ethernet["subnet"] = "";
+  if (ethernet["enabled"].isNull())
+    ethernet["enabled"] = true;
+  if (ethernet["use_dhcp"].isNull())
+    ethernet["use_dhcp"] = true;
+  if (ethernet["static_ip"].isNull())
+    ethernet["static_ip"] = "";
+  if (ethernet["gateway"].isNull())
+    ethernet["gateway"] = "";
+  if (ethernet["subnet"].isNull())
+    ethernet["subnet"] = "";
 
   // Defensive: Ensure protocol exists
-  if (result["protocol"].isNull()) result["protocol"] = "mqtt";
+  if (result["protocol"].isNull())
+    result["protocol"] = "mqtt";
 
   // Defensive: Ensure http_config exists
   if (!result["http_config"])
@@ -264,14 +286,22 @@ bool ServerConfig::getConfig(JsonObject &result)
   JsonObject http = result["http_config"];
 
   // Ensure individual fields exist
-  if (http["enabled"].isNull()) http["enabled"] = false;
-  if (http["endpoint_url"].isNull()) http["endpoint_url"] = "";
-  if (http["method"].isNull()) http["method"] = "POST";  // CRITICAL for mobile app!
-  if (http["body_format"].isNull()) http["body_format"] = "json";  // CRITICAL for mobile app!
-  if (http["timeout"].isNull()) http["timeout"] = 5000;
-  if (http["retry"].isNull()) http["retry"] = 3;
-  if (http["interval"].isNull()) http["interval"] = 5;  // v2.2.0: HTTP transmission interval
-  if (http["interval_unit"].isNull()) http["interval_unit"] = "s";  // v2.2.0: Interval unit
+  if (http["enabled"].isNull())
+    http["enabled"] = false;
+  if (http["endpoint_url"].isNull())
+    http["endpoint_url"] = "";
+  if (http["method"].isNull())
+    http["method"] = "POST"; // CRITICAL for mobile app!
+  if (http["body_format"].isNull())
+    http["body_format"] = "json"; // CRITICAL for mobile app!
+  if (http["timeout"].isNull())
+    http["timeout"] = 5000;
+  if (http["retry"].isNull())
+    http["retry"] = 3;
+  if (http["interval"].isNull())
+    http["interval"] = 5; // v2.2.0: HTTP transmission interval
+  if (http["interval_unit"].isNull())
+    http["interval_unit"] = "s"; // v2.2.0: Interval unit
   if (!http["headers"])
   {
     http["headers"].to<JsonObject>();
@@ -316,9 +346,12 @@ bool ServerConfig::updateConfig(JsonObjectConst newConfig)
     }
 
     // Ensure default_mode has all required fields with defaults
-    if (defaultMode["enabled"].isNull()) defaultMode["enabled"] = true;
-    if (defaultMode["interval"].isNull()) defaultMode["interval"] = 5;
-    if (defaultMode["interval_unit"].isNull()) defaultMode["interval_unit"] = "s";
+    if (defaultMode["enabled"].isNull())
+      defaultMode["enabled"] = true;
+    if (defaultMode["interval"].isNull())
+      defaultMode["interval"] = 5;
+    if (defaultMode["interval_unit"].isNull())
+      defaultMode["interval_unit"] = "s";
 
     // Ensure customize_mode exists
     if (!mqtt["customize_mode"])

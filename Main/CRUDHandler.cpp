@@ -3,12 +3,12 @@
 #include "QueueManager.h"
 #include "ModbusRtuService.h"
 #include "ModbusTcpService.h"
-#include "MqttManager.h"   //For calling updateDataTransmissionInterval()
-#include "HttpManager.h"   //For calling updateDataTransmissionInterval()
-#include "MemoryManager.h" // For make_psram_unique
+#include "MqttManager.h"    //For calling updateDataTransmissionInterval()
+#include "HttpManager.h"    //For calling updateDataTransmissionInterval()
+#include "MemoryManager.h"  // For make_psram_unique
 #include "MemoryRecovery.h" // For triggerCleanup() - memory optimization
-#include "RTCManager.h"    // For RTC timestamp in factory reset
-#include "LEDManager.h"    // For stopping LED task during factory reset
+#include "RTCManager.h"     // For RTC timestamp in factory reset
+#include "LEDManager.h"     // For stopping LED task during factory reset
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;
@@ -34,7 +34,7 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
   xTaskCreatePinnedToCore(
       commandProcessorTask,
       "CRUD_PROCESSOR_TASK",
-      CRUDConfig::CRUD_TASK_STACK_SIZE,  // 24KB stack (was 8KB)
+      CRUDConfig::CRUD_TASK_STACK_SIZE, // 24KB stack (was 8KB)
       this,
       2, // Medium priority
       &commandProcessorTaskHandle,
@@ -113,7 +113,7 @@ void CRUDHandler::setupCommandHandlers()
 
   readHandlers["devices_with_registers"] = [this](BLEManager *manager, const JsonDocument &command)
   {
-    bool minimalFields = command["minimal"] | false;  // Support optional "minimal" parameter
+    bool minimalFields = command["minimal"] | false; // Support optional "minimal" parameter
 
     // Start processing timer for performance monitoring
     unsigned long startTime = millis();
@@ -154,18 +154,18 @@ void CRUDHandler::setupCommandHandlers()
   readHandlers["device"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     String deviceId = command["device_id"] | "";
-    bool minimal = command["minimal"] | false;  // Support optional "minimal" parameter
+    bool minimal = command["minimal"] | false; // Support optional "minimal" parameter
 
     // OPTIMIZATION: Pagination support for device registers
-    int regOffset = command["reg_offset"] | -1;  // Register offset (default: -1 = no pagination)
-    int regLimit = command["reg_limit"] | -1;    // Register limit (default: -1 = all)
+    int regOffset = command["reg_offset"] | -1; // Register offset (default: -1 = no pagination)
+    int regLimit = command["reg_limit"] | -1;   // Register limit (default: -1 = all)
     bool usePagination = (regOffset >= 0 && regLimit > 0);
 
     // OPTIMIZATION: Check register count for proactive memory cleanup
     // Read device in minimal mode to get register_count field
     JsonDocument deviceCheckDoc;
     JsonObject deviceCheck = deviceCheckDoc.to<JsonObject>();
-    if (configManager->readDevice(deviceId, deviceCheck, true))  // Read minimal first
+    if (configManager->readDevice(deviceId, deviceCheck, true)) // Read minimal first
     {
       // Get register count from minimal response (ConfigManager provides this field)
       int registerCount = deviceCheck["register_count"] | 0;
@@ -183,7 +183,7 @@ void CRUDHandler::setupCommandHandlers()
         {
           Serial.println("[CRUD] Triggering proactive memory cleanup...");
           uint32_t freed = MemoryRecovery::triggerCleanup();
-          delay(50);  // Give time for cleanup to complete
+          delay(50); // Give time for cleanup to complete
 
           size_t dramAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
           Serial.printf("[CRUD] Memory cleanup complete. Free DRAM: %d bytes (freed %d bytes)\n",
@@ -211,7 +211,7 @@ void CRUDHandler::setupCommandHandlers()
 
         // Create new paginated registers array
         JsonArray paginatedRegs;
-        data.remove("registers");  // Remove original array
+        data.remove("registers"); // Remove original array
         paginatedRegs = data["registers"].to<JsonArray>();
 
         int endIndex = min(regOffset + regLimit, totalRegisters);
@@ -252,8 +252,8 @@ void CRUDHandler::setupCommandHandlers()
     String deviceId = command["device_id"] | "";
 
     // OPTIMIZATION: Pagination support for large register lists
-    int offset = command["offset"] | 0;        // Start index (default: 0)
-    int limit = command["limit"] | -1;         // Max registers to return (default: all)
+    int offset = command["offset"] | 0; // Start index (default: 0)
+    int limit = command["limit"] | -1;  // Max registers to return (default: all)
 
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
@@ -365,7 +365,7 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.3.6";  // v2.3.6: DRAM cleanup optimization
+    backupInfo["firmware_version"] = "2.3.6"; // v2.3.6: DRAM cleanup optimization
     backupInfo["device_name"] = "SURIOTA_GW";
 
     // Get all configurations
@@ -373,7 +373,7 @@ void CRUDHandler::setupCommandHandlers()
 
     // 1. Devices + registers (complete structure)
     JsonArray devices = config["devices"].to<JsonArray>();
-    configManager->getAllDevicesWithRegisters(devices, false);  // Full mode, not minimal
+    configManager->getAllDevicesWithRegisters(devices, false); // Full mode, not minimal
 
     // 2. Server config (MQTT, HTTP, WiFi, Ethernet)
     JsonObject serverCfg = config["server_config"].to<JsonObject>();
@@ -458,8 +458,10 @@ void CRUDHandler::setupCommandHandlers()
       int registerCount = 0;
       JsonDocument tempDoc;
       JsonObject deviceObj = tempDoc.to<JsonObject>();
-      if (configManager->readDevice(device, deviceObj)) {
-        if (deviceObj["registers"].is<JsonArray>()) {
+      if (configManager->readDevice(device, deviceObj))
+      {
+        if (deviceObj["registers"].is<JsonArray>())
+        {
           registerCount = deviceObj["registers"].size();
         }
       }
@@ -966,8 +968,8 @@ void CRUDHandler::setupCommandHandlers()
     if (auditLog)
     {
       size_t bytesWritten = auditLog.printf("%s|%s|BLE Client|SUCCESS\n",
-                                             timestamp.c_str(),
-                                             reason.c_str());
+                                            timestamp.c_str(),
+                                            reason.c_str());
       auditLog.close();
 
       if (bytesWritten > 0)
@@ -1008,43 +1010,54 @@ void CRUDHandler::setupCommandHandlers()
   {
     Serial.println("\n[CONFIG RESTORE] INITIATED by BLE client");
 
-    // BUG #32 DEBUG: Show what's actually in the payload
-    #if PRODUCTION_MODE == 0
-      Serial.println("[CONFIG RESTORE] DEBUG: Payload analysis:");
-      Serial.printf("  - Document is null: %s\n", command.isNull() ? "YES" : "NO");
-      Serial.printf("  - Document serialized size: %u bytes\n", measureJson(command));
-      Serial.printf("  - Document is object: %s\n", command.is<JsonObject>() ? "YES" : "NO");
+// BUG #32 DEBUG: Show what's actually in the payload
+#if PRODUCTION_MODE == 0
+    Serial.println("[CONFIG RESTORE] DEBUG: Payload analysis:");
+    Serial.printf("  - Document is null: %s\n", command.isNull() ? "YES" : "NO");
+    Serial.printf("  - Document serialized size: %u bytes\n", measureJson(command));
+    Serial.printf("  - Document is object: %s\n", command.is<JsonObject>() ? "YES" : "NO");
 
-      if (command.is<JsonObject>()) {
-        JsonObjectConst obj = command.as<JsonObjectConst>();
-        Serial.printf("  - Object has %u keys:\n", obj.size());
-        for (JsonPairConst kv : obj) {
-          Serial.printf("    - Key: '%s', Type: ", kv.key().c_str());
-          if (kv.value().is<JsonObject>()) Serial.println("JsonObject");
-          else if (kv.value().is<JsonArray>()) Serial.println("JsonArray");
-          else if (kv.value().is<const char*>()) Serial.printf("String (\"%s\")\n", kv.value().as<const char*>());
-          else if (kv.value().is<int>()) Serial.printf("Int (%d)\n", kv.value().as<int>());
-          else Serial.println("Other");
-        }
+    if (command.is<JsonObject>())
+    {
+      JsonObjectConst obj = command.as<JsonObjectConst>();
+      Serial.printf("  - Object has %u keys:\n", obj.size());
+      for (JsonPairConst kv : obj)
+      {
+        Serial.printf("    - Key: '%s', Type: ", kv.key().c_str());
+        if (kv.value().is<JsonObject>())
+          Serial.println("JsonObject");
+        else if (kv.value().is<JsonArray>())
+          Serial.println("JsonArray");
+        else if (kv.value().is<const char *>())
+          Serial.printf("String (\"%s\")\n", kv.value().as<const char *>());
+        else if (kv.value().is<int>())
+          Serial.printf("Int (%d)\n", kv.value().as<int>());
+        else
+          Serial.println("Other");
       }
+    }
 
-      JsonVariantConst configCheck = command["config"];
-      Serial.printf("  - Has 'config' key: %s\n", !configCheck.isNull() ? "YES" : "NO");
-      if (!configCheck.isNull()) {
-        Serial.printf("  - 'config' is JsonObject: %s\n", command["config"].is<JsonObject>() ? "YES" : "NO");
-        Serial.printf("  - 'config' is null: %s\n", command["config"].isNull() ? "YES" : "NO");
-      }
+    JsonVariantConst configCheck = command["config"];
+    Serial.printf("  - Has 'config' key: %s\n", !configCheck.isNull() ? "YES" : "NO");
+    if (!configCheck.isNull())
+    {
+      Serial.printf("  - 'config' is JsonObject: %s\n", command["config"].is<JsonObject>() ? "YES" : "NO");
+      Serial.printf("  - 'config' is null: %s\n", command["config"].isNull() ? "YES" : "NO");
+    }
 
-      // Show first 500 chars of serialized JSON for comparison
-      String serialized;
-      serializeJson(command, serialized);
-      Serial.printf("  - Serialized JSON (%u bytes):\n", serialized.length());
-      if (serialized.length() > 500) {
-        Serial.printf("    %s...\n", serialized.substring(0, 500).c_str());
-      } else {
-        Serial.printf("    %s\n", serialized.c_str());
-      }
-    #endif
+    // Show first 500 chars of serialized JSON for comparison
+    String serialized;
+    serializeJson(command, serialized);
+    Serial.printf("  - Serialized JSON (%u bytes):\n", serialized.length());
+    if (serialized.length() > 500)
+    {
+      Serial.printf("    %s...\n", serialized.substring(0, 500).c_str());
+    }
+    else
+    {
+      Serial.printf("    %s\n", serialized.c_str());
+    }
+#endif
 
     // BUG #32 FIX: Try accessing config directly instead of type checking
     // Type check may fail even when data is valid (ArduinoJson v7 quirk with PSRAM)
@@ -1096,34 +1109,36 @@ void CRUDHandler::setupCommandHandlers()
         int deviceIndex = 0;
         for (JsonObjectConst device : devices)
         {
-          #if PRODUCTION_MODE == 0
-            // BUG #32 DEBUG: Show device data BEFORE createDevice
-            Serial.printf("[CONFIG RESTORE] DEBUG: Processing device %d:\n", deviceIndex);
-            String deviceJson;
-            serializeJson(device, deviceJson);
-            Serial.printf("  JSON (%u bytes): %s\n", deviceJson.length(), deviceJson.c_str());
+#if PRODUCTION_MODE == 0
+          // BUG #32 DEBUG: Show device data BEFORE createDevice
+          Serial.printf("[CONFIG RESTORE] DEBUG: Processing device %d:\n", deviceIndex);
+          String deviceJson;
+          serializeJson(device, deviceJson);
+          Serial.printf("  JSON (%u bytes): %s\n", deviceJson.length(), deviceJson.c_str());
 
-            JsonVariantConst idVariant = device["device_id"];
-            Serial.printf("  device_id present: %s\n", !idVariant.isNull() ? "YES" : "NO");
-            if (!idVariant.isNull()) {
-              Serial.printf("  device_id value: %s\n", idVariant.as<const char*>());
-            }
+          JsonVariantConst idVariant = device["device_id"];
+          Serial.printf("  device_id present: %s\n", !idVariant.isNull() ? "YES" : "NO");
+          if (!idVariant.isNull())
+          {
+            Serial.printf("  device_id value: %s\n", idVariant.as<const char *>());
+          }
 
-            JsonVariantConst regsVariant = device["registers"];
-            Serial.printf("  registers present: %s\n", !regsVariant.isNull() ? "YES" : "NO");
-            if (!regsVariant.isNull()) {
-              JsonArrayConst regs = regsVariant.as<JsonArrayConst>();
-              Serial.printf("  registers count: %u\n", regs.size());
-            }
-          #endif
+          JsonVariantConst regsVariant = device["registers"];
+          Serial.printf("  registers present: %s\n", !regsVariant.isNull() ? "YES" : "NO");
+          if (!regsVariant.isNull())
+          {
+            JsonArrayConst regs = regsVariant.as<JsonArrayConst>();
+            Serial.printf("  registers count: %u\n", regs.size());
+          }
+#endif
 
           String deviceId = configManager->createDevice(device);
           if (!deviceId.isEmpty())
           {
             deviceCount++;
-            #if PRODUCTION_MODE == 0
-              Serial.printf("[CONFIG RESTORE] OK: Created device: %s\n", deviceId.c_str());
-            #endif
+#if PRODUCTION_MODE == 0
+            Serial.printf("[CONFIG RESTORE] OK: Created device: %s\n", deviceId.c_str());
+#endif
           }
           else
           {
@@ -1236,28 +1251,28 @@ void CRUDHandler::setupCommandHandlers()
     //           Transmission time: ~3.5s → ~420ms (8x faster!)
     // ============================================================================
 
-    #if PRODUCTION_MODE == 0
-      // Log DRAM before cleanup
-      // v2.3.6 FIX: Use MALLOC_CAP_INTERNAL to get DRAM only (not PSRAM)
-      size_t dramBefore = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-      Serial.printf("[DRAM CLEANUP] Before: %d bytes free\n", dramBefore);
-    #endif
+#if PRODUCTION_MODE == 0
+    // Log DRAM before cleanup
+    // v2.3.6 FIX: Use MALLOC_CAP_INTERNAL to get DRAM only (not PSRAM)
+    size_t dramBefore = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    Serial.printf("[DRAM CLEANUP] Before: %d bytes free\n", dramBefore);
+#endif
 
     // Clear temporary caches to free DRAM
     configManager->clearCache();
     Serial.println("[DRAM CLEANUP] ConfigManager caches cleared");
 
     // Small delay for FreeRTOS garbage collection
-    vTaskDelay(pdMS_TO_TICKS(100));  // 100ms for GC
+    vTaskDelay(pdMS_TO_TICKS(100)); // 100ms for GC
 
-    #if PRODUCTION_MODE == 0
-      // Log DRAM after cleanup
-      // v2.3.6 FIX: Use MALLOC_CAP_INTERNAL to get DRAM only (not PSRAM)
-      size_t dramAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-      size_t dramFreed = dramAfter - dramBefore;
-      Serial.printf("[DRAM CLEANUP] After: %d bytes free (+%d bytes, %.1f%% increase)\n",
-                    dramAfter, dramFreed, (float)dramFreed / dramBefore * 100.0);
-    #endif
+#if PRODUCTION_MODE == 0
+                                    // Log DRAM after cleanup
+    // v2.3.6 FIX: Use MALLOC_CAP_INTERNAL to get DRAM only (not PSRAM)
+    size_t dramAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t dramFreed = dramAfter - dramBefore;
+    Serial.printf("[DRAM CLEANUP] After: %d bytes free (+%d bytes, %.1f%% increase)\n",
+                  dramAfter, dramFreed, (float)dramFreed / dramBefore * 100.0);
+#endif
 
     Serial.println("[DRAM CLEANUP] Complete - ready for fast transmission\n");
 
@@ -1298,9 +1313,9 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   // BUG #32 FIX: Serialize to String instead of using .set() which corrupts type info
   size_t commandSize = measureJson(command);
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD QUEUE] Serializing command payload (%u bytes JSON)...\n", commandSize);
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[CRUD QUEUE] Serializing command payload (%u bytes JSON)...\n", commandSize);
+#endif
 
   // Serialize JsonDocument to String (avoids .set() corruption issue)
   serializeJson(command, cmd.payloadJson);
@@ -1313,9 +1328,9 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
     return;
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD QUEUE] Command serialized successfully (%u bytes String)\n", cmd.payloadJson.length());
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[CRUD QUEUE] Command serialized successfully (%u bytes String)\n", cmd.payloadJson.length());
+#endif
 
   // Track statistics
   if (priority == CommandPriority::PRIORITY_HIGH)
@@ -1359,7 +1374,7 @@ void CRUDHandler::processPriorityQueue()
 
   if (!commandQueue.empty())
   {
-    cmd = commandQueue.top();  // Copy command (String is copyable)
+    cmd = commandQueue.top(); // Copy command (String is copyable)
     commandQueue.pop();
   }
   else
@@ -1374,9 +1389,9 @@ void CRUDHandler::processPriorityQueue()
   // Deserialize JSON String to JsonDocument (outside mutex to prevent blocking)
   SpiRamJsonDocument payload;
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD EXEC] Deserializing payload from queue (%u bytes String)...\n", cmd.payloadJson.length());
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[CRUD EXEC] Deserializing payload from queue (%u bytes String)...\n", cmd.payloadJson.length());
+#endif
 
   DeserializationError error = deserializeJson(payload, cmd.payloadJson);
 
@@ -1394,9 +1409,9 @@ void CRUDHandler::processPriorityQueue()
     return;
   }
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
+#endif
 
   // CRITICAL FIX (v2.3.5): DO NOT free String yet!
   // Zero-copy deserialization means payload JsonDocument holds pointers to cmd.payloadJson
@@ -1468,12 +1483,12 @@ void CRUDHandler::processPriorityQueue()
   // CRITICAL FIX (v2.3.5): NOW safe to free payload String after handlers complete
   // All handlers have finished accessing payload, so zero-copy references are no longer needed
   cmd.payloadJson.clear();
-  cmd.payloadJson = String();  // Force deallocation
+  cmd.payloadJson = String(); // Force deallocation
 
-  #if PRODUCTION_MODE == 0
-    Serial.printf("[CRUD EXEC] Freed payload string after processing (%u bytes DRAM free)\n",
-                  heap_caps_get_free_size(MALLOC_CAP_8BIT));
-  #endif
+#if PRODUCTION_MODE == 0
+  Serial.printf("[CRUD EXEC] Freed payload string after processing (%u bytes DRAM free)\n",
+                heap_caps_get_free_size(MALLOC_CAP_8BIT));
+#endif
 
   batchStats.totalCommandsProcessed++;
 }
@@ -1883,7 +1898,7 @@ void CRUDHandler::performFactoryReset()
 
     // Communication config (mobile app structure)
     JsonObject comm = root["communication"].to<JsonObject>();
-    comm["mode"] = "ETH";  // Mobile app expects this field
+    comm["mode"] = "ETH"; // Mobile app expects this field
 
     // WiFi at root level (mobile app structure)
     JsonObject wifi = root["wifi"].to<JsonObject>();
@@ -1910,12 +1925,12 @@ void CRUDHandler::performFactoryReset()
     mqtt["client_id"] = "";
     mqtt["username"] = "";
     mqtt["password"] = "";
-    mqtt["topic_publish"] = "v1/devices/me/telemetry";  // Top level for mobile app compatibility
-    mqtt["topic_subscribe"] = "";  // Top level for mobile app compatibility
+    mqtt["topic_publish"] = "v1/devices/me/telemetry"; // Top level for mobile app compatibility
+    mqtt["topic_subscribe"] = "";                      // Top level for mobile app compatibility
     mqtt["keep_alive"] = 60;
     mqtt["clean_session"] = true;
     mqtt["use_tls"] = false;
-    mqtt["publish_mode"] = "default";  // "default" or "customize"
+    mqtt["publish_mode"] = "default"; // "default" or "customize"
 
     // Default mode configuration (for MQTT modes feature)
     JsonObject defaultMode = mqtt["default_mode"].to<JsonObject>();
@@ -1923,7 +1938,7 @@ void CRUDHandler::performFactoryReset()
     defaultMode["topic_publish"] = "v1/devices/me/telemetry";
     defaultMode["topic_subscribe"] = "";
     defaultMode["interval"] = 5;
-    defaultMode["interval_unit"] = "s";  // "ms" (milliseconds), "s" (seconds), "m" (minutes)
+    defaultMode["interval_unit"] = "s"; // "ms" (milliseconds), "s" (seconds), "m" (minutes)
 
     // Customize mode configuration (for MQTT modes feature)
     JsonObject customizeMode = mqtt["customize_mode"].to<JsonObject>();
@@ -1938,8 +1953,8 @@ void CRUDHandler::performFactoryReset()
     http["body_format"] = "json";
     http["timeout"] = 5000;
     http["retry"] = 3;
-    http["interval"] = 5;           // HTTP transmission interval
-    http["interval_unit"] = "s";    // "ms", "s", or "m"
+    http["interval"] = 5;        // HTTP transmission interval
+    http["interval_unit"] = "s"; // "ms", "s", or "m"
 
     JsonObject headers = http["headers"].to<JsonObject>();
     headers["Authorization"] = "Bearer token";

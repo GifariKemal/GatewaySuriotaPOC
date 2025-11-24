@@ -1,7 +1,7 @@
 #ifndef SERVER_CONFIG_H
 #define SERVER_CONFIG_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <esp_heap_caps.h>
@@ -11,7 +11,7 @@ class ServerConfig
 private:
   static const char *CONFIG_FILE;
   JsonDocument *config; // Changed from DynamicJsonDocument
-  bool suppressRestart;  // Flag to suppress auto-restart (e.g., during factory reset)
+  bool suppressRestart; // Flag to suppress auto-restart (e.g., during factory reset)
 
   bool saveConfig();
   bool loadConfig();

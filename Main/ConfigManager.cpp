@@ -1,6 +1,6 @@
 #include "ConfigManager.h"
 #include "AtomicFileOps.h" //Atomic operations
-#include "QueueManager.h"   // For flushDeviceData on delete
+#include "QueueManager.h"  // For flushDeviceData on delete
 #include <esp_heap_caps.h>
 #include <new>
 #include <vector>
@@ -591,7 +591,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
   for (JsonPair kv : devicesObj)
   {
-    const char* deviceId = kv.key().c_str();  // BUG #31: const char* instead of String (zero allocation!)
+    const char *deviceId = kv.key().c_str(); // BUG #31: const char* instead of String (zero allocation!)
     JsonObject device = kv.value();
     JsonObject deviceWithRegs = result.add<JsonObject>();
 
@@ -633,7 +633,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
       if (deviceRegisters.size() == 0)
       {
-        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has empty registers array\n", deviceId);  // BUG #31: removed .c_str()
+        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has empty registers array\n", deviceId); // BUG #31: removed .c_str()
       }
 
       for (JsonObject reg : deviceRegisters)
@@ -660,11 +660,11 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
     }
     else
     {
-      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has no registers array\n", deviceId);  // BUG #31: removed .c_str()
+      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has no registers array\n", deviceId); // BUG #31: removed .c_str()
     }
 
     Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Added device %s with %d registers\n",
-                  deviceId, registers.size());  // BUG #31: removed .c_str()
+                  deviceId, registers.size()); // BUG #31: removed .c_str()
   }
 
   Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Total devices: %d\n", result.size());
@@ -1014,7 +1014,7 @@ bool ConfigManager::loadDevicesCache()
     {
       Serial.printf("[CACHE] Devices cache expired (%lu ms old, TTL: %lu ms). Reloading...\n",
                     (now - lastDevicesCacheTime), CACHE_TTL_MS);
-      devicesCacheValid = false;  // Invalidate and reload
+      devicesCacheValid = false; // Invalidate and reload
     }
     else
     {
@@ -1180,7 +1180,8 @@ void ConfigManager::invalidateDevicesCache()
 
     // BUGFIX: Clear cache memory to prevent memory leak after device deletion
     // Without this, deleted device data remains in memory until next cache load
-    if (devicesCache) {
+    if (devicesCache)
+    {
       devicesCache->clear();
       Serial.println("[CACHE] Devices cache cleared to free memory");
     }
@@ -1203,7 +1204,8 @@ void ConfigManager::invalidateRegistersCache()
     lastRegistersCacheTime = 0; // Reset TTL timestamp
 
     // BUGFIX: Clear cache memory to prevent memory leak after register deletion
-    if (registersCache) {
+    if (registersCache)
+    {
       registersCache->clear();
       Serial.println("[CACHE] Registers cache cleared to free memory");
     }

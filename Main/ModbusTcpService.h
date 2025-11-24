@@ -1,24 +1,25 @@
 #ifndef MODBUS_TCP_SERVICE_H
 #define MODBUS_TCP_SERVICE_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "ConfigManager.h"
 #include "EthernetManager.h"
-#include "TCPClient.h"  // FIXED BUG #14: Required for connection pooling
+#include "TCPClient.h" // FIXED BUG #14: Required for connection pooling
 #include <vector>
 #include <queue>
 #include <atomic>
 #include <memory> // For std::unique_ptr (Bug #2 fix)
 
 // FIXED Bug #10: Named constants instead of magic numbers
-namespace ModbusTcpConfig {
-  constexpr uint32_t TIMEOUT_MS = 5000;                 // Default timeout for Modbus TCP operations
-  constexpr uint16_t MAX_RESPONSE_SIZE = 512;           // Maximum acceptable Modbus TCP response size
-  constexpr uint8_t MODBUS_TCP_HEADER_SIZE = 12;        // Modbus TCP request header size
-  constexpr uint8_t MIN_RESPONSE_SIZE = 9;              // Minimum Modbus TCP response size
+namespace ModbusTcpConfig
+{
+  constexpr uint32_t TIMEOUT_MS = 5000;          // Default timeout for Modbus TCP operations
+  constexpr uint16_t MAX_RESPONSE_SIZE = 512;    // Maximum acceptable Modbus TCP response size
+  constexpr uint8_t MODBUS_TCP_HEADER_SIZE = 12; // Modbus TCP request header size
+  constexpr uint8_t MIN_RESPONSE_SIZE = 9;       // Minimum Modbus TCP response size
 }
 
 class ModbusTcpService
@@ -57,7 +58,7 @@ private:
   // NEW: Enhancement - Device Failure State Tracking (matching RTU service)
   struct DeviceFailureState
   {
-    String deviceId;  // TODO: Convert to PSRAMString in future (BUG #31 continuation)
+    String deviceId; // TODO: Convert to PSRAMString in future (BUG #31 continuation)
     uint8_t consecutiveFailures = 0;
     uint8_t retryCount = 0;
     unsigned long nextRetryTime = 0;
@@ -67,7 +68,8 @@ private:
     uint32_t maxRetries = 5;
 
     // Flexible disable reason tracking
-    enum DisableReason {
+    enum DisableReason
+    {
       NONE = 0,
       MANUAL = 1,
       AUTO_RETRY = 2,
@@ -104,25 +106,35 @@ private:
     uint16_t maxResponseTimeMs = 0;
     uint16_t lastResponseTimeMs = 0;
 
-    float getSuccessRate() const {
-      if (totalReads == 0) return 100.0f;
+    float getSuccessRate() const
+    {
+      if (totalReads == 0)
+        return 100.0f;
       return (successfulReads * 100.0f) / totalReads;
     }
 
-    uint16_t getAvgResponseTimeMs() const {
-      if (successfulReads == 0) return 0;
+    uint16_t getAvgResponseTimeMs() const
+    {
+      if (successfulReads == 0)
+        return 0;
       return totalResponseTimeMs / successfulReads;
     }
 
-    void recordRead(bool success, uint16_t responseTimeMs = 0) {
+    void recordRead(bool success, uint16_t responseTimeMs = 0)
+    {
       totalReads++;
-      if (success) {
+      if (success)
+      {
         successfulReads++;
         totalResponseTimeMs += responseTimeMs;
         lastResponseTimeMs = responseTimeMs;
-        if (responseTimeMs < minResponseTimeMs) minResponseTimeMs = responseTimeMs;
-        if (responseTimeMs > maxResponseTimeMs) maxResponseTimeMs = responseTimeMs;
-      } else {
+        if (responseTimeMs < minResponseTimeMs)
+          minResponseTimeMs = responseTimeMs;
+        if (responseTimeMs > maxResponseTimeMs)
+          maxResponseTimeMs = responseTimeMs;
+      }
+      else
+      {
         failedReads++;
       }
     }
@@ -150,23 +162,24 @@ private:
 
   // FIXED BUG #14: TCP Connection Pooling
   // Keep persistent connections for frequently polled devices
-  struct ConnectionPoolEntry {
-    String deviceKey;              // "IP:PORT" identifier
-    TCPClient* client;             // Persistent connection
-    unsigned long lastUsed;        // Last activity timestamp
-    unsigned long createdAt;       // Connection creation time
-    uint32_t useCount;             // Number of times reused
-    bool isHealthy;                // Connection health status
+  struct ConnectionPoolEntry
+  {
+    String deviceKey;        // "IP:PORT" identifier
+    TCPClient *client;       // Persistent connection
+    unsigned long lastUsed;  // Last activity timestamp
+    unsigned long createdAt; // Connection creation time
+    uint32_t useCount;       // Number of times reused
+    bool isHealthy;          // Connection health status
   };
   std::vector<ConnectionPoolEntry> connectionPool;
-  SemaphoreHandle_t poolMutex;     // Protect connection pool access
-  static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 60000;  // Close after 60s idle
-  static constexpr uint32_t CONNECTION_MAX_AGE_MS = 300000;       // Recreate after 5min
-  static constexpr uint8_t MAX_POOL_SIZE = 10;                    // Max concurrent connections
+  SemaphoreHandle_t poolMutex;                                  // Protect connection pool access
+  static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 60000; // Close after 60s idle
+  static constexpr uint32_t CONNECTION_MAX_AGE_MS = 300000;     // Recreate after 5min
+  static constexpr uint8_t MAX_POOL_SIZE = 10;                  // Max concurrent connections
 
   // Connection pool methods
-  TCPClient* getPooledConnection(const String &ip, int port);
-  void returnPooledConnection(const String &ip, int port, TCPClient* client, bool healthy);
+  TCPClient *getPooledConnection(const String &ip, int port);
+  void returnPooledConnection(const String &ip, int port, TCPClient *client, bool healthy);
   void closeIdleConnections();
   void closeAllConnections();
   String getDeviceKey(const String &ip, int port);
@@ -176,10 +189,10 @@ private:
   void readTcpDeviceData(const JsonObject &deviceConfig);
   double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
   double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType = "", const String &endianness_variant = "");
-  bool storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = "");  // FIXED: Returns bool for error handling
-  bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient* existingClient = nullptr);
-  bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient* existingClient = nullptr);
-  bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient* existingClient = nullptr);
+  bool storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = ""); // FIXED: Returns bool for error handling
+  bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient = nullptr);
+  bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient = nullptr);
+  bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient = nullptr);
   void buildModbusRequest(uint8_t *buffer, uint16_t transId, uint8_t unitId, uint8_t funcCode, uint16_t addr, uint16_t qty);
   bool parseModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, uint16_t *result, bool *boolResult);
   bool parseMultiModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, int count, uint16_t *results);

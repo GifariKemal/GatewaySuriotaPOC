@@ -18,8 +18,10 @@ bool logTimestampsEnabled = true; // Enabled by default
 // LOG LEVEL CONTROL FUNCTIONS
 // ============================================
 
-void setLogLevel(LogLevel level) {
-  if (level > LOG_VERBOSE) {
+void setLogLevel(LogLevel level)
+{
+  if (level > LOG_VERBOSE)
+  {
     Serial.println("[LOG] ERROR: Invalid log level, using LOG_INFO");
     currentLogLevel = LOG_INFO;
     return;
@@ -30,41 +32,57 @@ void setLogLevel(LogLevel level) {
 
   // Print what will be visible
   Serial.print("[LOG] Visible levels: ");
-  if (level >= LOG_ERROR) Serial.print("ERROR ");
-  if (level >= LOG_WARN) Serial.print("WARN ");
-  if (level >= LOG_INFO) Serial.print("INFO ");
-  if (level >= LOG_DEBUG) Serial.print("DEBUG ");
-  if (level >= LOG_VERBOSE) Serial.print("VERBOSE");
+  if (level >= LOG_ERROR)
+    Serial.print("ERROR ");
+  if (level >= LOG_WARN)
+    Serial.print("WARN ");
+  if (level >= LOG_INFO)
+    Serial.print("INFO ");
+  if (level >= LOG_DEBUG)
+    Serial.print("DEBUG ");
+  if (level >= LOG_VERBOSE)
+    Serial.print("VERBOSE");
   Serial.println();
 }
 
-LogLevel getLogLevel() {
+LogLevel getLogLevel()
+{
   return currentLogLevel;
 }
 
-const char* getLogLevelName(LogLevel level) {
-  switch (level) {
-    case LOG_NONE:    return "NONE";
-    case LOG_ERROR:   return "ERROR";
-    case LOG_WARN:    return "WARN";
-    case LOG_INFO:    return "INFO";
-    case LOG_DEBUG:   return "DEBUG";
-    case LOG_VERBOSE: return "VERBOSE";
-    default:          return "UNKNOWN";
+const char *getLogLevelName(LogLevel level)
+{
+  switch (level)
+  {
+  case LOG_NONE:
+    return "NONE";
+  case LOG_ERROR:
+    return "ERROR";
+  case LOG_WARN:
+    return "WARN";
+  case LOG_INFO:
+    return "INFO";
+  case LOG_DEBUG:
+    return "DEBUG";
+  case LOG_VERBOSE:
+    return "VERBOSE";
+  default:
+    return "UNKNOWN";
   }
 }
 
-void printLogLevelStatus() {
+void printLogLevelStatus()
+{
   Serial.println("\n[SYSTEM] LOG LEVEL STATUS");
   Serial.printf("  Current Level: %s (%d)\n", getLogLevelName(currentLogLevel), currentLogLevel);
   Serial.printf("  Production Mode: %s\n", IS_PRODUCTION_MODE() ? "YES" : "NO");
   Serial.printf("  Compile Level: ");
 
-  #if PRODUCTION_MODE == 1
-    Serial.println("INFO (production)");
-  #else
-    Serial.println("VERBOSE (development)");
-  #endif
+#if PRODUCTION_MODE == 1
+  Serial.println("INFO (production)");
+#else
+  Serial.println("VERBOSE (development)");
+#endif
 
   Serial.println("\n  Available Levels:");
   Serial.println("    0 = NONE    (silent)");
@@ -82,17 +100,20 @@ void printLogLevelStatus() {
 // RTC TIMESTAMP FUNCTIONS (Phase 3)
 // ============================================
 
-const char* getLogTimestamp() {
+const char *getLogTimestamp()
+{
   static char timestamp[22]; // "[YYYY-MM-DD HH:MM:SS] " = 21 chars + null
 
   RTCManager *rtc = RTCManager::getInstance();
 
-  if (rtc) {
+  if (rtc)
+  {
     // Try to get RTC time
     DateTime now = rtc->getCurrentTime();
 
     // Check if time is valid (year > 2020 indicates RTC is synced)
-    if (now.year() >= 2020) {
+    if (now.year() >= 2020)
+    {
       // RTC available and synced - use real time
       snprintf(timestamp, sizeof(timestamp), "[%04d-%02d-%02d %02d:%02d:%02d]",
                now.year(), now.month(), now.day(),
@@ -108,7 +129,8 @@ const char* getLogTimestamp() {
   return timestamp;
 }
 
-void setLogTimestamps(bool enabled) {
+void setLogTimestamps(bool enabled)
+{
   logTimestampsEnabled = enabled;
   Serial.printf("[LOG] Timestamps %s\n", enabled ? "ENABLED" : "DISABLED");
 }

@@ -1,7 +1,7 @@
 #ifndef RTC_MANAGER_H
 #define RTC_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <Wire.h>
 #include <RTClib.h>
 #include <WiFi.h>
@@ -25,9 +25,9 @@ private:
 
   // NTP settings
   const char *ntpServer = "pool.ntp.org";
-  const long gmtOffset_sec = 7 * 3600;  // GMT+7 (WIB - Waktu Indonesia Barat)
+  const long gmtOffset_sec = 7 * 3600;             // GMT+7 (WIB - Waktu Indonesia Barat)
   const unsigned long ntpUpdateInterval = 1800000; // 30 minutes
-  const unsigned long ntpTimeout = 5000; // 5 seconds timeout for NTP sync
+  const unsigned long ntpTimeout = 5000;           // 5 seconds timeout for NTP sync
 
   // Separate UDP clients for WiFi and Ethernet
   WiFiUDP wifiUdp;

@@ -118,7 +118,6 @@ void AtomicFileOps::appendToWAL(const WALEntry &entry)
   }
 
   walLog.push_back(entry);
-  
 
   xSemaphoreGive(walMutex);
 }
@@ -135,7 +134,7 @@ void AtomicFileOps::markWALEntryCompleted(const String &filename)
     if (entry.targetFile == filename)
     {
       entry.completed = true;
-      
+
       break;
     }
   }

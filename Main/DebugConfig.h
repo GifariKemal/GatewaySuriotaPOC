@@ -24,13 +24,14 @@
 // ============================================
 // LOG LEVEL ENUMERATION
 // ============================================
-enum LogLevel : uint8_t {
-  LOG_NONE = 0,    // No logging (silent mode)
-  LOG_ERROR = 1,   // Critical errors only (production minimal)
-  LOG_WARN = 2,    // Warnings + errors (production recommended)
-  LOG_INFO = 3,    // Info + warnings + errors (production default)
-  LOG_DEBUG = 4,   // Debug + info + warnings + errors (development)
-  LOG_VERBOSE = 5  // All logs including verbose (heavy development)
+enum LogLevel : uint8_t
+{
+  LOG_NONE = 0,   // No logging (silent mode)
+  LOG_ERROR = 1,  // Critical errors only (production minimal)
+  LOG_WARN = 2,   // Warnings + errors (production recommended)
+  LOG_INFO = 3,   // Info + warnings + errors (production default)
+  LOG_DEBUG = 4,  // Debug + info + warnings + errors (development)
+  LOG_VERBOSE = 5 // All logs including verbose (heavy development)
 };
 
 // Global log level (runtime configurable)
@@ -43,7 +44,7 @@ extern LogLevel currentLogLevel;
  * Get formatted timestamp for logging
  * Returns: "[YYYY-MM-DD HH:MM:SS]" if RTC available, "[uptime_sec]" otherwise
  */
-const char* getLogTimestamp();
+const char *getLogTimestamp();
 
 // Enable/disable timestamps in logs (default: enabled)
 extern bool logTimestampsEnabled;
@@ -53,11 +54,11 @@ void setLogTimestamps(bool enabled);
 // COMPILE-TIME LOG LEVEL (build optimization)
 // ============================================
 #ifndef COMPILE_LOG_LEVEL
-  #if PRODUCTION_MODE == 1
-    #define COMPILE_LOG_LEVEL LOG_INFO  // Production: INFO only
-  #else
-    #define COMPILE_LOG_LEVEL LOG_VERBOSE  // Development: All logs
-  #endif
+#if PRODUCTION_MODE == 1
+#define COMPILE_LOG_LEVEL LOG_INFO // Production: INFO only
+#else
+#define COMPILE_LOG_LEVEL LOG_VERBOSE // Development: All logs
+#endif
 #endif
 
 // ============================================
@@ -65,7 +66,7 @@ void setLogTimestamps(bool enabled);
 // ============================================
 void setLogLevel(LogLevel level);
 LogLevel getLogLevel();
-const char* getLogLevelName(LogLevel level);
+const char *getLogLevelName(LogLevel level);
 void printLogLevelStatus();
 
 // ============================================
@@ -81,18 +82,37 @@ void printLogLevelStatus();
 #define LOG_CHECK(level) (currentLogLevel >= level && level <= LOG_WARN)
 
 // Generic log macros (production - ERROR/WARN only) with timestamps
-#define LOG_ERROR_F(prefix, fmt, ...)   \
-  do { if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled) Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_ERROR)) Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_ERROR_F(prefix, fmt, ...)                                                \
+  do                                                                                 \
+  {                                                                                  \
+    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                                \
+      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_ERROR))                                                   \
+      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
-#define LOG_WARN_F(prefix, fmt, ...)    \
-  do { if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled) Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_WARN)) Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_WARN_F(prefix, fmt, ...)                                                \
+  do                                                                                \
+  {                                                                                 \
+    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                                \
+      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_WARN))                                                   \
+      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
 // INFO, DEBUG, VERBOSE disabled in production (compile out)
-#define LOG_INFO_F(prefix, fmt, ...)    do {} while(0)
-#define LOG_DEBUG_F(prefix, fmt, ...)   do {} while(0)
-#define LOG_VERBOSE_F(prefix, fmt, ...) do {} while(0)
+#define LOG_INFO_F(prefix, fmt, ...) \
+  do                                 \
+  {                                  \
+  } while (0)
+#define LOG_DEBUG_F(prefix, fmt, ...) \
+  do                                  \
+  {                                   \
+  } while (0)
+#define LOG_VERBOSE_F(prefix, fmt, ...) \
+  do                                    \
+  {                                     \
+  } while (0)
 
 #else
 // ==========================================
@@ -103,25 +123,50 @@ void printLogLevelStatus();
 #define LOG_CHECK(level) (currentLogLevel >= level && COMPILE_LOG_LEVEL >= level)
 
 // Generic log macros (development - all levels) with timestamps
-#define LOG_ERROR_F(prefix, fmt, ...)   \
-  do { if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled) Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_ERROR)) Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_ERROR_F(prefix, fmt, ...)                                                \
+  do                                                                                 \
+  {                                                                                  \
+    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                                \
+      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_ERROR))                                                   \
+      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
-#define LOG_WARN_F(prefix, fmt, ...)    \
-  do { if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled) Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_WARN)) Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_WARN_F(prefix, fmt, ...)                                                \
+  do                                                                                \
+  {                                                                                 \
+    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                                \
+      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_WARN))                                                   \
+      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
-#define LOG_INFO_F(prefix, fmt, ...)    \
-  do { if (LOG_CHECK(LOG_INFO) && logTimestampsEnabled) Serial.printf("%s[INFO][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_INFO)) Serial.printf("[INFO][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_INFO_F(prefix, fmt, ...)                                                \
+  do                                                                                \
+  {                                                                                 \
+    if (LOG_CHECK(LOG_INFO) && logTimestampsEnabled)                                \
+      Serial.printf("%s[INFO][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_INFO))                                                   \
+      Serial.printf("[INFO][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
-#define LOG_DEBUG_F(prefix, fmt, ...)   \
-  do { if (LOG_CHECK(LOG_DEBUG) && logTimestampsEnabled) Serial.printf("%s[DEBUG][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_DEBUG)) Serial.printf("[DEBUG][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_DEBUG_F(prefix, fmt, ...)                                                \
+  do                                                                                 \
+  {                                                                                  \
+    if (LOG_CHECK(LOG_DEBUG) && logTimestampsEnabled)                                \
+      Serial.printf("%s[DEBUG][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_DEBUG))                                                   \
+      Serial.printf("[DEBUG][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
-#define LOG_VERBOSE_F(prefix, fmt, ...) \
-  do { if (LOG_CHECK(LOG_VERBOSE) && logTimestampsEnabled) Serial.printf("%s[VERBOSE][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-       else if (LOG_CHECK(LOG_VERBOSE)) Serial.printf("[VERBOSE][%s] " fmt, prefix, ##__VA_ARGS__); } while(0)
+#define LOG_VERBOSE_F(prefix, fmt, ...)                                                \
+  do                                                                                   \
+  {                                                                                    \
+    if (LOG_CHECK(LOG_VERBOSE) && logTimestampsEnabled)                                \
+      Serial.printf("%s[VERBOSE][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
+    else if (LOG_CHECK(LOG_VERBOSE))                                                   \
+      Serial.printf("[VERBOSE][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+  } while (0)
 
 #endif
 
@@ -130,124 +175,131 @@ void printLogLevelStatus();
 // ============================================
 
 // --- MODBUS RTU ---
-#define LOG_RTU_ERROR(fmt, ...)     LOG_ERROR_F("RTU", fmt, ##__VA_ARGS__)
-#define LOG_RTU_WARN(fmt, ...)      LOG_WARN_F("RTU", fmt, ##__VA_ARGS__)
-#define LOG_RTU_INFO(fmt, ...)      LOG_INFO_F("RTU", fmt, ##__VA_ARGS__)
-#define LOG_RTU_DEBUG(fmt, ...)     LOG_DEBUG_F("RTU", fmt, ##__VA_ARGS__)
-#define LOG_RTU_VERBOSE(fmt, ...)   LOG_VERBOSE_F("RTU", fmt, ##__VA_ARGS__)
+#define LOG_RTU_ERROR(fmt, ...) LOG_ERROR_F("RTU", fmt, ##__VA_ARGS__)
+#define LOG_RTU_WARN(fmt, ...) LOG_WARN_F("RTU", fmt, ##__VA_ARGS__)
+#define LOG_RTU_INFO(fmt, ...) LOG_INFO_F("RTU", fmt, ##__VA_ARGS__)
+#define LOG_RTU_DEBUG(fmt, ...) LOG_DEBUG_F("RTU", fmt, ##__VA_ARGS__)
+#define LOG_RTU_VERBOSE(fmt, ...) LOG_VERBOSE_F("RTU", fmt, ##__VA_ARGS__)
 
 // --- MODBUS TCP ---
-#define LOG_TCP_ERROR(fmt, ...)     LOG_ERROR_F("TCP", fmt, ##__VA_ARGS__)
-#define LOG_TCP_WARN(fmt, ...)      LOG_WARN_F("TCP", fmt, ##__VA_ARGS__)
-#define LOG_TCP_INFO(fmt, ...)      LOG_INFO_F("TCP", fmt, ##__VA_ARGS__)
-#define LOG_TCP_DEBUG(fmt, ...)     LOG_DEBUG_F("TCP", fmt, ##__VA_ARGS__)
-#define LOG_TCP_VERBOSE(fmt, ...)   LOG_VERBOSE_F("TCP", fmt, ##__VA_ARGS__)
+#define LOG_TCP_ERROR(fmt, ...) LOG_ERROR_F("TCP", fmt, ##__VA_ARGS__)
+#define LOG_TCP_WARN(fmt, ...) LOG_WARN_F("TCP", fmt, ##__VA_ARGS__)
+#define LOG_TCP_INFO(fmt, ...) LOG_INFO_F("TCP", fmt, ##__VA_ARGS__)
+#define LOG_TCP_DEBUG(fmt, ...) LOG_DEBUG_F("TCP", fmt, ##__VA_ARGS__)
+#define LOG_TCP_VERBOSE(fmt, ...) LOG_VERBOSE_F("TCP", fmt, ##__VA_ARGS__)
 
 // --- MQTT ---
-#define LOG_MQTT_ERROR(fmt, ...)    LOG_ERROR_F("MQTT", fmt, ##__VA_ARGS__)
-#define LOG_MQTT_WARN(fmt, ...)     LOG_WARN_F("MQTT", fmt, ##__VA_ARGS__)
-#define LOG_MQTT_INFO(fmt, ...)     LOG_INFO_F("MQTT", fmt, ##__VA_ARGS__)
-#define LOG_MQTT_DEBUG(fmt, ...)    LOG_DEBUG_F("MQTT", fmt, ##__VA_ARGS__)
-#define LOG_MQTT_VERBOSE(fmt, ...)  LOG_VERBOSE_F("MQTT", fmt, ##__VA_ARGS__)
+#define LOG_MQTT_ERROR(fmt, ...) LOG_ERROR_F("MQTT", fmt, ##__VA_ARGS__)
+#define LOG_MQTT_WARN(fmt, ...) LOG_WARN_F("MQTT", fmt, ##__VA_ARGS__)
+#define LOG_MQTT_INFO(fmt, ...) LOG_INFO_F("MQTT", fmt, ##__VA_ARGS__)
+#define LOG_MQTT_DEBUG(fmt, ...) LOG_DEBUG_F("MQTT", fmt, ##__VA_ARGS__)
+#define LOG_MQTT_VERBOSE(fmt, ...) LOG_VERBOSE_F("MQTT", fmt, ##__VA_ARGS__)
 
 // --- HTTP ---
-#define LOG_HTTP_ERROR(fmt, ...)    LOG_ERROR_F("HTTP", fmt, ##__VA_ARGS__)
-#define LOG_HTTP_WARN(fmt, ...)     LOG_WARN_F("HTTP", fmt, ##__VA_ARGS__)
-#define LOG_HTTP_INFO(fmt, ...)     LOG_INFO_F("HTTP", fmt, ##__VA_ARGS__)
-#define LOG_HTTP_DEBUG(fmt, ...)    LOG_DEBUG_F("HTTP", fmt, ##__VA_ARGS__)
+#define LOG_HTTP_ERROR(fmt, ...) LOG_ERROR_F("HTTP", fmt, ##__VA_ARGS__)
+#define LOG_HTTP_WARN(fmt, ...) LOG_WARN_F("HTTP", fmt, ##__VA_ARGS__)
+#define LOG_HTTP_INFO(fmt, ...) LOG_INFO_F("HTTP", fmt, ##__VA_ARGS__)
+#define LOG_HTTP_DEBUG(fmt, ...) LOG_DEBUG_F("HTTP", fmt, ##__VA_ARGS__)
 
 // --- BLE ---
-#define LOG_BLE_ERROR(fmt, ...)     LOG_ERROR_F("BLE", fmt, ##__VA_ARGS__)
-#define LOG_BLE_WARN(fmt, ...)      LOG_WARN_F("BLE", fmt, ##__VA_ARGS__)
-#define LOG_BLE_INFO(fmt, ...)      LOG_INFO_F("BLE", fmt, ##__VA_ARGS__)
-#define LOG_BLE_DEBUG(fmt, ...)     LOG_DEBUG_F("BLE", fmt, ##__VA_ARGS__)
+#define LOG_BLE_ERROR(fmt, ...) LOG_ERROR_F("BLE", fmt, ##__VA_ARGS__)
+#define LOG_BLE_WARN(fmt, ...) LOG_WARN_F("BLE", fmt, ##__VA_ARGS__)
+#define LOG_BLE_INFO(fmt, ...) LOG_INFO_F("BLE", fmt, ##__VA_ARGS__)
+#define LOG_BLE_DEBUG(fmt, ...) LOG_DEBUG_F("BLE", fmt, ##__VA_ARGS__)
 
 // --- BATCH MANAGER ---
-#define LOG_BATCH_ERROR(fmt, ...)   LOG_ERROR_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_WARN(fmt, ...)    LOG_WARN_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_INFO(fmt, ...)    LOG_INFO_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_DEBUG(fmt, ...)   LOG_DEBUG_F("BATCH", fmt, ##__VA_ARGS__)
+#define LOG_BATCH_ERROR(fmt, ...) LOG_ERROR_F("BATCH", fmt, ##__VA_ARGS__)
+#define LOG_BATCH_WARN(fmt, ...) LOG_WARN_F("BATCH", fmt, ##__VA_ARGS__)
+#define LOG_BATCH_INFO(fmt, ...) LOG_INFO_F("BATCH", fmt, ##__VA_ARGS__)
+#define LOG_BATCH_DEBUG(fmt, ...) LOG_DEBUG_F("BATCH", fmt, ##__VA_ARGS__)
 
 // --- CONFIG MANAGER ---
-#define LOG_CONFIG_ERROR(fmt, ...)  LOG_ERROR_F("CONFIG", fmt, ##__VA_ARGS__)
-#define LOG_CONFIG_WARN(fmt, ...)   LOG_WARN_F("CONFIG", fmt, ##__VA_ARGS__)
-#define LOG_CONFIG_INFO(fmt, ...)   LOG_INFO_F("CONFIG", fmt, ##__VA_ARGS__)
-#define LOG_CONFIG_DEBUG(fmt, ...)  LOG_DEBUG_F("CONFIG", fmt, ##__VA_ARGS__)
+#define LOG_CONFIG_ERROR(fmt, ...) LOG_ERROR_F("CONFIG", fmt, ##__VA_ARGS__)
+#define LOG_CONFIG_WARN(fmt, ...) LOG_WARN_F("CONFIG", fmt, ##__VA_ARGS__)
+#define LOG_CONFIG_INFO(fmt, ...) LOG_INFO_F("CONFIG", fmt, ##__VA_ARGS__)
+#define LOG_CONFIG_DEBUG(fmt, ...) LOG_DEBUG_F("CONFIG", fmt, ##__VA_ARGS__)
 
 // --- NETWORK MANAGER ---
-#define LOG_NET_ERROR(fmt, ...)     LOG_ERROR_F("NET", fmt, ##__VA_ARGS__)
-#define LOG_NET_WARN(fmt, ...)      LOG_WARN_F("NET", fmt, ##__VA_ARGS__)
-#define LOG_NET_INFO(fmt, ...)      LOG_INFO_F("NET", fmt, ##__VA_ARGS__)
-#define LOG_NET_DEBUG(fmt, ...)     LOG_DEBUG_F("NET", fmt, ##__VA_ARGS__)
+#define LOG_NET_ERROR(fmt, ...) LOG_ERROR_F("NET", fmt, ##__VA_ARGS__)
+#define LOG_NET_WARN(fmt, ...) LOG_WARN_F("NET", fmt, ##__VA_ARGS__)
+#define LOG_NET_INFO(fmt, ...) LOG_INFO_F("NET", fmt, ##__VA_ARGS__)
+#define LOG_NET_DEBUG(fmt, ...) LOG_DEBUG_F("NET", fmt, ##__VA_ARGS__)
 
 // --- MEMORY MANAGER ---
-#define LOG_MEM_ERROR(fmt, ...)     LOG_ERROR_F("MEM", fmt, ##__VA_ARGS__)
-#define LOG_MEM_WARN(fmt, ...)      LOG_WARN_F("MEM", fmt, ##__VA_ARGS__)
-#define LOG_MEM_INFO(fmt, ...)      LOG_INFO_F("MEM", fmt, ##__VA_ARGS__)
-#define LOG_MEM_DEBUG(fmt, ...)     LOG_DEBUG_F("MEM", fmt, ##__VA_ARGS__)
+#define LOG_MEM_ERROR(fmt, ...) LOG_ERROR_F("MEM", fmt, ##__VA_ARGS__)
+#define LOG_MEM_WARN(fmt, ...) LOG_WARN_F("MEM", fmt, ##__VA_ARGS__)
+#define LOG_MEM_INFO(fmt, ...) LOG_INFO_F("MEM", fmt, ##__VA_ARGS__)
+#define LOG_MEM_DEBUG(fmt, ...) LOG_DEBUG_F("MEM", fmt, ##__VA_ARGS__)
 
 // --- QUEUE MANAGER ---
-#define LOG_QUEUE_ERROR(fmt, ...)   LOG_ERROR_F("QUEUE", fmt, ##__VA_ARGS__)
-#define LOG_QUEUE_WARN(fmt, ...)    LOG_WARN_F("QUEUE", fmt, ##__VA_ARGS__)
-#define LOG_QUEUE_INFO(fmt, ...)    LOG_INFO_F("QUEUE", fmt, ##__VA_ARGS__)
-#define LOG_QUEUE_DEBUG(fmt, ...)   LOG_DEBUG_F("QUEUE", fmt, ##__VA_ARGS__)
+#define LOG_QUEUE_ERROR(fmt, ...) LOG_ERROR_F("QUEUE", fmt, ##__VA_ARGS__)
+#define LOG_QUEUE_WARN(fmt, ...) LOG_WARN_F("QUEUE", fmt, ##__VA_ARGS__)
+#define LOG_QUEUE_INFO(fmt, ...) LOG_INFO_F("QUEUE", fmt, ##__VA_ARGS__)
+#define LOG_QUEUE_DEBUG(fmt, ...) LOG_DEBUG_F("QUEUE", fmt, ##__VA_ARGS__)
 
 // --- DATA / TELEMETRY ---
-#define LOG_DATA_ERROR(fmt, ...)    LOG_ERROR_F("DATA", fmt, ##__VA_ARGS__)
-#define LOG_DATA_WARN(fmt, ...)     LOG_WARN_F("DATA", fmt, ##__VA_ARGS__)
-#define LOG_DATA_INFO(fmt, ...)     LOG_INFO_F("DATA", fmt, ##__VA_ARGS__)
-#define LOG_DATA_DEBUG(fmt, ...)    LOG_DEBUG_F("DATA", fmt, ##__VA_ARGS__)
+#define LOG_DATA_ERROR(fmt, ...) LOG_ERROR_F("DATA", fmt, ##__VA_ARGS__)
+#define LOG_DATA_WARN(fmt, ...) LOG_WARN_F("DATA", fmt, ##__VA_ARGS__)
+#define LOG_DATA_INFO(fmt, ...) LOG_INFO_F("DATA", fmt, ##__VA_ARGS__)
+#define LOG_DATA_DEBUG(fmt, ...) LOG_DEBUG_F("DATA", fmt, ##__VA_ARGS__)
 
 // --- LED MANAGER ---
-#define LOG_LED_ERROR(fmt, ...)     LOG_ERROR_F("LED", fmt, ##__VA_ARGS__)
-#define LOG_LED_WARN(fmt, ...)      LOG_WARN_F("LED", fmt, ##__VA_ARGS__)
-#define LOG_LED_INFO(fmt, ...)      LOG_INFO_F("LED", fmt, ##__VA_ARGS__)
-#define LOG_LED_DEBUG(fmt, ...)     LOG_DEBUG_F("LED", fmt, ##__VA_ARGS__)
+#define LOG_LED_ERROR(fmt, ...) LOG_ERROR_F("LED", fmt, ##__VA_ARGS__)
+#define LOG_LED_WARN(fmt, ...) LOG_WARN_F("LED", fmt, ##__VA_ARGS__)
+#define LOG_LED_INFO(fmt, ...) LOG_INFO_F("LED", fmt, ##__VA_ARGS__)
+#define LOG_LED_DEBUG(fmt, ...) LOG_DEBUG_F("LED", fmt, ##__VA_ARGS__)
 
 // --- CRUD HANDLER ---
-#define LOG_CRUD_ERROR(fmt, ...)    LOG_ERROR_F("CRUD", fmt, ##__VA_ARGS__)
-#define LOG_CRUD_WARN(fmt, ...)     LOG_WARN_F("CRUD", fmt, ##__VA_ARGS__)
-#define LOG_CRUD_INFO(fmt, ...)     LOG_INFO_F("CRUD", fmt, ##__VA_ARGS__)
-#define LOG_CRUD_DEBUG(fmt, ...)    LOG_DEBUG_F("CRUD", fmt, ##__VA_ARGS__)
+#define LOG_CRUD_ERROR(fmt, ...) LOG_ERROR_F("CRUD", fmt, ##__VA_ARGS__)
+#define LOG_CRUD_WARN(fmt, ...) LOG_WARN_F("CRUD", fmt, ##__VA_ARGS__)
+#define LOG_CRUD_INFO(fmt, ...) LOG_INFO_F("CRUD", fmt, ##__VA_ARGS__)
+#define LOG_CRUD_DEBUG(fmt, ...) LOG_DEBUG_F("CRUD", fmt, ##__VA_ARGS__)
 
 // --- RTC MANAGER ---
-#define LOG_RTC_ERROR(fmt, ...)     LOG_ERROR_F("RTC", fmt, ##__VA_ARGS__)
-#define LOG_RTC_WARN(fmt, ...)      LOG_WARN_F("RTC", fmt, ##__VA_ARGS__)
-#define LOG_RTC_INFO(fmt, ...)      LOG_INFO_F("RTC", fmt, ##__VA_ARGS__)
-#define LOG_RTC_DEBUG(fmt, ...)     LOG_DEBUG_F("RTC", fmt, ##__VA_ARGS__)
+#define LOG_RTC_ERROR(fmt, ...) LOG_ERROR_F("RTC", fmt, ##__VA_ARGS__)
+#define LOG_RTC_WARN(fmt, ...) LOG_WARN_F("RTC", fmt, ##__VA_ARGS__)
+#define LOG_RTC_INFO(fmt, ...) LOG_INFO_F("RTC", fmt, ##__VA_ARGS__)
+#define LOG_RTC_DEBUG(fmt, ...) LOG_DEBUG_F("RTC", fmt, ##__VA_ARGS__)
 
 // ============================================
 // THROTTLED LOGGING (prevent log spam)
 // ============================================
-class LogThrottle {
+class LogThrottle
+{
 private:
   unsigned long lastLogTime = 0;
   unsigned long firstSuppressionTime = 0;
   uint32_t intervalMs;
   uint32_t suppressedCount = 0;
-  String lastMessageContext;  // Store context for development mode
+  String lastMessageContext; // Store context for development mode
 
 public:
   LogThrottle(uint32_t intervalMs = 10000) : intervalMs(intervalMs) {}
 
-  bool shouldLog(const char* context = nullptr) {
+  bool shouldLog(const char *context = nullptr)
+  {
     unsigned long now = millis();
-    if (now - lastLogTime >= intervalMs) {
-      if (suppressedCount > 0) {
-        #if PRODUCTION_MODE == 0
-          // Development mode - show detailed suppression info
-          uint32_t suppressionDuration = (now - firstSuppressionTime) / 1000;  // seconds
-          if (lastMessageContext.length() > 0) {
-            Serial.printf("  (suppressed %lu similar messages in %lus: \"%s\")\n",
-                          suppressedCount, suppressionDuration, lastMessageContext.c_str());
-          } else {
-            Serial.printf("  (suppressed %lu similar messages in %lus)\n",
-                          suppressedCount, suppressionDuration);
-          }
-        #else
-          // Production mode - simple counter
-          Serial.printf("  (suppressed %lu similar messages)\n", suppressedCount);
-        #endif
+    if (now - lastLogTime >= intervalMs)
+    {
+      if (suppressedCount > 0)
+      {
+#if PRODUCTION_MODE == 0
+        // Development mode - show detailed suppression info
+        uint32_t suppressionDuration = (now - firstSuppressionTime) / 1000; // seconds
+        if (lastMessageContext.length() > 0)
+        {
+          Serial.printf("  (suppressed %lu similar messages in %lus: \"%s\")\n",
+                        suppressedCount, suppressionDuration, lastMessageContext.c_str());
+        }
+        else
+        {
+          Serial.printf("  (suppressed %lu similar messages in %lus)\n",
+                        suppressedCount, suppressionDuration);
+        }
+#else
+        // Production mode - simple counter
+        Serial.printf("  (suppressed %lu similar messages)\n", suppressedCount);
+#endif
         suppressedCount = 0;
         lastMessageContext = "";
         firstSuppressionTime = 0;
@@ -257,9 +309,11 @@ public:
     }
 
     // Message is being suppressed
-    if (suppressedCount == 0) {
+    if (suppressedCount == 0)
+    {
       firstSuppressionTime = now;
-      if (context != nullptr) {
+      if (context != nullptr)
+      {
         lastMessageContext = String(context);
       }
     }
@@ -267,18 +321,21 @@ public:
     return false;
   }
 
-  void setInterval(uint32_t newIntervalMs) {
+  void setInterval(uint32_t newIntervalMs)
+  {
     intervalMs = newIntervalMs;
   }
 
-  void reset() {
+  void reset()
+  {
     lastLogTime = 0;
     suppressedCount = 0;
     firstSuppressionTime = 0;
     lastMessageContext = "";
   }
 
-  uint32_t getSuppressedCount() const {
+  uint32_t getSuppressedCount() const
+  {
     return suppressedCount;
   }
 };
@@ -289,18 +346,54 @@ public:
 #if PRODUCTION_MODE == 1
 // Production Mode - All debug output disabled
 
-#define DEBUG_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_PRINTLN(msg) do {} while(0)
-#define DEBUG_DEVICE_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_MODBUS_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_BLE_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_MQTT_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_NETWORK_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_HTTP_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_CONFIG_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_MEMORY_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_ERROR_PRINT(fmt, ...) do {} while(0)
-#define DEBUG_METRICS_PRINT(fmt, ...) do {} while(0)
+#define DEBUG_PRINT(fmt, ...) \
+  do                          \
+  {                           \
+  } while (0)
+#define DEBUG_PRINTLN(msg) \
+  do                       \
+  {                        \
+  } while (0)
+#define DEBUG_DEVICE_PRINT(fmt, ...) \
+  do                                 \
+  {                                  \
+  } while (0)
+#define DEBUG_MODBUS_PRINT(fmt, ...) \
+  do                                 \
+  {                                  \
+  } while (0)
+#define DEBUG_BLE_PRINT(fmt, ...) \
+  do                              \
+  {                               \
+  } while (0)
+#define DEBUG_MQTT_PRINT(fmt, ...) \
+  do                               \
+  {                                \
+  } while (0)
+#define DEBUG_NETWORK_PRINT(fmt, ...) \
+  do                                  \
+  {                                   \
+  } while (0)
+#define DEBUG_HTTP_PRINT(fmt, ...) \
+  do                               \
+  {                                \
+  } while (0)
+#define DEBUG_CONFIG_PRINT(fmt, ...) \
+  do                                 \
+  {                                  \
+  } while (0)
+#define DEBUG_MEMORY_PRINT(fmt, ...) \
+  do                                 \
+  {                                  \
+  } while (0)
+#define DEBUG_ERROR_PRINT(fmt, ...) \
+  do                                \
+  {                                 \
+  } while (0)
+#define DEBUG_METRICS_PRINT(fmt, ...) \
+  do                                  \
+  {                                   \
+  } while (0)
 
 #else
 // Development Mode - All debug output enabled
@@ -334,9 +427,15 @@ public:
 // Conditional code execution based on mode
 #if PRODUCTION_MODE == 0
 #define DEBUG_CODE(code) code
-#define PRODUCTION_SKIP(code) do {} while(0)
+#define PRODUCTION_SKIP(code) \
+  do                          \
+  {                           \
+  } while (0)
 #else
-#define DEBUG_CODE(code) do {} while(0)
+#define DEBUG_CODE(code) \
+  do                     \
+  {                      \
+  } while (0)
 #define PRODUCTION_SKIP(code) code
 #endif
 

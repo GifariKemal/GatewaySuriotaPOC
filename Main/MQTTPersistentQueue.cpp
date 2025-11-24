@@ -13,9 +13,12 @@ MQTTPersistentQueue::MQTTPersistentQueue()
 
   // CRITICAL FIX: Create mutex for thread safety
   queueMutex = xSemaphoreCreateMutex();
-  if (queueMutex == NULL) {
+  if (queueMutex == NULL)
+  {
     Serial.println("[MQTT_QUEUE] CRITICAL: Failed to create mutex!");
-  } else {
+  }
+  else
+  {
     Serial.println("[MQTT_QUEUE] Thread safety mutex created successfully");
   }
 
@@ -1374,7 +1377,8 @@ MQTTPersistentQueue::~MQTTPersistentQueue()
   saveQueueToDisk();
 
   // CRITICAL FIX: Delete mutex for cleanup
-  if (queueMutex != NULL) {
+  if (queueMutex != NULL)
+  {
     vSemaphoreDelete(queueMutex);
     queueMutex = NULL;
   }

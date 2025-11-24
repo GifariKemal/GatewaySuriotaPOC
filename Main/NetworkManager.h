@@ -1,14 +1,14 @@
 #ifndef NETWORK_MANAGER_H
 #define NETWORK_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include "WiFiManager.h"
 #include "EthernetManager.h"
 #include "ServerConfig.h"      // Added for ServerConfig declaration
 #include "NetworkHysteresis.h" //Hysteresis management
 #include <vector>
-#include <freertos/semphr.h>   // For mutex (Bug #6 fix)
+#include <freertos/semphr.h> // For mutex (Bug #6 fix)
 
 class NetworkMgr
 {

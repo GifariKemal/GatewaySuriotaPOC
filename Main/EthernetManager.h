@@ -1,7 +1,7 @@
 #ifndef ETHERNET_MANAGER_H
 #define ETHERNET_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ArduinoJson.h>

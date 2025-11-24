@@ -21,37 +21,40 @@
 // ============================================
 // MEMORY THRESHOLDS (bytes)
 // ============================================
-namespace MemoryThresholds {
+namespace MemoryThresholds
+{
   // DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
   // OPTIMIZED for large BLE responses (up to 10KB) and device reads with 45+ registers
-  constexpr uint32_t DRAM_HEALTHY     = 80000;  // 80KB - Normal operation (increased from 50KB)
-  constexpr uint32_t DRAM_WARNING     = 40000;  // 40KB - Proactive cleanup (increased from 25KB for large responses)
-  constexpr uint32_t DRAM_CRITICAL    = 20000;  // 20KB - Emergency recovery (increased from 15KB)
-  constexpr uint32_t DRAM_EMERGENCY   = 10000;  // 10KB - Imminent crash (unchanged)
+  constexpr uint32_t DRAM_HEALTHY = 80000;   // 80KB - Normal operation (increased from 50KB)
+  constexpr uint32_t DRAM_WARNING = 40000;   // 40KB - Proactive cleanup (increased from 25KB for large responses)
+  constexpr uint32_t DRAM_CRITICAL = 20000;  // 20KB - Emergency recovery (increased from 15KB)
+  constexpr uint32_t DRAM_EMERGENCY = 10000; // 10KB - Imminent crash (unchanged)
 
   // PSRAM thresholds (ESP32-S3 has 8MB OPI PSRAM)
-  constexpr uint32_t PSRAM_WARNING    = 1000000; // 1MB - Warn if PSRAM low
-  constexpr uint32_t PSRAM_CRITICAL   = 500000;  // 500KB - Critical PSRAM
+  constexpr uint32_t PSRAM_WARNING = 1000000; // 1MB - Warn if PSRAM low
+  constexpr uint32_t PSRAM_CRITICAL = 500000; // 500KB - Critical PSRAM
 }
 
 // ============================================
 // RECOVERY ACTION TYPES
 // ============================================
-enum RecoveryAction {
+enum RecoveryAction
+{
   RECOVERY_NONE = 0,
-  RECOVERY_FLUSH_OLD_QUEUE = 1,      // Remove oldest 20 queue entries
-  RECOVERY_CLEAR_MQTT_PERSISTENT = 2,// Clear expired MQTT persistent queue
-  RECOVERY_FORCE_GARBAGE_COLLECT = 3,// Trigger aggressive heap cleanup
-  RECOVERY_EMERGENCY_RESTART = 4     // Last resort - ESP restart
+  RECOVERY_FLUSH_OLD_QUEUE = 1,       // Remove oldest 20 queue entries
+  RECOVERY_CLEAR_MQTT_PERSISTENT = 2, // Clear expired MQTT persistent queue
+  RECOVERY_FORCE_GARBAGE_COLLECT = 3, // Trigger aggressive heap cleanup
+  RECOVERY_EMERGENCY_RESTART = 4      // Last resort - ESP restart
 };
 
 // ============================================
 // MEMORY RECOVERY CLASS
 // ============================================
-class MemoryRecovery {
+class MemoryRecovery
+{
 private:
   static unsigned long lastMemoryCheck;
-  static uint32_t memoryCheckInterval;  // Default 5000ms
+  static uint32_t memoryCheckInterval; // Default 5000ms
   static uint32_t lowMemoryEventCount;
   static uint32_t criticalEventCount;
   static bool recoveryInProgress;
@@ -62,7 +65,8 @@ private:
 
 public:
   // Get singleton instance
-  static MemoryRecovery* getInstance() {
+  static MemoryRecovery *getInstance()
+  {
     static MemoryRecovery instance;
     return &instance;
   }
@@ -89,7 +93,7 @@ public:
    * Log memory status with context
    * @param context Caller identifier (e.g., "RTU", "MQTT")
    */
-  static void logMemoryStatus(const char* context);
+  static void logMemoryStatus(const char *context);
 
   /**
    * Force specific recovery action manually

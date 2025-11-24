@@ -18,98 +18,119 @@
 #include <ArduinoJson.h>
 #include <esp_heap_caps.h>
 
-namespace ArduinoJson {
+namespace ArduinoJson
+{
 
-// Custom PSRAM Allocator (different name to avoid redefinition error)
-class PSRAMAllocator : public Allocator {
-public:
-  void* allocate(size_t size) override {
-    // Try PSRAM first (8MB available)
-    void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  // Custom PSRAM Allocator (different name to avoid redefinition error)
+  class PSRAMAllocator : public Allocator
+  {
+  public:
+    void *allocate(size_t size) override
+    {
+      // Try PSRAM first (8MB available)
+      void *ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    if (ptr) {
-      // Success - allocated in PSRAM (comment out to reduce log noise)
-      // Serial.printf("[JSON] Allocated %u bytes in PSRAM\n", size);
+      if (ptr)
+      {
+        // Success - allocated in PSRAM (comment out to reduce log noise)
+        // Serial.printf("[JSON] Allocated %u bytes in PSRAM\n", size);
+        return ptr;
+      }
+
+      // Fallback to DRAM only if PSRAM fails
+      ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT);
+
+      if (ptr)
+      {
+        Serial.printf("[JSON] WARNING: Allocated %u bytes in DRAM (PSRAM failed!)\n", size);
+      }
+      else
+      {
+        Serial.printf("[JSON] CRITICAL: Failed to allocate %u bytes\n", size);
+      }
+
       return ptr;
     }
 
-    // Fallback to DRAM only if PSRAM fails
-    ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT);
-
-    if (ptr) {
-      Serial.printf("[JSON] WARNING: Allocated %u bytes in DRAM (PSRAM failed!)\n", size);
-    } else {
-      Serial.printf("[JSON] CRITICAL: Failed to allocate %u bytes\n", size);
+    void deallocate(void *ptr) override
+    {
+      if (ptr)
+      {
+        heap_caps_free(ptr);
+      }
     }
 
-    return ptr;
-  }
+    void *reallocate(void *ptr, size_t new_size) override
+    {
+      if (!ptr)
+        return allocate(new_size);
+      if (new_size == 0)
+      {
+        deallocate(ptr);
+        return nullptr;
+      }
 
-  void deallocate(void* ptr) override {
-    if (ptr) {
-      heap_caps_free(ptr);
+      // Try realloc in PSRAM
+      void *new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+      if (new_ptr)
+        return new_ptr;
+
+      // Fallback: allocate new + copy + free old
+      new_ptr = allocate(new_size);
+      if (new_ptr && ptr)
+      {
+        size_t old_size = heap_caps_get_allocated_size(ptr);
+        size_t copy_size = (old_size < new_size) ? old_size : new_size;
+        memcpy(new_ptr, ptr, copy_size);
+        deallocate(ptr);
+      }
+
+      return new_ptr;
     }
-  }
 
-  void* reallocate(void* ptr, size_t new_size) override {
-    if (!ptr) return allocate(new_size);
-    if (new_size == 0) {
-      deallocate(ptr);
-      return nullptr;
+    static PSRAMAllocator *instance()
+    {
+      static PSRAMAllocator allocator;
+      return &allocator;
     }
 
-    // Try realloc in PSRAM
-    void* new_ptr = heap_caps_realloc(ptr, new_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (new_ptr) return new_ptr;
-
-    // Fallback: allocate new + copy + free old
-    new_ptr = allocate(new_size);
-    if (new_ptr && ptr) {
-      size_t old_size = heap_caps_get_allocated_size(ptr);
-      size_t copy_size = (old_size < new_size) ? old_size : new_size;
-      memcpy(new_ptr, ptr, copy_size);
-      deallocate(ptr);
-    }
-
-    return new_ptr;
-  }
-
-  static PSRAMAllocator* instance() {
-    static PSRAMAllocator allocator;
-    return &allocator;
-  }
-
-private:
-  PSRAMAllocator() = default;
-};
+  private:
+    PSRAMAllocator() = default;
+  };
 
 } // namespace ArduinoJson
 
 // Wrapper class that uses PSRAM allocator by default
-class SpiRamJsonDocument : public ArduinoJson::JsonDocument {
+class SpiRamJsonDocument : public ArduinoJson::JsonDocument
+{
 public:
   SpiRamJsonDocument()
-    : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance()) {
+      : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance())
+  {
   }
 
   // Copy constructor
-  SpiRamJsonDocument(const SpiRamJsonDocument& src)
-    : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance()) {
+  SpiRamJsonDocument(const SpiRamJsonDocument &src)
+      : ArduinoJson::JsonDocument(ArduinoJson::PSRAMAllocator::instance())
+  {
     set(src);
   }
 
   // Move constructor
-  SpiRamJsonDocument(SpiRamJsonDocument&& src)
-    : ArduinoJson::JsonDocument(std::move(src)) {
+  SpiRamJsonDocument(SpiRamJsonDocument &&src)
+      : ArduinoJson::JsonDocument(std::move(src))
+  {
   }
 
   // Assignment operators
-  SpiRamJsonDocument& operator=(const SpiRamJsonDocument& src) {
+  SpiRamJsonDocument &operator=(const SpiRamJsonDocument &src)
+  {
     ArduinoJson::JsonDocument::operator=(src);
     return *this;
   }
 
-  SpiRamJsonDocument& operator=(SpiRamJsonDocument&& src) {
+  SpiRamJsonDocument &operator=(SpiRamJsonDocument &&src)
+  {
     ArduinoJson::JsonDocument::operator=(std::move(src));
     return *this;
   }

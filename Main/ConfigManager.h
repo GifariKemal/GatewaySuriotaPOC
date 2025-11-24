@@ -1,7 +1,7 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <esp_heap_caps.h>
@@ -63,14 +63,14 @@ public:
   bool deleteDevice(const String &deviceId);
   void listDevices(JsonArray &devices);
   void getDevicesSummary(JsonArray &summary);
-  void getAllDevicesWithRegisters(JsonArray &result, bool minimalFields = false);  // New: Get all devices with their registers
+  void getAllDevicesWithRegisters(JsonArray &result, bool minimalFields = false); // New: Get all devices with their registers
 
   // Clear all configurations
   void clearAllConfigurations();
 
   // Cache management
   void refreshCache();
-  void clearCache();  // v2.3.6: Clear caches without reload (for DRAM optimization)
+  void clearCache(); // v2.3.6: Clear caches without reload (for DRAM optimization)
   void debugDevicesFile();
   void fixCorruptDeviceIds();
   void removeCorruptKeys();
