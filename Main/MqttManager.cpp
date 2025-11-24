@@ -1126,6 +1126,10 @@ void MqttManager::publishQueueData()
   // Interval timer already updated above, so this won't affect next publish timing
   // v2.3.8 PHASE 1: Moved from static to instance members for thread safety
 
+  // OPTIONAL FIX: Set batch timeout to 0 to SKIP WAITING (prioritize timing over completeness)
+  // Uncomment line below to enable instant publish (no batch waiting)
+  // publishState.batchTimeout = 0;  // INSTANT MODE: Publish immediately when interval elapsed
+
   // Calculate adaptive timeout once (cache it)
   if (publishState.batchTimeout == 0) {
     publishState.batchTimeout = calculateAdaptiveBatchTimeout();
