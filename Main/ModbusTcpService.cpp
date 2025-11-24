@@ -32,6 +32,17 @@ ModbusTcpService::ModbusTcpService(ConfigManager *config, EthernetManager *ether
   {
     Serial.println("[TCP] Connection pool initialized");
   }
+
+  // FIXED ISSUE #1: Initialize vector mutex (recursive for nested calls)
+  vectorMutex = xSemaphoreCreateRecursiveMutex();
+  if (!vectorMutex)
+  {
+    Serial.println("[TCP] CRITICAL: Failed to create vector mutex!");
+  }
+  else
+  {
+    Serial.println("[TCP] Vector mutex initialized (race condition protection active)");
+  }
 }
 
 bool ModbusTcpService::init()
@@ -141,6 +152,9 @@ void ModbusTcpService::notifyConfigChange()
 
 void ModbusTcpService::refreshDeviceList()
 {
+  // FIXED ISSUE #1: Protect vector operations from race conditions
+  xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+
   Serial.println("[TCP Task] Refreshing device list and schedule...");
   tcpDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
 
@@ -186,6 +200,9 @@ void ModbusTcpService::refreshDeviceList()
   initializeDeviceFailureTracking();
   initializeDeviceTimeouts();
   initializeDeviceMetrics();
+
+  // FIXED ISSUE #1: Release vector mutex
+  xSemaphoreGiveRecursive(vectorMutex);
 }
 
 void ModbusTcpService::readTcpDevicesTask(void *parameter)
@@ -1895,5 +1912,12 @@ ModbusTcpService::~ModbusTcpService()
   {
     vSemaphoreDelete(poolMutex);
     poolMutex = nullptr;
+  }
+
+  // FIXED ISSUE #1: Clean up vector mutex
+  if (vectorMutex)
+  {
+    vSemaphoreDelete(vectorMutex);
+    vectorMutex = nullptr;
   }
 }

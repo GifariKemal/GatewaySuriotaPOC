@@ -173,6 +173,12 @@ private:
   };
   std::vector<ConnectionPoolEntry> connectionPool;
   SemaphoreHandle_t poolMutex;                                  // Protect connection pool access
+
+  // FIXED ISSUE #1: Critical race condition protection for all vectors
+  // Prevents heap corruption when multiple tasks access vectors simultaneously
+  // (BLE config change + polling loop + auto-recovery task)
+  SemaphoreHandle_t vectorMutex;                                // Protect ALL device vectors (recursive mutex)
+
   static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 60000; // Close after 60s idle
   static constexpr uint32_t CONNECTION_MAX_AGE_MS = 300000;     // Recreate after 5min
   static constexpr uint8_t MAX_POOL_SIZE = 10;                  // Max concurrent connections
