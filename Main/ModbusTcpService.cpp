@@ -298,9 +298,9 @@ void ModbusTcpService::readTcpDevicesLoop()
 
     unsigned long currentTime = millis();
 
-    // FIXED ISSUE #5: Calculate minimum refresh_rate_ms from device configs (set via BLE)
-    // Instead of hardcoded 2000ms, respect the fastest device's refresh rate
-    uint32_t minRefreshRate = 5000; // Default 5 seconds if no devices
+    // FIXED ISSUE #5 (REVISED): Non-blocking millis-based timing per device
+    // Loop runs continuously with SHORT delay, shouldPollDevice() handles per-device timing
+    // This allows independent refresh rates without blocking other devices
 
     // FIXED ISSUE #3: Use cached tcpDevices vector (eliminates file system access)
     // FIXED ISSUE #1: Protect vector iteration with mutex
@@ -328,16 +328,11 @@ void ModbusTcpService::readTcpDevicesLoop()
       String deviceId = deviceEntry.deviceId;
       JsonObject deviceObj = deviceEntry.doc->as<JsonObject>();
 
-      // Get device refresh rate (minimum retry interval)
+      // Get device refresh rate from BLE config
       uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
 
-      // Track minimum refresh rate across all devices for loop delay calculation
-      if (deviceRefreshRate < minRefreshRate)
-      {
-        minRefreshRate = deviceRefreshRate;
-      }
-
-      // Check if device minimum retry interval has elapsed
+      // Check if device's refresh interval has elapsed (millis-based, non-blocking)
+      // shouldPollDevice() uses per-device lastRead timestamp for accurate timing
       if (shouldPollDevice(deviceId, deviceRefreshRate))
       {
         readTcpDeviceData(deviceObj);
@@ -359,11 +354,11 @@ void ModbusTcpService::readTcpDevicesLoop()
       lastCleanup = millis();
     }
 
-    // FIXED ISSUE #5: Use dynamic delay based on fastest device's refresh_rate_ms
-    // This ensures fast devices (e.g., 500ms) can poll at their configured rate
-    // Clamp minimum to 100ms to prevent excessive CPU usage
-    uint32_t loopDelay = (minRefreshRate < 100) ? 100 : minRefreshRate;
-    vTaskDelay(pdMS_TO_TICKS(loopDelay));
+    // FIXED ISSUE #5 (REVISED): Constant short delay (non-blocking approach)
+    // Loop runs every 100ms to check if any device is ready
+    // Per-device timing handled by shouldPollDevice() with millis()
+    // This allows accurate, independent timing for each device without blocking
+    vTaskDelay(pdMS_TO_TICKS(100));
   }
 }
 
