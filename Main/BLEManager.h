@@ -138,6 +138,7 @@ private:
   char commandBuffer[COMMAND_BUFFER_SIZE];
   size_t commandBufferIndex;
   bool processing;
+  unsigned long lastFragmentTime;  // CRITICAL FIX: Track last fragment reception time for timeout detection
   QueueHandle_t commandQueue;
   TaskHandle_t commandTaskHandle;
   TaskHandle_t streamTaskHandle;

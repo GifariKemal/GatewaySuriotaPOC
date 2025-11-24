@@ -9,7 +9,8 @@
 BLEManager::BLEManager(const String &name, CRUDHandler *cmdHandler)
     : serviceName(name), handler(cmdHandler), processing(false),
       pServer(nullptr), pService(nullptr), pCommandChar(nullptr), pResponseChar(nullptr),
-      streamTaskHandle(nullptr), metricsTaskHandle(nullptr), commandBufferIndex(0)
+      streamTaskHandle(nullptr), metricsTaskHandle(nullptr), commandBufferIndex(0),
+      lastFragmentTime(0)  // CRITICAL FIX: Initialize fragment timeout tracking
 {
   memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
   commandQueue = xQueueCreate(20, sizeof(char *)); // Queue now holds char pointers
@@ -281,6 +282,24 @@ void BLEManager::receiveFragment(const String &fragment)
   if (processing)
     return;
 
+  // CRITICAL FIX: Timeout protection - clear buffer if incomplete command stuck
+  // If buffer has data but no fragment received for 5 seconds, assume command failed
+  constexpr unsigned long COMMAND_TIMEOUT_MS = 5000;  // 5 seconds timeout
+  unsigned long now = millis();
+
+  if (commandBufferIndex > 0 && (now - lastFragmentTime) > COMMAND_TIMEOUT_MS)
+  {
+    Serial.printf("[BLE] WARNING: Command timeout! Buffer had %d bytes but no <END> received for %lu ms\n",
+                  commandBufferIndex, now - lastFragmentTime);
+    Serial.println("[BLE] Clearing dirty buffer to prevent corruption");
+    commandBufferIndex = 0;
+    memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+    processing = false;
+  }
+
+  // Update last fragment time
+  lastFragmentTime = now;
+
   // Track fragment reception
   if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) == pdTRUE)
   {
@@ -289,10 +308,34 @@ void BLEManager::receiveFragment(const String &fragment)
     xSemaphoreGive(metricsMutex);
   }
 
+  // CRITICAL FIX: Handle <START> marker to clear dirty buffer
+  // Prevents data corruption from incomplete previous commands
+  if (fragment == "<START>")
+  {
+    #if PRODUCTION_MODE == 0
+      Serial.println("[BLE] <START> marker received - clearing buffer");
+    #endif
+    commandBufferIndex = 0;
+    memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+    processing = false;  // Ensure we're ready for new command
+    return;
+  }
+
   if (fragment == "<END>")
   {
+    // Validate buffer has data before processing
+    if (commandBufferIndex == 0)
+    {
+      Serial.println("[BLE] WARNING: <END> received but buffer is empty (missing <START>?)");
+      return;
+    }
+
     processing = true;
     commandBuffer[commandBufferIndex] = '\0'; // Null-terminate the command
+
+    #if PRODUCTION_MODE == 0
+      Serial.printf("[BLE] <END> marker received - assembling command (%d bytes)\n", commandBufferIndex);
+    #endif
 
     // Allocate a buffer in PSRAM for the complete command
     char *cmdBuffer = (char *)heap_caps_malloc(commandBufferIndex + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -325,15 +368,28 @@ void BLEManager::receiveFragment(const String &fragment)
   }
   else
   {
+    // Regular fragment (data payload)
     size_t fragmentLen = fragment.length();
     if (commandBufferIndex + fragmentLen < COMMAND_BUFFER_SIZE)
     {
       memcpy(commandBuffer + commandBufferIndex, fragment.c_str(), fragmentLen);
       commandBufferIndex += fragmentLen;
+
+      #if PRODUCTION_MODE == 0
+        // Only log every 5th fragment to reduce serial spam
+        static uint32_t fragmentCount = 0;
+        fragmentCount++;
+        if (fragmentCount % 5 == 0)
+        {
+          Serial.printf("[BLE] Fragment received (%d bytes, total: %d bytes)\n",
+                        fragmentLen, commandBufferIndex);
+        }
+      #endif
     }
     else
     {
-      Serial.println("[BLE] ERROR: Command buffer overflow!");
+      Serial.printf("[BLE] ERROR: Command buffer overflow! (buffer: %d, fragment: %d, total would be: %d)\n",
+                    commandBufferIndex, fragmentLen, commandBufferIndex + fragmentLen);
       commandBufferIndex = 0;
       memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
       sendError("Command too long, buffer overflow.");
