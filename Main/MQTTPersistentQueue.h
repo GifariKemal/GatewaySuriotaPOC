@@ -2,6 +2,7 @@
 #define MQTT_PERSISTENT_QUEUE_H
 
 #include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "PSRAMAllocator.h"    // CRITICAL FIX: PSRAM allocator for STL containers
 #include <Arduino.h>
 #include <vector>
 #include <deque>
@@ -73,9 +74,9 @@ enum QueueHealthStatus
 // Queued MQTT message with metadata
 struct QueuedMessage
 {
-  // Core message data
-  String topic;       // MQTT topic
-  String payload;     // Message payload
+  // Core message data (CRITICAL FIX: Use PSRAMString to reduce DRAM usage)
+  PSRAMString topic;  // MQTT topic (stored in PSRAM)
+  PSRAMString payload; // Message payload (stored in PSRAM)
   uint16_t messageId; // Unique identifier (auto-assigned)
 
   // Metadata
@@ -166,9 +167,10 @@ private:
   PersistenceConfig config;
 
   // Message queues (separated by priority)
-  std::deque<QueuedMessage> highPriorityQueue;
-  std::deque<QueuedMessage> normalPriorityQueue;
-  std::deque<QueuedMessage> lowPriorityQueue;
+  // CRITICAL FIX: Use STLPSRAMAllocator to prevent DRAM exhaustion
+  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> highPriorityQueue;
+  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> normalPriorityQueue;
+  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> lowPriorityQueue;
 
   // CRITICAL FIX: Thread safety mutex (protects queue operations and LittleFS access)
   // Prevents race conditions when called from multiple tasks (mqtt, crud, etc.)
@@ -193,7 +195,7 @@ private:
   bool loadQueueFromDisk();
   void cleanExpiredMessages();
   uint32_t calculateRetryDelay(uint8_t retryCount) const;
-  std::deque<QueuedMessage> *getQueueForPriority(MessagePriority priority);
+  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> *getQueueForPriority(MessagePriority priority);
 
 public:
   // Singleton access

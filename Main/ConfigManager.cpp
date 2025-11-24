@@ -611,8 +611,10 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
       if (minimalFields)
       {
-        // In minimal mode, only copy essential fields
-        if (key == "device_name" || key == "protocol")
+        // In minimal mode, only copy essential fields for MQTT timeout calculation
+        // CRITICAL FIX: Must include refresh_rate_ms and baud_rate for adaptive timeout
+        if (key == "device_name" || key == "protocol" || key == "refresh_rate_ms" ||
+            key == "baud_rate" || key == "slave_id" || key == "serial_port")
         {
           deviceWithRegs[deviceKv.key()] = deviceKv.value();
         }

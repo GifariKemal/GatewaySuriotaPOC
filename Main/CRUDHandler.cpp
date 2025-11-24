@@ -494,6 +494,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return created device data
       auto response = make_psram_unique<JsonDocument>();
@@ -522,6 +524,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register count affects MQTT timeout
 
       // Return created register data
       auto response = make_psram_unique<JsonDocument>();
@@ -565,6 +569,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return updated device data
       auto response = make_psram_unique<JsonDocument>();
@@ -594,6 +600,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register changes may affect MQTT
 
       // Return updated register data
       auto response = make_psram_unique<JsonDocument>();
@@ -683,6 +691,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return deleted device data
       (*response)["status"] = "ok";
@@ -728,6 +738,8 @@ void CRUDHandler::setupCommandHandlers()
         modbusRtuService->notifyConfigChange();
       if (modbusTcpService)
         modbusTcpService->notifyConfigChange();
+      if (mqttManager)
+        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register count affects MQTT timeout
 
       // Return deleted register data
       (*response)["status"] = "ok";
@@ -1286,6 +1298,10 @@ void CRUDHandler::setupCommandHandlers()
     if (modbusTcpService)
     {
       modbusTcpService->notifyConfigChange();
+    }
+    if (mqttManager)
+    {
+      mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT after config restore
     }
   };
 }

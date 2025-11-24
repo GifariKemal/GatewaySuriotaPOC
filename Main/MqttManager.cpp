@@ -1698,7 +1698,13 @@ void MqttManager::notifyConfigChange()
   xSemaphoreTake(bufferCacheMutex, portMAX_DELAY);
   bufferSizeNeedsRecalculation = true;
   xSemaphoreGive(bufferCacheMutex);
-  Serial.println("[MQTT] Config change detected - buffer size will be recalculated on next connection");
+
+  // CRITICAL FIX: Reset batchTimeout cache to force recalculation with new device configs
+  xSemaphoreTake(publishStateMutex, portMAX_DELAY);
+  publishState.batchTimeout = 0;
+  xSemaphoreGive(publishStateMutex);
+
+  Serial.println("[MQTT] Config change detected - buffer size and batch timeout will be recalculated");
 }
 
 MqttManager::~MqttManager()
