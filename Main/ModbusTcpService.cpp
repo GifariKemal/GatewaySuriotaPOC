@@ -255,27 +255,14 @@ void ModbusTcpService::readTcpDevicesLoop()
       continue;
     }
 
-    // Network is available - load device list
-    JsonDocument devicesDoc;
-    JsonArray devices = devicesDoc.to<JsonArray>();
-    configManager->listDevices(devices);
+    // FIXED ISSUE #3: Use cached tcpDevices vector instead of parsing JSON from ConfigManager
+    // This eliminates redundant file system access and JSON parsing every iteration
+    // Performance improvement: No file reads in polling loop
 
-    // Count TCP devices before polling
-    int tcpDeviceCount = 0;
-    for (JsonVariant deviceVar : devices)
-    {
-      String deviceId = deviceVar.as<String>();
-      JsonDocument tempDoc;
-      JsonObject tempObj = tempDoc.to<JsonObject>();
-      if (configManager->readDevice(deviceId, tempObj))
-      {
-        String protocol = tempObj["protocol"] | "";
-        if (protocol == "TCP")
-        {
-          tcpDeviceCount++;
-        }
-      }
-    }
+    // FIXED ISSUE #1: Protect vector access with mutex
+    xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+    int tcpDeviceCount = tcpDevices.size();
+    xSemaphoreGiveRecursive(vectorMutex);
 
     // Skip polling if no TCP devices
     if (tcpDeviceCount == 0)
@@ -311,46 +298,58 @@ void ModbusTcpService::readTcpDevicesLoop()
 
     unsigned long currentTime = millis();
 
-    for (JsonVariant deviceVar : devices)
+    // FIXED ISSUE #5: Calculate minimum refresh_rate_ms from device configs (set via BLE)
+    // Instead of hardcoded 2000ms, respect the fastest device's refresh rate
+    uint32_t minRefreshRate = 5000; // Default 5 seconds if no devices
+
+    // FIXED ISSUE #3: Use cached tcpDevices vector (eliminates file system access)
+    // FIXED ISSUE #1: Protect vector iteration with mutex
+    xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+
+    for (auto &deviceEntry : tcpDevices)
     {
       if (!running)
+      {
+        xSemaphoreGiveRecursive(vectorMutex);
         break; // Exit if stopped
+      }
 
       // BUGFIX: Check for config changes during iteration for immediate device deletion response
       // This prevents continuing to poll deleted devices until next full iteration
       if (ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
         Serial.println("[TCP] Configuration changed during polling, refreshing immediately...");
+        xSemaphoreGiveRecursive(vectorMutex);
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list
       }
 
-      String deviceId = deviceVar.as<String>();
+      // Use cached device data from tcpDevices vector
+      String deviceId = deviceEntry.deviceId;
+      JsonObject deviceObj = deviceEntry.doc->as<JsonObject>();
 
-      JsonDocument deviceDoc;
-      JsonObject deviceObj = deviceDoc.to<JsonObject>();
+      // Get device refresh rate (minimum retry interval)
+      uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
 
-      if (configManager->readDevice(deviceId, deviceObj))
+      // Track minimum refresh rate across all devices for loop delay calculation
+      if (deviceRefreshRate < minRefreshRate)
       {
-        String protocol = deviceObj["protocol"] | "";
+        minRefreshRate = deviceRefreshRate;
+      }
 
-        if (protocol == "TCP")
-        {
-          // Get device refresh rate (minimum retry interval)
-          uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
-
-          // Check if device minimum retry interval has elapsed
-          if (shouldPollDevice(deviceId, deviceRefreshRate))
-          {
-            readTcpDeviceData(deviceObj);
-            // Device-level timing is updated inside readTcpDeviceData via updateDeviceLastRead()
-          }
-        }
+      // Check if device minimum retry interval has elapsed
+      if (shouldPollDevice(deviceId, deviceRefreshRate))
+      {
+        readTcpDeviceData(deviceObj);
+        // Device-level timing is updated inside readTcpDeviceData via updateDeviceLastRead()
       }
 
       // Feed watchdog between device reads
       vTaskDelay(pdMS_TO_TICKS(10));
     }
+
+    // FIXED ISSUE #1: Release vector mutex
+    xSemaphoreGiveRecursive(vectorMutex);
 
     // FIXED BUG #14: Periodic cleanup of idle connections
     static unsigned long lastCleanup = 0;
@@ -360,7 +359,11 @@ void ModbusTcpService::readTcpDevicesLoop()
       lastCleanup = millis();
     }
 
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    // FIXED ISSUE #5: Use dynamic delay based on fastest device's refresh_rate_ms
+    // This ensures fast devices (e.g., 500ms) can poll at their configured rate
+    // Clamp minimum to 100ms to prevent excessive CPU usage
+    uint32_t loopDelay = (minRefreshRate < 100) ? 100 : minRefreshRate;
+    vTaskDelay(pdMS_TO_TICKS(loopDelay));
   }
 }
 
@@ -424,6 +427,18 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   int successCount = 0;
   int lineNumber = 1;
 
+  // FIXED ISSUE #2: Get pooled connection ONCE for all registers (eliminates repeated handshakes)
+  // Instead of Connect->Read->Disconnect per register, we now Connect->Read all->Disconnect
+  TCPClient *pooledClient = getPooledConnection(ip, port);
+  bool connectionHealthy = (pooledClient != nullptr && pooledClient->connected());
+
+  if (!connectionHealthy)
+  {
+    Serial.printf("[TCP] ERROR: Failed to get pooled connection for %s:%d\n", ip.c_str(), port);
+    // Continue without pooling (fallback to per-register connections)
+    pooledClient = nullptr;
+  }
+
   for (JsonVariant regVar : registers)
   {
     if (!running)
@@ -438,7 +453,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     {
       // Read coils/discrete inputs
       bool result = false;
-      if (readModbusCoil(ip, port, slaveId, address, &result))
+      // FIXED ISSUE #2: Pass pooled connection to eliminate per-register TCP handshakes
+      if (readModbusCoil(ip, port, slaveId, address, &result, pooledClient))
       {
         float value = result ? 1.0 : 0.0;
 
@@ -458,31 +474,16 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
           }
         }
 
-        // COMPACT LOGGING: Collect reading to buffer
+        // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 1/2)
         String unit = reg["unit"] | "";
-        unit.replace("°", "deg"); // Replace UTF-8 degree symbol with ASCII "deg"
-
-        // Add header on first success
-        if (successCount == 0)
-        {
-          outputBuffer += "[DATA] " + deviceId + ":\n";
-        }
-
-        compactLine += registerName + ":" + String(value, 1) + unit;
-        successCount++;
-        if (successCount % 6 == 0)
-        {
-          outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
-          compactLine = "";
-        }
-        else
-        {
-          compactLine += " | ";
-        }
+        appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
       }
       else
       {
         Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+
+        // FIXED ISSUE #2: Mark connection as unhealthy on read failure
+        connectionHealthy = false;
 
         // CRITICAL FIX: Track failed register read
         if (batchMgr)
@@ -534,7 +535,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       }
 
       uint16_t results[4];
-      if (readModbusRegisters(ip, port, slaveId, functionCode, address, registerCount, results))
+      // FIXED ISSUE #2: Pass pooled connection to eliminate per-register TCP handshakes
+      if (readModbusRegisters(ip, port, slaveId, functionCode, address, registerCount, results, pooledClient))
       {
         double value = (registerCount == 1) ? processRegisterValue(reg, results[0]) : processMultiRegisterValue(reg, results, registerCount, baseType, endianness_variant);
 
@@ -554,31 +556,16 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
           }
         }
 
-        // COMPACT LOGGING: Collect reading to buffer
+        // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 3/4)
         String unit = reg["unit"] | "";
-        unit.replace("°", "deg"); // Replace UTF-8 degree symbol with ASCII "deg"
-
-        // Add header on first success
-        if (successCount == 0)
-        {
-          outputBuffer += "[DATA] " + deviceId + ":\n";
-        }
-
-        compactLine += registerName + ":" + String(value, 1) + unit;
-        successCount++;
-        if (successCount % 6 == 0)
-        {
-          outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
-          compactLine = "";
-        }
-        else
-        {
-          compactLine += " | ";
-        }
+        appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
       }
       else
       {
         Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+
+        // FIXED ISSUE #2: Mark connection as unhealthy on read failure
+        connectionHealthy = false;
 
         // CRITICAL FIX: Track failed register read
         if (batchMgr)
@@ -589,6 +576,15 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     }
 
     vTaskDelay(pdMS_TO_TICKS(50)); // Small delay between registers
+  }
+
+  // FIXED ISSUE #2: Return connection to pool (mark as healthy/unhealthy for reuse decision)
+  // If connection was unhealthy, pool will close it. If healthy, pool keeps it for next device.
+  if (pooledClient != nullptr)
+  {
+    returnPooledConnection(ip, port, pooledClient, connectionHealthy);
+    Serial.printf("[TCP] Returned pooled connection for %s:%d (healthy: %s)\n",
+                  ip.c_str(), port, connectionHealthy ? "YES" : "NO");
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
@@ -605,6 +601,39 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     }
     // Print all at once (atomic - prevents interruption by other tasks)
     Serial.print(outputBuffer);
+  }
+}
+
+// FIXED ISSUE #4: Helper function to eliminate code duplication in register logging
+// Consolidates 80+ lines of duplicated code across FC1/2/3/4 blocks
+// Pattern matches RTU service for consistency
+void ModbusTcpService::appendRegisterToLog(const String &registerName, double value, const String &unit,
+                                           const String &deviceId, String &outputBuffer,
+                                           String &compactLine, int &successCount, int &lineNumber)
+{
+  // Process unit - replace degree symbol with "deg" to avoid UTF-8 issues
+  String processedUnit = unit;
+  processedUnit.replace("°", "deg");
+
+  // Add header on first success
+  if (successCount == 0)
+  {
+    outputBuffer += "[DATA] " + deviceId + ":\n";
+  }
+
+  // Build compact line: "RegisterName:value.unit"
+  compactLine += registerName + ":" + String(value, 1) + processedUnit;
+  successCount++;
+
+  // Print line every 6 registers
+  if (successCount % 6 == 0)
+  {
+    outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
+    compactLine = "";
+  }
+  else
+  {
+    compactLine += " | ";
   }
 }
 
@@ -780,17 +809,30 @@ double ModbusTcpService::processMultiRegisterValue(const JsonObject &reg, uint16
 
 bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient)
 {
-  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
-  // For now, ignore existingClient parameter and create new connection (backward compatible)
+  // FIXED ISSUE #2: Activate connection pooling (eliminates repeated TCP handshakes)
+  // If existingClient provided, use it. Otherwise fall back to new connection (backward compatible)
 
-  // Support both WiFi and Ethernet using TCPClient wrapper
-  TCPClient client;
-  client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10
+  TCPClient *client = nullptr;
+  bool shouldCloseConnection = false;
 
-  if (!client.connect(ip.c_str(), port))
+  if (existingClient && existingClient->connected())
   {
-    Serial.printf("[TCP] Register connection failed to %s:%d\n", ip.c_str(), port);
-    return false;
+    // POOLING ACTIVE: Use existing connection
+    client = existingClient;
+  }
+  else
+  {
+    // FALLBACK: Create new connection (backward compatibility or pooling disabled)
+    client = new TCPClient();
+    client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
+
+    if (!client->connect(ip.c_str(), port))
+    {
+      Serial.printf("[TCP] Register connection failed to %s:%d\n", ip.c_str(), port);
+      delete client;
+      return false;
+    }
+    shouldCloseConnection = true;
   }
 
   // Build Modbus TCP request
@@ -799,35 +841,49 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
   buildModbusRequest(request, transId, slaveId, functionCode, address, 1);
 
   // Send request
-  client.write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE); // FIXED Bug #10
+  client->write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE);
 
   // FIXED Bug #11: Safe time comparison to handle millis() wraparound
   unsigned long startTime = millis();
-  while (client.available() < ModbusTcpConfig::MIN_RESPONSE_SIZE && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
+  while (client->available() < ModbusTcpConfig::MIN_RESPONSE_SIZE && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
   {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  if (client.available() < ModbusTcpConfig::MIN_RESPONSE_SIZE) // FIXED Bug #10
+  if (client->available() < ModbusTcpConfig::MIN_RESPONSE_SIZE)
   {
-    client.stop();
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   // Read response - FIXED Bug #3: Use dynamic buffer with bounds check
-  int availableBytes = client.available();
+  int availableBytes = client->available();
 
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
-  if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE) // FIXED Bug #10
+  if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE)
   {
     Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
-    client.stop();
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   std::vector<uint8_t> response(availableBytes);
-  int bytesRead = client.readBytes(response.data(), availableBytes);
-  client.stop();
+  int bytesRead = client->readBytes(response.data(), availableBytes);
+
+  // FIXED ISSUE #2: Only close if NOT using pooled connection
+  if (shouldCloseConnection)
+  {
+    client->stop();
+    delete client;
+  }
 
   bool dummy = false;
   return parseModbusResponse(response.data(), bytesRead, functionCode, result, &dummy);
@@ -835,17 +891,26 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
 
 bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient)
 {
-  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
-  // For now, ignore existingClient parameter and create new connection (backward compatible)
+  // FIXED ISSUE #2: Activate connection pooling
+  TCPClient *client = nullptr;
+  bool shouldCloseConnection = false;
 
-  // ROLLBACK Bug #4: Use TCPClient wrapper to support both WiFi and Ethernet
-  TCPClient client;
-  client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10: Use named constant
-
-  if (!client.connect(ip.c_str(), port))
+  if (existingClient && existingClient->connected())
   {
-    Serial.printf("[TCP] Failed to connect to %s:%d\n", ip.c_str(), port);
-    return false;
+    client = existingClient;
+  }
+  else
+  {
+    client = new TCPClient();
+    client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
+
+    if (!client->connect(ip.c_str(), port))
+    {
+      Serial.printf("[TCP] Failed to connect to %s:%d\n", ip.c_str(), port);
+      delete client;
+      return false;
+    }
+    shouldCloseConnection = true;
   }
 
   // Build Modbus TCP request
@@ -854,54 +919,79 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
   buildModbusRequest(request, transId, slaveId, functionCode, address, count);
 
   // Send request
-  client.write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE); // FIXED Bug #10
+  client->write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE);
 
   // FIXED Bug #11: Safe time comparison to handle millis() wraparound
   unsigned long startTime = millis();
-  int expectedBytes = ModbusTcpConfig::MIN_RESPONSE_SIZE + (count * 2); // FIXED Bug #10
-  while (client.available() < expectedBytes && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
+  int expectedBytes = ModbusTcpConfig::MIN_RESPONSE_SIZE + (count * 2);
+  while (client->available() < expectedBytes && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
   {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  if (client.available() < expectedBytes)
+  if (client->available() < expectedBytes)
   {
     Serial.printf("[TCP] Response timeout or incomplete for %s:%d\n", ip.c_str(), port);
-    client.stop();
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   // Read response - FIXED Bug #3: Use dynamic buffer with bounds check
-  int availableBytes = client.available();
+  int availableBytes = client->available();
 
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
-  if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE) // FIXED Bug #10
+  if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE)
   {
     Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
-    client.stop();
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   std::vector<uint8_t> response(availableBytes);
-  int bytesRead = client.readBytes(response.data(), availableBytes);
-  client.stop();
+  int bytesRead = client->readBytes(response.data(), availableBytes);
+
+  // FIXED ISSUE #2: Only close if NOT using pooled connection
+  if (shouldCloseConnection)
+  {
+    client->stop();
+    delete client;
+  }
 
   return parseMultiModbusResponse(response.data(), bytesRead, functionCode, count, results);
 }
 
 bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient)
 {
-  // FIXED BUG #14: Support connection pooling (Phase 2 - future integration)
-  // For now, ignore existingClient parameter and create new connection (backward compatible)
+  // FIXED ISSUE #2: Activate connection pooling (eliminates repeated TCP handshakes)
+  TCPClient *client = nullptr;
+  bool shouldCloseConnection = false;
 
-  // Support both WiFi and Ethernet using TCPClient wrapper
-  TCPClient client;
-  client.setTimeout(ModbusTcpConfig::TIMEOUT_MS); // FIXED Bug #10
-
-  if (!client.connect(ip.c_str(), port))
+  if (existingClient && existingClient->connected())
   {
-    Serial.printf("[TCP] Coil connection failed to %s:%d\n", ip.c_str(), port);
-    return false;
+    // POOLING ACTIVE: Use existing connection
+    client = existingClient;
+  }
+  else
+  {
+    // FALLBACK: Create new connection (backward compatibility)
+    client = new TCPClient();
+    client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
+
+    if (!client->connect(ip.c_str(), port))
+    {
+      Serial.printf("[TCP] Coil connection failed to %s:%d\n", ip.c_str(), port);
+      delete client;
+      return false;
+    }
+    shouldCloseConnection = true;
   }
 
   // Build Modbus TCP request for coil
@@ -910,35 +1000,51 @@ bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveI
   buildModbusRequest(request, transId, slaveId, 1, address, 1); // Function code 1 for coils
 
   // Send request
-  client.write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE); // FIXED Bug #10
+  client->write(request, ModbusTcpConfig::MODBUS_TCP_HEADER_SIZE); // FIXED Bug #10
 
   // FIXED Bug #11: Safe time comparison to handle millis() wraparound
   unsigned long startTime = millis();
-  while (client.available() < ModbusTcpConfig::MIN_RESPONSE_SIZE && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
+  while (client->available() < ModbusTcpConfig::MIN_RESPONSE_SIZE && (millis() - startTime) < ModbusTcpConfig::TIMEOUT_MS)
   {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
-  if (client.available() < ModbusTcpConfig::MIN_RESPONSE_SIZE) // FIXED Bug #10
+  if (client->available() < ModbusTcpConfig::MIN_RESPONSE_SIZE) // FIXED Bug #10
   {
-    client.stop();
+    // FIXED ISSUE #2: Only close if NOT using pooled connection
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   // Read response - FIXED Bug #3: Use dynamic buffer with bounds check
-  int availableBytes = client.available();
+  int availableBytes = client->available();
 
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
   if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE) // FIXED Bug #10
   {
     Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
-    client.stop();
+    // FIXED ISSUE #2: Only close if NOT using pooled connection
+    if (shouldCloseConnection)
+    {
+      client->stop();
+      delete client;
+    }
     return false;
   }
 
   std::vector<uint8_t> response(availableBytes);
-  int bytesRead = client.readBytes(response.data(), availableBytes);
-  client.stop();
+  int bytesRead = client->readBytes(response.data(), availableBytes);
+
+  // FIXED ISSUE #2: Only close if NOT using pooled connection
+  if (shouldCloseConnection)
+  {
+    client->stop();
+    delete client;
+  }
 
   uint16_t dummy;
   return parseModbusResponse(response.data(), bytesRead, 1, &dummy, result);
@@ -1310,6 +1416,45 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
         entry.isHealthy = false;
       }
       break;
+    }
+  }
+
+  // FIXED ISSUE #2 (CRITICAL BUG): If no existing connection in pool, CREATE NEW ONE
+  // Previous bug: returned nullptr when pool empty, forcing fallback to per-register connections
+  if (client == nullptr)
+  {
+    // No existing connection - create new one
+    client = new TCPClient();
+    client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
+
+    if (!client->connect(ip.c_str(), port))
+    {
+      Serial.printf("[TCP] Failed to connect to %s:%d for pooling\n", ip.c_str(), port);
+      delete client;
+      xSemaphoreGive(poolMutex);
+      return nullptr;
+    }
+
+    // Add to pool if not full
+    if (connectionPool.size() < MAX_POOL_SIZE)
+    {
+      ConnectionPoolEntry newEntry;
+      newEntry.deviceKey = deviceKey;
+      newEntry.client = client;
+      newEntry.lastUsed = now;
+      newEntry.createdAt = now;
+      newEntry.useCount = 1;
+      newEntry.isHealthy = true;
+      connectionPool.push_back(newEntry);
+
+      Serial.printf("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
+                    deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
+    }
+    else
+    {
+      // Pool full - use this connection but don't add to pool
+      Serial.printf("[TCP] Pool full (%d), using temporary connection to %s\n",
+                    MAX_POOL_SIZE, deviceKey.c_str());
     }
   }
 

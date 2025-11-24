@@ -205,6 +205,12 @@ private:
 
   void refreshDeviceList();
 
+  // FIXED ISSUE #4: Helper function to eliminate code duplication in register logging
+  // Consolidates unit processing, value formatting, and compact line building
+  void appendRegisterToLog(const String &registerName, double value, const String &unit,
+                           const String &deviceId, String &outputBuffer,
+                           String &compactLine, int &successCount, int &lineNumber);
+
   // Polling Hierarchy Helper Methods (CLEANUP: Removed Level 1 per-register methods)
   // Level 1 (Device-level): Device-level timing
   DeviceTimer *getDeviceTimer(const String &deviceId);
