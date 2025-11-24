@@ -1,0 +1,7 @@
+# Arduino MCP Server Dependencies
+# Python 3.10+ required
+
+# MCP SDK - Model Context Protocol
+mcp>=0.9.0
+
+# No additional dependencies required - uses arduino-cli as external tool

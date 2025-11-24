@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "arduino-mcp": {
+      "command": "python",
+      "args": [
+        "C:/Users/Administrator/Music/GatewaySuriotaPOC/arduino-mcp/main.py"
+      ],
+      "env": {
+        "PROJECT_PATH": "C:/Users/Administrator/Music/GatewaySuriotaPOC/Main"
+      }
+    }
+  }
+}
