@@ -179,7 +179,7 @@ void ModbusRtuService::refreshDeviceList()
 
   for (JsonVariant deviceIdVar : deviceIds)
   {
-    const char* deviceId = deviceIdVar.as<const char*>();  // BUG #31: const char* (zero allocation!)
+    const char *deviceId = deviceIdVar.as<const char *>(); // BUG #31: const char* (zero allocation!)
     if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)
     {
       continue;
@@ -189,7 +189,7 @@ void ModbusRtuService::refreshDeviceList()
     JsonObject deviceObj = tempDeviceDoc.to<JsonObject>();
     if (configManager->readDevice(deviceId, deviceObj))
     {
-      const char* protocol = deviceObj["protocol"] | "";  // BUG #31: const char* (zero allocation!)
+      const char *protocol = deviceObj["protocol"] | ""; // BUG #31: const char* (zero allocation!)
       if (strcmp(protocol, "RTU") == 0)
       {
         RtuDeviceConfig newDeviceEntry;
@@ -230,13 +230,16 @@ void ModbusRtuService::readRtuDevicesLoop()
       // Config refresh is silent to reduce log noise
     }
 
-    JsonDocument devicesDoc;
-    JsonArray devices = devicesDoc.to<JsonArray>();
-    configManager->listDevices(devices);
-
+    // FIXED ISSUE #1: Use cached rtuDevices vector instead of calling ConfigManager repeatedly
+    // This eliminates redundant listDevices() and readDevice() calls every 2 seconds
+    // Performance improvement: No file system access in polling loop
     unsigned long currentTime = millis();
 
-    for (JsonVariant deviceVar : devices)
+    // FIXED ISSUE #2: Calculate minimum refresh_rate_ms from device configs (set via BLE)
+    // Instead of hardcoded 2000ms, respect the fastest device's refresh rate
+    uint32_t minRefreshRate = 5000; // Default 5 seconds if no devices
+
+    for (auto &deviceEntry : rtuDevices)
     {
       if (!running)
         break;
@@ -250,36 +253,32 @@ void ModbusRtuService::readRtuDevicesLoop()
         break; // Exit current iteration, next iteration will use updated device list
       }
 
-      const char* deviceId = deviceVar.as<const char*>();  // BUG #31: const char* (zero allocation!)
+      // Use cached device data from rtuDevices vector
+      const char *deviceId = deviceEntry.deviceId.c_str();
+      JsonObject deviceObj = deviceEntry.doc->as<JsonObject>();
 
-      if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)
+      // Level 2: Get device refresh rate (minimum retry interval)
+      uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
+
+      // Track minimum refresh rate across all devices for loop delay calculation
+      if (deviceRefreshRate < minRefreshRate)
       {
-        continue;
+        minRefreshRate = deviceRefreshRate;
       }
 
-      JsonDocument deviceDoc;
-      JsonObject deviceObj = deviceDoc.to<JsonObject>();
-
-      if (configManager->readDevice(deviceId, deviceObj))
+      // Level 2: Check if device minimum retry interval has elapsed
+      if (shouldPollDevice(deviceId, deviceRefreshRate))
       {
-        const char* protocol = deviceObj["protocol"] | "";  // BUG #31: const char* (zero allocation!)
-
-        if (strcmp(protocol, "RTU") == 0)
-        {
-          // Level 2: Get device refresh rate (minimum retry interval)
-          uint32_t deviceRefreshRate = deviceObj["refresh_rate_ms"] | 5000;
-
-          // Level 2: Check if device minimum retry interval has elapsed
-          if (shouldPollDevice(deviceId, deviceRefreshRate))
-          {
-            readRtuDeviceData(deviceObj);
-            // Device-level timing is updated inside readRtuDeviceData via updateDeviceLastRead()
-          }
-        }
+        readRtuDeviceData(deviceObj);
+        // Device-level timing is updated inside readRtuDeviceData via updateDeviceLastRead()
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    // FIXED ISSUE #2: Use dynamic delay based on fastest device's refresh_rate_ms
+    // This ensures fast devices (e.g., 500ms) can poll at their configured rate
+    // Clamp minimum to 100ms to prevent excessive CPU usage
+    uint32_t loopDelay = (minRefreshRate < 100) ? 100 : minRefreshRate;
+    vTaskDelay(pdMS_TO_TICKS(loopDelay));
   }
 }
 
@@ -287,7 +286,7 @@ void ModbusRtuService::readRtuDevicesLoop()
 
 void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
 {
-  const char* deviceId = deviceConfig["device_id"] | "UNKNOWN";  // BUG #31: const char* (zero allocation!)
+  const char *deviceId = deviceConfig["device_id"] | "UNKNOWN"; // BUG #31: const char* (zero allocation!)
   int serialPort = deviceConfig["serial_port"] | 1;
   uint8_t slaveId = deviceConfig["slave_id"] | 1;
   uint32_t deviceRefreshRate = deviceConfig["refresh_rate_ms"] | 5000; // Device-level refresh rate
@@ -295,7 +294,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   JsonArray registers = deviceConfig["registers"];
 
   // OPTIMIZED: Get device_name once per device cycle (not per register)
-  const char* deviceName = deviceConfig["device_name"] | "";  // BUG #31: const char* (zero allocation!)
+  const char *deviceName = deviceConfig["device_name"] | ""; // BUG #31: const char* (zero allocation!)
 
   if (registers.size() == 0)
   {
@@ -318,7 +317,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       static LogThrottle retryThrottle(30000); // Log every 30s to reduce spam
       char contextMsg[128];
       snprintf(contextMsg, sizeof(contextMsg), "RTU Device %s retry backoff", deviceId);
-      if (retryThrottle.shouldLog(contextMsg)) {
+      if (retryThrottle.shouldLog(contextMsg))
+      {
         LOG_RTU_DEBUG("Device %s retry backoff not elapsed, skipping\n", deviceId);
       }
       return;
@@ -360,10 +360,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   uint8_t failedRegisterCount = 0;
 
   // COMPACT LOGGING: Buffer all output for atomic printing (prevent interruption by other tasks)
-  PSRAMString outputBuffer = "";  // BUG #31: PSRAMString to avoid DRAM fragmentation
-  PSRAMString compactLine = "";   // BUG #31: PSRAMString to avoid DRAM fragmentation
+  PSRAMString outputBuffer = ""; // BUG #31: PSRAMString to avoid DRAM fragmentation
+  PSRAMString compactLine = "";  // BUG #31: PSRAMString to avoid DRAM fragmentation
   int successCount = 0;
   int lineNumber = 1;
+
+  // FIXED ISSUE #4: Move buffers outside register loop to reduce stack allocation
+  // Prevents stack overflow with large register counts (50+ registers)
+  // These buffers are reused across loop iterations instead of allocated per iteration
+  char dataTypeBuf[64]; // For FC3/4 data type parsing (max 64 chars)
+  uint16_t values[4];   // For FC3/4 multi-register reads (max 4 registers = 8 bytes)
 
   for (JsonVariant regVar : registers)
   {
@@ -373,7 +379,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     JsonObject reg = regVar.as<JsonObject>();
     uint8_t functionCode = reg["function_code"] | 3;
     uint16_t address = reg["address"] | 0;
-    const char* registerName = reg["register_name"] | "Unknown";  // BUG #31: const char* (zero allocation!)
+    const char *registerName = reg["register_name"] | "Unknown"; // BUG #31: const char* (zero allocation!)
 
     // CLEANUP: Removed per-register polling logic
     // All registers now use device-level polling interval (deviceRefreshRate)
@@ -397,53 +403,17 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         {
           if (storeSuccess)
           {
-            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
           }
           else
           {
-            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
           }
         }
 
-        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
-        const char* unit = reg["unit"] | "";
-        char unitBuf[32];
-        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
-        unitBuf[sizeof(unitBuf) - 1] = '\0';
-        // Replace degree symbol with "deg"
-        char* degPos = strstr(unitBuf, "°");
-        if (degPos) {
-          size_t remaining = strlen(degPos + 2);
-          memmove(degPos + 3, degPos + 2, remaining + 1);
-          memcpy(degPos, "deg", 3);
-        }
-
-        // Add header on first success (sequential appends to avoid temp objects)
-        if (successCount == 0) {
-          outputBuffer += "[DATA] ";
-          outputBuffer += deviceId;
-          outputBuffer += ":\n";
-        }
-
-        // Build compact line with individual appends to avoid temp String objects
-        char valueBuf[16];
-        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
-        compactLine += registerName;
-        compactLine += ":";
-        compactLine += valueBuf;
-        compactLine += unitBuf;
-
-        successCount++;
-        if (successCount % 6 == 0) {
-          char lineBuf[16];
-          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
-          outputBuffer += lineBuf;
-          outputBuffer += compactLine;
-          outputBuffer += "\n";
-          compactLine.clear();
-        } else {
-          compactLine += " | ";
-        }
+        // FIXED ISSUE #3: Use helper function to eliminate duplication
+        const char *unit = reg["unit"] | "";
+        appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -475,53 +445,17 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         {
           if (storeSuccess)
           {
-            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
           }
           else
           {
-            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
           }
         }
 
-        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
-        const char* unit = reg["unit"] | "";
-        char unitBuf[32];
-        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
-        unitBuf[sizeof(unitBuf) - 1] = '\0';
-        // Replace degree symbol with "deg"
-        char* degPos = strstr(unitBuf, "°");
-        if (degPos) {
-          size_t remaining = strlen(degPos + 2);
-          memmove(degPos + 3, degPos + 2, remaining + 1);
-          memcpy(degPos, "deg", 3);
-        }
-
-        // Add header on first success (sequential appends to avoid temp objects)
-        if (successCount == 0) {
-          outputBuffer += "[DATA] ";
-          outputBuffer += deviceId;
-          outputBuffer += ":\n";
-        }
-
-        // Build compact line with individual appends to avoid temp String objects
-        char valueBuf[16];
-        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
-        compactLine += registerName;
-        compactLine += ":";
-        compactLine += valueBuf;
-        compactLine += unitBuf;
-
-        successCount++;
-        if (successCount % 6 == 0) {
-          char lineBuf[16];
-          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
-          outputBuffer += lineBuf;
-          outputBuffer += compactLine;
-          outputBuffer += "\n";
-          compactLine.clear();
-        } else {
-          compactLine += " | ";
-        }
+        // FIXED ISSUE #3: Use helper function to eliminate duplication
+        const char *unit = reg["unit"] | "";
+        appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -543,22 +477,23 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       // BUG #31: Use PSRAMString for data type parsing (was String)
       PSRAMString dataType = reg["data_type"] | "INT16";
 
+      // FIXED ISSUE #4: Use buffer declared outside loop (line 370)
       // Manual uppercase conversion (PSRAMString doesn't have toUpperCase() yet)
-      char dataTypeBuf[64];
       strncpy(dataTypeBuf, dataType.c_str(), sizeof(dataTypeBuf) - 1);
       dataTypeBuf[sizeof(dataTypeBuf) - 1] = '\0';
-      for (int i = 0; dataTypeBuf[i]; i++) {
+      for (int i = 0; dataTypeBuf[i]; i++)
+      {
         dataTypeBuf[i] = toupper(dataTypeBuf[i]);
       }
 
       int registerCount = 1;
-      const char* baseType = dataTypeBuf;
-      const char* endianness_variant = "";
+      const char *baseType = dataTypeBuf;
+      const char *endianness_variant = "";
 
-      char* underscorePos = strchr(dataTypeBuf, '_');
+      char *underscorePos = strchr(dataTypeBuf, '_');
       if (underscorePos != NULL)
       {
-        *underscorePos = '\0';  // Split string at underscore
+        *underscorePos = '\0'; // Split string at underscore
         baseType = dataTypeBuf;
         endianness_variant = underscorePos + 1;
       }
@@ -577,12 +512,12 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       if (address > (65535 - registerCount + 1))
       {
         Serial.printf("[RTU] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
-                      registerName, address, registerCount, address + registerCount - 1);  // BUG #31: removed .c_str()
+                      registerName, address, registerCount, address + registerCount - 1); // BUG #31: removed .c_str()
         failedRegisterCount++;
         continue; // Skip this register
       }
 
-      uint16_t values[4];
+      // FIXED ISSUE #4: Use buffer declared outside loop (line 371) to reduce stack usage
       if (readMultipleRegisters(modbus, functionCode, address, registerCount, values))
       {
         double value = (registerCount == 1) ? processRegisterValue(reg, values[0]) : processMultiRegisterValue(reg, values, registerCount, baseType, endianness_variant);
@@ -595,53 +530,17 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         {
           if (storeSuccess)
           {
-            batchMgr->incrementEnqueued(deviceId);  // Success: data enqueued
+            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
           }
           else
           {
-            batchMgr->incrementFailed(deviceId);    // Failure: queue full or memory exhausted
+            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
           }
         }
 
-        // COMPACT LOGGING: Collect reading to buffer (BUG #31: Optimized to avoid temp String objects)
-        const char* unit = reg["unit"] | "";
-        char unitBuf[32];
-        strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
-        unitBuf[sizeof(unitBuf) - 1] = '\0';
-        // Replace degree symbol with "deg"
-        char* degPos = strstr(unitBuf, "°");
-        if (degPos) {
-          size_t remaining = strlen(degPos + 2);
-          memmove(degPos + 3, degPos + 2, remaining + 1);
-          memcpy(degPos, "deg", 3);
-        }
-
-        // Add header on first success (sequential appends to avoid temp objects)
-        if (successCount == 0) {
-          outputBuffer += "[DATA] ";
-          outputBuffer += deviceId;
-          outputBuffer += ":\n";
-        }
-
-        // Build compact line with individual appends to avoid temp String objects
-        char valueBuf[16];
-        snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
-        compactLine += registerName;
-        compactLine += ":";
-        compactLine += valueBuf;
-        compactLine += unitBuf;
-
-        successCount++;
-        if (successCount % 6 == 0) {
-          char lineBuf[16];
-          snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
-          outputBuffer += lineBuf;
-          outputBuffer += compactLine;
-          outputBuffer += "\n";
-          compactLine.clear();
-        } else {
-          compactLine += " | ";
-        }
+        // FIXED ISSUE #3: Use helper function to eliminate duplication
+        const char *unit = reg["unit"] | "";
+        appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -666,21 +565,26 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
-  if (successCount > 0) {
-    if (!compactLine.isEmpty()) {
+  if (successCount > 0)
+  {
+    if (!compactLine.isEmpty())
+    {
       // Remove trailing " | " (BUG #31: manual check instead of endsWith())
       size_t len = compactLine.length();
-      const char* str = compactLine.c_str();
+      const char *str = compactLine.c_str();
 
       char lineBuf[16];
       snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber);
       outputBuffer += lineBuf;
 
       // Check if ends with " | " and remove it
-      if (len >= 3 && str[len-3] == ' ' && str[len-2] == '|' && str[len-1] == ' ') {
+      if (len >= 3 && str[len - 3] == ' ' && str[len - 2] == '|' && str[len - 1] == ' ')
+      {
         PSRAMString trimmed = compactLine.substring(0, len - 3);
         outputBuffer += trimmed;
-      } else {
+      }
+      else
+      {
         outputBuffer += compactLine;
       }
       outputBuffer += "\n";
@@ -715,13 +619,14 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
 double ModbusRtuService::processRegisterValue(const JsonObject &reg, uint16_t rawValue)
 {
   // BUG #31: Use const char* and manual uppercase (was String)
-  const char* dataType = reg["data_type"] | "UINT16";
+  const char *dataType = reg["data_type"] | "UINT16";
   char dataTypeBuf[32];
   strncpy(dataTypeBuf, dataType, sizeof(dataTypeBuf) - 1);
   dataTypeBuf[sizeof(dataTypeBuf) - 1] = '\0';
 
   // Manual uppercase conversion
-  for (int i = 0; dataTypeBuf[i]; i++) {
+  for (int i = 0; dataTypeBuf[i]; i++)
+  {
     dataTypeBuf[i] = toupper(dataTypeBuf[i]);
   }
 
@@ -747,7 +652,7 @@ double ModbusRtuService::processRegisterValue(const JsonObject &reg, uint16_t ra
   return rawValue;
 }
 
-bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject &reg, double value, const char* deviceName)
+bool ModbusRtuService::storeRegisterValue(const char *deviceId, const JsonObject &reg, double value, const char *deviceName)
 {
   QueueManager *queueMgr = QueueManager::getInstance();
 
@@ -755,7 +660,7 @@ bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
   if (!queueMgr)
   {
     Serial.println("[RTU] ERROR: QueueManager is null, cannot store register value");
-    return false;  // FIXED: Return false on failure
+    return false; // FIXED: Return false on failure
   }
 
   // Create data point in simplified format for MQTT
@@ -784,12 +689,12 @@ bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
     dataPoint["device_name"] = deviceName;
   }
 
-  dataPoint["address"] = reg["address"];  // Register address (e.g., 4112) for BLE streaming
-  dataPoint["value"] = calibratedValue;  // Use calibrated value
-  dataPoint["description"] = reg["description"] | "";  // Optional field from BLE config
-  dataPoint["unit"] = reg["unit"] | "";  // Unit field for measurement
-  dataPoint["register_id"] = reg["register_id"].as<String>();  // Internal use for deduplication
-  dataPoint["register_index"] = reg["register_index"] | 0;  // For customize mode topic mapping
+  dataPoint["address"] = reg["address"];                      // Register address (e.g., 4112) for BLE streaming
+  dataPoint["value"] = calibratedValue;                       // Use calibrated value
+  dataPoint["description"] = reg["description"] | "";         // Optional field from BLE config
+  dataPoint["unit"] = reg["unit"] | "";                       // Unit field for measurement
+  dataPoint["register_id"] = reg["register_id"].as<String>(); // Internal use for deduplication
+  dataPoint["register_index"] = reg["register_index"] | 0;    // For customize mode topic mapping
 
   // CRITICAL FIX: Check enqueue() return value to detect data loss
   // If enqueue fails (queue full, memory exhausted, mutex timeout), return false
@@ -804,13 +709,13 @@ bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
     // Trigger memory diagnostics to identify root cause
     MemoryRecovery::logMemoryStatus("ENQUEUE_FAILED_RTU");
 
-    return false;  // Return failure to caller
+    return false; // Return failure to caller
   }
 
   // Check if this device is being streamed (BUG #31: Optimized String usage)
   if (crudHandler && queueMgr)
   {
-    String streamIdStr = crudHandler->getStreamDeviceId();  // CRUDHandler returns String
+    String streamIdStr = crudHandler->getStreamDeviceId(); // CRUDHandler returns String
     if (!streamIdStr.isEmpty() && strcmp(streamIdStr.c_str(), deviceId) == 0)
     {
       // Verbose log suppressed - summary shown in [STREAM] logs
@@ -818,7 +723,7 @@ bool ModbusRtuService::storeRegisterValue(const char* deviceId, const JsonObject
     }
   }
 
-  return true;  // Success
+  return true; // Success
 }
 
 bool ModbusRtuService::readMultipleRegisters(ModbusMaster *modbus, uint8_t functionCode, uint16_t address, int count, uint16_t *values)
@@ -828,7 +733,7 @@ bool ModbusRtuService::readMultipleRegisters(ModbusMaster *modbus, uint8_t funct
   {
     result = modbus->readHoldingRegisters(address, count);
   }
-  else  // Read Input Registers (0x04)
+  else // Read Input Registers (0x04)
   {
     result = modbus->readInputRegisters(address, count);
   }
@@ -844,7 +749,7 @@ bool ModbusRtuService::readMultipleRegisters(ModbusMaster *modbus, uint8_t funct
   return false;
 }
 
-double ModbusRtuService::processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char* baseType, const char* endianness_variant)
+double ModbusRtuService::processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char *baseType, const char *endianness_variant)
 {
 
   if (count == 2)
@@ -882,7 +787,8 @@ double ModbusRtuService::processMultiRegisterValue(const JsonObject &reg, uint16
     else if (baseType == "FLOAT32")
     {
       // FIXED Bug #5: Use union for safe type conversion (no strict aliasing violation)
-      union {
+      union
+      {
         uint32_t bits;
         float value;
       } converter;
@@ -969,6 +875,58 @@ ModbusMaster *ModbusRtuService::getModbusForBus(int serialPort)
   return nullptr;
 }
 
+// FIXED ISSUE #3: Consolidated register logging helper (eliminates 80+ lines of duplication)
+// Previously duplicated across FC1, FC2, and FC3/4 handlers
+void ModbusRtuService::appendRegisterToLog(const char *registerName, double value, const char *unit,
+                                           const char *deviceId, PSRAMString &outputBuffer,
+                                           PSRAMString &compactLine, int &successCount, int &lineNumber)
+{
+  // Process unit buffer (handle degree symbol)
+  char unitBuf[32];
+  strncpy(unitBuf, unit, sizeof(unitBuf) - 1);
+  unitBuf[sizeof(unitBuf) - 1] = '\0';
+
+  // Replace degree symbol with "deg"
+  char *degPos = strstr(unitBuf, "°");
+  if (degPos)
+  {
+    size_t remaining = strlen(degPos + 2);
+    memmove(degPos + 3, degPos + 2, remaining + 1);
+    memcpy(degPos, "deg", 3);
+  }
+
+  // Add header on first success (sequential appends to avoid temp objects)
+  if (successCount == 0)
+  {
+    outputBuffer += "[DATA] ";
+    outputBuffer += deviceId;
+    outputBuffer += ":\n";
+  }
+
+  // Build compact line with individual appends to avoid temp String objects
+  char valueBuf[16];
+  snprintf(valueBuf, sizeof(valueBuf), "%.1f", value);
+  compactLine += registerName;
+  compactLine += ":";
+  compactLine += valueBuf;
+  compactLine += unitBuf;
+
+  successCount++;
+  if (successCount % 6 == 0)
+  {
+    char lineBuf[16];
+    snprintf(lineBuf, sizeof(lineBuf), "  L%d: ", lineNumber++);
+    outputBuffer += lineBuf;
+    outputBuffer += compactLine;
+    outputBuffer += "\n";
+    compactLine.clear();
+  }
+  else
+  {
+    compactLine += " | ";
+  }
+}
+
 void ModbusRtuService::getStatus(JsonObject &status)
 {
   status["running"] = running;
@@ -1029,7 +987,7 @@ void ModbusRtuService::initializeDeviceTimeouts()
   Serial.printf("[RTU] Timeout tracking init: %d devices\n", deviceTimeouts.size());
 }
 
-ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const char* deviceId)
+ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const char *deviceId)
 {
   for (auto &state : deviceFailureStates)
   {
@@ -1041,7 +999,7 @@ ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(co
   return nullptr;
 }
 
-ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const char* deviceId)
+ModbusRtuService::DeviceReadTimeout *ModbusRtuService::getDeviceTimeout(const char *deviceId)
 {
   for (auto &timeout : deviceTimeouts)
   {
@@ -1075,7 +1033,7 @@ void ModbusRtuService::initializeDeviceMetrics()
   Serial.printf("[RTU] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
-ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const char* deviceId)
+ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const char *deviceId)
 {
   for (auto &metrics : deviceMetrics)
   {
@@ -1087,7 +1045,7 @@ ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const 
   return nullptr;
 }
 
-bool ModbusRtuService::configureDeviceBaudRate(const char* deviceId, uint16_t baudRate)
+bool ModbusRtuService::configureDeviceBaudRate(const char *deviceId, uint16_t baudRate)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1101,7 +1059,7 @@ bool ModbusRtuService::configureDeviceBaudRate(const char* deviceId, uint16_t ba
   return true;
 }
 
-uint16_t ModbusRtuService::getDeviceBaudRate(const char* deviceId)
+uint16_t ModbusRtuService::getDeviceBaudRate(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1176,7 +1134,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
   }
 }
 
-void ModbusRtuService::handleReadFailure(const char* deviceId)
+void ModbusRtuService::handleReadFailure(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1203,7 +1161,7 @@ void ModbusRtuService::handleReadFailure(const char* deviceId)
   }
 }
 
-bool ModbusRtuService::shouldRetryDevice(const char* deviceId)
+bool ModbusRtuService::shouldRetryDevice(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state || !state->isEnabled)
@@ -1242,7 +1200,7 @@ unsigned long ModbusRtuService::calculateBackoffTime(uint8_t retryCount)
   return totalBackoff;
 }
 
-void ModbusRtuService::resetDeviceFailureState(const char* deviceId)
+void ModbusRtuService::resetDeviceFailureState(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1256,7 +1214,7 @@ void ModbusRtuService::resetDeviceFailureState(const char* deviceId)
   Serial.printf("[RTU] Reset failure state for device %s\n", deviceId);
 }
 
-void ModbusRtuService::handleReadTimeout(const char* deviceId)
+void ModbusRtuService::handleReadTimeout(const char *deviceId)
 {
   DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
   if (!timeout)
@@ -1277,7 +1235,7 @@ void ModbusRtuService::handleReadTimeout(const char* deviceId)
   }
 }
 
-bool ModbusRtuService::isDeviceEnabled(const char* deviceId)
+bool ModbusRtuService::isDeviceEnabled(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1285,14 +1243,14 @@ bool ModbusRtuService::isDeviceEnabled(const char* deviceId)
   return state->isEnabled;
 }
 
-void ModbusRtuService::enableDevice(const char* deviceId, bool clearMetrics)
+void ModbusRtuService::enableDevice(const char *deviceId, bool clearMetrics)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
     return;
 
   state->isEnabled = true;
-  state->disableReason = DeviceFailureState::NONE;  // Clear disable reason
+  state->disableReason = DeviceFailureState::NONE; // Clear disable reason
   state->disableReasonDetail = "";
   state->disabledTimestamp = 0;
   resetDeviceFailureState(deviceId);
@@ -1324,7 +1282,7 @@ void ModbusRtuService::enableDevice(const char* deviceId, bool clearMetrics)
   Serial.printf("[RTU] Device %s enabled (reason cleared)\n", deviceId);
 }
 
-void ModbusRtuService::disableDevice(const char* deviceId, DeviceFailureState::DisableReason reason, const char* reasonDetail)
+void ModbusRtuService::disableDevice(const char *deviceId, DeviceFailureState::DisableReason reason, const char *reasonDetail)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1335,21 +1293,21 @@ void ModbusRtuService::disableDevice(const char* deviceId, DeviceFailureState::D
   state->disableReasonDetail = reasonDetail;
   state->disabledTimestamp = millis();
 
-  const char* reasonText = "";
+  const char *reasonText = "";
   switch (reason)
   {
-    case DeviceFailureState::MANUAL:
-      reasonText = "MANUAL";
-      break;
-    case DeviceFailureState::AUTO_RETRY:
-      reasonText = "AUTO_RETRY";
-      break;
-    case DeviceFailureState::AUTO_TIMEOUT:
-      reasonText = "AUTO_TIMEOUT";
-      break;
-    default:
-      reasonText = "UNKNOWN";
-      break;
+  case DeviceFailureState::MANUAL:
+    reasonText = "MANUAL";
+    break;
+  case DeviceFailureState::AUTO_RETRY:
+    reasonText = "AUTO_RETRY";
+    break;
+  case DeviceFailureState::AUTO_TIMEOUT:
+    reasonText = "AUTO_TIMEOUT";
+    break;
+  default:
+    reasonText = "UNKNOWN";
+    break;
   }
 
   Serial.printf("[RTU] Device %s disabled (reason: %s, detail: %s)\n",
@@ -1362,7 +1320,7 @@ void ModbusRtuService::disableDevice(const char* deviceId, DeviceFailureState::D
 // All registers now use device-level polling interval
 
 // Level 1: Device-level timing methods
-ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const char* deviceId)
+ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const char *deviceId)
 {
   for (auto &timer : deviceTimers)
   {
@@ -1374,7 +1332,7 @@ ModbusRtuService::DeviceTimer *ModbusRtuService::getDeviceTimer(const char* devi
   return nullptr;
 }
 
-bool ModbusRtuService::shouldPollDevice(const char* deviceId, uint32_t refreshRateMs)
+bool ModbusRtuService::shouldPollDevice(const char *deviceId, uint32_t refreshRateMs)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (!timer)
@@ -1392,7 +1350,7 @@ bool ModbusRtuService::shouldPollDevice(const char* deviceId, uint32_t refreshRa
   return (now - timer->lastRead) >= timer->refreshRateMs;
 }
 
-void ModbusRtuService::updateDeviceLastRead(const char* deviceId)
+void ModbusRtuService::updateDeviceLastRead(const char *deviceId)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (timer)
@@ -1423,7 +1381,7 @@ void ModbusRtuService::setDataTransmissionInterval(uint32_t intervalMs)
 // NEW: Enhancement - Public API for BLE Device Control Commands
 // ============================================
 
-bool ModbusRtuService::enableDeviceByCommand(const char* deviceId, bool clearMetrics)
+bool ModbusRtuService::enableDeviceByCommand(const char *deviceId, bool clearMetrics)
 {
   Serial.printf("[RTU] BLE Command: Enable device %s (clearMetrics: %s)\n",
                 deviceId, clearMetrics ? "true" : "false");
@@ -1439,7 +1397,7 @@ bool ModbusRtuService::enableDeviceByCommand(const char* deviceId, bool clearMet
   return true;
 }
 
-bool ModbusRtuService::disableDeviceByCommand(const char* deviceId, const char* reasonDetail)
+bool ModbusRtuService::disableDeviceByCommand(const char *deviceId, const char *reasonDetail)
 {
   Serial.printf("[RTU] BLE Command: Disable device %s (reason: %s)\n",
                 deviceId, reasonDetail);
@@ -1455,7 +1413,7 @@ bool ModbusRtuService::disableDeviceByCommand(const char* deviceId, const char* 
   return true;
 }
 
-bool ModbusRtuService::getDeviceStatusInfo(const char* deviceId, JsonObject &statusInfo)
+bool ModbusRtuService::getDeviceStatusInfo(const char *deviceId, JsonObject &statusInfo)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1474,21 +1432,21 @@ bool ModbusRtuService::getDeviceStatusInfo(const char* deviceId, JsonObject &sta
   statusInfo["retry_count"] = state->retryCount;
 
   // Disable reason
-  const char* reasonText = "";
+  const char *reasonText = "";
   switch (state->disableReason)
   {
-    case DeviceFailureState::NONE:
-      reasonText = "NONE";
-      break;
-    case DeviceFailureState::MANUAL:
-      reasonText = "MANUAL";
-      break;
-    case DeviceFailureState::AUTO_RETRY:
-      reasonText = "AUTO_RETRY";
-      break;
-    case DeviceFailureState::AUTO_TIMEOUT:
-      reasonText = "AUTO_TIMEOUT";
-      break;
+  case DeviceFailureState::NONE:
+    reasonText = "NONE";
+    break;
+  case DeviceFailureState::MANUAL:
+    reasonText = "MANUAL";
+    break;
+  case DeviceFailureState::AUTO_RETRY:
+    reasonText = "AUTO_RETRY";
+    break;
+  case DeviceFailureState::AUTO_TIMEOUT:
+    reasonText = "AUTO_TIMEOUT";
+    break;
   }
   statusInfo["disable_reason"] = reasonText;
   statusInfo["disable_reason_detail"] = state->disableReasonDetail.c_str();
@@ -1573,7 +1531,7 @@ void ModbusRtuService::autoRecoveryLoop()
         Serial.printf("[RTU AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
                       state.deviceId.c_str(), disabledDuration);
 
-        enableDevice(state.deviceId.c_str(), false);  // Don't clear metrics
+        enableDevice(state.deviceId.c_str(), false); // Don't clear metrics
         Serial.printf("[RTU AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
       }
     }
