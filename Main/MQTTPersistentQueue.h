@@ -170,6 +170,10 @@ private:
   std::deque<QueuedMessage> normalPriorityQueue;
   std::deque<QueuedMessage> lowPriorityQueue;
 
+  // CRITICAL FIX: Thread safety mutex (protects queue operations and LittleFS access)
+  // Prevents race conditions when called from multiple tasks (mqtt, crud, etc.)
+  SemaphoreHandle_t queueMutex;
+
   // Statistics and tracking
   QueueStats stats;
   uint16_t nextMessageId = 1;

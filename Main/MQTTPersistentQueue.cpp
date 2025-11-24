@@ -11,6 +11,14 @@ MQTTPersistentQueue::MQTTPersistentQueue()
   Serial.println("[MQTT_QUEUE] Persistent queue initialized");
   lastProcessTime = millis();
 
+  // CRITICAL FIX: Create mutex for thread safety
+  queueMutex = xSemaphoreCreateMutex();
+  if (queueMutex == NULL) {
+    Serial.println("[MQTT_QUEUE] CRITICAL: Failed to create mutex!");
+  } else {
+    Serial.println("[MQTT_QUEUE] Thread safety mutex created successfully");
+  }
+
   // Initialize LittleFS if not already done
   if (!LittleFS.begin(true))
   {
@@ -89,16 +97,21 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
                                                          MessagePriority priority,
                                                          uint32_t timeoutMs)
 {
+  // CRITICAL FIX: Mutex protection for thread safety
+  xSemaphoreTake(queueMutex, portMAX_DELAY);
+
   // Validate inputs
   if (topic.isEmpty())
   {
     Serial.println("[MQTT_QUEUE] ERROR: Topic is empty");
+    xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_TOPIC;
   }
 
   if (payload.isEmpty())
   {
     Serial.println("[MQTT_QUEUE] ERROR: Payload is empty");
+    xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_PAYLOAD;
   }
 
@@ -111,6 +124,7 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
   {
     Serial.printf("[MQTT_QUEUE] ERROR: Queue full (%ld/%ld)\n",
                   totalMessages, config.maxQueueSize);
+    xSemaphoreGive(queueMutex);
     return QUEUE_FULL;
   }
 
@@ -132,6 +146,7 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
   std::deque<QueuedMessage> *targetQueue = getQueueForPriority(priority);
   if (!targetQueue)
   {
+    xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_TOPIC;
   }
 
@@ -160,6 +175,7 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
                 msg.messageId, getPriorityString(priority), topic.c_str(),
                 payload.length());
 
+  xSemaphoreGive(queueMutex);
   return QUEUE_SUCCESS;
 }
 
@@ -183,11 +199,15 @@ void MQTTPersistentQueue::setPublishCallback(PublishCallback callback)
 // Queue processing
 uint32_t MQTTPersistentQueue::processQueue()
 {
+  // CRITICAL FIX: Mutex protection for thread safety
+  xSemaphoreTake(queueMutex, portMAX_DELAY);
+
   unsigned long now = millis();
 
   // Check if processing interval has elapsed
   if (now - lastProcessTime < config.processInterval)
   {
+    xSemaphoreGive(queueMutex);
     return 0;
   }
   lastProcessTime = now;
@@ -383,6 +403,7 @@ uint32_t MQTTPersistentQueue::processQueue()
   updateStats();
   stats.totalRetries += messagesThisCycle;
 
+  xSemaphoreGive(queueMutex);
   return messagesSent;
 }
 
@@ -739,10 +760,12 @@ void MQTTPersistentQueue::printHealthReport()
 // Queue management
 void MQTTPersistentQueue::clearQueue()
 {
+  xSemaphoreTake(queueMutex, portMAX_DELAY);
   highPriorityQueue.clear();
   normalPriorityQueue.clear();
   lowPriorityQueue.clear();
   updateStats();
+  xSemaphoreGive(queueMutex);
   Serial.println("[MQTT_QUEUE] Queue cleared");
 }
 
@@ -1349,5 +1372,12 @@ void MQTTPersistentQueue::cleanExpiredMessages()
 MQTTPersistentQueue::~MQTTPersistentQueue()
 {
   saveQueueToDisk();
+
+  // CRITICAL FIX: Delete mutex for cleanup
+  if (queueMutex != NULL) {
+    vSemaphoreDelete(queueMutex);
+    queueMutex = NULL;
+  }
+
   Serial.println("[MQTT_QUEUE] Persistent queue destroyed");
 }

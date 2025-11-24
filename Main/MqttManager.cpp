@@ -650,15 +650,30 @@ bool MqttManager::publishPayload(
     return false;
   }
 
-  // Copy topic to separate buffer to prevent memory overlap
-  char topicBuffer[128];
-  strncpy(topicBuffer, topic.c_str(), sizeof(topicBuffer) - 1);
-  topicBuffer[sizeof(topicBuffer) - 1] = '\0';
+  // CRITICAL FIX: Dynamic topic buffer allocation (prevent buffer overflow for long topics)
+  // MQTT spec allows topics up to 65535 bytes, but practically limit to 512 bytes
+  constexpr uint16_t MAX_TOPIC_LENGTH = 512;
+
+  if (topic.length() > MAX_TOPIC_LENGTH) {
+    Serial.printf("[MQTT] ERROR: Topic too long (%u bytes > %u bytes max)\n",
+                  topic.length(), MAX_TOPIC_LENGTH);
+    Serial.printf("[MQTT] Topic: %s\n", topic.substring(0, 100).c_str());
+    return false;
+  }
+
+  // Allocate topic buffer dynamically based on actual topic length
+  char* topicBuffer = (char*)heap_caps_malloc(topic.length() + 1, MALLOC_CAP_8BIT);
+  if (!topicBuffer) {
+    Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for topic buffer!\n", topic.length() + 1);
+    return false;
+  }
+  strcpy(topicBuffer, topic.c_str());
 
   // Allocate separate buffer for payload to prevent String memory issues
   uint8_t* payloadBuffer = (uint8_t*)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
   if (!payloadBuffer) {
     Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for payload buffer!\n", payload.length());
+    heap_caps_free(topicBuffer);  // Free topic buffer before returning
     return false;
   }
 
@@ -668,13 +683,14 @@ bool MqttManager::publishPayload(
 
   // Use binary publish with explicit length for reliable transmission
   bool published = mqttClient.publish(
-    topicBuffer,      // Topic (separate buffer)
+    topicBuffer,      // Topic (dynamically allocated buffer)
     payloadBuffer,    // Payload (dedicated buffer)
     payloadLen        // Explicit length
   );
 
-  // Free payload buffer after publish
-  heap_caps_free(payloadBuffer);
+  // CRITICAL: Free buffers after publish to prevent memory leak
+  heap_caps_free(topicBuffer);   // Free topic buffer (dynamic allocation)
+  heap_caps_free(payloadBuffer); // Free payload buffer
 
   #if PRODUCTION_MODE == 0
     Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
@@ -1287,7 +1303,15 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
     Serial.printf("[MQTT] Default Mode: Publish failed (payload: %d bytes, buffer: %u bytes)\n",
                   payload.length(), cachedBufferSize);
 
-    if (persistentQueueEnabled && persistentQueue) {
+    // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
+    // If payload exceeds buffer size, it will fail again when retried, creating infinite loop
+    if (payload.length() > cachedBufferSize) {
+      Serial.printf("[MQTT] ERROR: Payload dropped (too large: %d bytes > %u bytes buffer)\n",
+                    payload.length(), cachedBufferSize);
+      Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce device/register count");
+      // Don't enqueue - message is permanently dropped to prevent queue poisoning
+    } else if (persistentQueueEnabled && persistentQueue) {
+      // Only enqueue if size is reasonable (failed for other reasons like network)
       JsonObject cleanPayload = batchDoc.as<JsonObject>();
       persistentQueue->enqueueJsonMessage(defaultTopicPublish, cleanPayload, PRIORITY_NORMAL, 86400000);
     }
@@ -1359,7 +1383,14 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       {
         Serial.printf("[MQTT] Customize Mode: Publish failed for topic %s\n", customTopic.topic.c_str());
 
-        if (persistentQueueEnabled && persistentQueue) {
+        // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
+        if (payload.length() > cachedBufferSize) {
+          Serial.printf("[MQTT] ERROR: Payload dropped for topic %s (too large: %d bytes > %u bytes buffer)\n",
+                        customTopic.topic.c_str(), payload.length(), cachedBufferSize);
+          Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce registers in this topic");
+          // Don't enqueue - message is permanently dropped to prevent queue poisoning
+        } else if (persistentQueueEnabled && persistentQueue) {
+          // Only enqueue if size is reasonable (failed for other reasons like network)
           JsonObject cleanPayload = topicDoc.as<JsonObject>();
           persistentQueue->enqueueJsonMessage(customTopic.topic, cleanPayload, PRIORITY_NORMAL, 86400000);
         }
