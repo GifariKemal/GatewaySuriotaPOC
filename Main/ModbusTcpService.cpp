@@ -624,7 +624,17 @@ void ModbusTcpService::appendRegisterToLog(const String &registerName, double va
   // Add header on first success
   if (successCount == 0)
   {
-    outputBuffer += "[DATA] " + deviceId + ":\n";
+    // Add timestamp from RTC
+    RTCManager *rtc = RTCManager::getInstance();
+    String timestamp = "";
+    if (rtc)
+    {
+      DateTime now = rtc->getCurrentTime();
+      char timeBuf[12];
+      snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d] ", now.hour(), now.minute(), now.second());
+      timestamp = timeBuf;
+    }
+    outputBuffer += "[DATA] " + timestamp + deviceId + ":\n";
   }
 
   // Build compact line: "RegisterName:value.unit"

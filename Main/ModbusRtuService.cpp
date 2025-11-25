@@ -756,6 +756,17 @@ void ModbusRtuService::appendRegisterToLog(const char *registerName, double valu
   if (successCount == 0)
   {
     outputBuffer += "[DATA] ";
+
+    // Add timestamp from RTC
+    RTCManager *rtc = RTCManager::getInstance();
+    if (rtc)
+    {
+      DateTime now = rtc->getCurrentTime();
+      char timeBuf[12];
+      snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d] ", now.hour(), now.minute(), now.second());
+      outputBuffer += timeBuf;
+    }
+
     outputBuffer += deviceId;
     outputBuffer += ":\n";
   }
