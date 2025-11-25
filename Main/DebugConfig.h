@@ -9,11 +9,50 @@
  * ============================================
  *
  * Two-tier logging system:
- * 1. PRODUCTION_MODE (compile-time): Binary on/off for entire system
- * 2. LOG_LEVEL (runtime): Granular control within debug mode
+ * 1. PRODUCTION_MODE (compile-time): Switches between production/development output
+ * 2. LOG_LEVEL (runtime): Granular control within each mode
  *
- * PRODUCTION_MODE = 1: All debug output disabled (production/customer deployment)
- * PRODUCTION_MODE = 0: Debug enabled with LOG_LEVEL control (development/testing)
+ * ============================================
+ * PRODUCTION_MODE = 0 (Development):
+ * ============================================
+ * - Full verbose logging enabled
+ * - All LOG_* macros active (ERROR, WARN, INFO, DEBUG, VERBOSE)
+ * - BLE always ON at startup
+ * - Detailed timestamps and context
+ *
+ * ============================================
+ * PRODUCTION_MODE = 1 (Production):
+ * ============================================
+ * - Minimal logging via ProductionLogger
+ * - Only ERROR and WARN macros active (INFO, DEBUG, VERBOSE compiled out)
+ * - BLE controlled by button (starts OFF)
+ * - JSON format output for log collection
+ * - Periodic heartbeat (configurable, default 60s)
+ *
+ * Production Serial Output Format (JSON):
+ * - Boot:      {"t":"SYS","e":"BOOT","v":"2.3.3","id":"SRT-MGATE-1210","mem":{"d":150000,"p":7500000}}
+ * - Heartbeat: {"t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
+ * - Error:     {"t":"ERR","up":3600,"m":"MQTT","msg":"Connection failed","cnt":1}
+ * - Warning:   {"t":"WARN","up":3600,"m":"MEM","msg":"Low PSRAM"}
+ * - Network:   {"t":"NET","up":3600,"net":"WIFI","rc":1}
+ * - System:    {"t":"SYS","up":3600,"e":"OTA_START","d":"v2.4.0"}
+ *
+ * JSON Keys:
+ * - t: Type (HB=Heartbeat, ERR=Error, WARN=Warning, SYS=System, NET=Network)
+ * - up: Uptime in seconds
+ * - mem.d: Free DRAM bytes
+ * - mem.p: Free PSRAM bytes
+ * - net: Network type (ETH/WIFI/NONE)
+ * - proto: Active protocol (mqtt/http)
+ * - st: Protocol status (OK/ERR/CONN/OFF)
+ * - err: Total error count
+ * - mb.ok: Modbus success count
+ * - mb.er: Modbus error count
+ * - m: Module name (for errors/warnings)
+ * - msg: Message text
+ * - e: Event name (for system events)
+ * - d: Detail/description
+ * - rc: Reconnect count
  *
  * Usage:
  * - Set PRODUCTION_MODE in Main.ino BEFORE including this header

@@ -23,6 +23,11 @@
 #include "DebugConfig.h"       // ← MUST BE FIRST (before all other includes)
 #include "MemoryRecovery.h"    // Phase 2 optimization
 #include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
+#include "ProductionLogger.h"  // Production mode minimal logging
+
+// Firmware version and device identification
+#define FIRMWARE_VERSION "2.3.3"
+#define DEVICE_ID "SRT-MGATE-1210"
 
 #include "BLEManager.h"
 #include "CRUDHandler.h"
@@ -62,6 +67,7 @@ MqttManager *mqttManager = nullptr;
 HttpManager *httpManager = nullptr;
 LEDManager *ledManager = nullptr;
 ButtonManager *buttonManager = nullptr;
+ProductionLogger *productionLogger = nullptr;
 
 // FIXED BUG #1: Complete cleanup function for all global objects
 // Previously leaked memory for singleton instances (networkManager, queueManager, etc.)
@@ -140,6 +146,7 @@ void cleanup()
   queueManager = nullptr;
   ledManager = nullptr;
   buttonManager = nullptr;
+  productionLogger = nullptr;
 
   Serial.println("[CLEANUP] All resources released");
 }
@@ -503,13 +510,44 @@ void setup()
 
   Serial.println("[MAIN] BLE CRUD Manager started successfully");
 
-// FIXED BUG #2: Disable Serial in production mode AFTER all initialization
-// This prevents crashes from Serial.printf() calls during startup
+  // ============================================
+  // PRODUCTION LOGGER INITIALIZATION
+  // ============================================
 #if PRODUCTION_MODE == 1
-  Serial.flush();                 // Ensure all buffered output is sent first
-  vTaskDelay(pdMS_TO_TICKS(100)); // Allow flush to complete
-  Serial.end();
-  // All subsequent Serial calls will be no-ops (safe, but output nothing)
+  // Production mode: Initialize minimal production logger
+  // This replaces the previous Serial.end() approach to maintain visibility
+  productionLogger = ProductionLogger::getInstance();
+  if (productionLogger)
+  {
+    productionLogger->begin(FIRMWARE_VERSION, DEVICE_ID);
+    productionLogger->setHeartbeatInterval(60000);  // Heartbeat every 60 seconds
+    productionLogger->setJsonFormat(true);          // Use JSON format for parsing
+    productionLogger->setActiveProtocol(serverConfig->getProtocol());
+
+    // Set initial network status
+    if (networkInitialized)
+    {
+      // Check which network is active (simplified check)
+      productionLogger->setNetworkStatus(NetStatus::ETHERNET); // Default to ETH
+    }
+
+    // Set protocol status
+    if (mqttManager && serverConfig->getProtocol() == "mqtt")
+    {
+      productionLogger->setMqttStatus(ProtoStatus::CONNECTING);
+    }
+    else if (httpManager && serverConfig->getProtocol() == "http")
+    {
+      productionLogger->setHttpStatus(ProtoStatus::CONNECTING);
+    }
+
+    // Log boot message
+    productionLogger->logBoot();
+    Serial.println("[MAIN] Production Logger initialized - minimal logging active");
+  }
+#else
+  // Development mode: Full logging already active
+  Serial.println("\n[MAIN] === SYSTEM READY (Development Mode) ===\n");
 #endif
 }
 
@@ -517,6 +555,15 @@ void loop()
 {
   // FreeRTOS-friendly delay - yields to other tasks
   vTaskDelay(pdMS_TO_TICKS(100));
+
+#if PRODUCTION_MODE == 1
+  // Production mode: Periodic heartbeat logging
+  // This is automatically throttled by ProductionLogger (default: every 60s)
+  if (productionLogger)
+  {
+    productionLogger->heartbeat();
+  }
+#endif
 
   // Optional: Add watchdog feed or system monitoring here
   // esp_task_wdt_reset();
