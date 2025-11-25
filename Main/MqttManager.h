@@ -26,7 +26,7 @@
 namespace MqttConfig
 {
   constexpr uint32_t MQTT_TASK_STACK_SIZE = 24576;    // 24KB stack for ArduinoJson v7 dynamic allocations (50+ registers)
-  constexpr uint16_t MIN_BUFFER_SIZE = 2048;          // 2KB minimum buffer
+  constexpr uint16_t MIN_BUFFER_SIZE = 8192;          // 8KB minimum buffer (supports 60+ registers safely)
   constexpr uint16_t MAX_BUFFER_SIZE = 16384;         // 16KB maximum (PubSubClient limit)
   constexpr uint16_t DEFAULT_BUFFER_SIZE = 8192;      // 8KB conservative default
   constexpr uint16_t BYTES_PER_REGISTER = 120;        // Realistic bytes per register (includes metadata, descriptions, JSON overhead)
