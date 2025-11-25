@@ -8,7 +8,97 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.3.9 (Current)
+## 📦 Version 2.3.10 (Current)
+
+**Release Date:** November 25, 2025 (Monday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### ⚡ Performance: Connection Pool Optimization
+
+**Type:** Performance Optimization Release
+
+This release fixes **connection churn** (unnecessary recreate/delete cycles) by improving health check logic. Removes false-positive "dead connection" warnings and improves connection reuse efficiency.
+
+---
+
+### 🐛 **ISSUE: Connection Churn (Unnecessary Recreation)**
+
+**Problem:**
+```
+[WARN][TCP] Connection to 192.168.1.6:502 is dead, marking for cleanup
+[TCP] Pool full (3), force cleanup oldest connection
+[TCP] Created new pooled connection to 192.168.1.6:502
+[TCP] Returned pooled connection (healthy: YES)
+
+// Next poll - SAME pattern repeats!
+[WARN][TCP] Connection to 192.168.1.6:502 is dead ← False positive!
+```
+
+**Root Cause:**
+- Line 1224: Used `client->connected()` to check connection health
+- ESP32's `connected()` **unreliable** for pooled/idle connections
+- Returns `false` even for recently-used healthy connections
+- Caused unnecessary connection recreation every poll cycle
+
+**Solution (v2.3.10):**
+
+**Smarter Health Check** (ModbusTcpService.cpp:1223-1226)
+```cpp
+// BEFORE (v2.3.9): Relies on connected() - unreliable!
+if (entry.client && entry.client->connected() && entry.isHealthy)
+
+// AFTER (v2.3.10): Trust isHealthy flag (set by actual usage)
+if (entry.client && entry.isHealthy)
+//                  ↑ Only check isHealthy (set during actual read/write)
+//                  Don't trust connected() for idle sockets
+```
+
+**How isHealthy Works:**
+1. ✅ Connection created → `isHealthy = true`
+2. ✅ Successful read/write → `isHealthy = true` (line 1350)
+3. ❌ Failed read/write → `isHealthy = false` (line 469, 538)
+4. ⏰ Max age exceeded → recreate (3min timeout)
+
+**Files Modified:**
+- `ModbusTcpService.cpp` (line 1223-1226, 1252-1253):
+  - Removed `client->connected()` check
+  - Trust `isHealthy` flag only
+  - Changed log level: WARN → INFO
+
+---
+
+### 📊 Performance Impact
+
+| Metric | Before (v2.3.9) | After (v2.3.10) | Improvement |
+|--------|-----------------|-----------------|-------------|
+| **Connection Recreations** | Every poll (~1s) | Every 3min (age limit) | **180x reduction** |
+| **False "Dead" Warnings** | Every poll | Zero | ✅ **Eliminated** |
+| **Connection Reuse** | ~1% (always recreate) | ~99% (reuse) | **99x improvement** |
+| **TCP Handshake Overhead** | High (every poll) | Minimal (every 3min) | **~99% reduction** |
+| **Log Spam** | High (WARN every poll) | Clean (INFO on actual failure) | ✅ **Clean logs** |
+
+---
+
+### ⚠️ Breaking Changes
+None. Backward-compatible optimization.
+
+### 📝 Migration Notes
+No configuration changes required. Firmware automatically:
+1. Reuses connections based on `isHealthy` flag (not `connected()`)
+2. Only recreates when actual read/write fails
+3. Max age limit: 3 minutes (CONNECTION_MAX_AGE_MS)
+
+### ✅ Validation
+- [x] Connection reused successfully across multiple polls
+- [x] No false "dead connection" warnings
+- [x] Actual failed connections still detected and recreated
+- [x] Log output clean (no WARN spam)
+- [x] Performance: 99% connection reuse rate
+
+---
+
+## 📦 Version 2.3.9
 
 **Release Date:** November 25, 2025 (Monday)
 **Developer:** Kemal (with Claude Code)

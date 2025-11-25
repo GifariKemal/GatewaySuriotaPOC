@@ -1220,8 +1220,10 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
   {
     if (entry.deviceKey == deviceKey)
     {
-      // Check if connection is still healthy
-      if (entry.client && entry.client->connected() && entry.isHealthy)
+      // OPTIMIZED (v2.3.10): Smarter health check - don't rely on connected() alone
+      // connected() is unreliable for pooled connections (false positives for idle sockets)
+      // Trust isHealthy flag (set by actual read/write success/failure)
+      if (entry.client && entry.isHealthy)
       {
         // Check connection age
         if ((now - entry.createdAt) < CONNECTION_MAX_AGE_MS)
@@ -1247,8 +1249,8 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
       }
       else
       {
-        // Connection dead - mark for cleanup
-        LOG_TCP_WARN("Connection to %s is dead, marking for cleanup\n", deviceKey.c_str());
+        // Connection marked unhealthy (failed during actual use) - recreate
+        LOG_TCP_INFO("Connection to %s marked unhealthy, recreating\n", deviceKey.c_str());
         if (entry.client)
         {
           entry.client->stop();

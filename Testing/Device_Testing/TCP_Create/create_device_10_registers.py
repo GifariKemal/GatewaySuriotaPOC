@@ -125,10 +125,10 @@ class DeviceCreationClient:
                 "device_name": "TCP_Device_10_Regs",
                 "protocol": "TCP",
                 "slave_id": 1,
-                "timeout": 5000,
+                "timeout": 3000,
                 "retry_count": 3,
                 "refresh_rate_ms": 2000,
-                "ip": "192.168.1.8",
+                "ip": "192.168.1.6",
                 "port": 502
             }
         }
