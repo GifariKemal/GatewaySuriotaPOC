@@ -41,7 +41,8 @@ enum ErrorDomain
   DOMAIN_MODBUS = 3,  // Modbus RTU devices
   DOMAIN_MEMORY = 4,  // Memory/PSRAM allocation
   DOMAIN_CONFIG = 5,  // Configuration/Storage
-  DOMAIN_SYSTEM = 6   // System health (uptime, temp, etc)
+  DOMAIN_SYSTEM = 6,  // System health (uptime, temp, etc)
+  DOMAIN_COUNT        // FIXED: Count of domains for array sizing (always keep last!)
 };
 
 // Unified Error Codes (0-999)

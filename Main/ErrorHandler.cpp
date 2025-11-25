@@ -311,20 +311,25 @@ uint32_t ErrorHandler::getRepeatingErrorCount(UnifiedErrorCode code, uint32_t wi
 ErrorDomain ErrorHandler::getMostFrequentErrorDomain(uint32_t withinMs) const
 {
   unsigned long now = millis();
-  uint32_t domainCounts[7] = {0};
+  // FIXED: Use DOMAIN_COUNT instead of hardcoded 7 to prevent array overflow
+  uint32_t domainCounts[DOMAIN_COUNT] = {0};
 
   for (const auto &error : errorHistory)
   {
     if ((now - error.timestamp) <= withinMs)
     {
-      domainCounts[error.domain]++;
+      // Bounds check to prevent array overflow
+      if (error.domain < DOMAIN_COUNT)
+      {
+        domainCounts[error.domain]++;
+      }
     }
   }
 
   uint32_t maxCount = 0;
   ErrorDomain maxDomain = DOMAIN_SYSTEM;
 
-  for (int i = 0; i < 7; i++)
+  for (int i = 0; i < DOMAIN_COUNT; i++)
   {
     if (domainCounts[i] > maxCount)
     {
@@ -435,7 +440,8 @@ void ErrorHandler::printErrorsByDomain()
 {
   Serial.println("\n[ERROR HANDLER] ERRORS BY DOMAIN");
 
-  for (int i = 0; i < 7; i++)
+  // FIXED: Use DOMAIN_COUNT instead of hardcoded 7
+  for (int i = 0; i < DOMAIN_COUNT; i++)
   {
     ErrorDomain domain = (ErrorDomain)i;
     uint32_t count = getErrorCountByDomain(domain);
