@@ -9,6 +9,7 @@
 #include <freertos/task.h>
 #include <ModbusMaster.h>
 #include "ConfigManager.h"
+#include "ModbusUtils.h" // Shared Modbus data parsing utilities
 #include <vector>
 #include <queue>  // For std::priority_queue
 #include <memory> // For std::unique_ptr (Bug #2 fix)
@@ -162,8 +163,7 @@ private:
   static void readRtuDevicesTask(void *parameter);
   void readRtuDevicesLoop();
   void readRtuDeviceData(const JsonObject &deviceConfig);
-  double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
-  double processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const char *baseType, const char *endianness_variant); // BUG #31: const char* instead of String
+  // NOTE: processRegisterValue and processMultiRegisterValue moved to ModbusUtils (shared with TCP)
   bool readMultipleRegisters(ModbusMaster *modbus, uint8_t functionCode, uint16_t address, int count, uint16_t *values);
   bool storeRegisterValue(const char *deviceId, const JsonObject &reg, double value, const char *deviceName = ""); // BUG #31: const char* instead of String, FIXED: Returns bool for error handling
   ModbusMaster *getModbusForBus(int serialPort);

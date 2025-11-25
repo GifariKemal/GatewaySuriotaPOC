@@ -510,7 +510,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       // FIXED ISSUE #2: Pass pooled connection to eliminate per-register TCP handshakes
       if (readModbusRegisters(ip, port, slaveId, functionCode, address, registerCount, results, pooledClient))
       {
-        double value = (registerCount == 1) ? processRegisterValue(reg, results[0]) : processMultiRegisterValue(reg, results, registerCount, baseType, endianness_variant);
+        double value = (registerCount == 1) ? ModbusUtils::processRegisterValue(reg, results[0]) : ModbusUtils::processMultiRegisterValue(reg, results, registerCount, baseType.c_str(), endianness_variant.c_str());
 
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
@@ -625,175 +625,11 @@ void ModbusTcpService::appendRegisterToLog(const String &registerName, double va
   }
 }
 
-double ModbusTcpService::processRegisterValue(const JsonObject &reg, uint16_t rawValue)
-{
-  String dataType = reg["data_type"];
-  dataType.toUpperCase();
+// NOTE: processRegisterValue() moved to ModbusUtils class (shared with ModbusRtuService)
+// See ModbusUtils.cpp for implementation
 
-  if (dataType == "INT16")
-  {
-    return (int16_t)rawValue;
-  }
-  else if (dataType == "UINT16")
-  {
-    return rawValue;
-  }
-  else if (dataType == "BOOL")
-  {
-    return rawValue != 0 ? 1.0 : 0.0;
-  }
-  else if (dataType == "BINARY")
-  {
-    return rawValue;
-  }
-
-  // Multi-register types - need to read 2 registers
-  // For now return single register value, implement multi-register later
-  return rawValue;
-}
-
-double ModbusTcpService::processMultiRegisterValue(const JsonObject &reg, uint16_t *values, int count, const String &baseType, const String &endianness_variant)
-{
-
-  if (count == 2)
-  {
-
-    uint32_t combined;
-
-    if (endianness_variant == "BE")
-    { // Big Endian (ABCD)
-
-      combined = ((uint32_t)values[0] << 16) | values[1];
-    }
-    else if (endianness_variant == "LE")
-    { // True Little Endian (DCBA)
-
-      combined = (((uint32_t)values[1] & 0xFF) << 24) | (((uint32_t)values[1] & 0xFF00) << 8) |
-
-                 (((uint32_t)values[0] & 0xFF) << 8) | ((uint32_t)values[0] >> 8);
-    }
-    else if (endianness_variant == "BE_BS")
-    { // Big Endian + Byte Swap (BADC)
-
-      combined = (((uint32_t)values[0] & 0xFF) << 24) | (((uint32_t)values[0] & 0xFF00) << 8) |
-
-                 (((uint32_t)values[1] & 0xFF) << 8) | ((uint32_t)values[1] >> 8);
-    }
-    else if (endianness_variant == "LE_BS")
-    { // Little Endian + Word Swap (CDAB)
-
-      combined = ((uint32_t)values[1] << 16) | values[0];
-    }
-    else
-    { // Default to Big Endian
-
-      combined = ((uint32_t)values[0] << 16) | values[1];
-    }
-
-    if (baseType == "INT32")
-    {
-
-      return (int32_t)combined;
-    }
-    else if (baseType == "UINT32")
-    {
-
-      return combined;
-    }
-    else if (baseType == "FLOAT32")
-    {
-      // FIXED Bug #5: Use union for safe type conversion (no strict aliasing violation)
-      union
-      {
-        uint32_t bits;
-        float value;
-      } converter;
-      converter.bits = combined;
-      return converter.value;
-    }
-  }
-  else if (count == 4)
-  {
-
-    uint64_t combined;
-
-    if (endianness_variant == "BE")
-    { // Big Endian (W0, W1, W2, W3)
-
-      combined = ((uint64_t)values[0] << 48) | ((uint64_t)values[1] << 32) | ((uint64_t)values[2] << 16) | values[3];
-    }
-    else if (endianness_variant == "LE")
-    { // True Little Endian (B8..B1)
-
-      uint64_t b1 = values[0] >> 8;
-
-      uint64_t b2 = values[0] & 0xFF;
-
-      uint64_t b3 = values[1] >> 8;
-
-      uint64_t b4 = values[1] & 0xFF;
-
-      uint64_t b5 = values[2] >> 8;
-
-      uint64_t b6 = values[2] & 0xFF;
-
-      uint64_t b7 = values[3] >> 8;
-
-      uint64_t b8 = values[3] & 0xFF;
-
-      combined = (b8 << 56) | (b7 << 48) | (b6 << 40) | (b5 << 32) | (b4 << 24) | (b3 << 16) | (b2 << 8) | b1;
-    }
-    else if (endianness_variant == "BE_BS")
-    { // Big Endian with Byte Swap (B2B1, B4B3, B6B5, B8B7)
-
-      // Registers have bytes swapped within each word. Extract bytes and reassemble as BADCFEHG pattern
-      uint64_t b1 = (values[0] >> 8) & 0xFF; // High byte of R1
-      uint64_t b2 = values[0] & 0xFF;        // Low byte of R1
-      uint64_t b3 = (values[1] >> 8) & 0xFF; // High byte of R2
-      uint64_t b4 = values[1] & 0xFF;        // Low byte of R2
-      uint64_t b5 = (values[2] >> 8) & 0xFF; // High byte of R3
-      uint64_t b6 = values[2] & 0xFF;        // Low byte of R3
-      uint64_t b7 = (values[3] >> 8) & 0xFF; // High byte of R4
-      uint64_t b8 = values[3] & 0xFF;        // Low byte of R4
-      combined = (b2 << 56) | (b1 << 48) | (b4 << 40) | (b3 << 32) | (b6 << 24) | (b5 << 16) | (b8 << 8) | b7;
-    }
-    else if (endianness_variant == "LE_BS")
-    { // Little Endian with Word Swap (W3, W2, W1, W0)
-
-      combined = ((uint64_t)values[3] << 48) | ((uint64_t)values[2] << 32) | ((uint64_t)values[1] << 16) | (uint64_t)values[0];
-    }
-    else
-    { // Default to Big Endian
-
-      combined = ((uint64_t)values[0] << 48) | ((uint64_t)values[1] << 32) | ((uint64_t)values[2] << 16) | values[3];
-    }
-
-    if (baseType == "INT64")
-    {
-
-      return (double)(int64_t)combined;
-    }
-    else if (baseType == "UINT64")
-    {
-
-      return (double)combined;
-    }
-    else if (baseType == "DOUBLE64")
-    {
-
-      // Safe type-punning using union for IEEE 754 reinterpretation
-      union
-      {
-        uint64_t bits;
-        double value;
-      } converter;
-      converter.bits = combined;
-      return converter.value;
-    }
-  }
-
-  return values[0]; // Fallback
-}
+// NOTE: processMultiRegisterValue() moved to ModbusUtils class (shared with ModbusRtuService)
+// See ModbusUtils.cpp for implementation
 
 bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient)
 {
