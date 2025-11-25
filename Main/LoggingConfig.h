@@ -18,6 +18,7 @@ private:
 
 public:
   LoggingConfig();
+  ~LoggingConfig(); // Destructor - cleanup resources
 
   bool begin();
 

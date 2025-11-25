@@ -189,3 +189,19 @@ void LEDManager::ledLoop()
     vTaskDelay(pdMS_TO_TICKS(50)); // Check every 50ms
   }
 }
+
+// Destructor - cleanup resources to prevent memory leaks
+LEDManager::~LEDManager()
+{
+  // Stop task first
+  stop();
+
+  // Delete mutex
+  if (stateMutex)
+  {
+    vSemaphoreDelete(stateMutex);
+    stateMutex = nullptr;
+  }
+
+  Serial.println("[LED] Manager destroyed, resources cleaned up");
+}

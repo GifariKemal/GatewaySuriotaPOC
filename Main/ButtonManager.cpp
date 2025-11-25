@@ -1,6 +1,8 @@
 #include "ButtonManager.h"
 #include "BLEManager.h"
 
+// NOTE: This static instance is unused (Meyers Singleton pattern used in getInstance())
+// Kept for header declaration compatibility - does not cause memory issues
 ButtonManager *ButtonManager::instance = nullptr;
 
 // Private constructor
@@ -206,4 +208,27 @@ void ButtonManager::buttonLoop()
 
     vTaskDelay(pdMS_TO_TICKS(10)); // Check every 10ms
   }
+}
+
+// Destructor - cleanup resources to prevent memory leaks
+ButtonManager::~ButtonManager()
+{
+  // Stop task first
+  stop();
+
+  // Delete mutex
+  if (modeMutex)
+  {
+    vSemaphoreDelete(modeMutex);
+    modeMutex = nullptr;
+  }
+
+  // Delete button instance
+  if (button)
+  {
+    delete button;
+    button = nullptr;
+  }
+
+  Serial.println("[BUTTON] Manager destroyed, resources cleaned up");
 }

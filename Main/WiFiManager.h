@@ -4,6 +4,8 @@
 #include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 class WiFiManager
 {
@@ -11,6 +13,7 @@ private:
   static WiFiManager *instance;
   bool initialized;
   int referenceCount;
+  SemaphoreHandle_t refCountMutex; // FIXED: Thread safety for referenceCount
   String ssid;
   String password;
 

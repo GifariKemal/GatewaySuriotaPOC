@@ -35,8 +35,13 @@ bool EthernetManager::init(bool useDhcp, IPAddress staticIp, IPAddress gateway, 
 {
   if (initialized)
   {
-    referenceCount++;
-    Serial.printf("Ethernet already initialized (refs: %d)\n", referenceCount);
+    // FIXED: Thread-safe referenceCount increment (was unprotected - race condition)
+    if (refCountMutex && xSemaphoreTake(refCountMutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+      referenceCount++;
+      Serial.printf("Ethernet already initialized (refs: %d)\n", referenceCount);
+      xSemaphoreGive(refCountMutex);
+    }
     return true;
   }
 
@@ -168,4 +173,13 @@ void EthernetManager::getStatus(JsonObject &status)
 EthernetManager::~EthernetManager()
 {
   cleanup();
+
+  // Delete mutex to prevent memory leak
+  if (refCountMutex)
+  {
+    vSemaphoreDelete(refCountMutex);
+    refCountMutex = nullptr;
+  }
+
+  Serial.println("[ETHERNET] Manager destroyed, resources cleaned up");
 }

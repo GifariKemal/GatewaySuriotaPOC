@@ -70,6 +70,9 @@ public:
 
   // Get current LED state (for debugging)
   LEDState getCurrentState() const { return currentState; }
+
+  // Destructor - cleanup resources
+  ~LEDManager();
 };
 
 extern LEDManager *ledManager; // Declare global instance

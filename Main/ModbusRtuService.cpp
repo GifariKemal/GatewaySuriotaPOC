@@ -1432,4 +1432,13 @@ ModbusRtuService::~ModbusRtuService()
     delete serial2;
     serial2 = nullptr;
   }
+
+  // FIXED: Delete vectorMutex to prevent memory leak
+  if (vectorMutex)
+  {
+    vSemaphoreDelete(vectorMutex);
+    vectorMutex = nullptr;
+  }
+
+  Serial.println("[RTU] Service destroyed, resources cleaned up");
 }

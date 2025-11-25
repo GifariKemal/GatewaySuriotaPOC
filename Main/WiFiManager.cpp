@@ -3,7 +3,15 @@
 WiFiManager *WiFiManager::instance = nullptr;
 
 WiFiManager::WiFiManager()
-    : initialized(false), referenceCount(0) {}
+    : initialized(false), referenceCount(0), refCountMutex(nullptr)
+{
+  // FIXED: Create mutex for thread-safe referenceCount operations
+  refCountMutex = xSemaphoreCreateMutex();
+  if (!refCountMutex)
+  {
+    Serial.println("[WiFi] ERROR: Failed to create refCountMutex");
+  }
+}
 
 WiFiManager *WiFiManager::getInstance()
 {
@@ -18,8 +26,13 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
 {
   if (initialized)
   {
-    referenceCount++;
-    Serial.printf("[WiFi] Already initialized (refs: %d)\n", referenceCount);
+    // FIXED: Thread-safe referenceCount increment
+    if (refCountMutex && xSemaphoreTake(refCountMutex, pdMS_TO_TICKS(100)) == pdTRUE)
+    {
+      referenceCount++;
+      Serial.printf("[WiFi] Already initialized (refs: %d)\n", referenceCount);
+      xSemaphoreGive(refCountMutex);
+    }
     return true;
   }
 
@@ -70,24 +83,36 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
 
 void WiFiManager::addReference()
 {
-  if (initialized)
+  // FIXED: Thread-safe referenceCount increment
+  if (refCountMutex && xSemaphoreTake(refCountMutex, pdMS_TO_TICKS(100)) == pdTRUE)
   {
-    referenceCount++;
-    Serial.printf("[WiFi] Reference added (refs: %d)\n", referenceCount);
+    if (initialized)
+    {
+      referenceCount++;
+      Serial.printf("[WiFi] Reference added (refs: %d)\n", referenceCount);
+    }
+    xSemaphoreGive(refCountMutex);
   }
 }
 
 void WiFiManager::removeReference()
 {
-  if (referenceCount > 0)
+  // FIXED: Thread-safe referenceCount decrement
+  if (refCountMutex && xSemaphoreTake(refCountMutex, pdMS_TO_TICKS(100)) == pdTRUE)
   {
-    referenceCount--;
-    Serial.printf("[WiFi] Reference removed (refs: %d)\n", referenceCount);
-
-    if (referenceCount == 0)
+    if (referenceCount > 0)
     {
-      cleanup();
+      referenceCount--;
+      Serial.printf("[WiFi] Reference removed (refs: %d)\n", referenceCount);
+
+      if (referenceCount == 0)
+      {
+        xSemaphoreGive(refCountMutex);
+        cleanup();
+        return;
+      }
     }
+    xSemaphoreGive(refCountMutex);
   }
 }
 
@@ -159,4 +184,13 @@ void WiFiManager::getStatus(JsonObject &status)
 WiFiManager::~WiFiManager()
 {
   cleanup();
+
+  // FIXED: Delete mutex to prevent memory leak
+  if (refCountMutex)
+  {
+    vSemaphoreDelete(refCountMutex);
+    refCountMutex = nullptr;
+  }
+
+  Serial.println("[WiFi] Manager destroyed, resources cleaned up");
 }

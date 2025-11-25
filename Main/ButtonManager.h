@@ -76,6 +76,9 @@ public:
 
   // Stop the button task
   void stop();
+
+  // Destructor - cleanup resources
+  ~ButtonManager();
 };
 
 extern ButtonManager *buttonManager; // Declare global instance

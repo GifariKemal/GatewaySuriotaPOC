@@ -8,6 +8,17 @@ LoggingConfig::LoggingConfig()
   createDefaultConfig();
 }
 
+LoggingConfig::~LoggingConfig()
+{
+  // FIXED: Delete JsonDocument to prevent memory leak
+  if (config)
+  {
+    delete config;
+    config = nullptr;
+  }
+  Serial.println("[LOGGING] Config destroyed, resources cleaned up");
+}
+
 bool LoggingConfig::begin()
 {
   if (!loadConfig())

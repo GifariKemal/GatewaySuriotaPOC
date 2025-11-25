@@ -37,13 +37,31 @@ BLEManager::~BLEManager()
   if (metricsMutex)
   {
     vSemaphoreDelete(metricsMutex);
+    metricsMutex = nullptr;
   }
 
   // Clean up MTU control mutex
   if (mtuControlMutex)
   {
     vSemaphoreDelete(mtuControlMutex);
+    mtuControlMutex = nullptr;
   }
+
+  // Clean up transmission mutex (FIXED: was missing - memory leak)
+  if (transmissionMutex)
+  {
+    vSemaphoreDelete(transmissionMutex);
+    transmissionMutex = nullptr;
+  }
+
+  // Clean up streaming state mutex (FIXED: was missing - memory leak)
+  if (streamingStateMutex)
+  {
+    vSemaphoreDelete(streamingStateMutex);
+    streamingStateMutex = nullptr;
+  }
+
+  Serial.println("[BLE] Manager destroyed, resources cleaned up");
 }
 
 bool BLEManager::begin()

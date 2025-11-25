@@ -347,6 +347,8 @@ public:
     }
 
     // Substring
+    // FIXED: Replaced alloca() with heap allocation to prevent stack overflow
+    // alloca() allocates from stack - dangerous for long strings (>4KB can crash)
     PSRAMString substring(size_t start, size_t end = 0) const
     {
         if (!buffer || start >= len)
@@ -359,10 +361,26 @@ public:
         }
 
         size_t subLen = end - start;
-        char *temp = (char *)alloca(subLen + 1);
+
+        // FIXED: Use heap allocation (PSRAM preferred) instead of stack alloca()
+        // This prevents stack overflow for large substrings
+        char *temp = (char *)heap_caps_malloc(subLen + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!temp)
+        {
+            // Fallback to DRAM if PSRAM unavailable
+            temp = (char *)heap_caps_malloc(subLen + 1, MALLOC_CAP_8BIT);
+        }
+        if (!temp)
+        {
+            Serial.printf("[PSRAMString] ERROR: substring malloc failed (%u bytes)\n", subLen + 1);
+            return PSRAMString();
+        }
+
         strncpy(temp, buffer + start, subLen);
         temp[subLen] = '\0';
-        return PSRAMString(temp);
+        PSRAMString result(temp);
+        heap_caps_free(temp); // Free temporary buffer
+        return result;
     }
 
     // Find
