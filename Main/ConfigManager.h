@@ -19,9 +19,15 @@ private:
   SemaphoreHandle_t cacheMutex;
   SemaphoreHandle_t fileMutex;
 
-  // Cache for devices and registers
-  JsonDocument *devicesCache;   // Changed from DynamicJsonDocument
-  JsonDocument *registersCache; // Changed from DynamicJsonDocument
+  // SHADOW COPY OPTIMIZATION (v2.3.8):
+  // Dual-buffer pattern for lock-free reads
+  // - Primary cache: Used for writes (protected by cacheMutex)
+  // - Shadow cache: Read-only copy for runtime access (minimal locking)
+  JsonDocument *devicesCache;        // Primary cache (write operations)
+  JsonDocument *devicesShadowCache;  // Shadow copy (read operations)
+  JsonDocument *registersCache;      // Primary cache (write operations)
+  JsonDocument *registersShadowCache; // Shadow copy (read operations)
+
   bool devicesCacheValid;
   bool registersCacheValid;
 
@@ -46,6 +52,10 @@ private:
   void invalidateRegistersCache();
   bool loadDevicesCache();
   bool loadRegistersCache();
+
+  // Shadow copy management (v2.3.8)
+  void updateDevicesShadowCopy();
+  void updateRegistersShadowCopy();
 
   // Atomic file operations pointer
   AtomicFileOps *atomicFileOps = nullptr;

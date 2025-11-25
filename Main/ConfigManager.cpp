@@ -13,7 +13,8 @@ const char *ConfigManager::DEVICES_FILE = "/devices.json";
 const char *ConfigManager::REGISTERS_FILE = "/registers.json";
 
 ConfigManager::ConfigManager()
-    : devicesCache(nullptr), registersCache(nullptr),
+    : devicesCache(nullptr), devicesShadowCache(nullptr),
+      registersCache(nullptr), registersShadowCache(nullptr),
       devicesCacheValid(false), registersCacheValid(false),
       cacheMutex(nullptr), fileMutex(nullptr), atomicFileOps(nullptr)
 {
@@ -33,7 +34,7 @@ ConfigManager::ConfigManager()
     Serial.println("[CONFIG] ERROR: Failed to allocate AtomicFileOps");
   }
 
-  // Initialize cache in PSRAM
+  // Initialize PRIMARY cache in PSRAM
   devicesCache = (JsonDocument *)heap_caps_malloc(sizeof(JsonDocument), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (devicesCache)
   {
@@ -52,6 +53,31 @@ ConfigManager::ConfigManager()
   else
   {
     registersCache = new JsonDocument();
+  }
+
+  // SHADOW COPY OPTIMIZATION (v2.3.8): Initialize SHADOW cache in PSRAM
+  devicesShadowCache = (JsonDocument *)heap_caps_malloc(sizeof(JsonDocument), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (devicesShadowCache)
+  {
+    new (devicesShadowCache) JsonDocument();
+    Serial.println("[CONFIG] Devices shadow cache allocated in PSRAM");
+  }
+  else
+  {
+    devicesShadowCache = new JsonDocument(); // Fallback to DRAM
+    Serial.println("[CONFIG] WARNING: Devices shadow cache fallback to DRAM");
+  }
+
+  registersShadowCache = (JsonDocument *)heap_caps_malloc(sizeof(JsonDocument), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (registersShadowCache)
+  {
+    new (registersShadowCache) JsonDocument();
+    Serial.println("[CONFIG] Registers shadow cache allocated in PSRAM");
+  }
+  else
+  {
+    registersShadowCache = new JsonDocument(); // Fallback to DRAM
+    Serial.println("[CONFIG] WARNING: Registers shadow cache fallback to DRAM");
   }
 }
 
@@ -76,7 +102,7 @@ ConfigManager::~ConfigManager()
     fileMutex = nullptr;
   }
 
-  // Clean up cache documents
+  // Clean up PRIMARY cache documents
   if (devicesCache)
   {
     devicesCache->~JsonDocument();
@@ -88,6 +114,20 @@ ConfigManager::~ConfigManager()
     registersCache->~JsonDocument();
     heap_caps_free(registersCache);
     registersCache = nullptr;
+  }
+
+  // SHADOW COPY OPTIMIZATION (v2.3.8): Clean up SHADOW cache documents
+  if (devicesShadowCache)
+  {
+    devicesShadowCache->~JsonDocument();
+    heap_caps_free(devicesShadowCache);
+    devicesShadowCache = nullptr;
+  }
+  if (registersShadowCache)
+  {
+    registersShadowCache->~JsonDocument();
+    heap_caps_free(registersShadowCache);
+    registersShadowCache = nullptr;
   }
 }
 
@@ -354,7 +394,10 @@ String ConfigManager::createDevice(JsonObjectConst config)
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache))
   {
-    Serial.printf("Device %s created and cache updated\n", deviceId.c_str());
+    // SHADOW COPY OPTIMIZATION (v2.3.8): Update shadow copy after successful write
+    updateDevicesShadowCopy();
+
+    Serial.printf("Device %s created and cache updated (shadow synced)\n", deviceId.c_str());
     lastDevicesCacheTime = millis(); // Update TTL timestamp
     xSemaphoreGive(cacheMutex);
     return deviceId;
@@ -367,10 +410,35 @@ String ConfigManager::createDevice(JsonObjectConst config)
 
 bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool minimal)
 {
-  if (!loadDevicesCache())
+  // SHADOW COPY OPTIMIZATION (v2.3.8): Use shadow copy for reads (lock-free)
+  // Only take mutex briefly to check validity and copy pointer
+  if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
-    Serial.println("Failed to load devices cache for readDevice");
-    return false;
+    Serial.println("[CONFIG] ERROR: readDevice - mutex timeout (fallback to cache load)");
+    // Fallback to old behavior if mutex timeout
+    if (!loadDevicesCache())
+    {
+      Serial.println("Failed to load devices cache for readDevice");
+      return false;
+    }
+  }
+
+  // Quick validity check (no file I/O inside mutex!)
+  if (!devicesCacheValid)
+  {
+    xSemaphoreGive(cacheMutex);
+    // Reload cache if invalid
+    if (!loadDevicesCache())
+    {
+      Serial.println("Failed to load devices cache for readDevice");
+      return false;
+    }
+    // Re-acquire mutex after reload
+    if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(100)) != pdTRUE)
+    {
+      Serial.println("[CONFIG] ERROR: readDevice - mutex timeout after reload");
+      return false;
+    }
   }
 
 #ifdef DEBUG_CONFIG_MANAGER
@@ -378,9 +446,10 @@ bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool 
   Serial.printf("[DEBUG] Device ID length: %d\n", deviceId.length());
 #endif
 
-  if (devicesCache->as<JsonObject>()[deviceId])
+  // Read from SHADOW copy (inside brief mutex lock)
+  if (devicesShadowCache->as<JsonObject>()[deviceId])
   {
-    JsonObject device = (*devicesCache)[deviceId];
+    JsonObject device = (*devicesShadowCache)[deviceId];
     int registerCount = 0;
 
     for (JsonPair kv : device)
@@ -402,15 +471,20 @@ bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool 
     if (minimal)
     {
       result["register_count"] = registerCount;
-      Serial.printf("[CONFIG] Device %s read in MINIMAL mode (register_count=%d)\n",
+      Serial.printf("[CONFIG] Device %s read in MINIMAL mode (register_count=%d) from SHADOW\n",
                     deviceId.c_str(), registerCount);
     }
 
+    // Release mutex ASAP (no file I/O was done!)
+    xSemaphoreGive(cacheMutex);
+
 #ifdef DEBUG_CONFIG_MANAGER
-    Serial.printf("Device %s read from cache\n", deviceId.c_str());
+    Serial.printf("Device %s read from SHADOW cache\n", deviceId.c_str());
 #endif
     return true;
   }
+
+  xSemaphoreGive(cacheMutex);
 
 #ifdef DEBUG_CONFIG_MANAGER
   // Debug: Show all available keys
@@ -466,7 +540,10 @@ bool ConfigManager::updateDevice(const String &deviceId, JsonObjectConst config)
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache))
   {
-    Serial.printf("Device %s updated successfully\n", deviceId.c_str());
+    // SHADOW COPY OPTIMIZATION (v2.3.8): Update shadow copy after successful write
+    updateDevicesShadowCopy();
+
+    Serial.printf("Device %s updated successfully (shadow synced)\n", deviceId.c_str());
     return true;
   }
 
@@ -484,6 +561,9 @@ bool ConfigManager::deleteDevice(const String &deviceId)
     devicesCache->remove(deviceId);
     if (saveJson(DEVICES_FILE, *devicesCache))
     {
+      // SHADOW COPY OPTIMIZATION (v2.3.8): Update shadow copy after successful delete
+      updateDevicesShadowCopy();
+
       // Priority 1: Flush queue data for deleted device to prevent orphaned data
       QueueManager *queueMgr = QueueManager::getInstance();
       if (queueMgr)
@@ -495,6 +575,7 @@ bool ConfigManager::deleteDevice(const String &deviceId)
         }
       }
 
+      Serial.printf("Device %s deleted (shadow synced)\n", deviceId.c_str());
       invalidateDevicesCache();
       return true;
     }
@@ -1114,7 +1195,12 @@ bool ConfigManager::loadDevicesCache()
 
     devicesCacheValid = true;
     lastDevicesCacheTime = millis(); // Update TTL timestamp
-    Serial.printf("[CACHE] Loaded successfully | Devices: %d\n", devices.size());
+
+    // SHADOW COPY OPTIMIZATION (v2.3.8): Update shadow copy for lock-free reads
+    // Shadow copy is updated INSIDE mutex (safe), but reads can access it with minimal locking
+    updateDevicesShadowCopy();
+
+    Serial.printf("[CACHE] Loaded successfully | Devices: %d (shadow copy updated)\n", devices.size());
     logMemoryStats("after loadDevicesCache success"); // Phase 4: Memory tracking
     xSemaphoreGive(cacheMutex);
     return true;
@@ -1490,4 +1576,59 @@ void ConfigManager::clearAllConfigurations()
   invalidateDevicesCache();
   invalidateRegistersCache();
   Serial.println("All configurations cleared");
+}
+
+// ============================================================================
+// SHADOW COPY OPTIMIZATION (v2.3.8)
+// ============================================================================
+
+/**
+ * Update devices shadow copy from primary cache
+ * MUST be called inside cacheMutex lock!
+ * This creates a read-only copy for lock-free runtime reads
+ */
+void ConfigManager::updateDevicesShadowCopy()
+{
+  // CRITICAL: This function MUST be called while holding cacheMutex!
+  // Caller is responsible for mutex management
+
+  if (!devicesShadowCache || !devicesCache)
+  {
+    Serial.println("[CONFIG] ERROR: Shadow cache or primary cache is null");
+    return;
+  }
+
+  // Clear shadow copy
+  devicesShadowCache->clear();
+
+  // Deep copy from primary cache to shadow cache
+  // ArduinoJson v7 provides efficient set() method for deep copy
+  devicesShadowCache->set(*devicesCache);
+
+  Serial.println("[CONFIG] Devices shadow copy updated (lock-free reads enabled)");
+}
+
+/**
+ * Update registers shadow copy from primary cache
+ * MUST be called inside cacheMutex lock!
+ * This creates a read-only copy for lock-free runtime reads
+ */
+void ConfigManager::updateRegistersShadowCopy()
+{
+  // CRITICAL: This function MUST be called while holding cacheMutex!
+  // Caller is responsible for mutex management
+
+  if (!registersShadowCache || !registersCache)
+  {
+    Serial.println("[CONFIG] ERROR: Shadow cache or primary cache is null");
+    return;
+  }
+
+  // Clear shadow copy
+  registersShadowCache->clear();
+
+  // Deep copy from primary cache to shadow cache
+  registersShadowCache->set(*registersCache);
+
+  Serial.println("[CONFIG] Registers shadow copy updated (lock-free reads enabled)");
 }

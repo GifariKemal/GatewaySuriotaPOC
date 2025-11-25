@@ -80,7 +80,7 @@ void ModbusTcpService::start()
   BaseType_t result = xTaskCreatePinnedToCore(
       readTcpDevicesTask,
       "MODBUS_TCP_TASK",
-      8192,
+      10240, // STACK OVERFLOW FIX (v2.3.8): Increased from 8KB to 10KB for very safe operation
       this,
       2,
       &tcpTaskHandle, // Store the task handle
@@ -339,10 +339,10 @@ void ModbusTcpService::readTcpDevicesLoop()
     // FIXED ISSUE #1: Release vector mutex
     xSemaphoreGiveRecursive(vectorMutex);
 
-    // FIXED BUG #14: Periodic cleanup of idle connections
+    // DRAM FIX (v2.3.9): Aggressive cleanup interval (15s instead of 30s)
     static unsigned long lastCleanup = 0;
-    if (millis() - lastCleanup > 30000)
-    { // Cleanup every 30 seconds
+    if (millis() - lastCleanup > 15000)
+    { // Cleanup every 15 seconds (includes DRAM emergency check)
       closeIdleConnections();
       lastCleanup = millis();
     }
@@ -432,7 +432,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     JsonObject reg = regVar.as<JsonObject>();
     uint8_t functionCode = reg["function_code"] | 3;
     uint16_t address = reg["address"] | 0;
-    String registerName = reg["register_name"] | "Unknown";
+    // STRING OPTIMIZATION (v2.3.8): Use const char* instead of String to reduce DRAM fragmentation
+    const char *registerName = reg["register_name"] | "Unknown";
 
     if (functionCode == 1 || functionCode == 2)
     {
@@ -457,12 +458,14 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         }
 
         // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 1/2)
-        String unit = reg["unit"] | "";
+        // STRING OPTIMIZATION (v2.3.8): Use const char* instead of String
+        const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+        // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
+        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -472,18 +475,29 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     else
     {
       // Read registers
-      String dataType = reg["data_type"] | "uint16";
-      dataType.toUpperCase();
+      // STRING OPTIMIZATION (v2.3.8): Use const char* + manual uppercase (like RTU service does)
+      const char *dataType = reg["data_type"] | "UINT16";
+      char dataTypeBuf[32];
+      strncpy(dataTypeBuf, dataType, sizeof(dataTypeBuf) - 1);
+      dataTypeBuf[sizeof(dataTypeBuf) - 1] = '\0';
+
+      // Manual uppercase conversion
+      for (int i = 0; dataTypeBuf[i]; i++)
+      {
+        dataTypeBuf[i] = toupper(dataTypeBuf[i]);
+      }
+
       int registerCount = 1;
-      String baseType = dataType;
-      String endianness_variant = "";
+      const char *baseType = dataTypeBuf;
+      const char *endianness_variant = "";
 
       // Extract baseType and endianness variant
-      int underscoreIndex = dataType.indexOf('_');
-      if (underscoreIndex != -1)
+      char *underscorePos = strchr(dataTypeBuf, '_');
+      if (underscorePos != NULL)
       {
-        baseType = dataType.substring(0, underscoreIndex);
-        endianness_variant = dataType.substring(underscoreIndex + 1);
+        *underscorePos = '\0'; // Split string at underscore
+        baseType = dataTypeBuf;
+        endianness_variant = underscorePos + 1;
       }
 
       // Determine register count based on base type
@@ -499,8 +513,9 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       // FIXED Bug #8: Validate address range doesn't overflow uint16_t address space
       if (address > (65535 - registerCount + 1))
       {
+        // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
         Serial.printf("[TCP] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
-                      registerName.c_str(), address, registerCount, address + registerCount - 1);
+                      registerName, address, registerCount, address + registerCount - 1);
         failedRegisterCount++;
 
         continue; // Skip this register
@@ -510,7 +525,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       // FIXED ISSUE #2: Pass pooled connection to eliminate per-register TCP handshakes
       if (readModbusRegisters(ip, port, slaveId, functionCode, address, registerCount, results, pooledClient))
       {
-        double value = (registerCount == 1) ? ModbusUtils::processRegisterValue(reg, results[0]) : ModbusUtils::processMultiRegisterValue(reg, results, registerCount, baseType.c_str(), endianness_variant.c_str());
+        // STRING OPTIMIZATION (v2.3.8): baseType and endianness_variant already const char*
+        double value = (registerCount == 1) ? ModbusUtils::processRegisterValue(reg, results[0]) : ModbusUtils::processMultiRegisterValue(reg, results, registerCount, baseType, endianness_variant);
 
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
@@ -526,12 +542,14 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         }
 
         // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 3/4)
-        String unit = reg["unit"] | "";
+        // STRING OPTIMIZATION (v2.3.8): Use const char* instead of String
+        const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+        // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
+        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -1259,27 +1277,47 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
       return nullptr;
     }
 
-    // Add to pool if not full
-    if (connectionPool.size() < MAX_POOL_SIZE)
+    // DRAM FIX (v2.3.9): NEVER create temporary connections - always force cleanup oldest!
+    if (connectionPool.size() >= MAX_POOL_SIZE)
     {
-      ConnectionPoolEntry newEntry;
-      newEntry.deviceKey = deviceKey;
-      newEntry.client = client;
-      newEntry.lastUsed = now;
-      newEntry.createdAt = now;
-      newEntry.useCount = 1;
-      newEntry.isHealthy = true;
-      connectionPool.push_back(newEntry);
-
-      Serial.printf("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
-                    deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
-    }
-    else
-    {
-      // Pool full - use this connection but don't add to pool
-      Serial.printf("[TCP] Pool full (%d), using temporary connection to %s\n",
+      // Pool full - FORCE cleanup oldest connection BEFORE adding new one
+      Serial.printf("[TCP] Pool full (%d), force cleanup oldest connection before adding %s\n",
                     MAX_POOL_SIZE, deviceKey.c_str());
+
+      unsigned long oldestTime = now;
+      size_t oldestIdx = 0;
+      for (size_t i = 0; i < connectionPool.size(); i++)
+      {
+        if (connectionPool[i].lastUsed < oldestTime)
+        {
+          oldestTime = connectionPool[i].lastUsed;
+          oldestIdx = i;
+        }
+      }
+
+      // Close and delete oldest connection
+      if (connectionPool[oldestIdx].client)
+      {
+        connectionPool[oldestIdx].client->stop();
+        delete connectionPool[oldestIdx].client;
+        connectionPool[oldestIdx].client = nullptr;
+      }
+      connectionPool.erase(connectionPool.begin() + oldestIdx);
+      Serial.printf("[TCP] Cleaned up oldest connection (freed DRAM)\n");
     }
+
+    // Now add new connection (pool has space)
+    ConnectionPoolEntry newEntry;
+    newEntry.deviceKey = deviceKey;
+    newEntry.client = client;
+    newEntry.lastUsed = now;
+    newEntry.createdAt = now;
+    newEntry.useCount = 1;
+    newEntry.isHealthy = true;
+    connectionPool.push_back(newEntry);
+
+    Serial.printf("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
+                  deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
   }
 
   xSemaphoreGive(poolMutex);
@@ -1397,7 +1435,30 @@ void ModbusTcpService::closeIdleConnections()
     return;
   }
 
-  // Remove idle connections
+  // DRAM FIX (v2.3.9): Aggressive cleanup - check DRAM first!
+  size_t dramFree = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+  bool emergencyMode = (dramFree < 50000); // Emergency if DRAM < 50KB
+
+  if (emergencyMode)
+  {
+    Serial.printf("[TCP] EMERGENCY DRAM CLEANUP! Free DRAM: %d bytes, closing ALL connections\n", dramFree);
+    // Emergency: close ALL connections to free DRAM immediately
+    for (auto &entry : connectionPool)
+    {
+      if (entry.client)
+      {
+        entry.client->stop();
+        delete entry.client;
+        entry.client = nullptr;
+      }
+    }
+    connectionPool.clear();
+    Serial.printf("[TCP] Emergency cleanup: ALL connections closed (pool cleared)\n");
+    xSemaphoreGive(poolMutex);
+    return;
+  }
+
+  // Normal cleanup: Remove idle connections
   for (auto it = connectionPool.begin(); it != connectionPool.end();)
   {
     unsigned long idleTime = now - it->lastUsed;

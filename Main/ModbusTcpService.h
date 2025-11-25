@@ -164,9 +164,9 @@ private:
   // (BLE config change + polling loop + auto-recovery task)
   SemaphoreHandle_t vectorMutex;                                // Protect ALL device vectors (recursive mutex)
 
-  static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 60000; // Close after 60s idle
-  static constexpr uint32_t CONNECTION_MAX_AGE_MS = 300000;     // Recreate after 5min
-  static constexpr uint8_t MAX_POOL_SIZE = 10;                  // Max concurrent connections
+  static constexpr uint32_t CONNECTION_IDLE_TIMEOUT_MS = 30000; // Close after 30s idle (was 60s)
+  static constexpr uint32_t CONNECTION_MAX_AGE_MS = 180000;     // Recreate after 3min (was 5min)
+  static constexpr uint8_t MAX_POOL_SIZE = 3;                   // DRAM FIX (v2.3.9): Reduced from 10 to 3 (ESP32 DRAM limited!)
 
   // Connection pool methods
   TCPClient *getPooledConnection(const String &ip, int port);

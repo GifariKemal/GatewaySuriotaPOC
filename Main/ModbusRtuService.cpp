@@ -97,7 +97,7 @@ void ModbusRtuService::start()
   BaseType_t result = xTaskCreatePinnedToCore(
       readRtuDevicesTask,
       "MODBUS_RTU_TASK",
-      8192,
+      10240, // STACK OVERFLOW FIX (v2.3.8): Increased from 8KB to 10KB for very safe operation
       this,
       2,
       &rtuTaskHandle, // Store the task handle
