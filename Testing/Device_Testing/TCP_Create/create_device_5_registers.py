@@ -187,8 +187,8 @@ class DeviceCreationClient:
                 "slave_id": 1,
                 "timeout": 3000,
                 "retry_count": 3,
-                "refresh_rate_ms": 5000,
-                "ip": "192.168.1.8",
+                "refresh_rate_ms": 1000,
+                "ip": "192.168.1.6",
                 "port": 502
             }
         }
