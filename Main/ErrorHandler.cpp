@@ -205,14 +205,14 @@ ErrorContext ErrorHandler::getHistoryEntry(uint32_t index) const
   return errorHistory[index];
 }
 
-std::deque<ErrorContext> ErrorHandler::getErrorHistory() const
+std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> ErrorHandler::getErrorHistory() const
 {
   return errorHistory;
 }
 
-std::deque<ErrorContext> ErrorHandler::getErrorHistoryByDomain(ErrorDomain domain) const
+std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> ErrorHandler::getErrorHistoryByDomain(ErrorDomain domain) const
 {
-  std::deque<ErrorContext> filtered;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> filtered;
   for (const auto &error : errorHistory)
   {
     if (error.domain == domain)
@@ -223,9 +223,9 @@ std::deque<ErrorContext> ErrorHandler::getErrorHistoryByDomain(ErrorDomain domai
   return filtered;
 }
 
-std::deque<ErrorContext> ErrorHandler::getErrorHistoryBySeverity(ErrorSeverity severity) const
+std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> ErrorHandler::getErrorHistoryBySeverity(ErrorSeverity severity) const
 {
-  std::deque<ErrorContext> filtered;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> filtered;
   for (const auto &error : errorHistory)
   {
     if (error.severity == severity)

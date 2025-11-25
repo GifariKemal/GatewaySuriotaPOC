@@ -5,6 +5,7 @@
 #include <deque>
 #include <functional>
 #include "UnifiedErrorCodes.h"
+#include "PSRAMAllocator.h" // FIXED BUG B: For PSRAM allocator
 
 /*
  * @brief Unified Error Handler - Centralized error management
@@ -33,14 +34,16 @@ private:
   ErrorSeverity minSeverityToLog = SEVERITY_WARNING; // Minimum severity to log
 
   // Error history (circular buffer)
-  std::deque<ErrorContext> errorHistory;
+  // FIXED BUG B: Use PSRAM allocator to save precious DRAM (5-10KB moved to PSRAM)
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> errorHistory;
 
   // Statistics
   ErrorStatistics statistics;
 
   // Callbacks
   typedef std::function<void(const ErrorContext &)> ErrorCallback;
-  std::deque<ErrorCallback> errorCallbacks;
+  // FIXED BUG B: Use PSRAM allocator to save DRAM
+  std::deque<ErrorCallback, STLPSRAMAllocator<ErrorCallback>> errorCallbacks;
 
   // Tracking
   unsigned long lastResetTime = 0;
@@ -89,9 +92,10 @@ public:
   // History access
   uint32_t getHistorySize() const;
   ErrorContext getHistoryEntry(uint32_t index) const; // 0 = newest
-  std::deque<ErrorContext> getErrorHistory() const;
-  std::deque<ErrorContext> getErrorHistoryByDomain(ErrorDomain domain) const;
-  std::deque<ErrorContext> getErrorHistoryBySeverity(ErrorSeverity severity) const;
+  // FIXED BUG B: Return type must match PSRAM allocator
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistory() const;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistoryByDomain(ErrorDomain domain) const;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistoryBySeverity(ErrorSeverity severity) const;
 
   // Statistics
   ErrorStatistics getStatistics() const;

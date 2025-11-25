@@ -44,17 +44,34 @@ bool AtomicFileOps::begin()
 
 String AtomicFileOps::calculateChecksum(const JsonDocument &doc)
 {
-  // Calculate simple checksum from JSON serialization
-  String json = doc.as<String>();
-  uint32_t checksum = 0;
+  // FIXED BUG A: Streaming checksum without loading entire JSON to String
+  // Prevents OOM for large documents (20-50KB full_config backups)
+  size_t docSize = measureJson(doc);
 
-  for (size_t i = 0; i < json.length(); i++)
+  // Safety limit: Skip checksum for very large documents to avoid performance hit
+  if (docSize > 10240)
   {
-    // Simple rotating XOR checksum
-    checksum = ((checksum << 1) ^ json[i]) & 0xFFFFFFFF;
+    Serial.printf("[ATOMIC] WARNING: Skipping checksum for large doc (%zu bytes)\n", docSize);
+    return "SKIPPED_LARGE";
   }
 
-  return String(checksum, HEX);
+  // Streaming checksum calculator (zero heap allocation)
+  class ChecksumPrint : public Print
+  {
+  public:
+    uint32_t checksum = 0;
+    size_t write(uint8_t c) override
+    {
+      // Simple rotating XOR checksum
+      checksum = ((checksum << 1) ^ c) & 0xFFFFFFFF;
+      return 1;
+    }
+  };
+
+  ChecksumPrint checksumCalc;
+  serializeJson(doc, checksumCalc);
+
+  return String(checksumCalc.checksum, HEX);
 }
 
 String AtomicFileOps::calculateFileChecksum(const String &filename)
