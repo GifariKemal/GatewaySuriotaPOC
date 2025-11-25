@@ -20,6 +20,11 @@ private:
   bool running;
   TaskHandle_t rtuTaskHandle;
 
+  // FIXED ISSUE #1: Critical race condition protection for all vectors
+  // Prevents heap corruption when multiple tasks access vectors simultaneously
+  // (BLE config change + polling loop + auto-recovery task)
+  SemaphoreHandle_t vectorMutex; // Protect ALL device vectors (recursive mutex)
+
   // 2-Level Polling Hierarchy (CLEANUP: Removed Level 1 per-register polling)
 
   // Level 1: Device-level timing (device refresh_rate)

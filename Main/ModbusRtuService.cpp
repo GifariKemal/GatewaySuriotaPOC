@@ -37,6 +37,7 @@ bool ModbusRtuService::init()
     return false;
   }
   serial1->begin(9600, SERIAL_8N1, RTU_RX1, RTU_TX1);
+  serial1->setTimeout(200); // FIXED: Reduce default 1000ms timeout to 200ms
   currentBaudRate1 = 9600;
 
   // Initialize Serial2 for Bus 2 (default 9600)
@@ -48,6 +49,7 @@ bool ModbusRtuService::init()
     return false;
   }
   serial2->begin(9600, SERIAL_8N1, RTU_RX2, RTU_TX2);
+  serial2->setTimeout(200); // FIXED: Reduce default 1000ms timeout to 200ms
   currentBaudRate2 = 9600;
 
   // Initialize ModbusMaster instances
@@ -68,6 +70,15 @@ bool ModbusRtuService::init()
     return false;
   }
   modbus2->begin(1, *serial2);
+
+  // FIXED ISSUE #1: Initialize vector mutex for thread safety
+  // Prevents race conditions when BLE + polling + auto-recovery access vectors simultaneously
+  vectorMutex = xSemaphoreCreateRecursiveMutex();
+  if (!vectorMutex)
+  {
+    Serial.println("[RTU] CRITICAL: Failed to create vector mutex!");
+    return false;
+  }
 
   Serial.println("[RTU] Service initialized");
   return true;
@@ -164,6 +175,9 @@ void ModbusRtuService::readRtuDevicesTask(void *parameter)
 
 void ModbusRtuService::refreshDeviceList()
 {
+  // FIXED ISSUE #1: Protect vector operations from race conditions
+  xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+
   Serial.println("[RTU Task] Refreshing device list...");
   rtuDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
 
@@ -202,6 +216,8 @@ void ModbusRtuService::refreshDeviceList()
   initializeDeviceFailureTracking();
   initializeDeviceTimeouts();
   initializeDeviceMetrics();
+
+  xSemaphoreGiveRecursive(vectorMutex);
 }
 
 void ModbusRtuService::readRtuDevicesLoop()
@@ -232,6 +248,9 @@ void ModbusRtuService::readRtuDevicesLoop()
     // Loop runs continuously with SHORT delay, shouldPollDevice() handles per-device timing
     // This allows independent refresh rates without blocking other devices
 
+    // FIXED ISSUE #1: Protect vector iteration with mutex
+    xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+
     for (auto &deviceEntry : rtuDevices)
     {
       if (!running)
@@ -261,6 +280,8 @@ void ModbusRtuService::readRtuDevicesLoop()
         // Device-level timing is updated inside readRtuDeviceData via updateDeviceLastRead()
       }
     }
+
+    xSemaphoreGiveRecursive(vectorMutex);
 
     // FIXED ISSUE #2 (REVISED): Constant short delay (non-blocking approach)
     // Loop runs every 100ms to check if any device is ready
@@ -1087,6 +1108,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
       Serial.printf("[RTU] Reconfiguring Serial1 from %d to %d baud\n", currentBaudRate1, baudRate);
       serial1->end();
       serial1->begin(baudRate, SERIAL_8N1, RTU_RX1, RTU_TX1);
+      serial1->setTimeout(200); // FIXED: Reset timeout after baudrate change
       currentBaudRate1 = baudRate;
 
       // Delay to stabilize serial communication
@@ -1101,6 +1123,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
       Serial.printf("[RTU] Reconfiguring Serial2 from %d to %d baud\n", currentBaudRate2, baudRate);
       serial2->end();
       serial2->begin(baudRate, SERIAL_8N1, RTU_RX2, RTU_TX2);
+      serial2->setTimeout(200); // FIXED: Reset timeout after baudrate change
       currentBaudRate2 = baudRate;
 
       // Delay to stabilize serial communication
@@ -1500,6 +1523,9 @@ void ModbusRtuService::autoRecoveryLoop()
     Serial.println("[RTU AutoRecovery] Checking for auto-disabled devices...");
     unsigned long now = millis();
 
+    // FIXED ISSUE #1: Protect vector access with mutex
+    xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
+
     for (auto &state : deviceFailureStates)
     {
       if (!state.isEnabled &&
@@ -1514,6 +1540,8 @@ void ModbusRtuService::autoRecoveryLoop()
         Serial.printf("[RTU AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
       }
     }
+
+    xSemaphoreGiveRecursive(vectorMutex);
   }
 
   Serial.println("[RTU AutoRecovery] Task stopped");
