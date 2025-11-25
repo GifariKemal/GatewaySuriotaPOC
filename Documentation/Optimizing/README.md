@@ -254,8 +254,8 @@ If you're updating from an older firmware version with basic Serial.println() lo
 
 ---
 
-**Last Updated:** November 21, 2025
-**Current Version:** 2.3.0
-**Optimization Status:** Ongoing
+**Last Updated:** November 25, 2025
+**Current Version:** 2.3.10
+**Optimization Status:** Ongoing (Latest: v2.3.8-2.3.10 - TCP connection pool, DRAM fixes, performance optimization)
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#optimization-documentation)

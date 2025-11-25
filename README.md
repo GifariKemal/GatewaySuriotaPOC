@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-2.3.3-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.10-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
@@ -9,7 +9,7 @@
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
 Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Developer:** Kemal | **Last Updated:** November 22, 2025
+**Developer:** Kemal | **Last Updated:** November 25, 2025
 
 ---
 

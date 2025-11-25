@@ -1,8 +1,8 @@
 # SRT-MGATE-1210 Documentation
 
 **Modbus IIoT Gateway Documentation Hub**
-**Current Version:** 2.3.3
-**Last Updated:** November 22, 2025
+**Current Version:** 2.3.10
+**Last Updated:** November 25, 2025
 
 ---
 

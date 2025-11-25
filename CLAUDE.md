@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.3 | **Last Updated:** November 22, 2025
+**Version:** 2.3.10 | **Last Updated:** November 25, 2025
 
 ---
 
@@ -31,9 +31,17 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 v2.3.0 Features (Nov 21, 2025)
+## 🆕 Latest Updates (v2.3.10 - Nov 25, 2025)
 
-### BLE Enhancements
+### Critical Performance & Stability Fixes
+- **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
+- **v2.3.9:** CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
+- **v2.3.8:** Performance optimization (shadow copy pattern, stack optimization, DRAM fragmentation elimination)
+- **v2.3.4-2.3.7:** BLE transmission timeout fixes, MQTT interval corrections, log formatting enhancements
+
+### v2.3.0 Features (Nov 21, 2025)
+
+#### BLE Enhancements
 - **Backup/Restore:** Complete config export (200KB responses, PSRAM optimized)
 - **Factory Reset:** One-command full device reset with auto-restart
 - **Device Control:** Enable/disable devices via BLE with health metrics
@@ -41,7 +49,7 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 **Documentation:** See `/Documentation/API_Reference/BLE_*.md` files
 
-### Performance Evolution
+#### Performance Evolution
 - **Phase 1:** Two-tier logging (15% size reduction)
 - **Phase 2:** Auto memory recovery with 3-tier thresholds
 - **Phase 3:** RTC timestamps for accurate logging
