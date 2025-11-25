@@ -98,33 +98,10 @@ void *PSRAMValidator::allocatePSRAM(size_t size, const char *component)
     return nullptr;
   }
 
-  // Track allocation if enabled
-  if (enableTracking)
-  {
-    MemoryAllocation alloc;
-    alloc.address = ptr;
-    alloc.size = size;
-    alloc.timestamp = millis();
-    alloc.allocator = component;
-    alloc.isLarge = size > 1024;
-    allocations.push_back(alloc);
-
-    // Update peak tracking
-    if (allocations.size() > peakAllocationCount)
-    {
-      peakAllocationCount = allocations.size();
-    }
-
-    // OPTIMIZED: Only log large allocations (>10KB) or in verbose mode
+  // Tracking removed for performance - minimal logging only
 #if VERBOSE_PSRAM_LOG
-    Serial.printf("[PSRAM] Allocated %zu bytes for %s (tracking enabled)\n", size, component);
-#else
-    if (size > 10240)
-    {
-      Serial.printf("[PSRAM] Allocated %zu bytes for %s\n", size, component);
-    }
+  Serial.printf("[PSRAM] Allocated %zu bytes for %s\n", size, component);
 #endif
-  }
 
   return ptr;
 }
@@ -137,28 +114,7 @@ void PSRAMValidator::freePSRAM(void *ptr, const char *component)
     return;
   }
 
-  // Remove from tracking if enabled
-  if (enableTracking)
-  {
-    for (auto it = allocations.begin(); it != allocations.end(); ++it)
-    {
-      if (it->address == ptr)
-      {
-        // OPTIMIZED: Only log large deallocations (>10KB) or in verbose mode
-#if VERBOSE_PSRAM_LOG
-        Serial.printf("[PSRAM] Freeing %zu bytes from %s\n", it->size, component);
-#else
-        if (it->size > 10240)
-        {
-          Serial.printf("[PSRAM] Freeing %zu bytes from %s\n", it->size, component);
-        }
-#endif
-        allocations.erase(it);
-        break;
-      }
-    }
-  }
-
+  // Tracking removed for performance
   heap_caps_free(ptr);
 }
 
@@ -181,8 +137,8 @@ MemoryStats PSRAMValidator::getMemoryStats()
   stats.psramUtilization = (stats.totalPSRAM > 0) ? (100.0f * stats.usedPSRAM / stats.totalPSRAM) : 0.0f;
   stats.dramUtilization = (totalDRAM > 0) ? (100.0f * stats.usedDRAM / totalDRAM) : 0.0f;
 
-  // Allocation tracking
-  stats.allocationCount = allocations.size();
+  // Allocation tracking removed - always return 0
+  stats.allocationCount = 0;
 
   // Fragmentation and block info
   stats.largestFreeBlock = getLargestFreeBlock();
@@ -346,27 +302,6 @@ void PSRAMValidator::printDetailedStats()
   Serial.printf("  Peak allocations:   %lu\n\n", peakAllocationCount);
 }
 
-void PSRAMValidator::printAllocationReport()
-{
-  if (!enableTracking)
-  {
-    Serial.println("[PSRAM] Allocation tracking is disabled");
-    return;
-  }
-
-  Serial.printf("\n[PSRAM] ALLOCATION REPORT (%lu active)\n", allocations.size());
-
-  for (const auto &alloc : allocations)
-  {
-    Serial.printf("  [%s] %zu bytes @ %p (age: %lums)\n",
-                  alloc.allocator,
-                  alloc.size,
-                  alloc.address,
-                  millis() - alloc.timestamp);
-  }
-  Serial.println();
-}
-
 void PSRAMValidator::printMemoryWarnings()
 {
   MemoryStats stats = getMemoryStats();
@@ -389,26 +324,6 @@ void PSRAMValidator::printMemoryWarnings()
     Serial.printf("[PSRAM]    Largest block: %zu KB, Total free: %zu KB\n",
                   stats.largestFreeBlock / 1024, stats.freePSRAM / 1024);
   }
-}
-
-// Tracking control
-void PSRAMValidator::enableAllocationTracking(bool enable)
-{
-  enableTracking = enable;
-  if (enable)
-  {
-    Serial.println("[PSRAM] Allocation tracking ENABLED");
-  }
-  else
-  {
-    Serial.println("[PSRAM] Allocation tracking DISABLED");
-    allocations.clear();
-  }
-}
-
-bool PSRAMValidator::isAllocationTrackingEnabled() const
-{
-  return enableTracking;
 }
 
 // Peak tracking
@@ -456,6 +371,5 @@ void PSRAMValidator::logMemoryEvent(const char *event, const char *component, si
 
 PSRAMValidator::~PSRAMValidator()
 {
-  allocations.clear();
   Serial.println("[PSRAM] Validator destroyed");
 }

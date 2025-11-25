@@ -66,11 +66,7 @@ private:
   size_t maxAllocationSize = 500 * 1024;    // 500 KB max single allocation
   size_t minFragmentationCheck = 10 * 1024; // Check fragmentation >10KB
 
-  // Allocation tracking (optional, for debugging)
-  std::vector<MemoryAllocation> allocations;
-  bool enableTracking = false;
-
-  // Memory profiling
+  // Memory profiling (tracking removed for performance)
   size_t peakMemoryUsage = 0;
   size_t peakAllocationCount = 0;
   unsigned long lastCheckTime = 0;
@@ -114,12 +110,7 @@ public:
   // Reporting and diagnostics
   void printMemoryStatus();
   void printDetailedStats();
-  void printAllocationReport();
   void printMemoryWarnings();
-
-  // Tracking control
-  void enableAllocationTracking(bool enable);
-  bool isAllocationTrackingEnabled() const;
 
   // Peak tracking
   size_t getPeakMemoryUsage() const;

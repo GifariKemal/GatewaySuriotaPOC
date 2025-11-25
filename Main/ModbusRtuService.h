@@ -136,22 +136,6 @@ private:
   };
   std::vector<DeviceHealthMetrics> deviceMetrics; // Dynamic metrics tracking
 
-  // --- New Scheduler Structures ---
-  struct PollingTask
-  {
-    PSRAMString deviceId; // BUG #31: Use PSRAM instead of DRAM
-    unsigned long nextPollTime;
-
-    // Overload > operator for the priority queue (min-heap)
-    bool operator>(const PollingTask &other) const
-    {
-      return nextPollTime > other.nextPollTime;
-    }
-  };
-
-  std::priority_queue<PollingTask, std::vector<PollingTask>, std::greater<PollingTask>> pollingQueue;
-  // --------------------------------
-
   static const int RTU_RX1 = 15;
   static const int RTU_TX1 = 16;
   static const int RTU_RX2 = 17;

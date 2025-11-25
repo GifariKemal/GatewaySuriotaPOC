@@ -164,12 +164,8 @@ void ModbusRtuService::readRtuDevicesTask(void *parameter)
 
 void ModbusRtuService::refreshDeviceList()
 {
-  Serial.println("[RTU Task] Refreshing device list and schedule...");
+  Serial.println("[RTU Task] Refreshing device list...");
   rtuDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
-
-  // Clear the priority queue
-  std::priority_queue<PollingTask, std::vector<PollingTask>, std::greater<PollingTask>> emptyQueue;
-  pollingQueue.swap(emptyQueue);
 
   JsonDocument devicesIdList;
   JsonArray deviceIds = devicesIdList.to<JsonArray>();
@@ -197,9 +193,6 @@ void ModbusRtuService::refreshDeviceList()
         newDeviceEntry.doc = std::make_unique<JsonDocument>(); // FIXED Bug #2: Use smart pointer
         newDeviceEntry.doc->set(deviceObj);
         rtuDevices.push_back(std::move(newDeviceEntry));
-
-        // Add device to the polling schedule for an immediate first poll
-        pollingQueue.push({deviceId, now});
       }
     }
   }

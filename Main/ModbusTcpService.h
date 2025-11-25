@@ -141,22 +141,6 @@ private:
   };
   std::vector<DeviceHealthMetrics> deviceMetrics;
 
-  // --- New Scheduler Structures ---
-  struct PollingTask
-  {
-    String deviceId;
-    unsigned long nextPollTime;
-
-    // Overload > operator for the priority queue (min-heap)
-    bool operator>(const PollingTask &other) const
-    {
-      return nextPollTime > other.nextPollTime;
-    }
-  };
-
-  std::priority_queue<PollingTask, std::vector<PollingTask>, std::greater<PollingTask>> pollingQueue;
-  // --------------------------------
-
   // Atomic Transaction Counter (Modbus TCP Improvement Phase 2)
   static std::atomic<uint16_t> atomicTransactionCounter;
 
