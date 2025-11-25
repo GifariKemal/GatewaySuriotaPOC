@@ -490,12 +490,7 @@ void CRUDHandler::setupCommandHandlers()
     String deviceId = configManager->createDevice(config);
     if (!deviceId.isEmpty())
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
+      notifyAllServices(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return created device data
       auto response = make_psram_unique<JsonDocument>();
@@ -520,12 +515,7 @@ void CRUDHandler::setupCommandHandlers()
     String registerId = configManager->createRegister(deviceId, config);
     if (!registerId.isEmpty())
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register count affects MQTT timeout
+      notifyAllServices(); // CRITICAL FIX: Register count affects MQTT timeout
 
       // Return created register data
       auto response = make_psram_unique<JsonDocument>();
@@ -565,12 +555,7 @@ void CRUDHandler::setupCommandHandlers()
     JsonObjectConst config = command["config"];
     if (configManager->updateDevice(deviceId, config))
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
+      notifyAllServices(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return updated device data
       auto response = make_psram_unique<JsonDocument>();
@@ -596,12 +581,7 @@ void CRUDHandler::setupCommandHandlers()
     JsonObjectConst config = command["config"];
     if (configManager->updateRegister(deviceId, registerId, config))
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register changes may affect MQTT
+      notifyAllServices(); // CRITICAL FIX: Register changes may affect MQTT
 
       // Return updated register data
       auto response = make_psram_unique<JsonDocument>();
@@ -687,12 +667,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (configManager->deleteDevice(deviceId))
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT to refresh device configs
+      notifyAllServices(); // CRITICAL FIX: Notify MQTT to refresh device configs
 
       // Return deleted device data
       (*response)["status"] = "ok";
@@ -734,12 +709,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (configManager->deleteRegister(deviceId, registerId))
     {
-      if (modbusRtuService)
-        modbusRtuService->notifyConfigChange();
-      if (modbusTcpService)
-        modbusTcpService->notifyConfigChange();
-      if (mqttManager)
-        mqttManager->notifyConfigChange(); // CRITICAL FIX: Register count affects MQTT timeout
+      notifyAllServices(); // CRITICAL FIX: Register count affects MQTT timeout
 
       // Return deleted register data
       (*response)["status"] = "ok";
@@ -1291,18 +1261,7 @@ void CRUDHandler::setupCommandHandlers()
     manager->sendResponse(*response);
 
     // Notify services of config changes
-    if (modbusRtuService)
-    {
-      modbusRtuService->notifyConfigChange();
-    }
-    if (modbusTcpService)
-    {
-      modbusTcpService->notifyConfigChange();
-    }
-    if (mqttManager)
-    {
-      mqttManager->notifyConfigChange(); // CRITICAL FIX: Notify MQTT after config restore
-    }
+    notifyAllServices(); // CRITICAL FIX: Notify MQTT after config restore
   };
 }
 
@@ -1851,6 +1810,20 @@ void CRUDHandler::reportStats(JsonObject &statsObj)
   statsObj["success_rate_percent"] = successRate;
 
   xSemaphoreGive(queueMutex);
+}
+
+// ============================================================================
+// HELPER METHODS
+// ============================================================================
+
+void CRUDHandler::notifyAllServices()
+{
+  if (modbusRtuService)
+    modbusRtuService->notifyConfigChange();
+  if (modbusTcpService)
+    modbusTcpService->notifyConfigChange();
+  if (mqttManager)
+    mqttManager->notifyConfigChange();
 }
 
 // ============================================================================

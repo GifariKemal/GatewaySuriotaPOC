@@ -134,6 +134,9 @@ private:
   // Factory reset helper
   void performFactoryReset();
 
+  // Helper Methods
+  void notifyAllServices(); // Notify all services of config changes
+
   // Priority Queue and Batch Operations
   std::priority_queue<Command, std::vector<Command>, std::greater<Command>> commandQueue;
   SemaphoreHandle_t queueMutex;
