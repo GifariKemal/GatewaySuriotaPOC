@@ -1,6 +1,6 @@
 #include "ModbusTcpService.h"
 #include "QueueManager.h"
-#include "DeviceBatchManager.h" // CRITICAL FIX: Track batch completion
+// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "CRUDHandler.h"
 #include "RTCManager.h"
 #include "NetworkManager.h"
@@ -409,12 +409,9 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   // OPTIMIZED: Get device_name once per device cycle (not per register)
   String deviceName = deviceConfig["device_name"] | "";
 
-  // CRITICAL FIX: Start batch tracking BEFORE reading registers
-  DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
-  if (batchMgr)
-  {
-    batchMgr->startBatch(deviceId, registers.size());
-  }
+  // Track register read results (for End-of-Batch Marker)
+  uint8_t successRegisterCount = 0;
+  uint8_t failedRegisterCount = 0;
 
   // COMPACT LOGGING: Buffer all output for atomic printing (prevent interruption by other tasks)
   String outputBuffer = "";
@@ -456,17 +453,14 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // Track result in batch manager
-        if (batchMgr)
+        // Track result for End-of-Batch Marker
+        if (storeSuccess)
         {
-          if (storeSuccess)
-          {
-            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
-          }
-          else
-          {
-            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
-          }
+          successRegisterCount++;
+        }
+        else
+        {
+          failedRegisterCount++; // Failure: queue full or memory exhausted
         }
 
         // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 1/2)
@@ -476,15 +470,10 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       else
       {
         Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+        failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
         connectionHealthy = false;
-
-        // CRITICAL FIX: Track failed register read
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
       }
     }
     else
@@ -519,12 +508,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       {
         Serial.printf("[TCP] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
                       registerName.c_str(), address, registerCount, address + registerCount - 1);
-
-        // CRITICAL FIX: Track failed register (validation error)
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
+        failedRegisterCount++;
 
         continue; // Skip this register
       }
@@ -538,17 +522,14 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // Track result in batch manager
-        if (batchMgr)
+        // Track result for End-of-Batch Marker
+        if (storeSuccess)
         {
-          if (storeSuccess)
-          {
-            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
-          }
-          else
-          {
-            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
-          }
+          successRegisterCount++;
+        }
+        else
+        {
+          failedRegisterCount++; // Failure: queue full or memory exhausted
         }
 
         // FIXED ISSUE #4: Use helper function to eliminate code duplication (FC 3/4)
@@ -558,15 +539,10 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       else
       {
         Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName.c_str());
+        failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
         connectionHealthy = false;
-
-        // CRITICAL FIX: Track failed register read
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
       }
     }
 
@@ -596,6 +572,30 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     }
     // Print all at once (atomic - prevents interruption by other tasks)
     Serial.print(outputBuffer);
+  }
+
+  // END-OF-BATCH MARKER: Signal to MQTT that device batch is complete
+  // This marker allows MQTT to know when to publish per-device data
+  QueueManager *queueMgr = QueueManager::getInstance();
+  if (queueMgr && registers.size() > 0)
+  {
+    SpiRamJsonDocument markerDoc;
+    JsonObject marker = markerDoc.to<JsonObject>();
+    marker["event"] = "BATCH_END";
+    marker["device_id"] = deviceId;
+    marker["success_count"] = successRegisterCount;
+    marker["failed_count"] = failedRegisterCount;
+    marker["timestamp"] = millis();
+
+    if (queueMgr->enqueue(marker))
+    {
+      LOG_TCP_DEBUG("Batch marker enqueued for device %s (success=%d, failed=%d)\n",
+                    deviceId.c_str(), successRegisterCount, failedRegisterCount);
+    }
+    else
+    {
+      LOG_TCP_WARN("Failed to enqueue batch marker for device %s\n", deviceId.c_str());
+    }
   }
 }
 

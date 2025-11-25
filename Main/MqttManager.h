@@ -144,8 +144,6 @@ private:
       const String &unit,
       uint32_t &displayInterval,
       const char *&displayUnit);
-  void clearBatchesAfterPublish(
-      std::map<String, JsonDocument> &uniqueRegisters);
 
   // v2.3.8 PHASE 2: Helper methods to reduce method complexity
   void loadBrokerConfig(JsonObject &mqttConfig);

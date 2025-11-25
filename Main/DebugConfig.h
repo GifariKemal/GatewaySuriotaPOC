@@ -207,12 +207,6 @@ void printLogLevelStatus();
 #define LOG_BLE_INFO(fmt, ...) LOG_INFO_F("BLE", fmt, ##__VA_ARGS__)
 #define LOG_BLE_DEBUG(fmt, ...) LOG_DEBUG_F("BLE", fmt, ##__VA_ARGS__)
 
-// --- BATCH MANAGER ---
-#define LOG_BATCH_ERROR(fmt, ...) LOG_ERROR_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_WARN(fmt, ...) LOG_WARN_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_INFO(fmt, ...) LOG_INFO_F("BATCH", fmt, ##__VA_ARGS__)
-#define LOG_BATCH_DEBUG(fmt, ...) LOG_DEBUG_F("BATCH", fmt, ##__VA_ARGS__)
-
 // --- CONFIG MANAGER ---
 #define LOG_CONFIG_ERROR(fmt, ...) LOG_ERROR_F("CONFIG", fmt, ##__VA_ARGS__)
 #define LOG_CONFIG_WARN(fmt, ...) LOG_WARN_F("CONFIG", fmt, ##__VA_ARGS__)

@@ -2,7 +2,7 @@
 #include "QueueManager.h"
 #include "CRUDHandler.h"
 #include "RTCManager.h"
-#include "DeviceBatchManager.h"
+// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <byteswap.h>
@@ -343,15 +343,9 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   // Track device attempt time (for retry interval gating)
   updateDeviceLastRead(deviceId);
 
-  // CRITICAL FIX: Start batch tracking BEFORE reading registers
-  DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
-  if (batchMgr)
-  {
-    batchMgr->startBatch(deviceId, registers.size());
-  }
-
-  // Track if any registers succeeded (for failure state reset)
+  // Track register read results (for End-of-Batch Marker)
   bool anyRegisterSucceeded = false;
+  uint8_t successRegisterCount = 0;
   uint8_t failedRegisterCount = 0;
 
   // COMPACT LOGGING: Buffer all output for atomic printing (prevent interruption by other tasks)
@@ -393,17 +387,14 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // Track result in batch manager
-        if (batchMgr)
+        // Track result for End-of-Batch Marker
+        if (storeSuccess)
         {
-          if (storeSuccess)
-          {
-            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
-          }
-          else
-          {
-            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
-          }
+          successRegisterCount++;
+        }
+        else
+        {
+          failedRegisterCount++; // Failure: queue full or memory exhausted
         }
 
         // FIXED ISSUE #3: Use helper function to eliminate duplication
@@ -417,12 +408,6 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       {
         Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
-
-        // CRITICAL FIX: Track failed register read
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
       }
     }
     else if (functionCode == 2)
@@ -435,17 +420,14 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // Track result in batch manager
-        if (batchMgr)
+        // Track result for End-of-Batch Marker
+        if (storeSuccess)
         {
-          if (storeSuccess)
-          {
-            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
-          }
-          else
-          {
-            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
-          }
+          successRegisterCount++;
+        }
+        else
+        {
+          failedRegisterCount++; // Failure: queue full or memory exhausted
         }
 
         // FIXED ISSUE #3: Use helper function to eliminate duplication
@@ -459,12 +441,6 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       {
         Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
-
-        // CRITICAL FIX: Track failed register read
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
       }
     }
     else if (functionCode == 3 || functionCode == 4)
@@ -520,17 +496,14 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // CRITICAL FIX: Check storeRegisterValue() return to detect enqueue failures
         bool storeSuccess = storeRegisterValue(deviceId, reg, value, deviceName);
 
-        // Track result in batch manager
-        if (batchMgr)
+        // Track result for End-of-Batch Marker
+        if (storeSuccess)
         {
-          if (storeSuccess)
-          {
-            batchMgr->incrementEnqueued(deviceId); // Success: data enqueued
-          }
-          else
-          {
-            batchMgr->incrementFailed(deviceId); // Failure: queue full or memory exhausted
-          }
+          successRegisterCount++;
+        }
+        else
+        {
+          failedRegisterCount++; // Failure: queue full or memory exhausted
         }
 
         // FIXED ISSUE #3: Use helper function to eliminate duplication
@@ -544,12 +517,6 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       {
         Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
-
-        // CRITICAL FIX: Track failed register read
-        if (batchMgr)
-        {
-          batchMgr->incrementFailed(deviceId);
-        }
       }
     }
 
@@ -608,6 +575,30 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     // All registers failed - handle read failure
     LOG_RTU_ERROR("Device %s: All %d register reads failed\n", deviceId, failedRegisterCount);
     handleReadFailure(deviceId);
+  }
+
+  // END-OF-BATCH MARKER: Signal to MQTT that device batch is complete
+  // This marker allows MQTT to know when to publish per-device data
+  QueueManager *queueMgr = QueueManager::getInstance();
+  if (queueMgr && registers.size() > 0)
+  {
+    SpiRamJsonDocument markerDoc;
+    JsonObject marker = markerDoc.to<JsonObject>();
+    marker["event"] = "BATCH_END";
+    marker["device_id"] = deviceId;
+    marker["success_count"] = successRegisterCount;
+    marker["failed_count"] = failedRegisterCount;
+    marker["timestamp"] = millis();
+
+    if (queueMgr->enqueue(marker))
+    {
+      LOG_RTU_DEBUG("Batch marker enqueued for device %s (success=%d, failed=%d)\n",
+                    deviceId, successRegisterCount, failedRegisterCount);
+    }
+    else
+    {
+      LOG_RTU_WARN("Failed to enqueue batch marker for device %s\n", deviceId);
+    }
   }
 }
 

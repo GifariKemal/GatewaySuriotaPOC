@@ -1,7 +1,7 @@
 #include "MqttManager.h"
 #include "LEDManager.h"
 #include "RTCManager.h"
-#include "DeviceBatchManager.h" // CRITICAL FIX: Wait for batch completion
+// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <set> // For std::set to track cleared devices
@@ -772,30 +772,7 @@ void MqttManager::calculateDisplayInterval(
   }
 }
 
-/**
- * Helper 6: Clear device batches after successful publish
- * @param uniqueRegisters Map of published registers
- */
-void MqttManager::clearBatchesAfterPublish(
-    std::map<String, JsonDocument> &uniqueRegisters)
-{
-  DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
-  if (batchMgr)
-  {
-    // Track cleared devices to avoid duplicate clears
-    std::set<String> clearedDevices;
-    for (auto &entry : uniqueRegisters)
-    {
-      JsonObject dataPoint = entry.second.as<JsonObject>();
-      String deviceId = dataPoint["device_id"].as<String>();
-      if (!deviceId.isEmpty() && clearedDevices.find(deviceId) == clearedDevices.end())
-      {
-        batchMgr->clearBatch(deviceId);
-        clearedDevices.insert(deviceId);
-      }
-    }
-  }
-}
+// clearBatchesAfterPublish() removed - no longer needed with End-of-Batch Marker pattern
 
 // ============================================================================
 // END OF PHASE 1 HELPER METHODS
@@ -1121,28 +1098,9 @@ void MqttManager::publishQueueData()
   }
 #endif
 
-  // Step 3: Wait for device batch completion with SHORT TIMEOUT
-  DeviceBatchManager *batchMgr = DeviceBatchManager::getInstance();
-
-  // OPTIMIZATION: Skip batch waiting if no devices configured
-  if (batchMgr && !batchMgr->hasAnyBatches())
-  {
-    QueueManager *queueMgr = QueueManager::getInstance();
-    if (queueMgr && !queueMgr->isEmpty())
-    {
-      // v2.3.8 PHASE 1: Moved from static to instance member for thread safety
-      if (!publishState.flushedOnce)
-      {
-        Serial.println("[MQTT] No devices configured - clearing old persisted queue data");
-        publishState.flushedOnce = true;
-      }
-    }
-    publishState.timeLocked = false; // Reset for next interval
-    xSemaphoreGive(publishStateMutex);
-    return;
-  }
-
-  // Check if queue is empty
+  // Step 3: Check if queue is empty
+  // NOTE: Batch waiting logic removed - End-of-Batch Marker pattern handles
+  // device completion signaling directly through queue markers
   QueueManager *queueMgr = QueueManager::getInstance();
   if (queueMgr && queueMgr->isEmpty())
   {
@@ -1150,54 +1108,6 @@ void MqttManager::publishQueueData()
     publishState.timeLocked = false; // Reset for next interval
     xSemaphoreGive(publishStateMutex);
     return;
-  }
-
-  // v2.3.7 IMPROVED: ADAPTIVE batch timeout based on device configuration
-  // - Fast devices (few registers): 1s timeout
-  // - Medium devices (10-50 registers): max_refresh_rate + 1s
-  // - Slow devices (>50 registers or slow RTU): max_refresh_rate + 2s
-  // Interval timer already updated above, so this won't affect next publish timing
-  // v2.3.8 PHASE 1: Moved from static to instance members for thread safety
-
-  // OPTIONAL FIX: Set batch timeout to 0 to SKIP WAITING (prioritize timing over completeness)
-  // Uncomment line below to enable instant publish (no batch waiting)
-  // publishState.batchTimeout = 0;  // INSTANT MODE: Publish immediately when interval elapsed
-
-  // Calculate adaptive timeout once (cache it)
-  if (publishState.batchTimeout == 0)
-  {
-    publishState.batchTimeout = calculateAdaptiveBatchTimeout();
-  }
-
-  if (batchMgr && !batchMgr->hasCompleteBatch())
-  {
-    // Start timer on first wait
-    if (publishState.batchWaitStart == 0)
-    {
-      publishState.batchWaitStart = millis();
-    }
-
-    // Check adaptive timeout
-    unsigned long elapsed = millis() - publishState.batchWaitStart;
-    if (elapsed > publishState.batchTimeout)
-    {
-      Serial.printf("[MQTT] Batch wait timeout (%lums/%lums) - publishing available data for consistent interval\n",
-                    elapsed, publishState.batchTimeout);
-      publishState.batchWaitStart = 0; // Reset timer
-      // Continue to publish whatever is in queue (don't return)
-    }
-    else
-    {
-      // Still waiting for batch - but don't log spam (removed throttle logging)
-      // Timestamp already updated, so next interval will be consistent
-      xSemaphoreGive(publishStateMutex);
-      return; // Wait for batch completion
-    }
-  }
-  else
-  {
-    // Batch complete or no batches - reset timer
-    publishState.batchWaitStart = 0;
   }
 
   // v2.3.7 FIX: Lock timestamp NOW (right before publish)
@@ -1340,8 +1250,7 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
                   totalRegisters, deviceObjects.size(), defaultTopicPublish.c_str(),
                   payload.length() / 1024.0, displayInterval, displayUnit);
 
-    // Helper 6: Clear device batches after successful publish
-    clearBatchesAfterPublish(uniqueRegisters);
+    // Batch clearing no longer needed - End-of-Batch Marker pattern handles this automatically
 
     if (ledManager)
     {
@@ -1427,8 +1336,7 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
                       payload.length() / 1024.0, displayInterval, displayUnit);
 
-        // Helper 6: Clear device batches after successful publish
-        clearBatchesAfterPublish(uniqueRegisters);
+        // Batch clearing no longer needed - End-of-Batch Marker pattern handles this automatically
 
         if (ledManager)
         {
