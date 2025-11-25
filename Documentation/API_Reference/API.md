@@ -5,15 +5,19 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.3.3 (November 22, 2025)
+**Version:** 2.3.10 (November 25, 2025)
 **Developer:** Kemal
-**Last Updated:** November 22, 2025
+**Last Updated:** November 25, 2025
 
-> **What's New in v2.3.3:**
-> - ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads (3420+ bytes)
+> **What's New in v2.3.10:**
+> - ✅ **TCP Pool Optimization** - 180x reduction in connection recreations, 99% connection reuse
+> - ✅ **CRITICAL DRAM Fix (v2.3.9)** - Fixed TCP memory leak causing ESP32 restarts
+> - ✅ **Performance Optimization (v2.3.8)** - Shadow copy pattern, stack optimization
+> - ✅ **BLE Transmission Fix (v2.3.4)** - Fixed timeout for large payloads
+>
+> **Previous (v2.3.3):**
+> - ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads
 > - ✅ **Register Index Fix** - Fixed register_index stuck at 0 during device creation
-> - ✅ **Device ID Preservation** - Device IDs now properly preserved during restore operations
-> - All backup/restore operations now fully stable (100% success rate)
 >
 > **Previous (v2.3.0):**
 > - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
@@ -1901,8 +1905,8 @@ class SuriotaGateway {
 ---
 
 **Document Version:** 1.3 (Updated)
-**Last Updated:** November 22, 2025
-**Firmware Version:** 2.3.3
+**Last Updated:** November 25, 2025
+**Firmware Version:** 2.3.10
 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)

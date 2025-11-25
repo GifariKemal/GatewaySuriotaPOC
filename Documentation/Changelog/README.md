@@ -26,9 +26,15 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Version History
 
-### Current Version: 2.3.3 (November 22, 2025)
+### Current Version: 2.3.10 (November 25, 2025)
 
-**Latest Bug Fix (v2.3.3):**
+**Latest Performance & Stability Updates (v2.3.8-v2.3.10):**
+- v2.3.10: TCP connection pool optimization (180x reduction in recreations, 99% reuse)
+- v2.3.9: CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
+- v2.3.8: Performance optimization (shadow copy, stack optimization, DRAM defragmentation)
+- v2.3.4-v2.3.7: BLE transmission timeout fixes, MQTT interval corrections, log enhancements
+
+**Previous Bug Fixes (v2.3.3):**
 - Fixed BUG #32: Restore config failure for large JSON payloads (3420+ bytes)
 - Fixed register_index stuck at 0 during device creation with registers
 - Fixed device ID not preserved during restore operations
@@ -268,8 +274,8 @@ Found a bug or have a feature request?
 
 ---
 
-**Last Updated:** November 22, 2025
-**Current Version:** 2.3.3
+**Last Updated:** November 25, 2025
+**Current Version:** 2.3.10
 **Next Release:** TBA
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#changelog)
