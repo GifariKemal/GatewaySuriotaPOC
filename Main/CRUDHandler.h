@@ -25,6 +25,7 @@ namespace CRUDConfig
 class BLEManager;
 class MqttManager;
 class HttpManager;
+class OTAManager;
 
 // Command Priority Levels
 enum class CommandPriority : uint8_t
@@ -115,6 +116,7 @@ private:
   HttpManager *httpManager;           // For notifying data interval updates
   ModbusRtuService *modbusRtuService; // NEW: For device control commands
   ModbusTcpService *modbusTcpService; // NEW: For device control commands
+  OTAManager *otaManager;             // For OTA update commands via BLE
   String streamDeviceId;
 
   // Define a type for our command handler functions
@@ -127,6 +129,7 @@ private:
   std::map<String, CommandHandler> deleteHandlers;
   std::map<String, CommandHandler> controlHandlers; // NEW: Device control operations
   std::map<String, CommandHandler> systemHandlers;  // NEW: System operations (factory reset, etc.)
+  std::map<String, CommandHandler> otaHandlers;     // OTA update operations (check, update, status)
 
   // Private method to populate the handler maps
   void setupCommandHandlers();
@@ -185,6 +188,12 @@ public:
   void setModbusTcpService(ModbusTcpService *tcp)
   {
     modbusTcpService = tcp;
+  }
+
+  // OTA Manager reference for OTA commands via BLE
+  void setOTAManager(OTAManager *ota)
+  {
+    otaManager = ota;
   }
 
   String getStreamDeviceId() const

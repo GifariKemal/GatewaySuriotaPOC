@@ -8,7 +8,163 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.3.18 (Current - Adaptive MQTT Retain Flag)
+## 🚀 Version 2.4.0 (Current - OTA Update System)
+
+**Release Date:** November 26, 2025 (Tuesday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🆕 NEW FEATURE: Over-The-Air (OTA) Firmware Update System
+
+**Type:** Major Feature Release
+
+This release adds a comprehensive OTA firmware update system supporting both HTTPS and BLE update transports.
+
+---
+
+### ✨ **Key Features**
+
+#### 1. Dual Update Transports
+- **HTTPS OTA:** Download firmware from GitHub (public/private repos) via WiFi or Ethernet
+- **BLE OTA:** Transfer firmware directly via smartphone app without network connectivity
+
+#### 2. Security Features
+- **ECDSA P-256 Signature Verification:** Cryptographic validation of firmware authenticity
+- **SHA-256 Checksum:** Data integrity verification during transfer
+- **Anti-Rollback Protection:** Version comparison prevents downgrade attacks
+- **TLS 1.2+:** Secure HTTPS connections with GitHub root CA pinning
+
+#### 3. State Machine
+```
+IDLE → CHECKING → DOWNLOADING → VALIDATING → APPLYING → REBOOTING
+                                    ↓
+                                  ERROR (with auto-recovery)
+```
+
+#### 4. Automatic Rollback
+- Boot validation counter (3 consecutive failures triggers rollback)
+- Rollback to previous firmware version
+- Factory firmware fallback option
+
+---
+
+### 📱 **BLE CRUD Commands (via App)**
+
+The OTA system is controlled via BLE CRUD commands, allowing the mobile app to:
+
+| Command | Operation | Description |
+|---------|-----------|-------------|
+| `{"op":"ota","type":"check_update"}` | Check for updates | Query GitHub for new firmware |
+| `{"op":"ota","type":"start_update"}` | Start HTTPS update | Download via WiFi/Ethernet |
+| `{"op":"ota","type":"ota_status"}` | Get progress | Monitor download/validation progress |
+| `{"op":"ota","type":"abort_update"}` | Abort update | Cancel ongoing update |
+| `{"op":"ota","type":"apply_update"}` | Apply & reboot | Install downloaded firmware |
+| `{"op":"ota","type":"enable_ble_ota"}` | Enable BLE OTA | Start BLE firmware transfer mode |
+| `{"op":"ota","type":"disable_ble_ota"}` | Disable BLE OTA | Exit BLE transfer mode |
+| `{"op":"ota","type":"rollback"}` | Rollback firmware | Revert to previous/factory |
+| `{"op":"ota","type":"get_config"}` | Get OTA config | View GitHub repo settings |
+| `{"op":"ota","type":"set_github_repo"}` | Set GitHub repo | Configure firmware source |
+| `{"op":"ota","type":"set_github_token"}` | Set GitHub token | For private repo access |
+
+---
+
+### 🔧 **GitHub Integration**
+
+**Manifest File (firmware_manifest.json):**
+```json
+{
+  "version": "2.4.0",
+  "build_number": 2400,
+  "release_date": "2025-11-26",
+  "min_version": "2.3.0",
+  "firmware_file": "firmware.bin",
+  "size": 1572864,
+  "sha256": "abc123...",
+  "signature": "MEUCIQDk...",
+  "release_notes": "OTA Update System"
+}
+```
+
+**Supported Sources:**
+- GitHub Releases (recommended for production)
+- GitHub raw files from any branch
+- Custom HTTPS URLs
+
+---
+
+### 📡 **BLE OTA Protocol**
+
+| Command | Code | Description |
+|---------|------|-------------|
+| OTA_START | 0x50 | Initialize with size/checksum |
+| OTA_DATA | 0x51 | Send 244-byte chunks |
+| OTA_VERIFY | 0x52 | Verify complete firmware |
+| OTA_APPLY | 0x53 | Apply and reboot |
+| OTA_ABORT | 0x54 | Cancel transfer |
+| OTA_STATUS | 0x55 | Get progress |
+
+**BLE OTA Service UUID:** `0000FF00-0000-1000-8000-00805F9B34FB`
+
+---
+
+### 📁 **Files Added**
+
+| File | Description |
+|------|-------------|
+| `OTAConfig.h` | Configuration constants, partition layout, UUIDs |
+| `OTAValidator.h/cpp` | ECDSA P-256 signature + SHA-256 verification |
+| `OTAHttps.h/cpp` | GitHub manifest fetch + firmware download |
+| `OTABle.h/cpp` | BLE OTA transport (244-byte chunks) |
+| `OTAManager.h/cpp` | Main state machine controller |
+
+### 📁 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `Main.ino` | Added OTA Manager initialization and process loop |
+| `CRUDHandler.h` | Added OTA handler map and setOTAManager() |
+| `CRUDHandler.cpp` | Added 11 OTA command handlers |
+
+---
+
+### 💾 **Flash Partition Layout (16MB)**
+
+| Partition | Size | Description |
+|-----------|------|-------------|
+| nvs | 20KB | Non-volatile storage |
+| otadata | 8KB | OTA boot selection |
+| app0 (factory) | 4MB | Factory firmware |
+| app1 (ota_0) | 4MB | OTA slot 1 |
+| app2 (ota_1) | 4MB | OTA slot 2 |
+| spiffs | ~3.9MB | LittleFS config storage |
+
+---
+
+### 📊 **Memory Impact**
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Flash Usage | ~1.8MB | ~2.0MB | +200KB |
+| PSRAM Usage | Base | +16KB buffer | Temporary during OTA |
+| DRAM Usage | Base | +2KB | OTA state machine |
+
+---
+
+### 🧪 **Testing Checklist**
+
+- [ ] `check_update` returns correct version comparison
+- [ ] `start_update` downloads firmware from GitHub
+- [ ] Progress updates via `ota_status` command
+- [ ] `abort_update` cancels ongoing download
+- [ ] `apply_update` installs and reboots
+- [ ] `enable_ble_ota` activates BLE transfer service
+- [ ] BLE firmware transfer completes successfully
+- [ ] Rollback works after simulated boot failure
+- [ ] Private repo access with GitHub token
+
+---
+
+## 🚀 Version 2.3.18 (Adaptive MQTT Retain Flag)
 
 **Release Date:** November 26, 2025 (Tuesday)
 **Developer:** Kemal (with Claude Code)

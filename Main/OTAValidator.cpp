@@ -1,0 +1,604 @@
+/**
+ * @file OTAValidator.cpp
+ * @brief OTA Firmware Validation Implementation
+ * @version 1.0.0
+ * @date 2025-11-26
+ */
+
+#include "DebugConfig.h"  // MUST BE FIRST
+#include "OTAValidator.h"
+#include <LittleFS.h>
+#include <esp_heap_caps.h>
+
+// Singleton instance
+OTAValidator* OTAValidator::instance = nullptr;
+
+// ============================================
+// EMBEDDED PUBLIC KEY (Placeholder)
+// ============================================
+// Replace with actual Suriota public key for production
+// This is a sample ECDSA P-256 public key in PEM format
+static const char* DEFAULT_PUBLIC_KEY_PEM = R"(
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEexamplePublicKeyHere
+-----END PUBLIC KEY-----
+)";
+
+// ============================================
+// CONSTRUCTOR / DESTRUCTOR
+// ============================================
+
+OTAValidator::OTAValidator() :
+    publicKeyLoaded(false),
+    hashInitialized(false),
+    bytesHashed(0),
+    currentMajor(0),
+    currentMinor(0),
+    currentPatch(0),
+    currentBuildNumber(0)
+{
+    validatorMutex = xSemaphoreCreateMutex();
+    memset(computedHash, 0, sizeof(computedHash));
+}
+
+OTAValidator::~OTAValidator() {
+    stop();
+    if (validatorMutex) {
+        vSemaphoreDelete(validatorMutex);
+        validatorMutex = nullptr;
+    }
+}
+
+// ============================================
+// SINGLETON
+// ============================================
+
+OTAValidator* OTAValidator::getInstance() {
+    if (!instance) {
+        // Allocate in PSRAM if available
+        void* ptr = heap_caps_malloc(sizeof(OTAValidator), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ptr) {
+            instance = new (ptr) OTAValidator();
+        } else {
+            instance = new OTAValidator();
+        }
+    }
+    return instance;
+}
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+bool OTAValidator::begin() {
+    if (!initializeCrypto()) {
+        LOG_OTA_ERROR("Failed to initialize crypto\n");
+        return false;
+    }
+
+    // Try to load public key from file first
+    if (!loadPublicKeyFile(OTA_PUBLIC_KEY_FILE)) {
+        LOG_OTA_WARN("Public key file not found, using embedded key\n");
+        // Use embedded key as fallback
+        if (!loadPublicKey(DEFAULT_PUBLIC_KEY_PEM)) {
+            LOG_OTA_WARN("No valid public key loaded - signature verification disabled\n");
+        }
+    }
+
+    // Get current firmware version from Main.ino
+    // This will be set by OTAManager during initialization
+
+    LOG_OTA_INFO("OTA Validator initialized\n");
+    return true;
+}
+
+void OTAValidator::stop() {
+    cleanupCrypto();
+    publicKeyLoaded = false;
+    hashInitialized = false;
+}
+
+bool OTAValidator::initializeCrypto() {
+    // Initialize mbedTLS contexts
+    mbedtls_pk_init(&pkContext);
+    mbedtls_sha256_init(&sha256Context);
+    mbedtls_entropy_init(&entropyContext);
+    mbedtls_ctr_drbg_init(&ctrDrbgContext);
+
+    // Seed the random number generator
+    const char* pers = "ota_validator";
+    int ret = mbedtls_ctr_drbg_seed(&ctrDrbgContext, mbedtls_entropy_func,
+                                     &entropyContext, (const unsigned char*)pers,
+                                     strlen(pers));
+    if (ret != 0) {
+        char errBuf[128];
+        mbedtls_strerror(ret, errBuf, sizeof(errBuf));
+        LOG_OTA_ERROR("RNG seed failed: %s\n", errBuf);
+        return false;
+    }
+
+    return true;
+}
+
+void OTAValidator::cleanupCrypto() {
+    mbedtls_pk_free(&pkContext);
+    mbedtls_sha256_free(&sha256Context);
+    mbedtls_entropy_free(&entropyContext);
+    mbedtls_ctr_drbg_free(&ctrDrbgContext);
+}
+
+// ============================================
+// PUBLIC KEY MANAGEMENT
+// ============================================
+
+int OTAValidator::loadPublicKeyFromPEM(const char* pemKey, size_t keyLen) {
+    // Free any existing key
+    mbedtls_pk_free(&pkContext);
+    mbedtls_pk_init(&pkContext);
+
+    // Parse the PEM key (mbedtls needs null-terminated string)
+    int ret = mbedtls_pk_parse_public_key(&pkContext,
+                                           (const unsigned char*)pemKey,
+                                           keyLen + 1);  // +1 for null terminator
+    return ret;
+}
+
+int OTAValidator::loadPublicKeyFromFile(const char* filePath) {
+    if (!LittleFS.exists(filePath)) {
+        return -1;
+    }
+
+    File f = LittleFS.open(filePath, "r");
+    if (!f) {
+        return -1;
+    }
+
+    size_t fileSize = f.size();
+    if (fileSize > 1024) {  // Public key shouldn't be larger than 1KB
+        f.close();
+        return -1;
+    }
+
+    // Allocate buffer (PSRAM preferred)
+    char* buffer = (char*)heap_caps_malloc(fileSize + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!buffer) {
+        buffer = (char*)malloc(fileSize + 1);
+    }
+    if (!buffer) {
+        f.close();
+        return -1;
+    }
+
+    size_t bytesRead = f.readBytes(buffer, fileSize);
+    f.close();
+    buffer[bytesRead] = '\0';
+
+    int ret = loadPublicKeyFromPEM(buffer, bytesRead);
+    free(buffer);
+
+    return ret;
+}
+
+bool OTAValidator::loadPublicKey(const char* pemKey) {
+    if (!pemKey) return false;
+
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    int ret = loadPublicKeyFromPEM(pemKey, strlen(pemKey));
+    if (ret != 0) {
+        char errBuf[128];
+        mbedtls_strerror(ret, errBuf, sizeof(errBuf));
+        LOG_OTA_ERROR("Public key parse failed: %s\n", errBuf);
+        publicKeyLoaded = false;
+    } else {
+        // Verify it's an ECDSA key
+        if (mbedtls_pk_get_type(&pkContext) != MBEDTLS_PK_ECKEY) {
+            LOG_OTA_ERROR("Key is not ECDSA type\n");
+            publicKeyLoaded = false;
+        } else {
+            publicKeyLoaded = true;
+            LOG_OTA_INFO("Public key loaded successfully\n");
+        }
+    }
+
+    xSemaphoreGive(validatorMutex);
+    return publicKeyLoaded;
+}
+
+bool OTAValidator::loadPublicKeyFile(const char* filePath) {
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    int ret = loadPublicKeyFromFile(filePath);
+    if (ret != 0) {
+        publicKeyLoaded = false;
+    } else {
+        if (mbedtls_pk_get_type(&pkContext) != MBEDTLS_PK_ECKEY) {
+            publicKeyLoaded = false;
+        } else {
+            publicKeyLoaded = true;
+            LOG_OTA_INFO("Public key loaded from file: %s\n", filePath);
+        }
+    }
+
+    xSemaphoreGive(validatorMutex);
+    return publicKeyLoaded;
+}
+
+// ============================================
+// SIGNATURE VERIFICATION
+// ============================================
+
+bool OTAValidator::verifySignature(const uint8_t* data, size_t dataLen,
+                                   const uint8_t* signature, size_t sigLen) {
+    if (!data || !signature || dataLen == 0 || sigLen == 0) {
+        return false;
+    }
+
+    // Compute SHA-256 hash of data
+    uint8_t hash[OTA_HASH_SIZE];
+    computeHash(data, dataLen, hash);
+
+    return verifySignatureHash(hash, signature, sigLen);
+}
+
+bool OTAValidator::verifySignatureHash(const uint8_t* hash,
+                                       const uint8_t* signature, size_t sigLen) {
+    if (!publicKeyLoaded) {
+        LOG_OTA_ERROR("No public key loaded for verification\n");
+        return false;
+    }
+
+    if (!hash || !signature || sigLen == 0) {
+        return false;
+    }
+
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    // For ECDSA P-256, signature should be 64 bytes (raw r || s format)
+    // or ASN.1 DER encoded (variable length, typically 70-72 bytes)
+
+    int ret;
+
+    if (sigLen == OTA_SIGNATURE_SIZE) {
+        // Raw format (r || s) - need to convert to ASN.1 for mbedtls
+        // mbedtls_pk_verify expects ASN.1 format
+        // For simplicity, we'll use the ECDSA context directly
+
+        mbedtls_ecdsa_context* ecdsa = mbedtls_pk_ec(pkContext);
+        if (!ecdsa) {
+            xSemaphoreGive(validatorMutex);
+            return false;
+        }
+
+        // Import r and s values
+        mbedtls_mpi r, s;
+        mbedtls_mpi_init(&r);
+        mbedtls_mpi_init(&s);
+
+        ret = mbedtls_mpi_read_binary(&r, signature, 32);
+        if (ret == 0) {
+            ret = mbedtls_mpi_read_binary(&s, signature + 32, 32);
+        }
+
+        if (ret == 0) {
+            ret = mbedtls_ecdsa_verify(&ecdsa->grp, hash, OTA_HASH_SIZE,
+                                       &ecdsa->Q, &r, &s);
+        }
+
+        mbedtls_mpi_free(&r);
+        mbedtls_mpi_free(&s);
+    } else {
+        // ASN.1 DER format - use pk_verify directly
+        ret = mbedtls_pk_verify(&pkContext, MBEDTLS_MD_SHA256,
+                                hash, OTA_HASH_SIZE,
+                                signature, sigLen);
+    }
+
+    xSemaphoreGive(validatorMutex);
+
+    if (ret != 0) {
+        char errBuf[128];
+        mbedtls_strerror(ret, errBuf, sizeof(errBuf));
+        LOG_OTA_ERROR("Signature verification failed: %s\n", errBuf);
+        return false;
+    }
+
+    LOG_OTA_INFO("Signature verified successfully\n");
+    return true;
+}
+
+// ============================================
+// CHECKSUM (SHA-256) COMPUTATION
+// ============================================
+
+void OTAValidator::hashBegin() {
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    mbedtls_sha256_free(&sha256Context);
+    mbedtls_sha256_init(&sha256Context);
+    mbedtls_sha256_starts(&sha256Context, 0);  // 0 = SHA-256 (not SHA-224)
+
+    bytesHashed = 0;
+    hashInitialized = true;
+
+    xSemaphoreGive(validatorMutex);
+}
+
+void OTAValidator::hashUpdate(const uint8_t* data, size_t len) {
+    if (!hashInitialized || !data || len == 0) return;
+
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    mbedtls_sha256_update(&sha256Context, data, len);
+    bytesHashed += len;
+
+    xSemaphoreGive(validatorMutex);
+}
+
+void OTAValidator::hashFinalize(uint8_t* hashOut) {
+    if (!hashInitialized || !hashOut) return;
+
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+
+    mbedtls_sha256_finish(&sha256Context, hashOut);
+    memcpy(computedHash, hashOut, OTA_HASH_SIZE);
+    hashInitialized = false;
+
+    xSemaphoreGive(validatorMutex);
+}
+
+void OTAValidator::computeHash(const uint8_t* data, size_t len, uint8_t* hashOut) {
+    if (!data || len == 0 || !hashOut) return;
+
+    // Use mbedtls one-shot function
+    mbedtls_sha256(data, len, hashOut, 0);  // 0 = SHA-256
+}
+
+bool OTAValidator::compareHash(const uint8_t* hash, const uint8_t* expected) {
+    if (!hash || !expected) return false;
+    return memcmp(hash, expected, OTA_HASH_SIZE) == 0;
+}
+
+void OTAValidator::hashToHex(const uint8_t* hash, char* hexOut) {
+    if (!hash || !hexOut) return;
+
+    for (int i = 0; i < OTA_HASH_SIZE; i++) {
+        sprintf(hexOut + (i * 2), "%02x", hash[i]);
+    }
+    hexOut[OTA_HASH_SIZE * 2] = '\0';
+}
+
+bool OTAValidator::hexToHash(const char* hex, uint8_t* hashOut) {
+    if (!hex || !hashOut || strlen(hex) != OTA_HASH_SIZE * 2) {
+        return false;
+    }
+
+    for (int i = 0; i < OTA_HASH_SIZE; i++) {
+        unsigned int byte;
+        if (sscanf(hex + (i * 2), "%02x", &byte) != 1) {
+            return false;
+        }
+        hashOut[i] = (uint8_t)byte;
+    }
+
+    return true;
+}
+
+// ============================================
+// FIRMWARE HEADER VALIDATION
+// ============================================
+
+bool OTAValidator::validateHeader(const OTAFirmwareHeader* header, ValidationResult& result) {
+    if (!header) {
+        result.valid = false;
+        result.error = OTAError::INVALID_FIRMWARE;
+        result.message = "Null header";
+        return false;
+    }
+
+    // Check magic
+    if (!isValidFirmwareMagic(header->magic)) {
+        result.valid = false;
+        result.error = OTAError::INVALID_FIRMWARE;
+        result.message = "Invalid firmware magic";
+        LOG_OTA_ERROR("Invalid magic: %c%c%c%c\n",
+                     header->magic[0], header->magic[1],
+                     header->magic[2], header->magic[3]);
+        return false;
+    }
+
+    // Check firmware size
+    if (header->firmwareSize == 0 || header->firmwareSize > OTA_MAX_FIRMWARE_SIZE) {
+        result.valid = false;
+        result.error = OTAError::NOT_ENOUGH_SPACE;
+        result.message = "Invalid firmware size";
+        LOG_OTA_ERROR("Invalid size: %u\n", header->firmwareSize);
+        return false;
+    }
+
+    // Extract version info
+    result.majorVersion = header->majorVersion;
+    result.minorVersion = header->minorVersion;
+    result.patchVersion = header->patchVersion;
+    result.buildNumber = header->buildNumber;
+    result.firmwareSize = header->firmwareSize;
+
+    // Check version (anti-rollback)
+    if (!isUpdateAllowed(header->majorVersion, header->minorVersion,
+                        header->patchVersion, header->buildNumber)) {
+        result.valid = false;
+        result.error = OTAError::DOWNGRADE_REJECTED;
+        result.message = "Downgrade not allowed";
+        LOG_OTA_ERROR("Downgrade rejected: %d.%d.%d (build %u) < current\n",
+                     header->majorVersion, header->minorVersion,
+                     header->patchVersion, header->buildNumber);
+        return false;
+    }
+
+    result.valid = true;
+    result.error = OTAError::NONE;
+    result.message = "Header valid";
+
+    LOG_OTA_INFO("Header valid: v%d.%d.%d (build %u), size %u\n",
+                header->majorVersion, header->minorVersion,
+                header->patchVersion, header->buildNumber,
+                header->firmwareSize);
+
+    return true;
+}
+
+bool OTAValidator::validatePackage(const OTAPackageHeader* package,
+                                   const uint8_t* firmwareData, size_t firmwareSize,
+                                   ValidationResult& result) {
+    // First validate header
+    if (!validateHeader(&package->header, result)) {
+        return false;
+    }
+
+    // Verify firmware size matches header
+    if (firmwareSize != package->header.firmwareSize) {
+        result.valid = false;
+        result.error = OTAError::INVALID_FIRMWARE;
+        result.message = "Size mismatch";
+        LOG_OTA_ERROR("Size mismatch: header=%u, actual=%u\n",
+                     package->header.firmwareSize, firmwareSize);
+        return false;
+    }
+
+    // Verify signature if enabled
+    #if OTA_VERIFY_SIGNATURE
+    if (publicKeyLoaded) {
+        // Compute hash of firmware data
+        uint8_t hash[OTA_HASH_SIZE];
+        computeHash(firmwareData, firmwareSize, hash);
+
+        // Verify signature
+        if (!verifySignatureHash(hash, package->signature, OTA_SIGNATURE_SIZE)) {
+            result.valid = false;
+            result.error = OTAError::SIGNATURE_FAILED;
+            result.message = "Signature verification failed";
+            return false;
+        }
+    } else {
+        LOG_OTA_WARN("Signature verification skipped - no public key\n");
+    }
+    #endif
+
+    result.valid = true;
+    result.error = OTAError::NONE;
+    result.message = "Package valid";
+    return true;
+}
+
+// ============================================
+// VERSION CONTROL (ANTI-ROLLBACK)
+// ============================================
+
+void OTAValidator::setCurrentVersion(uint8_t major, uint8_t minor, uint8_t patch,
+                                     uint32_t buildNumber) {
+    xSemaphoreTake(validatorMutex, portMAX_DELAY);
+    currentMajor = major;
+    currentMinor = minor;
+    currentPatch = patch;
+    currentBuildNumber = buildNumber;
+    xSemaphoreGive(validatorMutex);
+
+    LOG_OTA_INFO("Current version set: %d.%d.%d (build %u)\n",
+                major, minor, patch, buildNumber);
+}
+
+bool OTAValidator::isVersionNewer(uint8_t major, uint8_t minor, uint8_t patch,
+                                  uint32_t buildNumber) {
+    // Compare build numbers first (always incrementing)
+    if (buildNumber > currentBuildNumber) return true;
+    if (buildNumber < currentBuildNumber) return false;
+
+    // If build numbers equal, compare version
+    int cmp = compareVersions(major, minor, patch,
+                              currentMajor, currentMinor, currentPatch);
+    return cmp >= 0;
+}
+
+bool OTAValidator::isUpdateAllowed(uint8_t major, uint8_t minor, uint8_t patch,
+                                   uint32_t buildNumber) {
+    #if OTA_ALLOW_DOWNGRADE
+    return true;  // Allow any version
+    #else
+    return isVersionNewer(major, minor, patch, buildNumber);
+    #endif
+}
+
+// ============================================
+// FULL VALIDATION
+// ============================================
+
+bool OTAValidator::validateFirmware(const uint8_t* firmwareData, size_t totalSize,
+                                    ValidationResult& result) {
+    if (!firmwareData || totalSize < OTA_PACKAGE_HEADER_SIZE) {
+        result.valid = false;
+        result.error = OTAError::INVALID_FIRMWARE;
+        result.message = "Data too small";
+        return false;
+    }
+
+    // Cast to package header
+    const OTAPackageHeader* package = (const OTAPackageHeader*)firmwareData;
+    const uint8_t* firmwareBinary = firmwareData + OTA_PACKAGE_HEADER_SIZE;
+    size_t firmwareSize = totalSize - OTA_PACKAGE_HEADER_SIZE;
+
+    return validatePackage(package, firmwareBinary, firmwareSize, result);
+}
+
+bool OTAValidator::validateStreaming(const char* expectedHashHex,
+                                     const uint8_t* signature, size_t sigLen,
+                                     ValidationResult& result) {
+    if (!hashInitialized) {
+        result.valid = false;
+        result.error = OTAError::INVALID_STATE;
+        result.message = "Hash not initialized";
+        return false;
+    }
+
+    // Finalize hash
+    uint8_t computedHashLocal[OTA_HASH_SIZE];
+    hashFinalize(computedHashLocal);
+
+    // Verify checksum if expected hash provided
+    #if OTA_VERIFY_CHECKSUM
+    if (expectedHashHex && strlen(expectedHashHex) == OTA_HASH_SIZE * 2) {
+        uint8_t expectedHash[OTA_HASH_SIZE];
+        if (hexToHash(expectedHashHex, expectedHash)) {
+            if (!compareHash(computedHashLocal, expectedHash)) {
+                result.valid = false;
+                result.error = OTAError::CHECKSUM_FAILED;
+                result.message = "Checksum mismatch";
+
+                char computedHex[65];
+                hashToHex(computedHashLocal, computedHex);
+                LOG_OTA_ERROR("Checksum mismatch!\n");
+                LOG_OTA_ERROR("  Expected: %s\n", expectedHashHex);
+                LOG_OTA_ERROR("  Computed: %s\n", computedHex);
+                return false;
+            }
+            LOG_OTA_INFO("Checksum verified\n");
+        }
+    }
+    #endif
+
+    // Verify signature if provided
+    #if OTA_VERIFY_SIGNATURE
+    if (signature && sigLen > 0 && publicKeyLoaded) {
+        if (!verifySignatureHash(computedHashLocal, signature, sigLen)) {
+            result.valid = false;
+            result.error = OTAError::SIGNATURE_FAILED;
+            result.message = "Signature verification failed";
+            return false;
+        }
+    }
+    #endif
+
+    result.valid = true;
+    result.error = OTAError::NONE;
+    result.message = "Validation successful";
+    return true;
+}

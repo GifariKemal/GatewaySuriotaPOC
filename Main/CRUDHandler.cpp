@@ -9,6 +9,7 @@
 #include "MemoryRecovery.h" // For triggerCleanup() - memory optimization
 #include "RTCManager.h"     // For RTC timestamp in factory reset
 #include "LEDManager.h"     // For stopping LED task during factory reset
+#include "OTAManager.h"     // For OTA update commands via BLE
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;
@@ -18,6 +19,7 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
     : configManager(config), serverConfig(serverCfg), loggingConfig(loggingCfg),
       mqttManager(nullptr), httpManager(nullptr),
       modbusRtuService(nullptr), modbusTcpService(nullptr),
+      otaManager(nullptr),
       streamDeviceId(""), commandIdCounter(0)
 {
   setupCommandHandlers();
@@ -1353,6 +1355,373 @@ void CRUDHandler::setupCommandHandlers()
     // Notify services of config changes
     notifyAllServices(); // CRITICAL FIX: Notify MQTT after config restore
   };
+
+  // === OTA HANDLERS ===
+  // OTA commands are triggered via BLE CRUD and can use HTTPS (WiFi/Ethernet) or BLE transport
+
+  // Check for available firmware updates (op: "ota", type: "check_update")
+  otaHandlers["check_update"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "check_update";
+
+    // Check for update (may take a few seconds for HTTPS request)
+    LOG_CRUD_INFO("[OTA] Checking for firmware updates...");
+    bool updateAvailable = otaManager->checkForUpdate();
+
+    OTAStatus otaStatus = otaManager->getStatus();
+    (*response)["update_available"] = updateAvailable;
+    (*response)["current_version"] = otaStatus.currentVersion;
+
+    if (updateAvailable)
+    {
+      (*response)["target_version"] = otaStatus.targetVersion;
+      (*response)["mandatory"] = otaStatus.updateMandatory;
+
+      FirmwareManifest manifest = otaManager->getPendingManifest();
+      if (!manifest.version.isEmpty())
+      {
+        JsonObject manifestObj = (*response)["manifest"].to<JsonObject>();
+        manifestObj["version"] = manifest.version;
+        manifestObj["size"] = manifest.size;
+        manifestObj["release_notes"] = manifest.releaseNotes;
+      }
+
+      LOG_CRUD_INFO("[OTA] Update available: %s -> %s", otaStatus.currentVersion.c_str(), otaStatus.targetVersion.c_str());
+    }
+    else
+    {
+      LOG_CRUD_INFO("[OTA] No update available. Current version: %s", otaStatus.currentVersion.c_str());
+    }
+
+    manager->sendResponse(*response);
+  };
+
+  // Start HTTPS OTA update (op: "ota", type: "start_update")
+  // Uses WiFi or Ethernet to download firmware from GitHub
+  otaHandlers["start_update"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "start_update";
+
+    // Check if custom URL provided, otherwise use GitHub
+    String customUrl = command["url"] | "";
+
+    bool started = false;
+    if (!customUrl.isEmpty())
+    {
+      LOG_CRUD_INFO("[OTA] Starting update from custom URL: %s", customUrl.c_str());
+      started = otaManager->startUpdateFromUrl(customUrl);
+    }
+    else
+    {
+      LOG_CRUD_INFO("[OTA] Starting update from GitHub...");
+      started = otaManager->startUpdate();
+    }
+
+    if (started)
+    {
+      (*response)["message"] = "OTA update started. Monitor progress with ota_status command.";
+      (*response)["update_mode"] = "https";
+      LOG_CRUD_INFO("[OTA] Update started successfully");
+    }
+    else
+    {
+      OTAError error = otaManager->getLastError();
+      String errorMsg = otaManager->getLastErrorMessage();
+      (*response)["status"] = "error";
+      (*response)["error_code"] = (uint8_t)error;
+      (*response)["error_message"] = errorMsg;
+      LOG_CRUD_INFO("[OTA] Failed to start update: %s", errorMsg.c_str());
+    }
+
+    manager->sendResponse(*response);
+  };
+
+  // Get OTA status and progress (op: "ota", type: "ota_status")
+  otaHandlers["ota_status"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "ota_status";
+
+    OTAStatus otaStatus = otaManager->getStatus();
+
+    // State name mapping
+    const char *stateNames[] = {"idle", "checking", "downloading", "validating", "applying", "rebooting", "error"};
+    uint8_t stateIdx = (uint8_t)otaStatus.state;
+    if (stateIdx > 6) stateIdx = 6;
+
+    (*response)["state"] = stateNames[stateIdx];
+    (*response)["progress"] = otaStatus.progress;
+    (*response)["bytes_downloaded"] = otaStatus.bytesDownloaded;
+    (*response)["total_bytes"] = otaStatus.totalBytes;
+    (*response)["current_version"] = otaStatus.currentVersion;
+    (*response)["target_version"] = otaStatus.targetVersion;
+    (*response)["update_available"] = otaStatus.updateAvailable;
+
+    if (otaStatus.state == OTAState::ERROR)
+    {
+      (*response)["error_code"] = (uint8_t)otaStatus.lastError;
+      (*response)["error_message"] = otaStatus.lastErrorMessage;
+    }
+
+    manager->sendResponse(*response);
+  };
+
+  // Abort current OTA update (op: "ota", type: "abort_update")
+  otaHandlers["abort_update"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    LOG_CRUD_INFO("[OTA] Aborting update...");
+    otaManager->abortUpdate();
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "abort_update";
+    (*response)["message"] = "OTA update aborted";
+
+    manager->sendResponse(*response);
+  };
+
+  // Apply downloaded update and reboot (op: "ota", type: "apply_update")
+  otaHandlers["apply_update"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    OTAState state = otaManager->getState();
+    if (state != OTAState::IDLE)
+    {
+      // Check if firmware is downloaded and validated
+      OTAStatus status = otaManager->getStatus();
+      if (status.state != OTAState::IDLE || !status.updateAvailable)
+      {
+        manager->sendError("No validated firmware ready to apply");
+        return;
+      }
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "apply_update";
+    (*response)["message"] = "Applying update and rebooting...";
+
+    manager->sendResponse(*response);
+
+    // Delay to ensure response is sent
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    LOG_CRUD_INFO("[OTA] Applying update and rebooting...");
+    otaManager->applyUpdate();
+  };
+
+  // Enable BLE OTA mode (op: "ota", type: "enable_ble_ota")
+  // Allows firmware transfer directly via BLE without WiFi/Ethernet
+  otaHandlers["enable_ble_ota"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    LOG_CRUD_INFO("[OTA] Enabling BLE OTA mode...");
+    otaManager->enableBleOta();
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "enable_ble_ota";
+    (*response)["message"] = "BLE OTA mode enabled. Use OTA BLE service to transfer firmware.";
+    (*response)["ble_ota_service_uuid"] = OTA_BLE_SERVICE_UUID;
+
+    manager->sendResponse(*response);
+  };
+
+  // Disable BLE OTA mode (op: "ota", type: "disable_ble_ota")
+  otaHandlers["disable_ble_ota"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    LOG_CRUD_INFO("[OTA] Disabling BLE OTA mode...");
+    otaManager->disableBleOta();
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "disable_ble_ota";
+    (*response)["message"] = "BLE OTA mode disabled";
+
+    manager->sendResponse(*response);
+  };
+
+  // Rollback to previous firmware (op: "ota", type: "rollback")
+  otaHandlers["rollback"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    String target = command["target"] | "previous";
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "rollback";
+
+    bool success = false;
+    if (target == "factory")
+    {
+      LOG_CRUD_INFO("[OTA] Rolling back to factory firmware...");
+      success = otaManager->rollbackToFactory();
+      (*response)["target"] = "factory";
+    }
+    else
+    {
+      LOG_CRUD_INFO("[OTA] Rolling back to previous firmware...");
+      success = otaManager->rollbackToPrevious();
+      (*response)["target"] = "previous";
+    }
+
+    if (success)
+    {
+      (*response)["message"] = "Rollback successful. Device will reboot shortly.";
+      manager->sendResponse(*response);
+
+      // Delay to ensure response is sent before reboot
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      esp_restart();
+    }
+    else
+    {
+      (*response)["status"] = "error";
+      (*response)["error_message"] = otaManager->getLastErrorMessage();
+      manager->sendResponse(*response);
+    }
+  };
+
+  // Get OTA configuration (op: "ota", type: "get_config")
+  otaHandlers["get_config"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "get_config";
+
+    OTAConfiguration config = otaManager->getConfiguration();
+
+    JsonObject cfgObj = (*response)["config"].to<JsonObject>();
+    cfgObj["enabled"] = config.enabled;
+    cfgObj["auto_update"] = config.autoUpdate;
+    cfgObj["github_owner"] = config.githubOwner;
+    cfgObj["github_repo"] = config.githubRepo;
+    cfgObj["github_branch"] = config.githubBranch;
+    cfgObj["use_releases"] = config.useReleases;
+    cfgObj["check_interval_hours"] = config.checkIntervalHours;
+    cfgObj["verify_signature"] = config.verifySignature;
+    cfgObj["allow_downgrade"] = config.allowDowngrade;
+    cfgObj["ble_ota_enabled"] = config.bleOtaEnabled;
+
+    manager->sendResponse(*response);
+  };
+
+  // Set GitHub repository for OTA (op: "ota", type: "set_github_repo")
+  otaHandlers["set_github_repo"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    String owner = command["owner"] | "";
+    String repo = command["repo"] | "";
+    String branch = command["branch"] | "main";
+
+    if (owner.isEmpty() || repo.isEmpty())
+    {
+      manager->sendError("Missing required fields: owner, repo");
+      return;
+    }
+
+    LOG_CRUD_INFO("[OTA] Setting GitHub repo: %s/%s (branch: %s)", owner.c_str(), repo.c_str(), branch.c_str());
+    otaManager->setGitHubRepo(owner, repo, branch);
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "set_github_repo";
+    (*response)["message"] = "GitHub repository configured";
+    (*response)["owner"] = owner;
+    (*response)["repo"] = repo;
+    (*response)["branch"] = branch;
+
+    manager->sendResponse(*response);
+  };
+
+  // Set GitHub token for private repos (op: "ota", type: "set_github_token")
+  otaHandlers["set_github_token"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    if (!otaManager)
+    {
+      manager->sendError("OTA Manager not initialized");
+      return;
+    }
+
+    String token = command["token"] | "";
+    if (token.isEmpty())
+    {
+      manager->sendError("Missing required field: token");
+      return;
+    }
+
+    LOG_CRUD_INFO("[OTA] Setting GitHub token (length: %d)", token.length());
+    otaManager->setGitHubToken(token);
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "set_github_token";
+    (*response)["message"] = "GitHub token configured";
+    (*response)["token_length"] = token.length();
+
+    manager->sendResponse(*response);
+  };
 }
 
 // ============================================================================
@@ -1533,6 +1902,11 @@ void CRUDHandler::processPriorityQueue()
     systemHandlers[type](cmd.manager, payload);
     handlerFound = true;
   }
+  else if (op == "ota" && otaHandlers.count(type))
+  {
+    otaHandlers[type](cmd.manager, payload);
+    handlerFound = true;
+  }
 
   if (!handlerFound)
   {
@@ -1684,6 +2058,11 @@ void CRUDHandler::executeBatchSequential(BLEManager *manager, const String &batc
       systemHandlers[type](manager, *cmdDoc);
       success = true;
     }
+    else if (op == "ota" && otaHandlers.count(type))
+    {
+      otaHandlers[type](manager, *cmdDoc);
+      success = true;
+    }
 
     if (success)
     {
@@ -1759,6 +2138,10 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
     {
       handlerExists = systemHandlers.count(type) > 0;
     }
+    else if (op == "ota")
+    {
+      handlerExists = otaHandlers.count(type) > 0;
+    }
 
     if (!handlerExists)
     {
@@ -1809,6 +2192,11 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
       else if (op == "system" && systemHandlers.count(type))
       {
         systemHandlers[type](manager, *cmdDoc);
+        completed++;
+      }
+      else if (op == "ota" && otaHandlers.count(type))
+      {
+        otaHandlers[type](manager, *cmdDoc);
         completed++;
       }
 

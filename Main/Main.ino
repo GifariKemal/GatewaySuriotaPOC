@@ -31,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.3.5"
+#define FIRMWARE_VERSION "2.4.0"
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
@@ -54,6 +54,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "HttpManager.h"
 #include "LEDManager.h"
 #include "ButtonManager.h"
+#include "OTAManager.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_heap_caps.h>
@@ -79,6 +80,7 @@ HttpManager *httpManager = nullptr;
 LEDManager *ledManager = nullptr;
 ButtonManager *buttonManager = nullptr;
 ProductionLogger *productionLogger = nullptr;
+OTAManager *otaManager = nullptr;
 
 // FIXED BUG #1: Complete cleanup function for all global objects
 // Previously leaked memory for singleton instances (networkManager, queueManager, etc.)
@@ -158,6 +160,7 @@ void cleanup()
   ledManager = nullptr;
   buttonManager = nullptr;
   productionLogger = nullptr;
+  otaManager = nullptr;
 
   DEV_SERIAL_PRINTLN("[CLEANUP] All resources released");
 }
@@ -558,6 +561,43 @@ void setup()
   DEV_SERIAL_PRINTLN("[MAIN] BLE CRUD Manager started successfully");
 
   // ============================================
+  // OTA MANAGER INITIALIZATION
+  // ============================================
+  otaManager = OTAManager::getInstance();
+  if (otaManager)
+  {
+    // Set current firmware version
+    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2400); // Build number derived from version (2.4.0 = 2400)
+
+    // Get BLE server from BLEManager for OTA BLE service
+    // Note: BLE server is internal to BLEManager, OTA BLE will create its own service
+    if (otaManager->begin(nullptr))  // Pass BLE server if needed for BLE OTA
+    {
+      DEV_SERIAL_PRINTLN("[MAIN] OTA Manager initialized");
+
+      // Link OTA Manager to CRUD Handler for BLE commands
+      if (crudHandler)
+      {
+        crudHandler->setOTAManager(otaManager);
+        DEV_SERIAL_PRINTLN("[MAIN] OTA Manager linked to CRUD Handler");
+      }
+
+      // Mark firmware as valid after successful boot (rollback protection)
+      // This should be called after all critical services are running
+      otaManager->markFirmwareValid();
+      DEV_SERIAL_PRINTLN("[MAIN] Firmware marked as valid (rollback protection)");
+    }
+    else
+    {
+      DEV_SERIAL_PRINTLN("[MAIN] WARNING: OTA Manager init failed - OTA updates disabled");
+    }
+  }
+  else
+  {
+    DEV_SERIAL_PRINTLN("[MAIN] WARNING: Failed to get OTA Manager instance");
+  }
+
+  // ============================================
   // PRODUCTION LOGGER INITIALIZATION (Always init, enable based on mode)
   // ============================================
   // Always initialize ProductionLogger (supports runtime mode switching)
@@ -605,6 +645,12 @@ void loop()
 {
   // FreeRTOS-friendly delay - yields to other tasks
   vTaskDelay(pdMS_TO_TICKS(100));
+
+  // OTA Manager process - handles auto-check intervals and update state machine
+  if (otaManager)
+  {
+    otaManager->process();
+  }
 
   // Production mode: Periodic heartbeat logging (runtime check)
   // This is automatically throttled by ProductionLogger (default: every 60s)
