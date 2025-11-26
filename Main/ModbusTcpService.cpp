@@ -26,53 +26,53 @@ ModbusTcpService::ModbusTcpService(ConfigManager *config, EthernetManager *ether
   poolMutex = xSemaphoreCreateMutex();
   if (!poolMutex)
   {
-    Serial.println("[TCP] ERROR: Failed to create pool mutex!");
+    LOG_TCP_INFO("[TCP] ERROR: Failed to create pool mutex!");
   }
   else
   {
-    Serial.println("[TCP] Connection pool initialized");
+    LOG_TCP_INFO("[TCP] Connection pool initialized");
   }
 
   // FIXED ISSUE #1: Initialize vector mutex (recursive for nested calls)
   vectorMutex = xSemaphoreCreateRecursiveMutex();
   if (!vectorMutex)
   {
-    Serial.println("[TCP] CRITICAL: Failed to create vector mutex!");
+    LOG_TCP_INFO("[TCP] CRITICAL: Failed to create vector mutex!");
   }
   else
   {
-    Serial.println("[TCP] Vector mutex initialized (race condition protection active)");
+    LOG_TCP_INFO("[TCP] Vector mutex initialized (race condition protection active)");
   }
 }
 
 bool ModbusTcpService::init()
 {
-  Serial.println("[TCP] Initializing service...");
+  LOG_TCP_INFO("[TCP] Initializing service...");
 
   if (!configManager)
   {
-    Serial.println("[TCP] ERROR: ConfigManager is null");
+    LOG_TCP_INFO("[TCP] ERROR: ConfigManager is null");
     return false;
   }
 
   if (!ethernetManager)
   {
-    Serial.println("[TCP] ERROR: EthernetManager is null");
+    LOG_TCP_INFO("[TCP] ERROR: EthernetManager is null");
     return false;
   }
 
-  Serial.printf("[TCP] Ethernet available: %s\n", ethernetManager->isAvailable() ? "YES" : "NO");
-  Serial.println("[TCP] Service initialized");
+  LOG_TCP_INFO("[TCP] Ethernet available: %s\n", ethernetManager->isAvailable() ? "YES" : "NO");
+  LOG_TCP_INFO("[TCP] Service initialized");
   return true;
 }
 
 void ModbusTcpService::start()
 {
-  Serial.println("[TCP] Starting service...");
+  LOG_TCP_INFO("[TCP] Starting service...");
 
   if (running)
   {
-    Serial.println("[TCP] Service already running");
+    LOG_TCP_INFO("[TCP] Service already running");
     return;
   }
 
@@ -88,7 +88,7 @@ void ModbusTcpService::start()
 
   if (result == pdPASS)
   {
-    Serial.println("[TCP] Service started successfully");
+    LOG_TCP_INFO("[TCP] Service started successfully");
 
     // Start auto-recovery task
     // MUST stay on Core 1: Modifies device status accessed by MODBUS_TCP_TASK (Core 1)
@@ -103,16 +103,16 @@ void ModbusTcpService::start()
 
     if (recoveryResult == pdPASS)
     {
-      Serial.println("[TCP] Auto-recovery task started");
+      LOG_TCP_INFO("[TCP] Auto-recovery task started");
     }
     else
     {
-      Serial.println("[TCP] WARNING: Failed to create auto-recovery task");
+      LOG_TCP_INFO("[TCP] WARNING: Failed to create auto-recovery task");
     }
   }
   else
   {
-    Serial.println("[TCP] ERROR: Failed to create Modbus TCP task");
+    LOG_TCP_INFO("[TCP] ERROR: Failed to create Modbus TCP task");
     running = false;
     tcpTaskHandle = nullptr;
   }
@@ -128,7 +128,7 @@ void ModbusTcpService::stop()
     vTaskDelay(pdMS_TO_TICKS(100));
     vTaskDelete(autoRecoveryTaskHandle);
     autoRecoveryTaskHandle = nullptr;
-    Serial.println("[TCP] Auto-recovery task stopped");
+    LOG_TCP_INFO("[TCP] Auto-recovery task stopped");
   }
 
   // Stop main TCP task
@@ -139,7 +139,7 @@ void ModbusTcpService::stop()
     tcpTaskHandle = nullptr;
   }
 
-  Serial.println("[TCP] Service stopped");
+  LOG_TCP_INFO("[TCP] Service stopped");
 }
 
 void ModbusTcpService::notifyConfigChange()
@@ -155,7 +155,7 @@ void ModbusTcpService::refreshDeviceList()
   // FIXED ISSUE #1: Protect vector operations from race conditions
   xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
 
-  Serial.println("[TCP Task] Refreshing device list...");
+  LOG_TCP_INFO("[TCP Task] Refreshing device list...");
   tcpDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
 
   JsonDocument devicesIdList;
@@ -187,7 +187,7 @@ void ModbusTcpService::refreshDeviceList()
       }
     }
   }
-  Serial.printf("[TCP Task] Found %d TCP devices. Schedule rebuilt.\n", tcpDevices.size());
+  LOG_TCP_INFO("[TCP Task] Found %d TCP devices. Schedule rebuilt.\n", tcpDevices.size());
 
   // Initialize device tracking after device list is loaded
   initializeDeviceFailureTracking();
@@ -243,7 +243,7 @@ void ModbusTcpService::readTcpDevicesLoop()
     if (!hasNetwork)
     {
       // No network available at all - wait and retry
-      Serial.println("[TCP] No network available (Ethernet and WiFi both disabled/disconnected)");
+      LOG_TCP_INFO("[TCP] No network available (Ethernet and WiFi both disabled/disconnected)");
       vTaskDelay(pdMS_TO_TICKS(5000)); // Wait 5 seconds before retrying
       continue;
     }
@@ -278,11 +278,11 @@ void ModbusTcpService::readTcpDevicesLoop()
     {
       if (hasEthernet)
       {
-        Serial.printf("[TCP] Using Ethernet for Modbus TCP polling (%d devices)\n", tcpDeviceCount);
+        LOG_TCP_INFO("[TCP] Using Ethernet for Modbus TCP polling (%d devices)\n", tcpDeviceCount);
       }
       else if (hasWiFi)
       {
-        Serial.printf("[TCP] Using WiFi for Modbus TCP polling (%d devices)\n", tcpDeviceCount);
+        LOG_TCP_INFO("[TCP] Using WiFi for Modbus TCP polling (%d devices)\n", tcpDeviceCount);
       }
       lastHasEthernet = hasEthernet;
       lastDeviceCount = tcpDeviceCount;
@@ -311,7 +311,7 @@ void ModbusTcpService::readTcpDevicesLoop()
       // This prevents continuing to poll deleted devices until next full iteration
       if (ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
-        Serial.println("[TCP] Configuration changed during polling, refreshing immediately...");
+        LOG_TCP_INFO("[TCP] Configuration changed during polling, refreshing immediately...");
         xSemaphoreGiveRecursive(vectorMutex);
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list
@@ -378,8 +378,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     static unsigned long lastWarning = 0;
     if (millis() - lastWarning > 30000) // Log max once per 30s per device
     {
-      Serial.printf("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId.c_str(), ip.c_str());
-      Serial.println("[TCP] HINT: IP must be in format A.B.C.D where 0 <= A,B,C,D <= 255");
+      LOG_TCP_INFO("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId.c_str(), ip.c_str());
+      LOG_TCP_INFO("[TCP] HINT: IP must be in format A.B.C.D where 0 <= A,B,C,D <= 255");
       lastWarning = millis();
     }
     return; // Skip device with invalid IP
@@ -397,7 +397,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     }
   }
 
-  Serial.printf("[%s] Polling device %s at %s:%d\n", networkType.c_str(), deviceId.c_str(), ip.c_str(), port);
+  LOG_TCP_VERBOSE("[%s] Polling device %s at %s:%d\n", networkType.c_str(), deviceId.c_str(), ip.c_str(), port);
 
   // OPTIMIZED: Get device_name once per device cycle (not per register)
   String deviceName = deviceConfig["device_name"] | "";
@@ -412,6 +412,24 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   int successCount = 0;
   int lineNumber = 1;
 
+  // Development mode: Collect polled data in JSON format for debugging (always compiled, runtime-checked)
+  SpiRamJsonDocument polledDataDoc;
+  JsonObject polledData;
+  JsonArray polledRegisters;
+
+  if (IS_DEV_MODE())
+  {
+    polledData = polledDataDoc.to<JsonObject>();
+    polledData["device_id"] = deviceId;
+    polledData["device_name"] = deviceName;
+    polledData["protocol"] = "TCP";
+    polledData["slave_id"] = slaveId;
+    polledData["ip"] = ip;
+    polledData["port"] = port;
+    polledData["timestamp"] = millis();
+    polledRegisters = polledData.createNestedArray("registers");
+  }
+
   // FIXED ISSUE #2: Get pooled connection ONCE for all registers (eliminates repeated handshakes)
   // Instead of Connect->Read->Disconnect per register, we now Connect->Read all->Disconnect
   TCPClient *pooledClient = getPooledConnection(ip, port);
@@ -419,7 +437,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
 
   if (!connectionHealthy)
   {
-    Serial.printf("[TCP] ERROR: Failed to get pooled connection for %s:%d\n", ip.c_str(), port);
+    LOG_TCP_INFO("[TCP] ERROR: Failed to get pooled connection for %s:%d\n", ip.c_str(), port);
     // Continue without pooling (fallback to per-register connections)
     pooledClient = nullptr;
   }
@@ -461,6 +479,17 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // STRING OPTIMIZATION (v2.3.8): Use const char* instead of String
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
+
+        // Add to JSON debug output (runtime check)
+        if (IS_DEV_MODE())
+        {
+          JsonObject regObj = polledRegisters.createNestedObject();
+          regObj["name"] = registerName;
+          regObj["address"] = address;
+          regObj["function_code"] = functionCode;
+          regObj["value"] = value;
+          if (strlen(unit) > 0) regObj["unit"] = unit;
+        }
       }
       else
       {
@@ -514,7 +543,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       if (address > (65535 - registerCount + 1))
       {
         // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
-        Serial.printf("[TCP] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
+        LOG_TCP_INFO("[TCP] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
                       registerName, address, registerCount, address + registerCount - 1);
         failedRegisterCount++;
 
@@ -545,6 +574,17 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // STRING OPTIMIZATION (v2.3.8): Use const char* instead of String
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
+
+        // Add to JSON debug output (runtime check)
+        if (IS_DEV_MODE())
+        {
+          JsonObject regObj = polledRegisters.createNestedObject();
+          regObj["name"] = registerName;
+          regObj["address"] = address;
+          regObj["function_code"] = functionCode;
+          regObj["value"] = value;
+          if (strlen(unit) > 0) regObj["unit"] = unit;
+        }
       }
       else
       {
@@ -565,7 +605,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   if (pooledClient != nullptr)
   {
     returnPooledConnection(ip, port, pooledClient, connectionHealthy);
-    Serial.printf("[TCP] Returned pooled connection for %s:%d (healthy: %s)\n",
+    LOG_TCP_INFO("[TCP] Returned pooled connection for %s:%d (healthy: %s)\n",
                   ip.c_str(), port, connectionHealthy ? "YES" : "NO");
   }
 
@@ -582,7 +622,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       outputBuffer += "  L" + String(lineNumber) + ": " + compactLine + "\n";
     }
     // Print all at once (atomic - prevents interruption by other tasks)
-    Serial.print(outputBuffer);
+    // Use LOG_DATA_DEBUG so it's compiled out in production mode
+    LOG_DATA_DEBUG("%s", outputBuffer.c_str());
   }
 
   // END-OF-BATCH MARKER: Signal to MQTT that device batch is complete
@@ -607,6 +648,17 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     {
       LOG_TCP_WARN("Failed to enqueue batch marker for device %s\n", deviceId.c_str());
     }
+  }
+
+  // Development mode: Print polled data as JSON (one-line) - runtime check
+  if (IS_DEV_MODE() && successRegisterCount > 0)
+  {
+    polledData["success_count"] = successRegisterCount;
+    polledData["failed_count"] = failedRegisterCount;
+
+    Serial.print("\n[TCP] POLLED DATA: ");
+    serializeJson(polledDataDoc, Serial);
+    Serial.println("\n");
   }
 }
 
@@ -680,7 +732,7 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
 
     if (!client->connect(ip.c_str(), port))
     {
-      Serial.printf("[TCP] Register connection failed to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Register connection failed to %s:%d\n", ip.c_str(), port);
       delete client;
       return false;
     }
@@ -718,7 +770,7 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
   if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE)
   {
-    Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
+    LOG_TCP_INFO("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
     if (shouldCloseConnection)
     {
       client->stop();
@@ -758,7 +810,7 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
 
     if (!client->connect(ip.c_str(), port))
     {
-      Serial.printf("[TCP] Failed to connect to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d\n", ip.c_str(), port);
       delete client;
       return false;
     }
@@ -783,7 +835,7 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
 
   if (client->available() < expectedBytes)
   {
-    Serial.printf("[TCP] Response timeout or incomplete for %s:%d\n", ip.c_str(), port);
+    LOG_TCP_INFO("[TCP] Response timeout or incomplete for %s:%d\n", ip.c_str(), port);
     if (shouldCloseConnection)
     {
       client->stop();
@@ -798,7 +850,7 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
   if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE)
   {
-    Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
+    LOG_TCP_INFO("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
     if (shouldCloseConnection)
     {
       client->stop();
@@ -839,7 +891,7 @@ bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveI
 
     if (!client->connect(ip.c_str(), port))
     {
-      Serial.printf("[TCP] Coil connection failed to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Coil connection failed to %s:%d\n", ip.c_str(), port);
       delete client;
       return false;
     }
@@ -878,7 +930,7 @@ bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveI
   // Sanity check: Modbus TCP response shouldn't exceed reasonable size
   if (availableBytes > ModbusTcpConfig::MAX_RESPONSE_SIZE) // FIXED Bug #10
   {
-    Serial.printf("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
+    LOG_TCP_INFO("[TCP] Response too large (%d bytes), rejecting\n", availableBytes);
     // FIXED ISSUE #2: Only close if NOT using pooled connection
     if (shouldCloseConnection)
     {
@@ -1019,7 +1071,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   // FIXED Bug #12: Defensive null check for QueueManager
   if (!queueMgr)
   {
-    Serial.println("[TCP] ERROR: QueueManager is null, cannot store register value");
+    LOG_TCP_INFO("[TCP] ERROR: QueueManager is null, cannot store register value");
     return false; // FIXED: Return false on failure
   }
 
@@ -1173,7 +1225,7 @@ void ModbusTcpService::updateDataTransmissionTime()
 void ModbusTcpService::setDataTransmissionInterval(uint32_t intervalMs)
 {
   dataTransmissionSchedule.dataIntervalMs = intervalMs;
-  Serial.printf("[TCP] Data transmission interval set to: %lums\n", intervalMs);
+  LOG_TCP_INFO("[TCP] Data transmission interval set to: %lums\n", intervalMs);
 }
 
 // ============================================
@@ -1283,7 +1335,7 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
 
     if (!client->connect(ip.c_str(), port))
     {
-      Serial.printf("[TCP] Failed to connect to %s:%d for pooling\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d for pooling\n", ip.c_str(), port);
       delete client;
       xSemaphoreGive(poolMutex);
       return nullptr;
@@ -1293,7 +1345,7 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
     if (connectionPool.size() >= MAX_POOL_SIZE)
     {
       // Pool full - FORCE cleanup oldest connection BEFORE adding new one
-      Serial.printf("[TCP] Pool full (%d), force cleanup oldest connection before adding %s\n",
+      LOG_TCP_INFO("[TCP] Pool full (%d), force cleanup oldest connection before adding %s\n",
                     MAX_POOL_SIZE, deviceKey.c_str());
 
       unsigned long oldestTime = now;
@@ -1315,7 +1367,7 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
         connectionPool[oldestIdx].client = nullptr;
       }
       connectionPool.erase(connectionPool.begin() + oldestIdx);
-      Serial.printf("[TCP] Cleaned up oldest connection (freed DRAM)\n");
+      LOG_TCP_INFO("[TCP] Cleaned up oldest connection (freed DRAM)\n");
     }
 
     // Now add new connection (pool has space)
@@ -1328,7 +1380,7 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
     newEntry.isHealthy = true;
     connectionPool.push_back(newEntry);
 
-    Serial.printf("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
+    LOG_TCP_INFO("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
                   deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
   }
 
@@ -1453,7 +1505,7 @@ void ModbusTcpService::closeIdleConnections()
 
   if (emergencyMode)
   {
-    Serial.printf("[TCP] EMERGENCY DRAM CLEANUP! Free DRAM: %d bytes, closing ALL connections\n", dramFree);
+    LOG_TCP_INFO("[TCP] EMERGENCY DRAM CLEANUP! Free DRAM: %d bytes, closing ALL connections\n", dramFree);
     // Emergency: close ALL connections to free DRAM immediately
     for (auto &entry : connectionPool)
     {
@@ -1465,7 +1517,7 @@ void ModbusTcpService::closeIdleConnections()
       }
     }
     connectionPool.clear();
-    Serial.printf("[TCP] Emergency cleanup: ALL connections closed (pool cleared)\n");
+    LOG_TCP_INFO("[TCP] Emergency cleanup: ALL connections closed (pool cleared)\n");
     xSemaphoreGive(poolMutex);
     return;
   }
@@ -1548,7 +1600,7 @@ void ModbusTcpService::initializeDeviceFailureTracking()
     deviceFailureStates.push_back(state);
   }
   // Concise summary log
-  Serial.printf("[TCP] Failure tracking init: %d devices\n", deviceFailureStates.size());
+  LOG_TCP_INFO("[TCP] Failure tracking init: %d devices\n", deviceFailureStates.size());
 }
 
 void ModbusTcpService::initializeDeviceTimeouts()
@@ -1566,7 +1618,7 @@ void ModbusTcpService::initializeDeviceTimeouts()
     deviceTimeouts.push_back(timeout);
   }
   // Concise summary log
-  Serial.printf("[TCP] Timeout tracking init: %d devices\n", deviceTimeouts.size());
+  LOG_TCP_INFO("[TCP] Timeout tracking init: %d devices\n", deviceTimeouts.size());
 }
 
 void ModbusTcpService::initializeDeviceMetrics()
@@ -1587,7 +1639,7 @@ void ModbusTcpService::initializeDeviceMetrics()
     deviceMetrics.push_back(metrics);
   }
   // Concise summary log
-  Serial.printf("[TCP] Metrics tracking init: %d devices\n", deviceMetrics.size());
+  LOG_TCP_INFO("[TCP] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
 ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(const String &deviceId)
@@ -1657,11 +1709,11 @@ void ModbusTcpService::enableDevice(const String &deviceId, bool clearMetrics)
       metrics->minResponseTimeMs = 65535;
       metrics->maxResponseTimeMs = 0;
       metrics->lastResponseTimeMs = 0;
-      Serial.printf("[TCP] Device %s metrics cleared\n", deviceId.c_str());
+      LOG_TCP_INFO("[TCP] Device %s metrics cleared\n", deviceId.c_str());
     }
   }
 
-  Serial.printf("[TCP] Device %s enabled (reason cleared)\n", deviceId.c_str());
+  LOG_TCP_INFO("[TCP] Device %s enabled (reason cleared)\n", deviceId.c_str());
 }
 
 void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState::DisableReason reason, const String &reasonDetail)
@@ -1692,7 +1744,7 @@ void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState:
     break;
   }
 
-  Serial.printf("[TCP] Device %s disabled (reason: %s, detail: %s)\n",
+  LOG_TCP_INFO("[TCP] Device %s disabled (reason: %s, detail: %s)\n",
                 deviceId.c_str(), reasonText, reasonDetail.c_str());
 }
 
@@ -1711,12 +1763,12 @@ void ModbusTcpService::handleReadFailure(const String &deviceId)
     unsigned long backoffTime = calculateBackoffTime(state->retryCount);
     state->nextRetryTime = millis() + backoffTime;
 
-    Serial.printf("[TCP] Device %s read failed. Retry %d/%d in %lums\n",
+    LOG_TCP_INFO("[TCP] Device %s read failed. Retry %d/%d in %lums\n",
                   deviceId.c_str(), state->retryCount, state->maxRetries, backoffTime);
   }
   else
   {
-    Serial.printf("[TCP] Device %s exceeded max retries (%d), disabling...\n",
+    LOG_TCP_INFO("[TCP] Device %s exceeded max retries (%d), disabling...\n",
                   deviceId.c_str(), state->maxRetries);
     disableDevice(deviceId, DeviceFailureState::AUTO_RETRY, "Max retries exceeded");
   }
@@ -1765,13 +1817,13 @@ void ModbusTcpService::handleReadTimeout(const String &deviceId)
 
   if (timeout->consecutiveTimeouts >= timeout->maxConsecutiveTimeouts)
   {
-    Serial.printf("[TCP] Device %s exceeded timeout limit (%d), disabling...\n",
+    LOG_TCP_INFO("[TCP] Device %s exceeded timeout limit (%d), disabling...\n",
                   deviceId.c_str(), timeout->maxConsecutiveTimeouts);
     disableDevice(deviceId, DeviceFailureState::AUTO_TIMEOUT, "Max consecutive timeouts exceeded");
   }
   else
   {
-    Serial.printf("[TCP] Device %s timeout %d/%d\n",
+    LOG_TCP_INFO("[TCP] Device %s timeout %d/%d\n",
                   deviceId.c_str(), timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
   }
 }
@@ -1790,13 +1842,13 @@ bool ModbusTcpService::isDeviceEnabled(const String &deviceId)
 
 bool ModbusTcpService::enableDeviceByCommand(const String &deviceId, bool clearMetrics)
 {
-  Serial.printf("[TCP] BLE Command: Enable device %s (clearMetrics: %s)\n",
+  LOG_TCP_INFO("[TCP] BLE Command: Enable device %s (clearMetrics: %s)\n",
                 deviceId.c_str(), clearMetrics ? "true" : "false");
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
     return false;
   }
 
@@ -1806,13 +1858,13 @@ bool ModbusTcpService::enableDeviceByCommand(const String &deviceId, bool clearM
 
 bool ModbusTcpService::disableDeviceByCommand(const String &deviceId, const String &reasonDetail)
 {
-  Serial.printf("[TCP] BLE Command: Disable device %s (reason: %s)\n",
+  LOG_TCP_INFO("[TCP] BLE Command: Disable device %s (reason: %s)\n",
                 deviceId.c_str(), reasonDetail.c_str());
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
     return false;
   }
 
@@ -1825,7 +1877,7 @@ bool ModbusTcpService::getDeviceStatusInfo(const String &deviceId, JsonObject &s
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
     return false;
   }
 
@@ -1911,7 +1963,7 @@ void ModbusTcpService::autoRecoveryTask(void *parameter)
 
 void ModbusTcpService::autoRecoveryLoop()
 {
-  Serial.println("[TCP AutoRecovery] Task started");
+  LOG_TCP_INFO("[TCP AutoRecovery] Task started");
   const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
 
   while (running)
@@ -1921,7 +1973,7 @@ void ModbusTcpService::autoRecoveryLoop()
     if (!running)
       break;
 
-    Serial.println("[TCP AutoRecovery] Checking for auto-disabled devices...");
+    LOG_TCP_INFO("[TCP AutoRecovery] Checking for auto-disabled devices...");
     unsigned long now = millis();
 
     for (auto &state : deviceFailureStates)
@@ -1931,16 +1983,16 @@ void ModbusTcpService::autoRecoveryLoop()
            state.disableReason == DeviceFailureState::AUTO_TIMEOUT))
       {
         unsigned long disabledDuration = now - state.disabledTimestamp;
-        Serial.printf("[TCP AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
+        LOG_TCP_INFO("[TCP AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
                       state.deviceId.c_str(), disabledDuration);
 
         enableDevice(state.deviceId, false);
-        Serial.printf("[TCP AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
+        LOG_TCP_INFO("[TCP AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
       }
     }
   }
 
-  Serial.println("[TCP AutoRecovery] Task stopped");
+  LOG_TCP_INFO("[TCP AutoRecovery] Task stopped");
 }
 
 ModbusTcpService::~ModbusTcpService()

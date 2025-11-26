@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "LEDManager.h"
 
 LEDManager *LEDManager::instance = nullptr;
@@ -29,7 +30,7 @@ void LEDManager::begin()
   stateMutex = xSemaphoreCreateMutex();
   if (!stateMutex)
   {
-    Serial.println("[LED] ERROR: Failed to create state mutex");
+    LOG_LED_INFO("[LED] ERROR: Failed to create state mutex");
     return;
   }
 
@@ -44,7 +45,7 @@ void LEDManager::begin()
       &ledTaskHandle,
       0 // Core 0 (moved from Core 1 for load balancing)
   );
-  Serial.println("[LED] Manager initialized");
+  LOG_LED_INFO("[LED] Manager initialized");
 }
 
 // Set MQTT connection status
@@ -110,7 +111,7 @@ void LEDManager::updateLEDState()
   if (newState != currentState)
   {
     currentState = newState;
-    Serial.printf("[LED] State changed to: %s (MQTT:%s HTTP:%s)\n",
+    LOG_LED_INFO("[LED] State changed to: %s (MQTT:%s HTTP:%s)\n",
                   currentState == LED_OFF ? "OFF" : currentState == LED_SLOW_BLINK ? "SLOW_BLINK"
                                                                                    : "FAST_BLINK",
                   mqttConnected ? "ON" : "OFF",
@@ -140,7 +141,7 @@ void LEDManager::stop()
     vTaskDelete(ledTaskHandle);
     ledTaskHandle = nullptr;
     digitalWrite(LED_NET, LOW); // Ensure LED is off
-    Serial.println("[LED] Manager task stopped");
+    LOG_LED_INFO("[LED] Manager task stopped");
   }
 }
 
@@ -203,5 +204,5 @@ LEDManager::~LEDManager()
     stateMutex = nullptr;
   }
 
-  Serial.println("[LED] Manager destroyed, resources cleaned up");
+  LOG_LED_INFO("[LED] Manager destroyed, resources cleaned up");
 }

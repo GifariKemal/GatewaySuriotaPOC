@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "QueueManager.h"
 #include <esp_heap_caps.h>
 
@@ -48,7 +49,7 @@ bool QueueManager::init()
     return false;
   }
 
-  Serial.println("[QUEUE] Manager initialized");
+  LOG_QUEUE_INFO("[QUEUE] Manager initialized");
   return true;
 }
 
@@ -88,7 +89,7 @@ bool QueueManager::enqueue(const JsonObject &dataPoint)
     {
       // Both PSRAM and DRAM exhausted - critical memory shortage
       xSemaphoreGive(queueMutex);
-      Serial.println("[QUEUE] CRITICAL ERROR: Both PSRAM and DRAM allocation failed!");
+      LOG_QUEUE_INFO("[QUEUE] CRITICAL ERROR: Both PSRAM and DRAM allocation failed!");
       return false;
     }
     else
@@ -97,7 +98,7 @@ bool QueueManager::enqueue(const JsonObject &dataPoint)
       static unsigned long lastWarning = 0;
       if (millis() - lastWarning > 30000) // Log max once per 30s to avoid spam
       {
-        Serial.printf("[QUEUE] WARNING: PSRAM exhausted, using DRAM fallback (%d bytes)\n", jsonString.length());
+        LOG_QUEUE_INFO("[QUEUE] WARNING: PSRAM exhausted, using DRAM fallback (%d bytes)\n", jsonString.length());
         lastWarning = millis();
       }
     }
@@ -289,7 +290,7 @@ int QueueManager::flushDeviceData(const String &deviceId)
 
   if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(queueMutexTimeout)) != pdTRUE)
   {
-    Serial.println("[QUEUE] Failed to acquire mutex for flush operation");
+    LOG_QUEUE_INFO("[QUEUE] Failed to acquire mutex for flush operation");
     return 0;
   }
 
@@ -360,7 +361,7 @@ int QueueManager::flushDeviceData(const String &deviceId)
 
   if (flushedCount > 0)
   {
-    Serial.printf("[QUEUE] Flushed %d data points for deleted device: %s\n", flushedCount, deviceId.c_str());
+    LOG_QUEUE_INFO("[QUEUE] Flushed %d data points for deleted device: %s\n", flushedCount, deviceId.c_str());
   }
 
   return flushedCount;

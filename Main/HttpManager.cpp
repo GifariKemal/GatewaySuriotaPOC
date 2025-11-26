@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "HttpManager.h"
 #include "LEDManager.h"
 
@@ -22,22 +23,22 @@ HttpManager *HttpManager::getInstance(ConfigManager *config, ServerConfig *serve
 
 bool HttpManager::init()
 {
-  Serial.println("[HTTP] Initializing manager...");
+  LOG_NET_INFO("[HTTP] Initializing manager...");
 
   if (!configManager || !queueManager || !serverConfig || !networkManager)
   {
-    Serial.println("[HTTP] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
+    LOG_NET_INFO("[HTTP] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
     return false;
   }
 
   loadHttpConfig();
-  Serial.println("[HTTP] Manager initialized");
+  LOG_NET_INFO("[HTTP] Manager initialized");
   return true;
 }
 
 void HttpManager::start()
 {
-  Serial.println("[HTTP] Starting manager...");
+  LOG_NET_INFO("[HTTP] Starting manager...");
 
   if (running)
   {
@@ -56,11 +57,11 @@ void HttpManager::start()
 
   if (result == pdPASS)
   {
-    Serial.println("[HTTP] Manager started successfully");
+    LOG_NET_INFO("[HTTP] Manager started successfully");
   }
   else
   {
-    Serial.println("[HTTP] ERROR: Failed to create HTTP task");
+    LOG_NET_INFO("[HTTP] ERROR: Failed to create HTTP task");
     running = false;
     taskHandle = nullptr;
   }
@@ -78,7 +79,7 @@ void HttpManager::stop()
     taskHandle = nullptr;
   }
 
-  Serial.println("[HTTP] Manager stopped");
+  LOG_NET_INFO("[HTTP] Manager stopped");
 }
 
 void HttpManager::httpTask(void *parameter)
@@ -91,7 +92,7 @@ void HttpManager::httpLoop()
 {
   bool networkWasAvailable = false;
 
-  Serial.println("[HTTP] Task started");
+  LOG_NET_INFO("[HTTP] Task started");
 
   while (running)
   {
@@ -102,7 +103,7 @@ void HttpManager::httpLoop()
     {
       if (networkWasAvailable)
       {
-        Serial.println("[HTTP] Network disconnected");
+        LOG_NET_INFO("[HTTP] Network disconnected");
         networkWasAvailable = false;
 
         // Update LED status - network lost
@@ -111,7 +112,7 @@ void HttpManager::httpLoop()
           ledManager->setHttpConnectionStatus(false);
         }
       }
-      Serial.printf("[HTTP] Waiting for network | Mode: %s | IP: %s\n",
+      LOG_NET_INFO("[HTTP] Waiting for network | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
 
@@ -120,7 +121,7 @@ void HttpManager::httpLoop()
     }
     else if (!networkWasAvailable)
     {
-      Serial.printf("[HTTP] Network available | Mode: %s | IP: %s\n",
+      LOG_NET_INFO("[HTTP] Network available | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
       networkWasAvailable = true;
@@ -143,16 +144,16 @@ bool HttpManager::sendHttpRequest(const JsonObject &data)
 {
   if (endpointUrl.isEmpty())
   {
-    Serial.println("[HTTP] No endpoint URL configured");
+    LOG_NET_INFO("[HTTP] No endpoint URL configured");
     return false;
   }
 
-  Serial.printf("[HTTP] Sending request to %s\n", endpointUrl.c_str());
+  LOG_NET_INFO("[HTTP] Sending request to %s\n", endpointUrl.c_str());
 
   Client *activeClient = networkManager->getActiveClient();
   if (!activeClient)
   {
-    Serial.println("[HTTP] No active network client available.");
+    LOG_NET_INFO("[HTTP] No active network client available.");
     return false;
   }
 
@@ -170,7 +171,7 @@ bool HttpManager::sendHttpRequest(const JsonObject &data)
     for (JsonPair header : configHeaders)
     {
       httpClient.addHeader(header.key().c_str(), header.value().as<String>());
-      Serial.printf("[HTTP] Header: %s = %s\n", header.key().c_str(), header.value().as<String>().c_str());
+      LOG_NET_INFO("[HTTP] Header: %s = %s\n", header.key().c_str(), header.value().as<String>().c_str());
     }
   }
 
@@ -202,19 +203,19 @@ bool HttpManager::sendHttpRequest(const JsonObject &data)
     }
     else
     {
-      Serial.printf("[HTTP] Unsupported method: %s\n", method.c_str());
+      LOG_NET_INFO("[HTTP] Unsupported method: %s\n", method.c_str());
       httpClient.end();
       return false;
     }
 
     if (httpResponseCode > 0)
     {
-      Serial.printf("[HTTP] Response code: %d\n", httpResponseCode);
+      LOG_NET_INFO("[HTTP] Response code: %d\n", httpResponseCode);
 
       if (httpResponseCode >= 200 && httpResponseCode < 300)
       {
         String response = httpClient.getString();
-        Serial.printf("[HTTP] Success: %s\n", response.c_str());
+        LOG_NET_INFO("[HTTP] Success: %s\n", response.c_str());
         httpClient.end();
         if (ledManager)
         {
@@ -225,17 +226,17 @@ bool HttpManager::sendHttpRequest(const JsonObject &data)
       else
       {
         String response = httpClient.getString();
-        Serial.printf("[HTTP] Error response: %s\n", response.c_str());
+        LOG_NET_INFO("[HTTP] Error response: %s\n", response.c_str());
       }
     }
     else
     {
-      Serial.printf("[HTTP] Request failed, error: %s\n", httpClient.errorToString(httpResponseCode).c_str());
+      LOG_NET_INFO("[HTTP] Request failed, error: %s\n", httpClient.errorToString(httpResponseCode).c_str());
     }
 
     if (attempts < retryCount)
     {
-      Serial.printf("[HTTP] Retrying in 2 seconds... (attempt %d/%d)\n", attempts + 1, retryCount);
+      LOG_NET_INFO("[HTTP] Retrying in 2 seconds... (attempt %d/%d)\n", attempts + 1, retryCount);
       vTaskDelay(pdMS_TO_TICKS(2000));
     }
   }
@@ -249,14 +250,14 @@ void HttpManager::loadHttpConfig()
   JsonDocument configDoc;
   JsonObject httpConfig = configDoc.to<JsonObject>();
 
-  Serial.println("[HTTP] Loading HTTP configuration...");
+  LOG_NET_INFO("[HTTP] Loading HTTP configuration...");
 
   if (serverConfig->getHttpConfig(httpConfig))
   {
     bool enabled = httpConfig["enabled"] | false;
     if (!enabled)
     {
-      Serial.println("[HTTP] HTTP config disabled, clearing endpoint");
+      LOG_NET_INFO("[HTTP] HTTP config disabled, clearing endpoint");
       endpointUrl = "";
       return;
     }
@@ -268,12 +269,12 @@ void HttpManager::loadHttpConfig()
     timeout = httpConfig["timeout"] | 10000;
     retryCount = httpConfig["retry"] | 3;
 
-    Serial.printf("[HTTP] Config loaded | URL: %s | Method: %s | Timeout: %d | Retry: %d\n",
+    LOG_NET_INFO("[HTTP] Config loaded | URL: %s | Method: %s | Timeout: %d | Retry: %d\n",
                   endpointUrl.c_str(), method.c_str(), timeout, retryCount);
   }
   else
   {
-    Serial.println("[HTTP] Failed to load HTTP config");
+    LOG_NET_INFO("[HTTP] Failed to load HTTP config");
     endpointUrl = "";
     method = "POST";
     timeout = 10000;
@@ -306,13 +307,13 @@ void HttpManager::loadHttpConfig()
       dataIntervalMs = intervalValue * 1000; // Default to seconds
     }
 
-    Serial.printf("[HTTP] Data transmission interval set to: %lu ms (%u %s)\n",
+    LOG_NET_INFO("[HTTP] Data transmission interval set to: %lu ms (%u %s)\n",
                   dataIntervalMs, intervalValue, intervalUnit.c_str());
   }
   else
   {
     dataIntervalMs = 5000; // Default 5 seconds
-    Serial.println("[HTTP] Failed to load http_config interval, using default 5000ms");
+    LOG_NET_INFO("[HTTP] Failed to load http_config interval, using default 5000ms");
   }
 
   // Initialize transmission timestamp to allow immediate first publish
@@ -354,13 +355,13 @@ void HttpManager::publishQueueData()
     // Send HTTP request
     if (sendHttpRequest(dataPoint))
     {
-      Serial.printf("[HTTP] Data sent successfully (Batch @ %lu ms)\n", now);
+      LOG_NET_INFO("[HTTP] Data sent successfully (Batch @ %lu ms)\n", now);
       anySent = true;
       sendCount++;
     }
     else
     {
-      Serial.printf("[HTTP] Failed to send data, re-queuing\n");
+      LOG_NET_INFO("[HTTP] Failed to send data, re-queuing\n");
       queueManager->enqueue(dataPoint);
       break;
     }
@@ -372,7 +373,7 @@ void HttpManager::publishQueueData()
   if (anySent)
   {
     lastDataTransmission = now;
-    Serial.printf("[HTTP] Next transmission in %lu ms\n", dataIntervalMs);
+    LOG_NET_INFO("[HTTP] Next transmission in %lu ms\n", dataIntervalMs);
   }
 }
 
@@ -391,7 +392,7 @@ bool HttpManager::isNetworkAvailable()
   IPAddress localIP = networkManager->getLocalIP();
   if (localIP == IPAddress(0, 0, 0, 0))
   {
-    Serial.printf("[HTTP] Network manager available but no IP (%s)\n", networkManager->getCurrentMode().c_str());
+    LOG_NET_INFO("[HTTP] Network manager available but no IP (%s)\n", networkManager->getCurrentMode().c_str());
     return false;
   }
 
@@ -437,7 +438,7 @@ void HttpManager::updateDataTransmissionInterval()
 {
   if (!serverConfig)
   {
-    Serial.println("[HTTP] ServerConfig is null, cannot update data interval");
+    LOG_NET_INFO("[HTTP] ServerConfig is null, cannot update data interval");
     return;
   }
 
@@ -470,7 +471,7 @@ void HttpManager::updateDataTransmissionInterval()
 
     if (newInterval != dataIntervalMs)
     {
-      Serial.printf("[HTTP] Data transmission interval updated: %lu ms -> %lu ms (%u %s)\n",
+      LOG_NET_INFO("[HTTP] Data transmission interval updated: %lu ms -> %lu ms (%u %s)\n",
                     dataIntervalMs, newInterval, intervalValue, intervalUnit.c_str());
       dataIntervalMs = newInterval;
       // Reset transmission timer to allow immediate publish with new interval
@@ -478,12 +479,12 @@ void HttpManager::updateDataTransmissionInterval()
     }
     else
     {
-      Serial.printf("[HTTP] Data transmission interval unchanged: %lu ms\n", dataIntervalMs);
+      LOG_NET_INFO("[HTTP] Data transmission interval unchanged: %lu ms\n", dataIntervalMs);
     }
   }
   else
   {
-    Serial.println("[HTTP] Failed to load updated interval from http_config");
+    LOG_NET_INFO("[HTTP] Failed to load updated interval from http_config");
   }
 }
 

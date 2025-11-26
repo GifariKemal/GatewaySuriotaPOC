@@ -26,7 +26,7 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
   queueMutex = xSemaphoreCreateMutex();
   if (!queueMutex)
   {
-    Serial.println("[CRUD] ERROR: Failed to create queue mutex");
+    LOG_CRUD_INFO("[CRUD] ERROR: Failed to create queue mutex");
   }
 
   // Create command processor task
@@ -40,7 +40,7 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
       &commandProcessorTaskHandle,
       1); // Pin to Core 1
 
-  Serial.println("[CRUD] Batch operations and priority queue initialized");
+  LOG_CRUD_INFO("[CRUD] Batch operations and priority queue initialized");
 }
 
 // Destructor
@@ -57,7 +57,7 @@ CRUDHandler::~CRUDHandler()
     vSemaphoreDelete(queueMutex);
   }
 
-  Serial.println("[CRUD] CRUDHandler destroyed");
+  LOG_CRUD_INFO("[CRUD] CRUDHandler destroyed");
 }
 
 void CRUDHandler::handle(BLEManager *manager, const JsonDocument &command)
@@ -65,7 +65,7 @@ void CRUDHandler::handle(BLEManager *manager, const JsonDocument &command)
   String op = command["op"] | "";
   String type = command["type"] | "";
 
-  Serial.printf("[CRUD] Command - op: '%s', type: '%s'\n", op.c_str(), type.c_str());
+  LOG_CRUD_INFO("[CRUD] Command - op: '%s', type: '%s'\n", op.c_str(), type.c_str());
 
   // Check if this is a batch operation
   if (op == "batch")
@@ -133,19 +133,19 @@ void CRUDHandler::setupCommandHandlers()
       totalRegisters += device["registers"].size();
     }
 
-    Serial.printf("[CRUD] devices_with_registers returned %d devices, %d total registers (minimal=%s) in %lu ms\n",
+    LOG_CRUD_INFO("[CRUD] devices_with_registers returned %d devices, %d total registers (minimal=%s) in %lu ms\n",
                   devices.size(), totalRegisters, minimalFields ? "true" : "false", processingTime);
 
     // Warn if no data returned
     if (devices.size() == 0)
     {
-      Serial.println("[CRUD] WARNING: No devices returned! Check if devices are configured in devices.json");
+      LOG_CRUD_INFO("[CRUD] WARNING: No devices returned! Check if devices are configured in devices.json");
     }
 
     // Warn if processing takes too long (>10 seconds)
     if (processingTime > 10000)
     {
-      Serial.printf("[CRUD] WARNING: Processing took %lu ms (>10s). Consider using minimal=true for large datasets.\n", processingTime);
+      LOG_CRUD_INFO("[CRUD] WARNING: Processing took %lu ms (>10s). Consider using minimal=true for large datasets.\n", processingTime);
     }
 
     manager->sendResponse(*response);
@@ -175,23 +175,23 @@ void CRUDHandler::setupCommandHandlers()
       {
         // Check INTERNAL DRAM only (not PSRAM) - MALLOC_CAP_INTERNAL filters out external PSRAM
         size_t dramBefore = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-        Serial.printf("[CRUD] Large device detected (%d regs). Free DRAM: %d bytes\n",
+        LOG_CRUD_INFO("[CRUD] Large device detected (%d regs). Free DRAM: %d bytes\n",
                       registerCount, dramBefore);
 
         // Trigger memory cleanup if DRAM is below 50KB
         if (dramBefore < 50000)
         {
-          Serial.println("[CRUD] Triggering proactive memory cleanup...");
+          LOG_CRUD_INFO("[CRUD] Triggering proactive memory cleanup...");
           uint32_t freed = MemoryRecovery::triggerCleanup();
           delay(50); // Give time for cleanup to complete
 
           size_t dramAfter = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-          Serial.printf("[CRUD] Memory cleanup complete. Free DRAM: %d bytes (freed %d bytes)\n",
+          LOG_CRUD_INFO("[CRUD] Memory cleanup complete. Free DRAM: %d bytes (freed %d bytes)\n",
                         dramAfter, freed);
         }
         else
         {
-          Serial.printf("[CRUD] DRAM healthy (%d bytes), no cleanup needed\n", dramBefore);
+          LOG_CRUD_INFO("[CRUD] DRAM healthy (%d bytes), no cleanup needed\n", dramBefore);
         }
       }
     }
@@ -229,14 +229,14 @@ void CRUDHandler::setupCommandHandlers()
         data["returned_registers"] = paginatedRegs.size();
         data["has_more_registers"] = (endIndex < totalRegisters);
 
-        Serial.printf("[CRUD] Paginated device read: %d/%d registers (offset=%d, limit=%d)\n",
+        LOG_CRUD_INFO("[CRUD] Paginated device read: %d/%d registers (offset=%d, limit=%d)\n",
                       paginatedRegs.size(), totalRegisters, regOffset, regLimit);
       }
 
       // Log payload size for debugging
       String payload;
       serializeJson(*response, payload);
-      Serial.printf("[CRUD] Device read response size: %d bytes (minimal=%s, paginated=%s)\n",
+      LOG_CRUD_INFO("[CRUD] Device read response size: %d bytes (minimal=%s, paginated=%s)\n",
                     payload.length(), minimal ? "true" : "false", usePagination ? "true" : "false");
 
       manager->sendResponse(*response);
@@ -285,7 +285,7 @@ void CRUDHandler::setupCommandHandlers()
         (*response)["returned_count"] = registers.size();
         (*response)["has_more"] = (endIndex < totalRegisters);
 
-        Serial.printf("[CRUD] Paginated registers read: offset=%d, limit=%d, returned=%d/%d\n",
+        LOG_CRUD_INFO("[CRUD] Paginated registers read: offset=%d, limit=%d, returned=%d/%d\n",
                       offset, limit, registers.size(), totalRegisters);
       }
       else
@@ -296,7 +296,7 @@ void CRUDHandler::setupCommandHandlers()
           registers.add(reg);
         }
 
-        Serial.printf("[CRUD] All registers read: %d registers\n", registers.size());
+        LOG_CRUD_INFO("[CRUD] All registers read: %d registers\n", registers.size());
       }
 
       manager->sendResponse(*response);
@@ -355,7 +355,7 @@ void CRUDHandler::setupCommandHandlers()
 
   readHandlers["full_config"] = [this](BLEManager *manager, const JsonDocument &command)
   {
-    Serial.println("[CRUD] Full config backup requested");
+    LOG_CRUD_INFO("[CRUD] Full config backup requested");
     unsigned long startTime = millis();
 
     // Allocate large PSRAM document for complete config
@@ -379,14 +379,14 @@ void CRUDHandler::setupCommandHandlers()
     JsonObject serverCfg = config["server_config"].to<JsonObject>();
     if (!serverConfig->getConfig(serverCfg))
     {
-      Serial.println("[CRUD] WARNING: Failed to get server config");
+      LOG_CRUD_INFO("[CRUD] WARNING: Failed to get server config");
     }
 
     // 3. Logging config
     JsonObject loggingCfg = config["logging_config"].to<JsonObject>();
     if (!loggingConfig->getConfig(loggingCfg))
     {
-      Serial.println("[CRUD] WARNING: Failed to get logging config");
+      LOG_CRUD_INFO("[CRUD] WARNING: Failed to get logging config");
     }
 
     // Calculate statistics
@@ -411,7 +411,7 @@ void CRUDHandler::setupCommandHandlers()
     serializeJson(*response, testOutput);
     backupInfo["backup_size_bytes"] = testOutput.length();
 
-    Serial.printf("[CRUD] Full config backup complete: %d devices, %d registers, %d bytes, %lu ms\n",
+    LOG_CRUD_INFO("[CRUD] Full config backup complete: %d devices, %d registers, %d bytes, %lu ms\n",
                   totalDevices, totalRegisters, testOutput.length(), processingTime);
 
     manager->sendResponse(*response);
@@ -422,7 +422,7 @@ void CRUDHandler::setupCommandHandlers()
     String device = command["device_id"] | "";
     if (device == "stop")
     {
-      Serial.println("[CRUD] Stop streaming command received");
+      LOG_CRUD_INFO("[CRUD] Stop streaming command received");
 
       // Set streaming flag to false FIRST to prevent new dequeue operations
       manager->setStreamingActive(false);
@@ -433,13 +433,13 @@ void CRUDHandler::setupCommandHandlers()
 
       // Brief delay to allow streaming task to see the flag change
       // Streaming task checks isStreamingActive() every 100ms
-      Serial.println("[CRUD] Waiting 150ms for streaming task to sync...");
+      LOG_CRUD_INFO("[CRUD] Waiting 150ms for streaming task to sync...");
       vTaskDelay(pdMS_TO_TICKS(150));
 
       // No need to wait for transmissions - transmissionMutex will handle synchronization
       // When we call sendResponse(), it will automatically wait for any in-flight
       // transmission to complete before sending the stop response
-      Serial.println("[CRUD] Sending stop response");
+      LOG_CRUD_INFO("[CRUD] Sending stop response");
 
       // Simple streaming completion summary
       Serial.println("[STREAM] Stopped");
@@ -448,7 +448,7 @@ void CRUDHandler::setupCommandHandlers()
       (*response)["status"] = "ok";
       (*response)["message"] = "Data streaming stopped";
       manager->sendResponse(*response);
-      Serial.println("[CRUD] Stop response sent");
+      LOG_CRUD_INFO("[CRUD] Stop response sent");
     }
     else if (!device.isEmpty())
     {
@@ -625,7 +625,7 @@ void CRUDHandler::setupCommandHandlers()
       if (httpManager)
       {
         httpManager->updateDataTransmissionInterval();
-        Serial.println("[CRUD] HTTP Manager data interval updated");
+        LOG_CRUD_INFO("[CRUD] HTTP Manager data interval updated");
       }
 
       auto response = make_psram_unique<JsonDocument>();
@@ -904,6 +904,60 @@ void CRUDHandler::setupCommandHandlers()
     }
 
     manager->sendResponse(*response);
+  };
+
+  // Set Production Mode - Switch between dev (0) and production (1) mode via BLE
+  controlHandlers["set_production_mode"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    // Get requested mode (0 = Development, 1 = Production)
+    if (!command.containsKey("mode"))
+    {
+      manager->sendError("mode parameter required (0 = Development, 1 = Production)");
+      return;
+    }
+
+    uint8_t requestedMode = command["mode"] | 255; // 255 = invalid
+
+    if (requestedMode > 1)
+    {
+      manager->sendError("Invalid mode value. Use 0 (Development) or 1 (Production)");
+      return;
+    }
+
+    // Get current mode for comparison
+    uint8_t previousMode = g_productionMode;
+
+    // Update global runtime mode
+    g_productionMode = requestedMode;
+
+    // Save to logging config for persistence across reboots
+    if (loggingConfig)
+    {
+      loggingConfig->setProductionMode(requestedMode);
+      loggingConfig->save();
+    }
+
+    // Prepare response
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["previous_mode"] = previousMode;
+    (*response)["current_mode"] = g_productionMode;
+    (*response)["mode_name"] = (g_productionMode == 0) ? "Development" : "Production";
+    (*response)["message"] = "Production mode updated. Device will restart in 2 seconds...";
+    (*response)["persistent"] = (loggingConfig != nullptr);
+    (*response)["restarting"] = true;
+
+    manager->sendResponse(*response);
+
+    // Log the change
+    Serial.printf("\n[SYSTEM] Production mode changed: %d -> %d (%s)\n",
+                  previousMode, g_productionMode,
+                  (g_productionMode == 0) ? "Development" : "Production");
+    Serial.println("[SYSTEM] Device will restart in 2 seconds...");
+
+    // Wait for BLE response to be sent, then restart
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP.restart();
   };
 
   // === SYSTEM HANDLERS ===
@@ -1396,7 +1450,7 @@ void CRUDHandler::processPriorityQueue()
   // Only execute if we have a valid manager
   if (!cmd.manager)
   {
-    Serial.println("[CRUD] ERROR: Command has no payload or manager, skipping execution");
+    LOG_CRUD_INFO("[CRUD] ERROR: Command has no payload or manager, skipping execution");
 
     // Safe to free here since we're returning early
     cmd.payloadJson.clear();
@@ -1472,7 +1526,7 @@ void CRUDHandler::commandProcessorTask(void *parameter)
 {
   CRUDHandler *handler = static_cast<CRUDHandler *>(parameter);
 
-  Serial.println("[CRUD] Command processor task started");
+  LOG_CRUD_INFO("[CRUD] Command processor task started");
 
   while (true)
   {

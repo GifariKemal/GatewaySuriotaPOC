@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "ConfigManager.h"
 #include "AtomicFileOps.h" //Atomic operations
 #include "QueueManager.h"  // For flushDeviceData on delete
@@ -24,14 +25,14 @@ ConfigManager::ConfigManager()
 
   if (!cacheMutex || !fileMutex)
   {
-    Serial.println("[CONFIG] ERROR: Failed to create synchronization mutexes");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to create synchronization mutexes");
   }
 
   // Initialize atomic file operations
   atomicFileOps = new AtomicFileOps();
   if (!atomicFileOps)
   {
-    Serial.println("[CONFIG] ERROR: Failed to allocate AtomicFileOps");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to allocate AtomicFileOps");
   }
 
   // Initialize PRIMARY cache in PSRAM
@@ -60,24 +61,24 @@ ConfigManager::ConfigManager()
   if (devicesShadowCache)
   {
     new (devicesShadowCache) JsonDocument();
-    Serial.println("[CONFIG] Devices shadow cache allocated in PSRAM");
+    LOG_CONFIG_INFO("[CONFIG] Devices shadow cache allocated in PSRAM");
   }
   else
   {
     devicesShadowCache = new JsonDocument(); // Fallback to DRAM
-    Serial.println("[CONFIG] WARNING: Devices shadow cache fallback to DRAM");
+    LOG_CONFIG_INFO("[CONFIG] WARNING: Devices shadow cache fallback to DRAM");
   }
 
   registersShadowCache = (JsonDocument *)heap_caps_malloc(sizeof(JsonDocument), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (registersShadowCache)
   {
     new (registersShadowCache) JsonDocument();
-    Serial.println("[CONFIG] Registers shadow cache allocated in PSRAM");
+    LOG_CONFIG_INFO("[CONFIG] Registers shadow cache allocated in PSRAM");
   }
   else
   {
     registersShadowCache = new JsonDocument(); // Fallback to DRAM
-    Serial.println("[CONFIG] WARNING: Registers shadow cache fallback to DRAM");
+    LOG_CONFIG_INFO("[CONFIG] WARNING: Registers shadow cache fallback to DRAM");
   }
 }
 
@@ -144,13 +145,13 @@ bool ConfigManager::begin()
   {
     if (!atomicFileOps->begin())
     {
-      Serial.println("[CONFIG] ERROR: Failed to initialize AtomicFileOps");
+      LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to initialize AtomicFileOps");
       return false;
     }
   }
   else
   {
-    Serial.println("[CONFIG] ERROR: AtomicFileOps not allocated");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: AtomicFileOps not allocated");
     return false;
   }
 
@@ -177,7 +178,7 @@ bool ConfigManager::begin()
   devicesCache->clear();
   registersCache->clear();
 
-  Serial.println("[CONFIG] ConfigManager initialized with atomic write protection");
+  LOG_CONFIG_INFO("[CONFIG] ConfigManager initialized with atomic write protection");
   return true;
 }
 
@@ -198,7 +199,7 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
 
   if (jsonSize == 0)
   {
-    Serial.printf("[CONFIG] ERROR: Failed to serialize JSON for %s\n", filename.c_str());
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to serialize JSON for %s\n", filename.c_str());
     return false;
   }
 
@@ -206,7 +207,7 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
   // This reduces watchdog risk - if file system is stuck, fail faster
   if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
-    Serial.printf("[CONFIG] ERROR: saveJson(%s) - mutex timeout (2s)\n", filename.c_str());
+    LOG_CONFIG_INFO("[CONFIG] ERROR: saveJson(%s) - mutex timeout (2s)\n", filename.c_str());
     return false;
   }
 
@@ -225,7 +226,7 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
 
     if (error != DeserializationError::Ok)
     {
-      Serial.printf("[CONFIG] ERROR: Re-deserialization failed: %s\n", error.c_str());
+      LOG_CONFIG_INFO("[CONFIG] ERROR: Re-deserialization failed: %s\n", error.c_str());
       return false;
     }
 
@@ -234,7 +235,7 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
   else
   {
     // Fallback: direct write (still holding fileMutex)
-    Serial.println("[CONFIG] WARNING: AtomicFileOps not available, using direct write");
+    LOG_CONFIG_INFO("[CONFIG] WARNING: AtomicFileOps not available, using direct write");
 
     File file = LittleFS.open(filename, "w");
     if (!file)
@@ -259,7 +260,7 @@ bool ConfigManager::loadJson(const String &filename, JsonDocument &doc)
   // Mutex protection for file I/O
   if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(5000)) != pdTRUE)
   {
-    Serial.printf("[CONFIG] ERROR: loadJson(%s) - mutex timeout\n", filename.c_str());
+    LOG_CONFIG_INFO("[CONFIG] ERROR: loadJson(%s) - mutex timeout\n", filename.c_str());
     return false;
   }
 
@@ -282,7 +283,7 @@ bool ConfigManager::loadJson(const String &filename, JsonDocument &doc)
     buffer = (char *)heap_caps_malloc(fileSize + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (buffer)
     {
-      Serial.printf("[CONFIG] Allocated %u bytes from PSRAM for %s\n", fileSize, filename.c_str());
+      LOG_CONFIG_INFO("[CONFIG] Allocated %u bytes from PSRAM for %s\n", fileSize, filename.c_str());
     }
   }
 
@@ -291,7 +292,7 @@ bool ConfigManager::loadJson(const String &filename, JsonDocument &doc)
   {
     // Only log if we intended to use PSRAM but couldn't
     logMemoryStats("loadJson PSRAM fallback");
-    Serial.printf("[CONFIG] WARNING: PSRAM allocation failed for %s (%u bytes), using stream parsing\n",
+    LOG_CONFIG_INFO("[CONFIG] WARNING: PSRAM allocation failed for %s (%u bytes), using stream parsing\n",
                   filename.c_str(), fileSize);
   }
 
@@ -316,7 +317,7 @@ bool ConfigManager::loadJson(const String &filename, JsonDocument &doc)
 
   if (error != DeserializationError::Ok)
   {
-    Serial.printf("[CONFIG] ERROR: JSON deserialization failed for %s: %s\n",
+    LOG_CONFIG_INFO("[CONFIG] ERROR: JSON deserialization failed for %s: %s\n",
                   filename.c_str(), error.c_str());
     return false;
   }
@@ -332,7 +333,7 @@ String ConfigManager::createDevice(JsonObjectConst config)
   // Mutex protection for cache modification
   if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
-    Serial.println("[CONFIG] ERROR: createDevice - mutex timeout");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: createDevice - mutex timeout");
     return "";
   }
 
@@ -343,13 +344,13 @@ String ConfigManager::createDevice(JsonObjectConst config)
   {
     // Use device_id from config (for restore operations)
     deviceId = idVariant.as<String>();
-    Serial.printf("[CONFIG] Using device_id from config: %s\n", deviceId.c_str());
+    LOG_CONFIG_INFO("[CONFIG] Using device_id from config: %s\n", deviceId.c_str());
   }
   else
   {
     // Generate new device_id (for new device creation)
     deviceId = generateId("D");
-    Serial.printf("[CONFIG] Generated new device_id: %s\n", deviceId.c_str());
+    LOG_CONFIG_INFO("[CONFIG] Generated new device_id: %s\n", deviceId.c_str());
   }
 
   JsonObject device = (*devicesCache)[deviceId].to<JsonObject>();
@@ -382,13 +383,13 @@ String ConfigManager::createDevice(JsonObjectConst config)
     // New device creation - initialize empty registers array
     device["registers"].to<JsonArray>();
     registerCount = 0;
-    Serial.printf("[CONFIG] Created device %s with empty registers array\n", deviceId.c_str());
+    LOG_CONFIG_INFO("[CONFIG] Created device %s with empty registers array\n", deviceId.c_str());
   }
   else
   {
     // Restore operation - registers already copied
     registerCount = device["registers"].as<JsonArray>().size();
-    Serial.printf("[CONFIG] Created device %s with %d registers (from restore)\n", deviceId.c_str(), registerCount);
+    LOG_CONFIG_INFO("[CONFIG] Created device %s with %d registers (from restore)\n", deviceId.c_str(), registerCount);
   }
 
   // Save to file and keep cache valid
@@ -414,7 +415,7 @@ bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool 
   // Only take mutex briefly to check validity and copy pointer
   if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
-    Serial.println("[CONFIG] ERROR: readDevice - mutex timeout (fallback to cache load)");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: readDevice - mutex timeout (fallback to cache load)");
     // Fallback to old behavior if mutex timeout
     if (!loadDevicesCache())
     {
@@ -436,7 +437,7 @@ bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool 
     // Re-acquire mutex after reload
     if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(100)) != pdTRUE)
     {
-      Serial.println("[CONFIG] ERROR: readDevice - mutex timeout after reload");
+      LOG_CONFIG_INFO("[CONFIG] ERROR: readDevice - mutex timeout after reload");
       return false;
     }
   }
@@ -471,7 +472,7 @@ bool ConfigManager::readDevice(const String &deviceId, JsonObject &result, bool 
     if (minimal)
     {
       result["register_count"] = registerCount;
-      Serial.printf("[CONFIG] Device %s read in MINIMAL mode (register_count=%d) from SHADOW\n",
+      LOG_CONFIG_INFO("[CONFIG] Device %s read in MINIMAL mode (register_count=%d) from SHADOW\n",
                     deviceId.c_str(), registerCount);
     }
 
@@ -571,7 +572,7 @@ bool ConfigManager::deleteDevice(const String &deviceId)
         int flushedCount = queueMgr->flushDeviceData(deviceId);
         if (flushedCount > 0)
         {
-          Serial.printf("[CONFIG] Flushed %d orphaned queue entries for device: %s\n", flushedCount, deviceId.c_str());
+          LOG_CONFIG_INFO("[CONFIG] Flushed %d orphaned queue entries for device: %s\n", flushedCount, deviceId.c_str());
         }
       }
 
@@ -650,13 +651,13 @@ void ConfigManager::getDevicesSummary(JsonArray &summary)
 
 void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFields)
 {
-  Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Starting (minimal=%s)...\n",
+  LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Starting (minimal=%s)...\n",
                 minimalFields ? "true" : "false");
 
   JsonDocument devices;
   if (!loadJson(DEVICES_FILE, devices))
   {
-    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] ERROR: Failed to load devices file");
+    LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] ERROR: Failed to load devices file");
     return;
   }
 
@@ -664,11 +665,11 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
   JsonObject devicesObj = devices.as<JsonObject>();
   if (devicesObj.size() == 0)
   {
-    Serial.println("[GET_ALL_DEVICES_WITH_REGISTERS] Devices file is empty - no devices configured");
+    LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Devices file is empty - no devices configured");
     return;
   }
 
-  Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Found %d devices in file\n", devicesObj.size());
+  LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Found %d devices in file\n", devicesObj.size());
 
   for (JsonPair kv : devicesObj)
   {
@@ -716,7 +717,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
       if (deviceRegisters.size() == 0)
       {
-        Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has empty registers array\n", deviceId); // BUG #31: removed .c_str()
+        LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has empty registers array\n", deviceId); // BUG #31: removed .c_str()
       }
 
       for (JsonObject reg : deviceRegisters)
@@ -743,14 +744,14 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
     }
     else
     {
-      Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has no registers array\n", deviceId); // BUG #31: removed .c_str()
+      LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Device %s has no registers array\n", deviceId); // BUG #31: removed .c_str()
     }
 
-    Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Added device %s with %d registers\n",
+    LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Added device %s with %d registers\n",
                   deviceId, registers.size()); // BUG #31: removed .c_str()
   }
 
-  Serial.printf("[GET_ALL_DEVICES_WITH_REGISTERS] Total devices: %d\n", result.size());
+  LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Total devices: %d\n", result.size());
 }
 
 String ConfigManager::createRegister(const String &deviceId, JsonObjectConst config)
@@ -1083,7 +1084,7 @@ bool ConfigManager::loadDevicesCache()
   // Mutex protection for thread-safe cache access
   if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
-    Serial.println("[CONFIG] ERROR: loadDevicesCache - mutex timeout");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: loadDevicesCache - mutex timeout");
     return false;
   }
 
@@ -1095,7 +1096,7 @@ bool ConfigManager::loadDevicesCache()
     unsigned long now = millis();
     if ((now - lastDevicesCacheTime) >= CACHE_TTL_MS)
     {
-      Serial.printf("[CACHE] Devices cache expired (%lu ms old, TTL: %lu ms). Reloading...\n",
+      LOG_CONFIG_INFO("[CACHE] Devices cache expired (%lu ms old, TTL: %lu ms). Reloading...\n",
                     (now - lastDevicesCacheTime), CACHE_TTL_MS);
       devicesCacheValid = false; // Invalidate and reload
     }
@@ -1107,7 +1108,7 @@ bool ConfigManager::loadDevicesCache()
     }
   }
 
-  Serial.println("[CACHE] Loading devices cache from file...");
+  LOG_CONFIG_INFO("[CACHE] Loading devices cache from file...");
   logMemoryStats("before loadDevicesCache"); // Phase 4: Memory tracking
 
   // If the file doesn't exist, create an empty JSON object in the cache and exit.
@@ -1200,7 +1201,7 @@ bool ConfigManager::loadDevicesCache()
     // Shadow copy is updated INSIDE mutex (safe), but reads can access it with minimal locking
     updateDevicesShadowCopy();
 
-    Serial.printf("[CACHE] Loaded successfully | Devices: %d (shadow copy updated)\n", devices.size());
+    LOG_CONFIG_INFO("[CACHE] Loaded successfully | Devices: %d (shadow copy updated)\n", devices.size());
     logMemoryStats("after loadDevicesCache success"); // Phase 4: Memory tracking
     xSemaphoreGive(cacheMutex);
     return true;
@@ -1222,7 +1223,7 @@ bool ConfigManager::loadRegistersCache()
   // Mutex protection for thread-safe cache access
   if (xSemaphoreTake(cacheMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
-    Serial.println("[CONFIG] ERROR: loadRegistersCache - mutex timeout");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: loadRegistersCache - mutex timeout");
     return false;
   }
 
@@ -1271,14 +1272,14 @@ void ConfigManager::invalidateDevicesCache()
     if (devicesCache)
     {
       devicesCache->clear();
-      Serial.println("[CACHE] Devices cache cleared to free memory");
+      LOG_CONFIG_INFO("[CACHE] Devices cache cleared to free memory");
     }
 
     xSemaphoreGive(cacheMutex);
   }
   else
   {
-    Serial.println("[CONFIG] WARNING: invalidateDevicesCache - mutex timeout, proceeding without lock");
+    LOG_CONFIG_INFO("[CONFIG] WARNING: invalidateDevicesCache - mutex timeout, proceeding without lock");
     devicesCacheValid = false;
   }
 }
@@ -1295,14 +1296,14 @@ void ConfigManager::invalidateRegistersCache()
     if (registersCache)
     {
       registersCache->clear();
-      Serial.println("[CACHE] Registers cache cleared to free memory");
+      LOG_CONFIG_INFO("[CACHE] Registers cache cleared to free memory");
     }
 
     xSemaphoreGive(cacheMutex);
   }
   else
   {
-    Serial.println("[CONFIG] WARNING: invalidateRegistersCache - mutex timeout, proceeding without lock");
+    LOG_CONFIG_INFO("[CONFIG] WARNING: invalidateRegistersCache - mutex timeout, proceeding without lock");
     registersCacheValid = false;
   }
 }
@@ -1363,7 +1364,7 @@ void ConfigManager::logMemoryStats(const String &context) const
   size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
   size_t totalPsram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
 
-  Serial.printf("[CONFIG] Memory [%s]: PSRAM %u/%u free (%.1f%%) | DRAM %u free\n",
+  LOG_CONFIG_INFO("[CONFIG] Memory [%s]: PSRAM %u/%u free (%.1f%%) | DRAM %u free\n",
                 context.c_str(),
                 freePsram, totalPsram,
                 (totalPsram > 0) ? (100.0f * freePsram / totalPsram) : 0.0f,
@@ -1372,7 +1373,7 @@ void ConfigManager::logMemoryStats(const String &context) const
 
 void ConfigManager::refreshCache()
 {
-  Serial.println("[CACHE] Forcing cache refresh...");
+  LOG_CONFIG_INFO("[CACHE] Forcing cache refresh...");
 
   // Force invalidate
   devicesCacheValid = false;
@@ -1386,7 +1387,7 @@ void ConfigManager::refreshCache()
   bool devicesLoaded = loadDevicesCache();
   bool registersLoaded = loadRegistersCache();
 
-  Serial.printf("[CACHE] Refresh complete - Devices: %s, Registers: %s\n",
+  LOG_CONFIG_INFO("[CACHE] Refresh complete - Devices: %s, Registers: %s\n",
                 devicesLoaded ? "OK" : "FAIL",
                 registersLoaded ? "OK" : "FAIL");
 }
@@ -1398,7 +1399,7 @@ void ConfigManager::clearCache()
   // Unlike refreshCache(), this does NOT reload from files
   // Cache will be lazily reloaded on next access
 
-  Serial.println("[CACHE] Clearing caches to free DRAM...");
+  LOG_CONFIG_INFO("[CACHE] Clearing caches to free DRAM...");
 
   // Invalidate cache flags
   devicesCacheValid = false;
@@ -1408,7 +1409,7 @@ void ConfigManager::clearCache()
   devicesCache->clear();
   registersCache->clear();
 
-  Serial.println("[CACHE] Devices and registers caches cleared (will reload on next access)");
+  LOG_CONFIG_INFO("[CACHE] Devices and registers caches cleared (will reload on next access)");
 }
 
 void ConfigManager::debugDevicesFile()
@@ -1594,7 +1595,7 @@ void ConfigManager::updateDevicesShadowCopy()
 
   if (!devicesShadowCache || !devicesCache)
   {
-    Serial.println("[CONFIG] ERROR: Shadow cache or primary cache is null");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Shadow cache or primary cache is null");
     return;
   }
 
@@ -1605,7 +1606,7 @@ void ConfigManager::updateDevicesShadowCopy()
   // ArduinoJson v7 provides efficient set() method for deep copy
   devicesShadowCache->set(*devicesCache);
 
-  Serial.println("[CONFIG] Devices shadow copy updated (lock-free reads enabled)");
+  LOG_CONFIG_INFO("[CONFIG] Devices shadow copy updated (lock-free reads enabled)");
 }
 
 /**
@@ -1620,7 +1621,7 @@ void ConfigManager::updateRegistersShadowCopy()
 
   if (!registersShadowCache || !registersCache)
   {
-    Serial.println("[CONFIG] ERROR: Shadow cache or primary cache is null");
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Shadow cache or primary cache is null");
     return;
   }
 
@@ -1630,5 +1631,5 @@ void ConfigManager::updateRegistersShadowCopy()
   // Deep copy from primary cache to shadow cache
   registersShadowCache->set(*registersCache);
 
-  Serial.println("[CONFIG] Registers shadow copy updated (lock-free reads enabled)");
+  LOG_CONFIG_INFO("[CONFIG] Registers shadow copy updated (lock-free reads enabled)");
 }

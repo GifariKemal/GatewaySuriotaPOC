@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "ServerConfig.h"
 #include <esp_heap_caps.h>
 #include <new>
@@ -35,7 +36,7 @@ bool ServerConfig::begin()
     Serial.println("No server config found, using defaults");
     return saveConfig();
   }
-  Serial.println("[SERVER] Config initialized");
+  LOG_CONFIG_INFO("[SERVER] Config initialized");
   return true;
 }
 

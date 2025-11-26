@@ -56,14 +56,14 @@ MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, Network
 
   if (bufferCacheMutex == NULL || publishStateMutex == NULL)
   {
-    Serial.println("[MQTT] CRITICAL: Failed to create mutexes!");
+    LOG_MQTT_INFO("[MQTT] CRITICAL: Failed to create mutexes!");
   }
   else
   {
-    Serial.println("[MQTT] Thread safety mutexes created successfully");
+    LOG_MQTT_INFO("[MQTT] Thread safety mutexes created successfully");
   }
 
-  Serial.println("[MQTT] Persistent queue initialized");
+  LOG_MQTT_INFO("[MQTT] Persistent queue initialized");
 }
 
 MqttManager *MqttManager::getInstance(ConfigManager *config, ServerConfig *serverCfg, NetworkMgr *netMgr)
@@ -77,11 +77,11 @@ MqttManager *MqttManager::getInstance(ConfigManager *config, ServerConfig *serve
 
 bool MqttManager::init()
 {
-  Serial.println("[MQTT] Initializing manager...");
+  LOG_MQTT_INFO("[MQTT] Initializing manager...");
 
   if (!configManager || !queueManager || !serverConfig || !networkManager)
   {
-    Serial.println("[MQTT] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
+    LOG_MQTT_INFO("[MQTT] ERROR: ConfigManager, QueueManager, ServerConfig, or NetworkManager is null");
     return false;
   }
 
@@ -96,17 +96,17 @@ bool MqttManager::init()
     uint32_t removed = expiredCount - remainingCount;
     if (removed > 0)
     {
-      Serial.printf("[MQTT] Cleaned %lu expired messages from queue\n", removed);
+      LOG_MQTT_INFO("[MQTT] Cleaned %lu expired messages from queue\n", removed);
     }
   }
 
-  Serial.println("[MQTT] Manager initialized");
+  LOG_MQTT_INFO("[MQTT] Manager initialized");
   return true;
 }
 
 void MqttManager::start()
 {
-  Serial.println("[MQTT] Starting manager...");
+  LOG_MQTT_INFO("[MQTT] Starting manager...");
 
   if (running)
   {
@@ -127,11 +127,11 @@ void MqttManager::start()
 
   if (result == pdPASS)
   {
-    Serial.println("[MQTT] Manager started successfully");
+    LOG_MQTT_INFO("[MQTT] Manager started successfully");
   }
   else
   {
-    Serial.println("[MQTT] ERROR: Failed to create MQTT task");
+    LOG_MQTT_INFO("[MQTT] ERROR: Failed to create MQTT task");
     running = false;
     taskHandle = nullptr;
   }
@@ -153,7 +153,7 @@ void MqttManager::stop()
   {
     mqttClient.disconnect();
   }
-  Serial.println("[MQTT] Manager stopped");
+  LOG_MQTT_INFO("[MQTT] Manager stopped");
 }
 
 void MqttManager::disconnect()
@@ -161,7 +161,7 @@ void MqttManager::disconnect()
   if (mqttClient.connected())
   {
     mqttClient.disconnect();
-    Serial.println("[MQTT] Gracefully disconnected from broker");
+    LOG_MQTT_INFO("[MQTT] Gracefully disconnected from broker");
   }
 }
 
@@ -176,7 +176,7 @@ void MqttManager::mqttLoop()
   bool wasConnected = false;
   bool wifiWasConnected = false;
 
-  Serial.println("[MQTT] Task started on Core 1");
+  LOG_MQTT_INFO("[MQTT] Task started on Core 1");
 
   while (running)
   {
@@ -192,11 +192,11 @@ void MqttManager::mqttLoop()
     {
       if (wifiWasConnected)
       {
-        Serial.println("[MQTT] Network disconnected");
+        LOG_MQTT_INFO("[MQTT] Network disconnected");
         wifiWasConnected = false;
         wasConnected = false;
       }
-      Serial.printf("[MQTT] Waiting for network | Mode: %s | IP: %s\n",
+      LOG_MQTT_INFO("[MQTT] Waiting for network | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
 
@@ -206,7 +206,7 @@ void MqttManager::mqttLoop()
     }
     else if (!wifiWasConnected)
     {
-      Serial.printf("[MQTT] Network available | Mode: %s | IP: %s\n",
+      LOG_MQTT_INFO("[MQTT] Network available | Mode: %s | IP: %s\n",
                     networkManager->getCurrentMode().c_str(),
                     networkManager->getLocalIP().toString().c_str());
       wifiWasConnected = true;
@@ -217,7 +217,7 @@ void MqttManager::mqttLoop()
     {
       if (wasConnected)
       {
-        Serial.println("[MQTT] Connection lost, attempting reconnect...");
+        LOG_MQTT_INFO("[MQTT] Connection lost, attempting reconnect...");
         wasConnected = false;
 
         // Update LED status - connection lost
@@ -280,7 +280,7 @@ void MqttManager::mqttLoop()
     vTaskDelay(pdMS_TO_TICKS(50));
   }
 
-  Serial.println("[MQTT] Task stopped");
+  LOG_MQTT_INFO("[MQTT] Task stopped");
 }
 
 bool MqttManager::connectToMqtt()
@@ -292,7 +292,7 @@ bool MqttManager::connectToMqtt()
   Client *activeClient = networkManager->getActiveClient();
   if (!activeClient)
   {
-    Serial.println("[MQTT] ERROR: No active network client available");
+    LOG_MQTT_INFO("[MQTT] ERROR: No active network client available");
     return false;
   }
 
@@ -309,13 +309,13 @@ bool MqttManager::connectToMqtt()
     cachedBufferSize = calculateOptimalBufferSize();
     bufferSizeNeedsRecalculation = false;
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
+    LOG_MQTT_INFO("[MQTT] Buffer size calculated: %u bytes (cached for reuse)\n", cachedBufferSize);
 #endif
   }
 #if PRODUCTION_MODE == 0
   else
   {
-    Serial.printf("[MQTT] Buffer size using cached value: %u bytes\n", cachedBufferSize);
+    LOG_MQTT_INFO("[MQTT] Buffer size using cached value: %u bytes\n", cachedBufferSize);
   }
 #endif
   uint16_t bufferSize = cachedBufferSize; // Copy under mutex protection
@@ -324,7 +324,7 @@ bool MqttManager::connectToMqtt()
   mqttClient.setBufferSize(bufferSize, bufferSize); // Use local copy (thread-safe)
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
+  LOG_MQTT_INFO("[MQTT] Max packet size: %u bytes (MQTT_MAX_PACKET_SIZE)\n", MQTT_MAX_PACKET_SIZE);
 #endif
 
   // FIXED: Increased keep_alive to 120s to prevent timeouts during long Modbus polling cycles
@@ -358,18 +358,18 @@ bool MqttManager::connectToMqtt()
   unsigned long connectDuration = millis() - connectStartTime;
   if (connectDuration > 2000)
   {
-    Serial.printf("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
+    LOG_MQTT_INFO("[MQTT] Connection attempt took %lu ms (slow)\n", connectDuration);
   }
 #endif
 
   if (connected)
   {
-    Serial.printf("[MQTT] Connected | Broker: %s:%d | Network: %s (%s)\n",
+    LOG_MQTT_INFO("[MQTT] Connected | Broker: %s:%d | Network: %s (%s)\n",
                   brokerAddress.c_str(), brokerPort, networkMode.c_str(), localIP.toString().c_str());
   }
   else
   {
-    Serial.printf("[MQTT] ERROR: Connection failed | Error code: %d\n", mqttClient.state());
+    LOG_MQTT_INFO("[MQTT] ERROR: Connection failed | Error code: %d\n", mqttClient.state());
   }
 
   return connected;
@@ -381,7 +381,7 @@ void MqttManager::loadMqttConfig()
   JsonDocument configDoc;
   JsonObject mqttConfig = configDoc.to<JsonObject>();
 
-  Serial.println("[MQTT] Loading MQTT configuration...");
+  LOG_MQTT_INFO("[MQTT] Loading MQTT configuration...");
 
   if (serverConfig->getMqttConfig(mqttConfig))
   {
@@ -397,7 +397,7 @@ void MqttManager::loadMqttConfig()
   else
   {
     // Fallback to defaults if config loading fails
-    Serial.println("[MQTT] Failed to load config, using defaults");
+    LOG_MQTT_INFO("[MQTT] Failed to load config, using defaults");
     brokerAddress = "broker.hivemq.com";
     brokerPort = 1883;
     clientId = "esp32_gateway_" + String(random(1000, 9999));
@@ -541,7 +541,7 @@ int MqttManager::validateAndGroupRegisters(
     {
       totalSkipped += entry.second;
     }
-    Serial.printf("[MQTT] Skipped %d registers from %d deleted device(s)\n",
+    LOG_MQTT_INFO("[MQTT] Skipped %d registers from %d deleted device(s)\n",
                   totalSkipped, deletedDevices.size());
   }
 
@@ -566,7 +566,7 @@ bool MqttManager::serializeAndValidatePayload(
   // Validate serialization success
   if (serializedSize == 0)
   {
-    Serial.println("[MQTT] ERROR: serializeJson() returned 0 bytes!");
+    LOG_MQTT_INFO("[MQTT] ERROR: serializeJson() returned 0 bytes!");
     return false;
   }
 
@@ -575,15 +575,15 @@ bool MqttManager::serializeAndValidatePayload(
   {
     if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}')
     {
-      Serial.printf("[MQTT] ERROR: Payload is not valid JSON! First char: '%c', Last char: '%c'\n",
+      LOG_MQTT_INFO("[MQTT] ERROR: Payload is not valid JSON! First char: '%c', Last char: '%c'\n",
                     payload.charAt(0), payload.charAt(payload.length() - 1));
       if (payload.length() <= 2000)
       {
-        Serial.printf("[MQTT] Invalid payload (%u bytes): %s\n", payload.length(), payload.c_str());
+        LOG_MQTT_INFO("[MQTT] Invalid payload (%u bytes): %s\n", payload.length(), payload.c_str());
       }
       else
       {
-        Serial.printf("[MQTT] Invalid payload too large (%u bytes)\n", payload.length());
+        LOG_MQTT_INFO("[MQTT] Invalid payload too large (%u bytes)\n", payload.length());
         Serial.printf("  First 200 chars: %s\n", payload.substring(0, 200).c_str());
         Serial.printf("  Last 200 chars: %s\n", payload.substring(max(0, (int)payload.length() - 200)).c_str());
       }
@@ -592,7 +592,7 @@ bool MqttManager::serializeAndValidatePayload(
   }
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
+  LOG_MQTT_INFO("[MQTT] Serialization complete: %u bytes (expected ~%u bytes)\n",
                 serializedSize, estimatedSize);
 #endif
 
@@ -614,28 +614,29 @@ bool MqttManager::publishPayload(
   // Check buffer size
   if (payload.length() > cachedBufferSize)
   {
-    Serial.printf("[MQTT] ERROR: Payload too large (%d bytes > %u bytes buffer)!\n",
+    LOG_MQTT_INFO("[MQTT] ERROR: Payload too large (%d bytes > %u bytes buffer)!\n",
                   payload.length(), cachedBufferSize);
-    Serial.printf("[MQTT] %s: Splitting needed. Payload size: %d\n", modeLabel, payload.length());
+    LOG_MQTT_INFO("[MQTT] %s: Splitting needed. Payload size: %d\n", modeLabel, payload.length());
     return false;
   }
 
-  // Print publish request info
-  Serial.printf("\n[MQTT] PUBLISH REQUEST - %s\n", modeLabel);
-  Serial.printf("  Topic: %s\n", topic.c_str());
-  Serial.printf("  Size: %u bytes\n", payload.length());
+  // DEBUG: Print publish request info (only in development mode) - runtime check
+  if (IS_DEV_MODE())
+  {
+    Serial.printf("\n[MQTT] PUBLISH REQUEST - %s\n", modeLabel);
+    Serial.printf("  Topic: %s\n", topic.c_str());
+    Serial.printf("  Size: %u bytes\n", payload.length());
 
-// DEBUG: Print payload (only in verbose mode)
-#if PRODUCTION_MODE == 0
-  if (payload.length() > 0 && payload.length() <= 2000)
-  {
-    Serial.printf("  Payload: %s\n", payload.c_str());
+    // Print payload (verbose mode) - show full JSON as one-line
+    if (payload.length() > 0)
+    {
+      Serial.printf("  Payload: %s\n", payload.c_str());
+    }
+    else
+    {
+      Serial.println("  Payload: [EMPTY]");
+    }
   }
-  else if (payload.length() > 2000)
-  {
-    Serial.printf("  Payload: [%u bytes - too large to display]\n", payload.length());
-  }
-#endif
 
   // Check MQTT connection state before publish
   if (!mqttClient.connected())
@@ -647,15 +648,17 @@ bool MqttManager::publishPayload(
   // Calculate total MQTT packet size for validation
   uint32_t mqttPacketSize = 5 + 2 + topic.length() + payload.length();
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
-  Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
-#endif
+  // Show broker info in development mode - runtime check
+  if (IS_DEV_MODE())
+  {
+    Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
+    Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
+  }
 
   // Validate packet size doesn't exceed buffer
   if (mqttPacketSize > cachedBufferSize)
   {
-    Serial.printf("[MQTT] ERROR: Packet size (%u) exceeds buffer (%u)! Cannot publish.\n",
+    LOG_MQTT_INFO("[MQTT] ERROR: Packet size (%u) exceeds buffer (%u)! Cannot publish.\n",
                   mqttPacketSize, cachedBufferSize);
     return false;
   }
@@ -663,7 +666,7 @@ bool MqttManager::publishPayload(
   // Validate payload is not empty or corrupted
   if (payload.length() == 0 || payload.length() > 16000)
   {
-    Serial.printf("[MQTT] ERROR: Invalid payload size: %u bytes\n", payload.length());
+    LOG_MQTT_INFO("[MQTT] ERROR: Invalid payload size: %u bytes\n", payload.length());
     return false;
   }
 
@@ -673,9 +676,9 @@ bool MqttManager::publishPayload(
 
   if (topic.length() > MAX_TOPIC_LENGTH)
   {
-    Serial.printf("[MQTT] ERROR: Topic too long (%u bytes > %u bytes max)\n",
+    LOG_MQTT_INFO("[MQTT] ERROR: Topic too long (%u bytes > %u bytes max)\n",
                   topic.length(), MAX_TOPIC_LENGTH);
-    Serial.printf("[MQTT] Topic: %s\n", topic.substring(0, 100).c_str());
+    LOG_MQTT_INFO("[MQTT] Topic: %s\n", topic.substring(0, 100).c_str());
     return false;
   }
 
@@ -683,7 +686,7 @@ bool MqttManager::publishPayload(
   char *topicBuffer = (char *)heap_caps_malloc(topic.length() + 1, MALLOC_CAP_8BIT);
   if (!topicBuffer)
   {
-    Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for topic buffer!\n", topic.length() + 1);
+    LOG_MQTT_INFO("[MQTT] ERROR: Failed to allocate %u bytes for topic buffer!\n", topic.length() + 1);
     return false;
   }
   strcpy(topicBuffer, topic.c_str());
@@ -692,7 +695,7 @@ bool MqttManager::publishPayload(
   uint8_t *payloadBuffer = (uint8_t *)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
   if (!payloadBuffer)
   {
-    Serial.printf("[MQTT] ERROR: Failed to allocate %u bytes for payload buffer!\n", payload.length());
+    LOG_MQTT_INFO("[MQTT] ERROR: Failed to allocate %u bytes for payload buffer!\n", payload.length());
     heap_caps_free(topicBuffer); // Free topic buffer before returning
     return false;
   }
@@ -713,7 +716,7 @@ bool MqttManager::publishPayload(
   heap_caps_free(payloadBuffer); // Free payload buffer
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] Publish: %s | State: %d (%s)\n",
+  LOG_MQTT_INFO("[MQTT] Publish: %s | State: %d (%s)\n",
                 published ? "SUCCESS" : "FAILED",
                 mqttClient.state(),
                 mqttClient.state() == 0 ? "connected" : "disconnected");
@@ -808,7 +811,7 @@ void MqttManager::loadBrokerConfig(JsonObject &mqttConfig)
   publishMode = mqttConfig["publish_mode"] | "default";
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] Config loaded | Broker: %s:%d | Client: %s | Auth: %s | Mode: %s\n",
+  LOG_MQTT_INFO("[MQTT] Config loaded | Broker: %s:%d | Client: %s | Auth: %s | Mode: %s\n",
                 brokerAddress.c_str(), brokerPort, clientId.c_str(),
                 (username.length() > 0) ? "YES" : "NO", publishMode.c_str());
 #endif
@@ -839,7 +842,7 @@ void MqttManager::loadDefaultModeConfig(JsonObject &mqttConfig)
     lastDefaultPublish = 0;
 
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Default Mode: %s | Topic: %s | Interval: %u%s (%ums)\n",
+    LOG_MQTT_INFO("[MQTT] Default Mode: %s | Topic: %s | Interval: %u%s (%ums)\n",
                   defaultModeEnabled ? "ENABLED" : "DISABLED",
                   defaultTopicPublish.c_str(), intervalValue,
                   defaultIntervalUnit.c_str(), defaultInterval);
@@ -891,7 +894,7 @@ void MqttManager::loadCustomizeModeConfig(JsonObject &mqttConfig)
         {
           customTopics.push_back(ct);
 #if PRODUCTION_MODE == 0
-          Serial.printf("[MQTT] Custom Topic: %s | Registers: %d | Interval: %u%s (%ums)\n",
+          LOG_MQTT_INFO("[MQTT] Custom Topic: %s | Registers: %d | Interval: %u%s (%ums)\n",
                         ct.topic.c_str(), ct.registers.size(), intervalValue,
                         ct.intervalUnit.c_str(), ct.interval);
 #endif
@@ -900,7 +903,7 @@ void MqttManager::loadCustomizeModeConfig(JsonObject &mqttConfig)
     }
 
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Customize Mode: %s | Topics: %d\n",
+    LOG_MQTT_INFO("[MQTT] Customize Mode: %s | Topics: %d\n",
                   customizeModeEnabled ? "ENABLED" : "DISABLED",
                   customTopics.size());
 #endif
@@ -932,7 +935,7 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray &devices, uint32_t &maxR
 
 #if PRODUCTION_MODE == 0
     String deviceId = device["device_id"] | "UNKNOWN";
-    Serial.printf("[MQTT][DEBUG] Device %d (%s): protocol=%s, refresh=%lums, baud=%lu, registers=%lu\n",
+    LOG_MQTT_INFO("[MQTT][DEBUG] Device %d (%s): protocol=%s, refresh=%lums, baud=%lu, registers=%lu\n",
                   deviceIndex, deviceId.c_str(), protocol.c_str(), refreshRate, baudRate, registerCount);
 #endif
 
@@ -943,7 +946,7 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray &devices, uint32_t &maxR
     {
       maxRefreshRate = refreshRate;
 #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT][DEBUG]   → New maxRefreshRate: %lums\n", maxRefreshRate);
+      LOG_MQTT_INFO("[MQTT][DEBUG]   → New maxRefreshRate: %lums\n", maxRefreshRate);
 #endif
     }
 
@@ -952,7 +955,7 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray &devices, uint32_t &maxR
     {
       hasSlowRTU = true;
 #if PRODUCTION_MODE == 0
-      Serial.printf("[MQTT][DEBUG]   → Slow RTU detected! (baud=%lu, registers=%lu)\n", baudRate, registerCount);
+      LOG_MQTT_INFO("[MQTT][DEBUG]   → Slow RTU detected! (baud=%lu, registers=%lu)\n", baudRate, registerCount);
 #endif
     }
 
@@ -960,7 +963,7 @@ void MqttManager::analyzeDeviceConfigurations(JsonArray &devices, uint32_t &maxR
   }
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT][DEBUG] Analysis summary: totalRegisters=%lu, maxRefreshRate=%lums, hasSlowRTU=%s\n",
+  LOG_MQTT_INFO("[MQTT][DEBUG] Analysis summary: totalRegisters=%lu, maxRefreshRate=%lums, hasSlowRTU=%s\n",
                 totalRegisters, maxRefreshRate, hasSlowRTU ? "YES" : "NO");
 #endif
 }
@@ -1008,7 +1011,7 @@ uint32_t MqttManager::determineTimeoutStrategy(uint32_t totalRegisters, uint32_t
   }
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT][DEBUG] Timeout BEFORE clamp: %lums (reason: %s)\n", timeout, calculationReason.c_str());
+  LOG_MQTT_INFO("[MQTT][DEBUG] Timeout BEFORE clamp: %lums (reason: %s)\n", timeout, calculationReason.c_str());
 #endif
 
   // Clamp between 1s and 10s
@@ -1018,7 +1021,7 @@ uint32_t MqttManager::determineTimeoutStrategy(uint32_t totalRegisters, uint32_t
 #if PRODUCTION_MODE == 0
   if (timeout != timeoutBeforeClamp)
   {
-    Serial.printf("[MQTT][DEBUG] Timeout AFTER clamp: %lums (clamped from %lums)\n", timeout, timeoutBeforeClamp);
+    LOG_MQTT_INFO("[MQTT][DEBUG] Timeout AFTER clamp: %lums (clamped from %lums)\n", timeout, timeoutBeforeClamp);
   }
 #endif
 
@@ -1079,7 +1082,7 @@ void MqttManager::publishQueueData()
     publishState.timeLocked = true;
 
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] ✓ Target time captured at %lu ms (interval elapsed)\n", publishState.targetTime);
+    LOG_MQTT_INFO("[MQTT] ✓ Target time captured at %lu ms (interval elapsed)\n", publishState.targetTime);
 #endif
   }
 
@@ -1088,12 +1091,12 @@ void MqttManager::publishQueueData()
 #if PRODUCTION_MODE == 0
   if (defaultIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000)
   {
-    Serial.printf("[MQTT] Default mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
+    LOG_MQTT_INFO("[MQTT] Default mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
     publishState.lastLoggedInterval = publishState.targetTime;
   }
   if (customizeIntervalElapsed && (publishState.targetTime - publishState.lastLoggedInterval) > 1000)
   {
-    Serial.printf("[MQTT] Customize mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
+    LOG_MQTT_INFO("[MQTT] Customize mode interval elapsed - checking batch status at %lu ms\n", publishState.targetTime);
     publishState.lastLoggedInterval = publishState.targetTime;
   }
 #endif
@@ -1116,7 +1119,7 @@ void MqttManager::publishQueueData()
   {
     lastDefaultPublish = publishState.targetTime;
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishState.targetTime);
+    LOG_MQTT_INFO("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishState.targetTime);
 #endif
   }
 
@@ -1130,7 +1133,7 @@ void MqttManager::publishQueueData()
       }
     }
 #if PRODUCTION_MODE == 0
-    Serial.printf("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishState.targetTime);
+    LOG_MQTT_INFO("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishState.targetTime);
 #endif
   }
 
@@ -1142,7 +1145,7 @@ void MqttManager::publishQueueData()
 #if PRODUCTION_MODE == 0
     if (persistedSent > 0)
     {
-      Serial.printf("[MQTT] Resent %ld persistent messages\n", persistedSent);
+      LOG_MQTT_INFO("[MQTT] Resent %ld persistent messages\n", persistedSent);
     }
 #endif
   }
@@ -1199,7 +1202,7 @@ void MqttManager::publishQueueData()
   publishState.timeLocked = false;
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] ✓ Publish cycle complete - ready for next interval\n");
+  LOG_MQTT_INFO("[MQTT] ✓ Publish cycle complete - ready for next interval\n");
 #endif
 
   // v2.3.8 PHASE 1: Release mutex at end of publish cycle
@@ -1259,16 +1262,16 @@ void MqttManager::publishDefaultMode(std::map<String, JsonDocument> &uniqueRegis
   }
   else
   {
-    Serial.printf("[MQTT] Default Mode: Publish failed (payload: %d bytes, buffer: %u bytes)\n",
+    LOG_MQTT_INFO("[MQTT] Default Mode: Publish failed (payload: %d bytes, buffer: %u bytes)\n",
                   payload.length(), cachedBufferSize);
 
     // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
     // If payload exceeds buffer size, it will fail again when retried, creating infinite loop
     if (payload.length() > cachedBufferSize)
     {
-      Serial.printf("[MQTT] ERROR: Payload dropped (too large: %d bytes > %u bytes buffer)\n",
+      LOG_MQTT_INFO("[MQTT] ERROR: Payload dropped (too large: %d bytes > %u bytes buffer)\n",
                     payload.length(), cachedBufferSize);
-      Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce device/register count");
+      LOG_MQTT_INFO("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce device/register count");
       // Don't enqueue - message is permanently dropped to prevent queue poisoning
     }
     else if (persistentQueueEnabled && persistentQueue)
@@ -1332,7 +1335,7 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
         const char *displayUnit;
         calculateDisplayInterval(customTopic.interval, customTopic.intervalUnit, displayInterval, displayUnit);
 
-        Serial.printf("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
+        LOG_MQTT_INFO("[MQTT] Customize Mode: Published %d registers from %d devices to %s (%.1f KB) / %u%s\n",
                       registerCount, deviceObjects.size(), customTopic.topic.c_str(),
                       payload.length() / 1024.0, displayInterval, displayUnit);
 
@@ -1345,14 +1348,14 @@ void MqttManager::publishCustomizeMode(std::map<String, JsonDocument> &uniqueReg
       }
       else
       {
-        Serial.printf("[MQTT] Customize Mode: Publish failed for topic %s\n", customTopic.topic.c_str());
+        LOG_MQTT_INFO("[MQTT] Customize Mode: Publish failed for topic %s\n", customTopic.topic.c_str());
 
         // CRITICAL FIX: Prevent "Poison Message" - Don't enqueue payloads that are too large for buffer
         if (payload.length() > cachedBufferSize)
         {
-          Serial.printf("[MQTT] ERROR: Payload dropped for topic %s (too large: %d bytes > %u bytes buffer)\n",
+          LOG_MQTT_INFO("[MQTT] ERROR: Payload dropped for topic %s (too large: %d bytes > %u bytes buffer)\n",
                         customTopic.topic.c_str(), payload.length(), cachedBufferSize);
-          Serial.println("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce registers in this topic");
+          LOG_MQTT_INFO("[MQTT] SOLUTION: Increase MQTT_MAX_PACKET_SIZE or reduce registers in this topic");
           // Don't enqueue - message is permanently dropped to prevent queue poisoning
         }
         else if (persistentQueueEnabled && persistentQueue)
@@ -1383,7 +1386,7 @@ bool MqttManager::isNetworkAvailable()
   IPAddress localIP = networkManager->getLocalIP();
   if (localIP == IPAddress(0, 0, 0, 0))
   {
-    Serial.printf("[MQTT] Network manager available but no IP (%s)\n", networkManager->getCurrentMode().c_str());
+    LOG_MQTT_INFO("[MQTT] Network manager available but no IP (%s)\n", networkManager->getCurrentMode().c_str());
     return false;
   }
 
@@ -1398,19 +1401,19 @@ void MqttManager::debugNetworkConnectivity()
 
   if (mode == "WIFI")
   {
-    Serial.printf("[MQTT] Network Debug: WiFi %s  SSID: %s  RSSI: %d dBm  IP: %s  Available: %s\n",
+    LOG_MQTT_INFO("[MQTT] Network Debug: WiFi %s  SSID: %s  RSSI: %d dBm  IP: %s  Available: %s\n",
                   WiFi.status() == WL_CONNECTED ? "Connected" : "Disconnected",
                   WiFi.SSID().c_str(), WiFi.RSSI(), ip.toString().c_str(),
                   available ? "YES" : "NO");
   }
   else if (mode == "ETH")
   {
-    Serial.printf("[MQTT] Network Debug: Ethernet  IP: %s  Available: %s\n",
+    LOG_MQTT_INFO("[MQTT] Network Debug: Ethernet  IP: %s  Available: %s\n",
                   ip.toString().c_str(), available ? "YES" : "NO");
   }
   else
   {
-    Serial.printf("[MQTT] Network Debug: Mode: %s  IP: %s  Available: %s\n",
+    LOG_MQTT_INFO("[MQTT] Network Debug: Mode: %s  IP: %s  Available: %s\n",
                   mode.c_str(), ip.toString().c_str(), available ? "YES" : "NO");
   }
 }
@@ -1437,11 +1440,11 @@ void MqttManager::setPersistentQueueEnabled(bool enable)
   {
     if (enable)
     {
-      Serial.println("[MQTT] Persistent queue enabled");
+      LOG_MQTT_INFO("[MQTT] Persistent queue enabled");
     }
     else
     {
-      Serial.println("[MQTT] Persistent queue disabled");
+      LOG_MQTT_INFO("[MQTT] Persistent queue disabled");
     }
   }
 }
@@ -1464,7 +1467,7 @@ void MqttManager::printQueueStatus() const
   }
   else
   {
-    Serial.println("[MQTT] Persistent queue not initialized");
+    LOG_MQTT_INFO("[MQTT] Persistent queue not initialized");
   }
 }
 
@@ -1533,9 +1536,9 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   else if (calculatedSize > MqttConfig::MAX_BUFFER_SIZE)
   {
     optimalSize = MqttConfig::MAX_BUFFER_SIZE;
-    Serial.printf("[MQTT] WARNING: Calculated buffer (%lu bytes) exceeds max (%u bytes)\n",
+    LOG_MQTT_INFO("[MQTT] WARNING: Calculated buffer (%lu bytes) exceeds max (%u bytes)\n",
                   calculatedSize, MqttConfig::MAX_BUFFER_SIZE);
-    Serial.printf("[MQTT] Consider reducing devices/registers or enabling payload splitting\n");
+    LOG_MQTT_INFO("[MQTT] Consider reducing devices/registers or enabling payload splitting\n");
   }
   else
   {
@@ -1543,7 +1546,7 @@ uint16_t MqttManager::calculateOptimalBufferSize()
   }
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] Buffer calculation: %u registers = %u bytes (min: %u, max: %u)\n",
+  LOG_MQTT_INFO("[MQTT] Buffer calculation: %u registers = %u bytes (min: %u, max: %u)\n",
                 totalRegisters, optimalSize, MqttConfig::MIN_BUFFER_SIZE, MqttConfig::MAX_BUFFER_SIZE);
 #endif
 
@@ -1559,7 +1562,7 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout()
   if (!configManager)
   {
 #if PRODUCTION_MODE == 0
-    Serial.println("[MQTT][DEBUG] No ConfigManager - returning default 2000ms");
+    LOG_MQTT_INFO("[MQTT][DEBUG] No ConfigManager - returning default 2000ms");
 #endif
     return 2000; // Default 2s if no config
   }
@@ -1570,13 +1573,13 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout()
   configManager->getAllDevicesWithRegisters(devices, true); // minimal fields
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT][DEBUG] Loaded %d devices for timeout calculation\n", devices.size());
+  LOG_MQTT_INFO("[MQTT][DEBUG] Loaded %d devices for timeout calculation\n", devices.size());
 #endif
 
   if (devices.size() == 0)
   {
 #if PRODUCTION_MODE == 0
-    Serial.println("[MQTT][DEBUG] No devices - returning default 1000ms");
+    LOG_MQTT_INFO("[MQTT][DEBUG] No devices - returning default 1000ms");
 #endif
     return 1000; // 1s default if no devices
   }
@@ -1591,7 +1594,7 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout()
   uint32_t timeout = determineTimeoutStrategy(totalRegisters, maxRefreshRate, hasSlowRTU);
 
 #if PRODUCTION_MODE == 0
-  Serial.printf("[MQTT] ✓ Adaptive batch timeout: %lums (devices: %d, registers: %lu, max_refresh: %lums)\n",
+  LOG_MQTT_INFO("[MQTT] ✓ Adaptive batch timeout: %lums (devices: %d, registers: %lu, max_refresh: %lums)\n",
                 timeout, devices.size(), totalRegisters, maxRefreshRate);
 #endif
 
@@ -1612,7 +1615,7 @@ void MqttManager::notifyConfigChange()
   publishState.batchTimeout = 0;
   xSemaphoreGive(publishStateMutex);
 
-  Serial.println("[MQTT] Config change detected - buffer size and batch timeout will be recalculated");
+  LOG_MQTT_INFO("[MQTT] Config change detected - buffer size and batch timeout will be recalculated");
 }
 
 MqttManager::~MqttManager()

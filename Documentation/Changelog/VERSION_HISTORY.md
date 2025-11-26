@@ -8,7 +8,112 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 📦 Version 2.3.11 (Current)
+## 📦 Version 2.3.4 (Current - Development Branch)
+
+**Release Date:** November 26, 2025 (Tuesday)
+**Developer:** Kemal (with Claude Code)
+**Status:** 🚧 Testing
+
+### ⚡ Feature: Runtime Production Mode Switching via BLE
+
+**Type:** Major Feature Release
+
+This release adds **runtime production mode switching** via BLE command, allowing applications to toggle between Development Mode (0) and Production Mode (1) without firmware re-upload.
+
+---
+
+### ✨ **NEW FEATURE: BLE Production Mode Control**
+
+**Command:** `set_production_mode`
+
+**Request:**
+```json
+{
+  "op": "control",
+  "type": "set_production_mode",
+  "mode": 0
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "previous_mode": 1,
+  "current_mode": 0,
+  "mode_name": "Development",
+  "message": "Production mode updated. Device will restart in 2 seconds...",
+  "persistent": true,
+  "restarting": true
+}
+```
+
+**Key Features:**
+- ✅ **No Firmware Re-upload** - Switch modes via BLE command
+- ✅ **Persistent Storage** - Mode saved to `/logging_config.json`
+- ✅ **Automatic Restart** - Device restarts with new mode (2s delay)
+- ✅ **Mode Memory** - Persists across reboots and power cycles
+- ✅ **Full Response Data** - Previous/current mode included
+
+**Files Modified:**
+- `Main/DebugConfig.h` - Added runtime variable `g_productionMode` and macros
+- `Main/Main.ino` - Load mode from config on boot
+- `Main/CRUDHandler.cpp` - Added `set_production_mode` handler
+- `Main/LoggingConfig.h/cpp` - Added mode persistence methods
+- `Main/ModbusRtuService.cpp` - Runtime checks for debug output
+- `Main/ModbusTcpService.cpp` - Runtime checks for debug output
+- `Main/MqttManager.cpp` - Runtime checks for verbose output
+- `Documentation/API_Reference/BLE_PRODUCTION_MODE.md` - New API documentation
+
+---
+
+### 📝 Development Mode Debug Output (Added)
+
+**New Feature:** JSON debug output for Modbus polling and MQTT publishing
+
+**Modbus RTU/TCP Polling:**
+```
+[RTU] POLLED DATA: {"device_id":"D001","protocol":"RTU","registers":[...],"success_count":5,"failed_count":0}
+[TCP] POLLED DATA: {"device_id":"D002","protocol":"TCP","registers":[...],"success_count":3,"failed_count":0}
+```
+
+**MQTT Publish:**
+```
+[MQTT] PUBLISH REQUEST - Default Mode
+  Topic: suriota/devices/D001/data
+  Payload: {"device_id":"D001","registers":[...]}
+  Broker: mqtt.example.com:1883
+```
+
+**Purpose:** Validate data flow from polling → queue → MQTT publish
+
+---
+
+### 🔄 Mode Comparison
+
+| Feature | Development (0) | Production (1) |
+|---------|----------------|----------------|
+| BLE Startup | Always ON | Button-controlled |
+| Debug Output | Full verbose | Minimal JSON only |
+| Modbus Data | JSON output | Silent |
+| MQTT Data | Full payload | Silent |
+| Log Level | INFO | ERROR |
+| Use Case | Development/testing | 1-5+ year deployment |
+
+---
+
+### 📚 Documentation
+
+**New Files:**
+- `Documentation/API_Reference/BLE_PRODUCTION_MODE.md` - Complete API guide for applications
+
+**See Also:**
+- [BLE_API.md](../API_Reference/BLE_API.md) - Full BLE CRUD reference
+- [PRODUCTION_LOGGING.md](../Technical_Guides/PRODUCTION_LOGGING.md) - Production logging guide
+
+---
+
+## 📦 Version 2.3.10
 
 **Release Date:** November 26, 2025 (Tuesday)
 **Developer:** Kemal (with Claude Code)
