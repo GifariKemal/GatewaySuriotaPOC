@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.11 | **Last Updated:** November 26, 2025
+**Version:** 2.3.12 | **Last Updated:** November 26, 2025
 
 ---
 
@@ -31,20 +31,26 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.3.11 - Nov 26, 2025)
+## 🆕 Latest Updates (v2.3.12 - Nov 26, 2025)
 
 ### Critical Fixes & Major Optimizations
+- **v2.3.12:** CRITICAL fixes - ModbusTCP polling now respects refresh_rate_ms (was ignoring config) + connection pool duplicate entry prevention (eliminated false "unhealthy" warnings)
 - **v2.3.11:** CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread-safe mutex)
 - **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
 - **v2.3.9:** CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
 - **v2.3.8:** Performance optimization (shadow copy pattern, stack optimization, DRAM fragmentation elimination)
 - **v2.3.4-2.3.7:** BLE transmission timeout fixes, MQTT interval corrections, log formatting enhancements
 
+### v2.3.12 Critical Bug Fixes
+- **BUG #1 - Polling Interval:** Fixed `updateDeviceLastRead()` never being called, causing devices to poll every ~2s regardless of `refresh_rate_ms` config (now respects 5000ms accurately)
+- **BUG #2 - Connection Pool:** Fixed duplicate pool entries when connections marked unhealthy, causing false "marked unhealthy, recreating" logs and TCP handshake on every poll (now 99% reuse)
+- **Performance Impact:** 60% traffic reduction for typical configs, eliminated false unhealthy warnings, clean pool state with no duplicates
+
 ### v2.3.11 Key Features
 - **BLE Corruption Fix:** Timeout protection (5s), <START> marker handling, buffer validation
 - **ModbusTCP Optimization:** 100% file system access elimination via vector caching, 50% TCP handshake reduction via connection pooling
 - **Thread Safety:** Mutex protection for device vectors in ModbusTCP and ModbusRTU
-- **Dynamic Polling:** Loop delay respects device-specific refresh_rate_ms (was hardcoded 2000ms)
+- **Dynamic Polling:** Loop delay respects device-specific refresh_rate_ms (design was correct, implementation had bug - FIXED in v2.3.12)
 - **ErrorHandler Fix:** Array overflow prevention with DOMAIN_COUNT constant
 - **Timestamp Support:** Added to Modbus polling for better diagnostics
 

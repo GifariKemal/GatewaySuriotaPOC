@@ -30,21 +30,14 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.3.3"
+#define FIRMWARE_VERSION "2.3.4"
 #define DEVICE_ID "SRT-MGATE-1210"
 
-// Smart Serial wrapper - auto-suppresses in production mode
-#if PRODUCTION_MODE == 1
-  // Production mode: Suppress development Serial output
-  #define DEV_SERIAL_PRINT(...) do {} while(0)
-  #define DEV_SERIAL_PRINTF(...) do {} while(0)
-  #define DEV_SERIAL_PRINTLN(...) do {} while(0)
-#else
-  // Development mode: Pass through to Serial
-  #define DEV_SERIAL_PRINT(...) Serial.print(__VA_ARGS__)
-  #define DEV_SERIAL_PRINTF(...) Serial.printf(__VA_ARGS__)
-  #define DEV_SERIAL_PRINTLN(...) Serial.println(__VA_ARGS__)
-#endif
+// Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
+// These macros now check g_productionMode at runtime instead of compile-time
+#define DEV_SERIAL_PRINT(...) do { if (IS_DEV_MODE()) Serial.print(__VA_ARGS__); } while(0)
+#define DEV_SERIAL_PRINTF(...) do { if (IS_DEV_MODE()) Serial.printf(__VA_ARGS__); } while(0)
+#define DEV_SERIAL_PRINTLN(...) do { if (IS_DEV_MODE()) Serial.println(__VA_ARGS__); } while(0)
 
 #include "BLEManager.h"
 #include "CRUDHandler.h"
@@ -174,13 +167,16 @@ void setup()
   vTaskDelay(pdMS_TO_TICKS(1000));
 
   // ============================================
-  // LOG LEVEL SYSTEM INITIALIZATION (Phase 1)
+  // LOG LEVEL SYSTEM INITIALIZATION (Phase 1) - Runtime check
   // ============================================
-#if PRODUCTION_MODE == 1
-  setLogLevel(LOG_ERROR); // Production: ONLY critical errors (suppress WARN/INFO)
-#else
-  setLogLevel(LOG_INFO); // Development: ERROR + WARN + INFO
-#endif
+  if (IS_PRODUCTION_MODE())
+  {
+    setLogLevel(LOG_ERROR); // Production: ONLY critical errors (suppress WARN/INFO)
+  }
+  else
+  {
+    setLogLevel(LOG_INFO); // Development: ERROR + WARN + INFO
+  }
 
   // ============================================
   // RTC TIMESTAMPS (Phase 3)
@@ -188,11 +184,12 @@ void setup()
   setLogTimestamps(true); // Enable timestamps (default: true)
   // To disable: setLogTimestamps(false);
 
-#if PRODUCTION_MODE == 0
-                          // Development mode: show log status
-  Serial.println("\n[SYSTEM] DEVELOPMENT MODE - ENHANCED LOGGING");
-  printLogLevelStatus();
-#endif
+  // Development mode: show log status (runtime check)
+  if (IS_DEV_MODE())
+  {
+    Serial.println("\n[SYSTEM] DEVELOPMENT MODE - ENHANCED LOGGING");
+    printLogLevelStatus();
+  }
 
   // ============================================
   // MEMORY RECOVERY INITIALIZATION (Phase 2)
@@ -201,15 +198,17 @@ void setup()
   MemoryRecovery::setCheckInterval(5000);     // Check every 5 seconds
   MemoryRecovery::logMemoryStatus("STARTUP"); // Log initial memory state
 
-#if PRODUCTION_MODE == 0
-  Serial.println("[SYSTEM] MEMORY RECOVERY SYSTEM");
-  Serial.println("  Auto-recovery: ENABLED");
-  Serial.println("  Check interval: 5 seconds");
-  Serial.println("  Thresholds:");
-  Serial.printf("    WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
-  Serial.printf("    CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
-  Serial.printf("    EMERGENCY: %lu bytes\n\n", MemoryThresholds::DRAM_EMERGENCY);
-#endif
+  // Development mode: show memory recovery details (runtime check)
+  if (IS_DEV_MODE())
+  {
+    Serial.println("[SYSTEM] MEMORY RECOVERY SYSTEM");
+    Serial.println("  Auto-recovery: ENABLED");
+    Serial.println("  Check interval: 5 seconds");
+    Serial.println("  Thresholds:");
+    Serial.printf("    WARNING: %lu bytes\n", MemoryThresholds::DRAM_WARNING);
+    Serial.printf("    CRITICAL: %lu bytes\n", MemoryThresholds::DRAM_CRITICAL);
+    Serial.printf("    EMERGENCY: %lu bytes\n\n", MemoryThresholds::DRAM_EMERGENCY);
+  }
 
   // FIXED BUG #2: Serial.end() moved to END of setup() to avoid crash
   // Previously called here, causing all subsequent Serial.printf() to crash
@@ -254,10 +253,11 @@ void setup()
     return;
   }
 
-  // Debug: Show devices file content
-  #if PRODUCTION_MODE == 0
-  configManager->debugDevicesFile();
-  #endif
+  // Debug: Show devices file content (runtime check)
+  if (IS_DEV_MODE())
+  {
+    configManager->debugDevicesFile();
+  }
 
   // Pre-load the cache once to prevent race conditions from other tasks
   DEV_SERIAL_PRINTLN("[MAIN] Forcing initial cache load...");
@@ -520,10 +520,10 @@ void setup()
     return;
   }
 
-  // Start BLE based on mode
-  // Development mode (PRODUCTION_MODE == 0): BLE always ON
-  // Production mode (PRODUCTION_MODE == 1): BLE starts OFF, controlled by button
-  if (PRODUCTION_MODE == 0)
+  // Start BLE based on mode (runtime check - supports mode switching)
+  // Development mode: BLE always ON
+  // Production mode: BLE starts OFF, controlled by button
+  if (IS_DEV_MODE())
   {
     // Development mode: start BLE immediately
     if (!bleManager->begin())
@@ -543,11 +543,9 @@ void setup()
   DEV_SERIAL_PRINTLN("[MAIN] BLE CRUD Manager started successfully");
 
   // ============================================
-  // PRODUCTION LOGGER INITIALIZATION
+  // PRODUCTION LOGGER INITIALIZATION (Always init, enable based on mode)
   // ============================================
-#if PRODUCTION_MODE == 1
-  // Production mode: Initialize minimal production logger
-  // This replaces the previous Serial.end() approach to maintain visibility
+  // Always initialize ProductionLogger (supports runtime mode switching)
   productionLogger = ProductionLogger::getInstance();
   if (productionLogger)
   {
@@ -555,6 +553,7 @@ void setup()
     productionLogger->setHeartbeatInterval(60000);  // Heartbeat every 60 seconds
     productionLogger->setJsonFormat(true);          // Use JSON format for parsing
     productionLogger->setActiveProtocol(serverConfig->getProtocol());
+    productionLogger->setEnabled(IS_PRODUCTION_MODE()); // Enable only in production mode
 
     // Set initial network status
     if (networkInitialized)
@@ -573,14 +572,18 @@ void setup()
       productionLogger->setHttpStatus(ProtoStatus::CONNECTING);
     }
 
-    // Log boot message
-    productionLogger->logBoot();
-    DEV_SERIAL_PRINTLN("[MAIN] Production Logger initialized - minimal logging active");
+    DEV_SERIAL_PRINTLN("[MAIN] Production Logger initialized");
   }
-#else
-  // Development mode: Full logging already active
-  Serial.println("\n[MAIN] === SYSTEM READY (Development Mode) ===\n");
-#endif
+
+  // System ready message based on mode
+  if (IS_DEV_MODE())
+  {
+    Serial.println("\n[MAIN] === SYSTEM READY (Development Mode) ===\n");
+  }
+  else if (productionLogger)
+  {
+    productionLogger->logBoot(); // Log boot in production mode
+  }
 }
 
 void loop()
@@ -588,14 +591,12 @@ void loop()
   // FreeRTOS-friendly delay - yields to other tasks
   vTaskDelay(pdMS_TO_TICKS(100));
 
-#if PRODUCTION_MODE == 1
-  // Production mode: Periodic heartbeat logging
+  // Production mode: Periodic heartbeat logging (runtime check)
   // This is automatically throttled by ProductionLogger (default: every 60s)
-  if (productionLogger)
+  if (IS_PRODUCTION_MODE() && productionLogger)
   {
     productionLogger->heartbeat();
   }
-#endif
 
   // Optional: Add watchdog feed or system monitoring here
   // esp_task_wdt_reset();

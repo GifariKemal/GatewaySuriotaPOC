@@ -462,30 +462,14 @@ public:
 #endif
 
 // ============================================
-// MODE CHECKING MACROS
+// MODE CHECKING MACROS (Deprecated - moved to top of file as runtime checks)
 // ============================================
-#if PRODUCTION_MODE == 0
-#define IS_DEBUG_MODE() true
-#define IS_PRODUCTION_MODE() false
-#else
-#define IS_DEBUG_MODE() false
-#define IS_PRODUCTION_MODE() true
-#endif
+// IS_PRODUCTION_MODE() and IS_DEV_MODE() are now defined at the top of this file
+// as runtime checks using g_productionMode variable
 
-// Conditional code execution based on mode
-#if PRODUCTION_MODE == 0
-#define DEBUG_CODE(code) code
-#define PRODUCTION_SKIP(code) \
-  do                          \
-  {                           \
-  } while (0)
-#else
-#define DEBUG_CODE(code) \
-  do                     \
-  {                      \
-  } while (0)
-#define PRODUCTION_SKIP(code) code
-#endif
+// Conditional code execution based on mode (runtime)
+#define DEBUG_CODE(code) do { if (IS_DEV_MODE()) { code; } } while(0)
+#define PRODUCTION_CODE(code) do { if (IS_PRODUCTION_MODE()) { code; } } while(0)
 
 // ============================================
 // MODE INDICATOR FUNCTION

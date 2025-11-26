@@ -427,7 +427,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     polledData["ip"] = ip;
     polledData["port"] = port;
     polledData["timestamp"] = millis();
-    polledRegisters = polledData.createNestedArray("registers");
+    polledRegisters = polledData["registers"].to<JsonArray>();
   }
 
   // FIXED ISSUE #2: Get pooled connection ONCE for all registers (eliminates repeated handshakes)
@@ -483,7 +483,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // Add to JSON debug output (runtime check)
         if (IS_DEV_MODE())
         {
-          JsonObject regObj = polledRegisters.createNestedObject();
+          JsonObject regObj = polledRegisters.add<JsonObject>();
           regObj["name"] = registerName;
           regObj["address"] = address;
           regObj["function_code"] = functionCode;
@@ -578,7 +578,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
         // Add to JSON debug output (runtime check)
         if (IS_DEV_MODE())
         {
-          JsonObject regObj = polledRegisters.createNestedObject();
+          JsonObject regObj = polledRegisters.add<JsonObject>();
           regObj["name"] = registerName;
           regObj["address"] = address;
           regObj["function_code"] = functionCode;
@@ -625,6 +625,10 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     // Use LOG_DATA_DEBUG so it's compiled out in production mode
     LOG_DATA_DEBUG("%s", outputBuffer.c_str());
   }
+
+  // CRITICAL FIX: Update device last read timestamp to respect refresh_rate_ms
+  // Without this, shouldPollDevice() always returns true and device is polled every 100ms!
+  updateDeviceLastRead(deviceId);
 
   // END-OF-BATCH MARKER: Signal to MQTT that device batch is complete
   // This marker allows MQTT to know when to publish per-device data
@@ -1320,6 +1324,8 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
           entry.client = nullptr;
         }
         entry.isHealthy = false;
+        // CRITICAL FIX: Don't break yet! We need to reuse THIS entry, not create duplicate!
+        // Fall through to recreate connection using the SAME entry slot below
       }
       break;
     }
@@ -1341,47 +1347,70 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
       return nullptr;
     }
 
-    // DRAM FIX (v2.3.9): NEVER create temporary connections - always force cleanup oldest!
-    if (connectionPool.size() >= MAX_POOL_SIZE)
+    // CRITICAL FIX: Check if we have an existing entry with nullptr client (from unhealthy cleanup above)
+    // If yes, REUSE that entry instead of creating duplicate!
+    bool foundExistingEntry = false;
+    for (auto &entry : connectionPool)
     {
-      // Pool full - FORCE cleanup oldest connection BEFORE adding new one
-      LOG_TCP_INFO("[TCP] Pool full (%d), force cleanup oldest connection before adding %s\n",
-                    MAX_POOL_SIZE, deviceKey.c_str());
-
-      unsigned long oldestTime = now;
-      size_t oldestIdx = 0;
-      for (size_t i = 0; i < connectionPool.size(); i++)
+      if (entry.deviceKey == deviceKey && entry.client == nullptr)
       {
-        if (connectionPool[i].lastUsed < oldestTime)
-        {
-          oldestTime = connectionPool[i].lastUsed;
-          oldestIdx = i;
-        }
+        // Reuse existing entry slot
+        entry.client = client;
+        entry.lastUsed = now;
+        entry.createdAt = now;
+        entry.useCount = 1;
+        entry.isHealthy = true;
+        foundExistingEntry = true;
+        LOG_TCP_INFO("[TCP] Recreated connection for %s (reused pool entry)\n", deviceKey.c_str());
+        break;
       }
-
-      // Close and delete oldest connection
-      if (connectionPool[oldestIdx].client)
-      {
-        connectionPool[oldestIdx].client->stop();
-        delete connectionPool[oldestIdx].client;
-        connectionPool[oldestIdx].client = nullptr;
-      }
-      connectionPool.erase(connectionPool.begin() + oldestIdx);
-      LOG_TCP_INFO("[TCP] Cleaned up oldest connection (freed DRAM)\n");
     }
 
-    // Now add new connection (pool has space)
-    ConnectionPoolEntry newEntry;
-    newEntry.deviceKey = deviceKey;
-    newEntry.client = client;
-    newEntry.lastUsed = now;
-    newEntry.createdAt = now;
-    newEntry.useCount = 1;
-    newEntry.isHealthy = true;
-    connectionPool.push_back(newEntry);
+    // If no existing entry found, add new one
+    if (!foundExistingEntry)
+    {
+      // DRAM FIX (v2.3.9): NEVER create temporary connections - always force cleanup oldest!
+      if (connectionPool.size() >= MAX_POOL_SIZE)
+      {
+        // Pool full - FORCE cleanup oldest connection BEFORE adding new one
+        LOG_TCP_INFO("[TCP] Pool full (%d), force cleanup oldest connection before adding %s\n",
+                      MAX_POOL_SIZE, deviceKey.c_str());
 
-    LOG_TCP_INFO("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
-                  deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
+        unsigned long oldestTime = now;
+        size_t oldestIdx = 0;
+        for (size_t i = 0; i < connectionPool.size(); i++)
+        {
+          if (connectionPool[i].lastUsed < oldestTime)
+          {
+            oldestTime = connectionPool[i].lastUsed;
+            oldestIdx = i;
+          }
+        }
+
+        // Close and delete oldest connection
+        if (connectionPool[oldestIdx].client)
+        {
+          connectionPool[oldestIdx].client->stop();
+          delete connectionPool[oldestIdx].client;
+          connectionPool[oldestIdx].client = nullptr;
+        }
+        connectionPool.erase(connectionPool.begin() + oldestIdx);
+        LOG_TCP_INFO("[TCP] Cleaned up oldest connection (freed DRAM)\n");
+      }
+
+      // Now add new connection (pool has space)
+      ConnectionPoolEntry newEntry;
+      newEntry.deviceKey = deviceKey;
+      newEntry.client = client;
+      newEntry.lastUsed = now;
+      newEntry.createdAt = now;
+      newEntry.useCount = 1;
+      newEntry.isHealthy = true;
+      connectionPool.push_back(newEntry);
+
+      LOG_TCP_INFO("[TCP] Created new pooled connection to %s (pool size: %d/%d)\n",
+                    deviceKey.c_str(), connectionPool.size(), MAX_POOL_SIZE);
+    }
   }
 
   xSemaphoreGive(poolMutex);
