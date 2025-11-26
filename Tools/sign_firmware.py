@@ -174,7 +174,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
     firmware_path = sys.argv[1]
-    private_key_path = sys.argv[2] if len(sys.argv) > 2 else "ota_private_key.pem"
+
+    # Default private key location is OTA_Keys folder (relative to script)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_key = os.path.join(script_dir, "OTA_Keys", "ota_private_key.pem")
+
+    private_key_path = sys.argv[2] if len(sys.argv) > 2 else default_key
     version = sys.argv[3] if len(sys.argv) > 3 else None
 
     manifest = sign_firmware(firmware_path, private_key_path, version)

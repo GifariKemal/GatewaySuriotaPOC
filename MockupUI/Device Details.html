@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Device Details - Health Metrics & Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' },
+        animation: {
+          'fade-in': 'fadeIn 0.3s ease-in-out',
+          'slide-up': 'slideUp 0.3s ease-out',
+          'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+        },
+        keyframes: {
+          fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+          slideUp: { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+        }
+      }}
+    }
+  </script>
+  <style>
+    @keyframes pulse-bg { 50% { background-color: #10b981; } }
+    .live-dot { animation: pulse-bg 2s infinite; }
+    .gauge-fill { transition: stroke-dashoffset 1s ease; }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <a href="Device List (Home Screen).html" class="font-semibold text-slate-900 flex items-center gap-2 hover:text-brand transition">
+        <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+        </svg>
+        Back to List
+      </a>
+      <div class="flex gap-2">
+        <button id="btnEdit" title="Edit Device" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition">
+          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+          </svg>
+        </button>
+        <button id="btnDelete" title="Delete Device" class="p-2 rounded-full hover:bg-red-50 text-slate-500 hover:text-red-600 transition">
+          <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397M4.125 4.5h15.75" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 space-y-4">
+
+    <!-- Device Info Card -->
+    <section class="bg-white rounded-2xl shadow-soft p-6 border-2 border-slate-200">
+      <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-3">
+            <h1 id="devName" class="text-2xl font-bold text-brand">Main Power Meter</h1>
+            <span id="protoBadge" class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">RTU</span>
+          </div>
+          <p class="text-sm text-slate-500 font-mono mt-1">ID: <span id="devId">D4A5F1</span></p>
+
+          <!-- Device Status Badge -->
+          <div id="statusBadge" class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2">
+            <span class="size-3 rounded-full"></span>
+            <div>
+              <p id="statusLabel" class="text-sm font-semibold"></p>
+              <p id="statusDetail" class="text-xs text-slate-500"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Device Controls -->
+        <div class="flex flex-col gap-2 sm:w-48">
+          <button id="btnToggleDevice" class="px-4 py-2.5 rounded-xl font-semibold text-white transition shadow hover:shadow-lg">
+            <span id="toggleText">Enable Device</span>
+          </button>
+          <button id="btnClearMetrics" class="px-4 py-2.5 rounded-xl border-2 border-slate-300 font-semibold text-slate-700 hover:bg-slate-50 transition">
+            Clear Metrics
+          </button>
+        </div>
+      </div>
+
+      <!-- Device Details Grid -->
+      <div class="mt-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
+        <div>
+          <p class="text-slate-500 mb-1">Protocol</p>
+          <p id="detailProto" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="slaveIdField">
+          <p class="text-slate-500 mb-1">Slave ID</p>
+          <p id="detailSlaveId" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="baudField">
+          <p class="text-slate-500 mb-1">Baud Rate</p>
+          <p id="detailBaud" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="portField">
+          <p class="text-slate-500 mb-1">Serial Port</p>
+          <p id="detailPort" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="ipField" class="hidden">
+          <p class="text-slate-500 mb-1">IP Address</p>
+          <p id="detailIp" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="tcpPortField" class="hidden">
+          <p class="text-slate-500 mb-1">TCP Port</p>
+          <p id="detailTcpPort" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Timeout</p>
+          <p id="detailTimeout" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Refresh Rate</p>
+          <p id="detailRefresh" class="font-semibold text-slate-900">-</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Health Metrics Dashboard -->
+    <section id="metricsSection" class="bg-white rounded-2xl shadow-soft p-6 border-2 border-emerald-200">
+      <h2 class="text-lg font-bold text-emerald-700 mb-4 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
+        </svg>
+        Device Health Metrics
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Success Rate Gauge -->
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+          <p class="text-xs font-semibold text-emerald-900 mb-3">Success Rate</p>
+          <div class="relative w-32 h-32 mx-auto">
+            <svg class="transform -rotate-90 w-32 h-32">
+              <circle cx="64" cy="64" r="56" stroke="#d1fae5" stroke-width="12" fill="none" />
+              <circle id="gaugeCircle" cx="64" cy="64" r="56" stroke="#10b981" stroke-width="12" fill="none"
+                      stroke-dasharray="352" stroke-dashoffset="0" class="gauge-fill" stroke-linecap="round" />
+            </svg>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="text-center">
+                <p id="successRate" class="text-2xl font-bold text-emerald-700">99.0%</p>
+                <p class="text-xs text-emerald-600">Healthy</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Response Time Stats -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+          <p class="text-xs font-semibold text-blue-900 mb-3">Response Time (ms)</p>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-blue-700">Average:</span>
+              <span id="avgResponse" class="text-lg font-bold text-blue-900">245</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-blue-700">Minimum:</span>
+              <span id="minResponse" class="text-sm font-semibold text-blue-800">180</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-blue-700">Maximum:</span>
+              <span id="maxResponse" class="text-sm font-semibold text-blue-800">520</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-blue-700">Last:</span>
+              <span id="lastResponse" class="text-sm font-semibold text-blue-800">230</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Read Statistics -->
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+          <p class="text-xs font-semibold text-purple-900 mb-3">Read Statistics</p>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-purple-700">Total Reads:</span>
+              <span id="totalReads" class="text-lg font-bold text-purple-900">1,250</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-purple-700">Successful:</span>
+              <span id="successReads" class="text-sm font-semibold text-emerald-700">1,238</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-purple-700">Failed:</span>
+              <span id="failedReads" class="text-sm font-semibold text-red-600">12</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Failure & Timeout Stats -->
+        <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4 border border-amber-200">
+          <p class="text-xs font-semibold text-amber-900 mb-3">Failure & Timeout</p>
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-amber-700">Consecutive Failures:</span>
+              <span id="consecutiveFail" class="text-lg font-bold text-amber-900">0</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-amber-700">Retry Count:</span>
+              <span id="retryCount" class="text-sm font-semibold text-amber-800">0</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-amber-700">Consecutive Timeouts:</span>
+              <span id="consecutiveTimeout" class="text-sm font-semibold text-amber-800">0</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-amber-700">Max Timeouts:</span>
+              <span id="maxTimeout" class="text-sm font-semibold text-amber-800">3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Data Stream -->
+    <section class="bg-white rounded-2xl shadow-soft p-6 border-2 border-slate-200">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold text-slate-700">Live Data Stream</h2>
+        <label class="inline-flex cursor-pointer select-none items-center gap-3">
+          <span id="streamStatus" class="text-sm text-slate-500">Status: idle</span>
+          <input id="streamToggle" type="checkbox" class="peer sr-only" />
+          <span class="relative h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500">
+            <span class="absolute left-1 top-1 size-4 rounded-full bg-white transition peer-checked:translate-x-5"></span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Live Panel -->
+      <div id="livePanel" class="hidden animate-slide-up">
+        <div class="mb-3 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-emerald-700">
+            <span class="live-dot size-3 rounded-full bg-emerald-500"></span>
+            <span class="text-sm">Streaming... <span id="pktCount" class="text-slate-500">(0 packets)</span></span>
+          </div>
+          <button id="btnClearStream" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 transition">
+            Clear
+          </button>
+        </div>
+        <div id="liveFeed" class="max-h-80 overflow-auto space-y-2 pr-1 custom-scrollbar"></div>
+      </div>
+    </section>
+
+    <!-- Registers Section -->
+    <section>
+      <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-bold text-slate-700">Registers</h2>
+          <span id="regCount" class="text-sm text-slate-500">0 registers</span>
+        </div>
+        <div class="flex gap-2">
+          <div class="relative">
+            <input id="regSearch" type="text" placeholder="Search registers..."
+                   class="w-full sm:w-56 rounded-xl border border-slate-200 bg-white px-3 py-2 pl-9 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition">
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+          </div>
+          <button id="btnAddRegister" class="px-4 py-2 rounded-xl bg-brand text-white font-semibold hover:brightness-110 transition">
+            + Add
+          </button>
+        </div>
+      </div>
+
+      <!-- Register List -->
+      <div id="regList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+
+      <!-- Empty State -->
+      <div id="regEmpty" class="hidden rounded-xl border-2 border-dashed border-slate-300 p-8 text-center text-slate-500 bg-white">
+        <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <p class="font-semibold">No registers found</p>
+        <p class="text-sm mt-1">Add your first register to start monitoring</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Register Detail Modal -->
+  <div id="modal" class="fixed inset-0 z-20 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeModal()"></div>
+    <div class="relative mx-auto mt-12 w-[92%] max-w-2xl rounded-2xl bg-white p-6 shadow-soft animate-slide-up overflow-y-auto max-h-[90vh]">
+      <h3 class="text-lg font-bold text-slate-900 mb-4">Register Details</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <p class="text-slate-500 mb-1">Register Name</p>
+          <p id="mdName" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Register ID</p>
+          <p id="mdId" class="font-mono font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Address</p>
+          <p id="mdAddr" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Function Code</p>
+          <p id="mdFc" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Data Type</p>
+          <p id="mdType" class="font-semibold text-brand">-</p>
+        </div>
+        <div>
+          <p class="text-slate-500 mb-1">Quantity</p>
+          <p id="mdQty" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div class="sm:col-span-2">
+          <p class="text-slate-500 mb-1">Description</p>
+          <p id="mdDesc" class="font-semibold text-slate-900">-</p>
+        </div>
+        <div id="mdCalibSection" class="sm:col-span-2 hidden">
+          <p class="text-slate-500 mb-2">Calibration</p>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+            <p class="text-xs text-blue-900">Scale: <span id="mdScale" class="font-bold">1.0</span></p>
+            <p class="text-xs text-blue-900">Offset: <span id="mdOffset" class="font-bold">0.0</span></p>
+            <p class="text-xs text-blue-700 mt-2">Formula: <code class="bg-white px-2 py-0.5 rounded">result = (raw × scale) + offset</code></p>
+          </div>
+        </div>
+        <div id="mdRefreshSection" class="sm:col-span-2 hidden">
+          <p class="text-slate-500 mb-2">Refresh Rate Override</p>
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p class="text-xs text-amber-900">Custom refresh: <span id="mdRefresh" class="font-bold">1000</span> ms</p>
+          </div>
+        </div>
+      </div>
+      <div class="mt-6 flex justify-end gap-3">
+        <button onclick="closeModal()" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition">
+          Close
+        </button>
+        <button class="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white hover:brightness-110 transition">
+          Edit Register
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #2f6f64; border-radius: 10px; }
+  </style>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+    const $$ = (q)=>document.querySelectorAll(q);
+
+    // ============================================
+    // LOAD DEVICE DATA
+    // ============================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const deviceId = urlParams.get('id') || 'D4A5F1'; // Default for demo
+
+    let device = null;
+    const devices = JSON.parse(localStorage.getItem('mockDevices') || '[]');
+    device = devices.find(d => d.device_id === deviceId);
+
+    // If not found, use first device or create sample
+    if (!device && devices.length > 0) {
+      device = devices[0];
+    } else if (!device) {
+      device = {
+        device_id: 'D4A5F1',
+        device_name: 'Main Power Meter',
+        protocol: 'RTU',
+        slave_id: 1,
+        serial_port: 1,
+        baud_rate: 9600,
+        timeout_ms: 3000,
+        refresh_rate_ms: 5000,
+        enabled: true,
+        registers: [
+          { register_id: 'R001', register_name: 'Voltage L1', address: 40001, function_code: 3, data_type: 'FLOAT32_ABCD', quantity: 2, description: 'Phase 1 Voltage' },
+          { register_id: 'R002', register_name: 'Current L1', address: 40003, function_code: 3, data_type: 'FLOAT32_ABCD', quantity: 2, description: 'Phase 1 Current', calibration: { scale: 1.5, offset: 0.1 } },
+          { register_id: 'R003', register_name: 'Power Factor', address: 40010, function_code: 3, data_type: 'INT16', quantity: 1, description: 'Total Power Factor', refresh_rate_ms: 1000 }
+        ],
+        metrics: {
+          total_reads: 1250,
+          successful_reads: 1238,
+          failed_reads: 12,
+          success_rate: 99.04,
+          avg_response_time_ms: 245,
+          min_response_time_ms: 180,
+          max_response_time_ms: 520,
+          last_response_time_ms: 230
+        },
+        disable_reason: 'NONE',
+        disable_reason_detail: '',
+        consecutive_failures: 0,
+        retry_count: 0,
+        consecutive_timeouts: 0,
+        max_consecutive_timeouts: 3
+      };
+    }
+
+    // Ensure device has all required fields
+    device.metrics = device.metrics || { total_reads: 0, successful_reads: 0, failed_reads: 0, success_rate: 0, avg_response_time_ms: 0, min_response_time_ms: 0, max_response_time_ms: 0, last_response_time_ms: 0 };
+    device.consecutive_failures = device.consecutive_failures || 0;
+    device.retry_count = device.retry_count || 0;
+    device.consecutive_timeouts = device.consecutive_timeouts || 0;
+    device.max_consecutive_timeouts = device.max_consecutive_timeouts || 3;
+    device.registers = device.registers || [];
+
+    // ============================================
+    // POPULATE DEVICE INFO
+    // ============================================
+    $('#devName').textContent = device.device_name;
+    $('#devId').textContent = device.device_id;
+
+    const protoColors = {
+      RTU: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+      TCP: { bg: 'bg-blue-100', text: 'text-blue-700' }
+    };
+    const pColor = protoColors[device.protocol];
+    $('#protoBadge').className = `px-3 py-1 rounded-full ${pColor.bg} ${pColor.text} text-xs font-semibold`;
+    $('#protoBadge').textContent = device.protocol;
+
+    // Details
+    $('#detailProto').textContent = device.protocol;
+    $('#detailTimeout').textContent = `${device.timeout_ms} ms`;
+    $('#detailRefresh').textContent = `${device.refresh_rate_ms} ms`;
+
+    if (device.protocol === 'RTU') {
+      $('#detailSlaveId').textContent = device.slave_id;
+      $('#detailBaud').textContent = device.baud_rate;
+      $('#detailPort').textContent = device.serial_port;
+      $('#ipField').classList.add('hidden');
+      $('#tcpPortField').classList.add('hidden');
+    } else {
+      $('#slaveIdField').classList.add('hidden');
+      $('#baudField').classList.add('hidden');
+      $('#portField').classList.add('hidden');
+      $('#ipField').classList.remove('hidden');
+      $('#tcpPortField').classList.remove('hidden');
+      $('#detailIp').textContent = device.ip_address || '192.168.1.10';
+      $('#detailTcpPort').textContent = device.port || 502;
+    }
+
+    // ============================================
+    // STATUS BADGE
+    // ============================================
+    function updateStatusBadge() {
+      const badge = $('#statusBadge');
+      const label = $('#statusLabel');
+      const detail = $('#statusDetail');
+      const dot = badge.querySelector('.size-3');
+
+      if (!device.enabled) {
+        const reasons = {
+          MANUAL: { label: 'Manually Disabled', color: 'slate' },
+          AUTO_RETRY: { label: 'Auto-Disabled (Max Retries)', color: 'amber' },
+          AUTO_TIMEOUT: { label: 'Auto-Disabled (Timeout)', color: 'amber' },
+          NONE: { label: 'Disabled', color: 'slate' }
+        };
+        const r = reasons[device.disable_reason] || reasons.NONE;
+        badge.className = `mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-${r.color}-300 bg-${r.color}-50`;
+        dot.className = `size-3 rounded-full bg-${r.color}-400`;
+        label.textContent = r.label;
+        label.className = `text-sm font-semibold text-${r.color}-700`;
+        detail.textContent = device.disable_reason_detail || '';
+      } else {
+        const rate = device.metrics.success_rate;
+        let status = { label: 'Healthy', color: 'emerald' };
+        if (rate < 90) status = { label: 'Poor Performance', color: 'red' };
+        else if (rate < 95) status = { label: 'Minor Issues', color: 'amber' };
+
+        badge.className = `mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-${status.color}-300 bg-${status.color}-50`;
+        dot.className = `size-3 rounded-full bg-${status.color}-500 animate-pulse-slow`;
+        label.textContent = status.label;
+        label.className = `text-sm font-semibold text-${status.color}-700`;
+        detail.textContent = `Success Rate: ${rate.toFixed(1)}%`;
+      }
+    }
+
+    updateStatusBadge();
+
+    // ============================================
+    // DEVICE CONTROLS
+    // ============================================
+    function updateControlButtons() {
+      const toggleBtn = $('#btnToggleDevice');
+      const toggleText = $('#toggleText');
+
+      if (device.enabled) {
+        toggleBtn.className = 'px-4 py-2.5 rounded-xl font-semibold text-white transition shadow hover:shadow-lg bg-slate-500 hover:bg-slate-600';
+        toggleText.textContent = 'Disable Device';
+      } else {
+        toggleBtn.className = 'px-4 py-2.5 rounded-xl font-semibold text-white transition shadow hover:shadow-lg bg-emerald-500 hover:bg-emerald-600';
+        toggleText.textContent = 'Enable Device';
+      }
+
+      // Show/hide metrics section
+      $('#metricsSection').classList.toggle('hidden', !device.enabled);
+    }
+
+    updateControlButtons();
+
+    $('#btnToggleDevice').addEventListener('click', async () => {
+      const action = device.enabled ? 'disable' : 'enable';
+      const confirmed = confirm(`${action === 'disable' ? 'Disable' : 'Enable'} device "${device.device_name}"?\n\n${action === 'disable' ? 'The device will stop polling until re-enabled.' : 'The device will resume polling.'}`);
+
+      if (!confirmed) return;
+
+      // Simulate BLE command delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      device.enabled = !device.enabled;
+      if (device.enabled) {
+        device.disable_reason = 'NONE';
+        device.disable_reason_detail = '';
+      } else {
+        device.disable_reason = 'MANUAL';
+        device.disable_reason_detail = 'Disabled via UI';
+      }
+
+      // Update localStorage
+      const idx = devices.findIndex(d => d.device_id === device.device_id);
+      if (idx >= 0) {
+        devices[idx] = device;
+        localStorage.setItem('mockDevices', JSON.stringify(devices));
+      }
+
+      updateStatusBadge();
+      updateControlButtons();
+      alert(`Device ${action}d successfully!`);
+    });
+
+    $('#btnClearMetrics').addEventListener('click', () => {
+      const confirmed = confirm('Clear all health metrics for this device?\n\nThis will reset:\n- Total reads counter\n- Success/failure counts\n- Response time statistics\n\nThis action cannot be undone.');
+
+      if (!confirmed) return;
+
+      device.metrics = {
+        total_reads: 0,
+        successful_reads: 0,
+        failed_reads: 0,
+        success_rate: 0,
+        avg_response_time_ms: 0,
+        min_response_time_ms: 0,
+        max_response_time_ms: 0,
+        last_response_time_ms: 0
+      };
+      device.consecutive_failures = 0;
+      device.retry_count = 0;
+      device.consecutive_timeouts = 0;
+
+      // Update localStorage
+      const idx = devices.findIndex(d => d.device_id === device.device_id);
+      if (idx >= 0) {
+        devices[idx] = device;
+        localStorage.setItem('mockDevices', JSON.stringify(devices));
+      }
+
+      updateMetrics();
+      alert('Metrics cleared successfully!');
+    });
+
+    // ============================================
+    // METRICS DISPLAY
+    // ============================================
+    function updateMetrics() {
+      const m = device.metrics;
+
+      // Success rate gauge
+      const rate = m.success_rate;
+      $('#successRate').textContent = `${rate.toFixed(1)}%`;
+      const circumference = 2 * Math.PI * 56;
+      const offset = circumference - (rate / 100) * circumference;
+      $('#gaugeCircle').style.strokeDashoffset = offset;
+
+      // Status text
+      const statusText = rate >= 95 ? 'Healthy' : (rate >= 90 ? 'Issues' : 'Poor');
+      const statusColor = rate >= 95 ? 'emerald' : (rate >= 90 ? 'amber' : 'red');
+      $('#successRate').nextElementSibling.textContent = statusText;
+      $('#successRate').nextElementSibling.className = `text-xs text-${statusColor}-600`;
+
+      // Response times
+      $('#avgResponse').textContent = m.avg_response_time_ms;
+      $('#minResponse').textContent = m.min_response_time_ms;
+      $('#maxResponse').textContent = m.max_response_time_ms;
+      $('#lastResponse').textContent = m.last_response_time_ms || '-';
+
+      // Read stats
+      $('#totalReads').textContent = m.total_reads.toLocaleString();
+      $('#successReads').textContent = m.successful_reads.toLocaleString();
+      $('#failedReads').textContent = m.failed_reads.toLocaleString();
+
+      // Failure stats
+      $('#consecutiveFail').textContent = device.consecutive_failures;
+      $('#retryCount').textContent = device.retry_count;
+      $('#consecutiveTimeout').textContent = device.consecutive_timeouts;
+      $('#maxTimeout').textContent = device.max_consecutive_timeouts;
+    }
+
+    updateMetrics();
+
+    // ============================================
+    // REGISTERS
+    // ============================================
+    let regQuery = '';
+
+    function renderRegisters() {
+      const registers = device.registers || [];
+      let filtered = registers;
+
+      if (regQuery) {
+        const q = regQuery.toLowerCase();
+        filtered = registers.filter(r =>
+          r.register_name.toLowerCase().includes(q) ||
+          r.register_id.toLowerCase().includes(q) ||
+          String(r.address).includes(q) ||
+          r.data_type.toLowerCase().includes(q)
+        );
+      }
+
+      const list = $('#regList');
+      const empty = $('#regEmpty');
+      const count = $('#regCount');
+
+      count.textContent = `${filtered.length} register${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      list.innerHTML = filtered.map(r => {
+        const hasCalib = r.calibration && (r.calibration.scale !== 1 || r.calibration.offset !== 0);
+        const hasRefresh = r.refresh_rate_ms && r.refresh_rate_ms !== device.refresh_rate_ms;
+
+        return `
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:shadow-md hover:border-brand transition" onclick="showRegisterDetail('${r.register_id}')">
+            <div class="flex justify-between items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-slate-900 truncate">${r.register_name}</h3>
+                <p class="text-xs text-slate-500 font-mono mt-0.5">ID: ${r.register_id}</p>
+              </div>
+              <div class="flex gap-1">
+                ${hasCalib ? '<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium" title="Has calibration">📐</span>' : ''}
+                ${hasRefresh ? '<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium" title="Custom refresh rate">⏱️</span>' : ''}
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span class="text-slate-500">Address:</span>
+                <span class="font-semibold text-slate-800 ml-1">${r.address}</span>
+              </div>
+              <div>
+                <span class="text-slate-500">FC:</span>
+                <span class="font-semibold text-slate-800 ml-1">${r.function_code}</span>
+              </div>
+              <div class="col-span-2">
+                <span class="text-slate-500">Type:</span>
+                <span class="font-semibold text-brand ml-1">${r.data_type}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    renderRegisters();
+
+    $('#regSearch').addEventListener('input', (e) => {
+      regQuery = e.target.value.trim();
+      renderRegisters();
+    });
+
+    // ============================================
+    // REGISTER DETAIL MODAL
+    // ============================================
+    function showRegisterDetail(registerId) {
+      const reg = device.registers.find(r => r.register_id === registerId);
+      if (!reg) return;
+
+      $('#mdName').textContent = reg.register_name;
+      $('#mdId').textContent = reg.register_id;
+      $('#mdAddr').textContent = reg.address;
+      $('#mdFc').textContent = `${reg.function_code} (${getFCName(reg.function_code)})`;
+      $('#mdType').textContent = reg.data_type;
+      $('#mdQty').textContent = reg.quantity;
+      $('#mdDesc').textContent = reg.description || 'No description';
+
+      // Calibration
+      if (reg.calibration) {
+        $('#mdCalibSection').classList.remove('hidden');
+        $('#mdScale').textContent = reg.calibration.scale || 1.0;
+        $('#mdOffset').textContent = reg.calibration.offset || 0.0;
+      } else {
+        $('#mdCalibSection').classList.add('hidden');
+      }
+
+      // Refresh rate
+      if (reg.refresh_rate_ms && reg.refresh_rate_ms !== device.refresh_rate_ms) {
+        $('#mdRefreshSection').classList.remove('hidden');
+        $('#mdRefresh').textContent = reg.refresh_rate_ms;
+      } else {
+        $('#mdRefreshSection').classList.add('hidden');
+      }
+
+      openModal();
+    }
+
+    function getFCName(fc) {
+      const names = { 1: 'Coil', 2: 'Discrete Input', 3: 'Holding Register', 4: 'Input Register' };
+      return names[fc] || 'Unknown';
+    }
+
+    window.showRegisterDetail = showRegisterDetail;
+
+    // ============================================
+    // LIVE STREAMING
+    // ============================================
+    let streamInterval = null;
+    let pktCount = 0;
+
+    $('#streamToggle').addEventListener('change', () => {
+      if ($('#streamToggle').checked) startStream();
+      else stopStream();
+    });
+
+    function startStream() {
+      $('#livePanel').classList.remove('hidden');
+      $('#streamStatus').textContent = 'Status: streaming';
+      $('#liveFeed').innerHTML = '';
+      pktCount = 0;
+
+      streamInterval = setInterval(() => {
+        const reg = device.registers[Math.floor(Math.random() * device.registers.length)];
+        if (!reg) return;
+
+        const value = (Math.random() * 250).toFixed(2);
+        const time = new Date().toLocaleTimeString();
+
+        const item = document.createElement('div');
+        item.className = 'p-3 rounded-lg bg-emerald-50 border border-emerald-200 flex justify-between items-center';
+        item.innerHTML = `
+          <div>
+            <span class="font-medium text-brand">${reg.register_name}</span>
+            <span class="block text-xs text-slate-500">${time}</span>
+          </div>
+          <span class="text-xl font-mono font-bold text-brand">${value}</span>
+        `;
+
+        $('#liveFeed').prepend(item);
+        if ($('#liveFeed').children.length > 50) {
+          $('#liveFeed').removeChild($('#liveFeed').lastChild);
+        }
+
+        pktCount++;
+        $('#pktCount').textContent = `(${pktCount} packets)`;
+      }, 2000);
+    }
+
+    function stopStream() {
+      if (streamInterval) {
+        clearInterval(streamInterval);
+        streamInterval = null;
+      }
+      $('#livePanel').classList.add('hidden');
+      $('#streamStatus').textContent = 'Status: idle';
+    }
+
+    $('#btnClearStream').addEventListener('click', () => {
+      $('#liveFeed').innerHTML = '';
+      pktCount = 0;
+      $('#pktCount').textContent = '(0 packets)';
+    });
+
+    // ============================================
+    // MODAL
+    // ============================================
+    function openModal() {
+      $('#modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      $('#modal').classList.add('hidden');
+    }
+
+    window.closeModal = closeModal;
+
+    // ============================================
+    // ACTIONS
+    // ============================================
+    $('#btnEdit').addEventListener('click', () => {
+      alert('Navigate to Edit Device page\n\n(In real app: window.location.href = "Create New Device.html?id=' + device.device_id + '")');
+    });
+
+    $('#btnDelete').addEventListener('click', () => {
+      const confirmed = confirm(`Delete device "${device.device_name}"?\n\nThis action cannot be undone.`);
+      if (confirmed) {
+        const idx = devices.findIndex(d => d.device_id === device.device_id);
+        if (idx >= 0) {
+          devices.splice(idx, 1);
+          localStorage.setItem('mockDevices', JSON.stringify(devices));
+        }
+        alert('Device deleted!');
+        window.location.href = 'Device List (Home Screen).html';
+      }
+    });
+
+    $('#btnAddRegister').addEventListener('click', () => {
+      alert('Navigate to Add Register page\n\n(In real app: window.location.href = "Add Register.html?device_id=' + device.device_id + '")');
+    });
+  </script>
+</body>
+</html>

@@ -137,12 +137,16 @@ static const size_t OTA_PUBLIC_KEY_SIZE = sizeof(OTA_PUBLIC_KEY);
 
 
 if __name__ == "__main__":
-    # Check if output directory specified
+    # Default output directory is OTA_Keys (relative to script location)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    default_output = os.path.join(script_dir, "OTA_Keys")
+
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
     else:
-        output_dir = "."
+        output_dir = default_output
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     generate_keys(output_dir)

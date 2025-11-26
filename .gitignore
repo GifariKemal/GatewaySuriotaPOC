@@ -319,9 +319,9 @@ lib/
 # Add any project-specific files to ignore below:
 
 # OTA signing keys (NEVER commit private key!)
-ota_private_key.pem
-!ota_public_key.pem
-!ota_public_key.h
+Tools/OTA_Keys/ota_private_key.pem
+**/ota_private_key.pem
 
 # Note: firmware_manifest.json is tracked for OTA updates
+# Public keys are safe to commit
 

@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Suriota Gateway - Device List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme:{ extend:{
+        colors:{ brand:{ DEFAULT:'#2f6f64' } },
+        boxShadow:{ soft:'0 10px 30px rgba(2,8,20,.08)' },
+        animation: {
+          'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          'fade-in': 'fadeIn 0.3s ease-in-out',
+          'scale-in': 'scaleIn 0.2s ease-out'
+        },
+        keyframes: {
+          fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+          scaleIn: { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } }
+        }
+      }}
+    }
+  </script>
+  <style>
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    .status-dot { animation: pulse-dot 2s ease-in-out infinite; }
+    .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+    @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800">
+  <!-- Header -->
+  <header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+          <svg class="w-6 h-6 text-brand" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+          </svg>
+          Suriota Gateway
+        </h1>
+        <p class="text-xs text-slate-500 mt-0.5">v2.3.0 - Industrial IoT Gateway</p>
+      </div>
+      <a href="Settings.html" title="Settings" class="p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition">
+        <svg class="size-5" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.055l.737-.417c.47-.268 1.02-.014 1.147.448l.548 1.096c.126.251.01.563-.24.72l-.737.417c-.35.197-.52.563-.52.94 0 .377.17.743.52.94l.737.417c.25.157.366.47.24.72l-.548 1.096c-.128.463-.678.717-1.147.448l-.737-.417c-.35-.197-.807-.22-1.205-.055a.996.996 0 0 0-.78.93l-.149.894c-.09.542-.56.94-1.11.94h-1.093c-.55 0-1.02-.398-1.11-.94l-.149-.894a.996.996 0 0 0-.78-.93c-.398-.164-.855-.142-1.205.055l-.737.417c-.47.268-1.02.014-1.147-.448l-.548-1.096c-.126-.251-.01-.563.24-.72l.737-.417c.35-.197.52-.563.52-.94 0-.377-.17-.743-.52-.94l-.737-.417c-.25-.157-.366-.47-.24-.72l.548-1.096c.128-.463.678-.717 1.147-.448l.737.417c.35.197.807.22 1.205.055a.996.996 0 0 0 .78-.93l.149-.894Z" />
+        </svg>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 space-y-4">
+    <!-- Stats Overview -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Total Devices</p>
+            <p id="statTotal" class="text-2xl font-bold text-brand">0</p>
+          </div>
+          <div class="p-2 bg-brand/10 rounded-lg">
+            <svg class="w-6 h-6 text-brand" fill="currentColor" viewBox="0 0 20 20"><path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-emerald-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Enabled</p>
+            <p id="statEnabled" class="text-2xl font-bold text-emerald-600">0</p>
+          </div>
+          <div class="p-2 bg-emerald-100 rounded-lg">
+            <svg class="w-6 h-6 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Disabled</p>
+            <p id="statDisabled" class="text-2xl font-bold text-slate-600">0</p>
+          </div>
+          <div class="p-2 bg-slate-100 rounded-lg">
+            <svg class="w-6 h-6 text-slate-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-amber-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Issues</p>
+            <p id="statIssues" class="text-2xl font-bold text-amber-600">0</p>
+          </div>
+          <div class="p-2 bg-amber-100 rounded-lg">
+            <svg class="w-6 h-6 text-amber-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex-1">
+        <label class="sr-only" for="search">Search</label>
+        <div class="relative">
+          <input id="search" type="text" placeholder="Search device name or ID..."
+                 class="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pl-10 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button data-filter="ALL" class="flt active rounded-full px-4 py-2 text-xs font-semibold border-2 border-brand bg-brand text-white hover:brightness-110 transition">
+          All
+        </button>
+        <button data-filter="RTU" class="flt rounded-full px-4 py-2 text-xs font-semibold border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition">
+          RTU
+        </button>
+        <button data-filter="TCP" class="flt rounded-full px-4 py-2 text-xs font-semibold border-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition">
+          TCP
+        </button>
+        <button data-filter="ENABLED" class="flt rounded-full px-4 py-2 text-xs font-semibold border-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition">
+          Enabled
+        </button>
+        <button data-filter="DISABLED" class="flt rounded-full px-4 py-2 text-xs font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 transition">
+          Disabled
+        </button>
+      </div>
+    </div>
+
+    <!-- Device Grid -->
+    <section id="list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+
+    <!-- Empty state -->
+    <div id="empty" class="hidden rounded-xl border-2 border-dashed border-slate-300 p-12 text-center text-slate-500 bg-white">
+      <svg class="w-16 h-16 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+      </svg>
+      <p class="font-semibold">No devices found</p>
+      <p class="text-sm mt-1">Add your first device using the button below</p>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div id="skeleton" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="skeleton h-48 rounded-xl"></div>
+      <div class="skeleton h-48 rounded-xl"></div>
+      <div class="skeleton h-48 rounded-xl"></div>
+    </div>
+  </main>
+
+  <!-- FAB Add -->
+  <button id="btnAdd" title="Add New Device"
+          class="fixed bottom-6 right-6 size-14 rounded-full bg-brand text-white shadow-lg transition hover:brightness-110 hover:scale-110 active:scale-95">
+    <svg class="size-7 mx-auto" fill="none" stroke-width="2" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+  </button>
+
+  <!-- Modal Add Device (Quick Add) -->
+  <div id="modal" class="fixed inset-0 z-20 hidden">
+    <div class="absolute inset-0 bg-black/40" data-close></div>
+    <div class="relative mx-auto mt-20 w-[92%] max-w-md rounded-2xl bg-white p-6 shadow-soft animate-scale-in">
+      <h3 class="text-lg font-bold text-slate-900 mb-4">Quick Add Device</h3>
+      <div class="space-y-3">
+        <label class="block text-sm">
+          <span class="font-medium text-slate-700">Device Name</span>
+          <input id="mName" type="text" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition" placeholder="Main Power Meter" />
+        </label>
+        <label class="block text-sm">
+          <span class="font-medium text-slate-700">Protocol</span>
+          <select id="mProto" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-4 focus:ring-emerald-200 transition">
+            <option>RTU</option><option>TCP</option>
+          </select>
+        </label>
+        <p class="text-xs text-slate-500 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          ℹ️ This is a quick add. For full configuration, use the <a href="Create New Device.html" class="text-blue-600 font-semibold hover:underline">Create New Device</a> page.
+        </p>
+      </div>
+      <div class="mt-6 flex justify-end gap-3">
+        <button class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50 transition" data-close>Cancel</button>
+        <button id="mSave" class="rounded-xl bg-brand px-6 py-2 text-sm font-semibold text-white hover:brightness-110 transition">Add Device</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (q)=>document.querySelector(q);
+    const $$ = (q)=>document.querySelectorAll(q);
+
+    // ============================================
+    // MOCK DATA WITH HEALTH METRICS
+    // ============================================
+    let devices = JSON.parse(localStorage.getItem('mockDevices') || '[]');
+
+    // If empty, seed with sample devices
+    if (devices.length === 0) {
+      devices = [
+        {
+          device_id: 'D4A5F1', device_name: 'Main Power Meter', protocol: 'RTU',
+          slave_id: 1, serial_port: 1, baud_rate: 9600, timeout_ms: 3000, refresh_rate_ms: 5000,
+          enabled: true, registers: [
+            { register_id: 'R001', register_name: 'Voltage L1', address: 40001, function_code: 3, data_type: 'FLOAT32_ABCD', quantity: 2 }
+          ],
+          metrics: { total_reads: 1250, successful_reads: 1238, failed_reads: 12, success_rate: 99.04, avg_response_time_ms: 245, min_response_time_ms: 180, max_response_time_ms: 520 },
+          disable_reason: 'NONE', disable_reason_detail: ''
+        },
+        {
+          device_id: 'D6B8C2', device_name: 'VFD Pump 1', protocol: 'TCP',
+          ip_address: '192.168.1.10', port: 502, timeout_ms: 5000, refresh_rate_ms: 10000,
+          enabled: true, registers: [
+            { register_id: 'R002', register_name: 'Speed', address: 0, function_code: 3, data_type: 'UINT16', quantity: 1 }
+          ],
+          metrics: { total_reads: 980, successful_reads: 980, failed_reads: 0, success_rate: 100, avg_response_time_ms: 120, min_response_time_ms: 95, max_response_time_ms: 180 },
+          disable_reason: 'NONE', disable_reason_detail: ''
+        },
+        {
+          device_id: 'A1B2C3', device_name: 'Flow Sensor', protocol: 'RTU',
+          slave_id: 2, serial_port: 1, baud_rate: 19200, timeout_ms: 3000, refresh_rate_ms: 5000,
+          enabled: false, registers: [],
+          metrics: { total_reads: 87, successful_reads: 82, failed_reads: 5, success_rate: 94.25, avg_response_time_ms: 310, min_response_time_ms: 250, max_response_time_ms: 1500 },
+          disable_reason: 'AUTO_RETRY', disable_reason_detail: 'Max retries exceeded'
+        },
+        {
+          device_id: 'E8F4G5', device_name: 'Temperature Module', protocol: 'RTU',
+          slave_id: 3, serial_port: 2, baud_rate: 9600, timeout_ms: 3000, refresh_rate_ms: 5000,
+          enabled: true, registers: [],
+          metrics: { total_reads: 500, successful_reads: 450, failed_reads: 50, success_rate: 90, avg_response_time_ms: 450, min_response_time_ms: 200, max_response_time_ms: 1200 },
+          disable_reason: 'NONE', disable_reason_detail: ''
+        }
+      ];
+      localStorage.setItem('mockDevices', JSON.stringify(devices));
+    }
+
+    // Ensure all devices have metrics
+    devices = devices.map(d => ({
+      ...d,
+      metrics: d.metrics || { total_reads: 0, successful_reads: 0, failed_reads: 0, success_rate: 0, avg_response_time_ms: 0, min_response_time_ms: 0, max_response_time_ms: 0 },
+      disable_reason: d.disable_reason || 'NONE',
+      disable_reason_detail: d.disable_reason_detail || ''
+    }));
+
+    // ============================================
+    // STATE
+    // ============================================
+    let filter = 'ALL';
+    let query  = '';
+
+    // ============================================
+    // HELPERS
+    // ============================================
+    function getHealthStatus(device) {
+      if (!device.enabled) return 'disabled';
+      const rate = device.metrics.success_rate;
+      if (rate >= 95) return 'healthy';
+      if (rate >= 90) return 'issues';
+      return 'poor';
+    }
+
+    function getStatusColor(status) {
+      const colors = {
+        healthy: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', dot: 'bg-emerald-500' },
+        issues: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-500' },
+        poor: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500' },
+        disabled: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300', dot: 'bg-slate-400' }
+      };
+      return colors[status];
+    }
+
+    function getStatusLabel(device) {
+      if (!device.enabled) {
+        const reasonLabels = {
+          MANUAL: 'Manually Disabled',
+          AUTO_RETRY: 'Auto-Disabled (Retry)',
+          AUTO_TIMEOUT: 'Auto-Disabled (Timeout)',
+          NONE: 'Disabled'
+        };
+        return reasonLabels[device.disable_reason] || 'Disabled';
+      }
+      const status = getHealthStatus(device);
+      const labels = {
+        healthy: 'Healthy',
+        issues: 'Minor Issues',
+        poor: 'Poor Performance'
+      };
+      return labels[status];
+    }
+
+    function deviceCard(dev) {
+      const status = getHealthStatus(dev);
+      const colors = getStatusColor(status);
+      const label = getStatusLabel(dev);
+
+      return `
+        <div class="bg-white rounded-xl shadow-sm border-2 ${colors.border} hover:shadow-lg transition-all duration-300 overflow-hidden animate-fade-in">
+          <!-- Header -->
+          <div class="p-4 pb-3 border-b border-slate-100">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <h3 class="font-bold text-slate-900 truncate">${dev.device_name}</h3>
+                <p class="text-xs text-slate-500 font-mono mt-0.5">ID: ${dev.device_id}</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full ${colors.bg} ${colors.text} text-xs font-semibold shrink-0">
+                ${dev.protocol}
+              </span>
+            </div>
+
+            <!-- Status Badge -->
+            <div class="mt-3 flex items-center gap-2">
+              <span class="status-dot size-2 rounded-full ${colors.dot}"></span>
+              <span class="text-xs font-semibold ${colors.text}">${label}</span>
+              ${!dev.enabled && dev.disable_reason_detail ? `<span class="text-xs text-slate-500 truncate">- ${dev.disable_reason_detail}</span>` : ''}
+            </div>
+          </div>
+
+          <!-- Metrics -->
+          ${dev.enabled ? `
+          <div class="p-4 bg-gradient-to-br from-slate-50 to-white space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-600 font-medium">Success Rate:</span>
+              <span class="font-bold ${colors.text}">${dev.metrics.success_rate.toFixed(1)}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div class="${colors.dot} h-full rounded-full transition-all duration-500" style="width: ${dev.metrics.success_rate}%"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div>
+                <span class="text-slate-600">Avg Response:</span>
+                <span class="font-semibold text-slate-800 ml-1">${dev.metrics.avg_response_time_ms}ms</span>
+              </div>
+              <div>
+                <span class="text-slate-600">Total Reads:</span>
+                <span class="font-semibold text-slate-800 ml-1">${dev.metrics.total_reads.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+          ` : `
+          <div class="p-4 bg-slate-50">
+            <p class="text-xs text-slate-600">Device is currently disabled</p>
+          </div>
+          `}
+
+          <!-- Actions -->
+          <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button onclick="viewDevice('${dev.device_id}')" class="flex-1 px-3 py-2 rounded-lg bg-white border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition">
+              View Details
+            </button>
+            <button onclick="toggleDevice('${dev.device_id}')" class="px-4 py-2 rounded-lg text-xs font-semibold transition ${dev.enabled ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-emerald-500 text-white hover:bg-emerald-600'}">
+              ${dev.enabled ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ============================================
+    // RENDER
+    // ============================================
+    function render() {
+      const list = $('#list');
+      const empty = $('#empty');
+      const skeleton = $('#skeleton');
+
+      // Filter devices
+      let filtered = devices.filter(d => {
+        const f1 = (filter === 'ALL') || (filter === 'ENABLED' && d.enabled) || (filter === 'DISABLED' && !d.enabled) || (d.protocol === filter);
+        const f2 = !query || (d.device_name.toLowerCase().includes(query) || d.device_id.toLowerCase().includes(query));
+        return f1 && f2;
+      });
+
+      skeleton.classList.add('hidden');
+      list.innerHTML = filtered.map(deviceCard).join('');
+      empty.classList.toggle('hidden', filtered.length > 0);
+
+      // Update stats
+      const enabled = devices.filter(d => d.enabled).length;
+      const disabled = devices.filter(d => !d.enabled).length;
+      const issues = devices.filter(d => d.enabled && getHealthStatus(d) !== 'healthy').length;
+
+      $('#statTotal').textContent = devices.length;
+      $('#statEnabled').textContent = enabled;
+      $('#statDisabled').textContent = disabled;
+      $('#statIssues').textContent = issues;
+    }
+
+    // ============================================
+    // ACTIONS
+    // ============================================
+    function viewDevice(deviceId) {
+      alert(`Navigate to Device Details page for ${deviceId}\n\n(In real app: window.location.href = 'Device Details.html?id=' + deviceId)`);
+    }
+
+    async function toggleDevice(deviceId) {
+      const device = devices.find(d => d.device_id === deviceId);
+      if (!device) return;
+
+      const action = device.enabled ? 'disable' : 'enable';
+      const confirmed = confirm(`${action === 'disable' ? 'Disable' : 'Enable'} device "${device.device_name}"?`);
+
+      if (!confirmed) return;
+
+      // Simulate BLE command
+      showSkeleton();
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      device.enabled = !device.enabled;
+      if (device.enabled) {
+        device.disable_reason = 'NONE';
+        device.disable_reason_detail = '';
+      } else {
+        device.disable_reason = 'MANUAL';
+        device.disable_reason_detail = 'Disabled via UI';
+      }
+
+      localStorage.setItem('mockDevices', JSON.stringify(devices));
+      render();
+    }
+
+    function showSkeleton() {
+      $('#list').classList.add('hidden');
+      $('#skeleton').classList.remove('hidden');
+      setTimeout(() => {
+        $('#list').classList.remove('hidden');
+        $('#skeleton').classList.add('hidden');
+      }, 800);
+    }
+
+    // ============================================
+    // SEARCH & FILTERS
+    // ============================================
+    $('#search').addEventListener('input', ()=>{
+      query = $('#search').value.trim().toLowerCase();
+      render();
+    });
+
+    $$('.flt').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        $$('.flt').forEach(b => {
+          b.classList.remove('active', 'bg-brand', 'text-white');
+          b.classList.add('border-2');
+        });
+        btn.classList.add('active', 'bg-brand', 'text-white', 'border-brand');
+        filter = btn.dataset.filter;
+        render();
+      });
+    });
+
+    // ============================================
+    // MODAL
+    // ============================================
+    const modal = $('#modal');
+    const openModal = ()=> modal.classList.remove('hidden');
+    const closeModal = ()=> modal.classList.add('hidden');
+
+    $('#btnAdd').addEventListener('click', openModal);
+    modal.addEventListener('click', (e)=>{ if(e.target.dataset.close!==undefined) closeModal(); });
+    document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+
+    $('#mSave').addEventListener('click', ()=>{
+      const name = $('#mName').value.trim() || 'New Device';
+      const proto= $('#mProto').value;
+      const id   = Math.random().toString(16).slice(2,8).toUpperCase();
+
+      const newDevice = {
+        device_id: id,
+        device_name: name,
+        protocol: proto,
+        enabled: true,
+        registers: [],
+        metrics: { total_reads: 0, successful_reads: 0, failed_reads: 0, success_rate: 0, avg_response_time_ms: 0, min_response_time_ms: 0, max_response_time_ms: 0 },
+        disable_reason: 'NONE',
+        disable_reason_detail: ''
+      };
+
+      if (proto === 'RTU') {
+        newDevice.slave_id = 1;
+        newDevice.serial_port = 1;
+        newDevice.baud_rate = 9600;
+        newDevice.timeout_ms = 3000;
+        newDevice.refresh_rate_ms = 5000;
+      } else {
+        newDevice.ip_address = '192.168.1.100';
+        newDevice.port = 502;
+        newDevice.timeout_ms = 5000;
+        newDevice.refresh_rate_ms = 10000;
+      }
+
+      devices.push(newDevice);
+      localStorage.setItem('mockDevices', JSON.stringify(devices));
+
+      $('#mName').value='';
+      $('#mProto').value='RTU';
+      closeModal();
+      render();
+
+      alert(`Device "${name}" added!\n\nFor full configuration, edit via Device Details page.`);
+    });
+
+    // ============================================
+    // INIT
+    // ============================================
+    setTimeout(() => {
+      $('#skeleton').classList.add('hidden');
+      render();
+    }, 1000);
+  </script>
+</body>
+</html>
