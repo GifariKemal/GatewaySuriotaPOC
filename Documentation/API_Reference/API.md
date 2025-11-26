@@ -5,9 +5,9 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.3.10 (November 25, 2025)
+**Version:** 2.3.10 (November 26, 2025)
 **Developer:** Kemal
-**Last Updated:** November 25, 2025
+**Last Updated:** November 26, 2025
 
 > **What's New in v2.3.10:**
 > - ✅ **TCP Pool Optimization** - 180x reduction in connection recreations, 99% connection reuse
@@ -1905,7 +1905,7 @@ class SuriotaGateway {
 ---
 
 **Document Version:** 1.3 (Updated)
-**Last Updated:** November 25, 2025
+**Last Updated:** November 26, 2025
 **Firmware Version:** 2.3.10
 **Developer:** Kemal
 

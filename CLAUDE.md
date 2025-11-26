@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.10 | **Last Updated:** November 25, 2025
+**Version:** 2.3.10 | **Last Updated:** November 26, 2025
 
 ---
 
@@ -31,7 +31,7 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.3.10 - Nov 25, 2025)
+## 🆕 Latest Updates (v2.3.10 - Nov 26, 2025)
 
 ### Critical Performance & Stability Fixes
 - **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
