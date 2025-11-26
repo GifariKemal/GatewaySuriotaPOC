@@ -370,7 +370,7 @@ LOG_MEM_INFO("Free - DRAM: %d, PSRAM: %d", dram, psram);
 
 **Made with ❤️ by SURIOTA R&D Team** | *Industrial IoT Solutions*
 
-**Contact:** support@suriota.com | www.suriota.com | GitHub: suriota/SRT-MGATE-1210-Firmware
+**Contact:** support@suriota.com | www.suriota.com | GitHub: [GifariKemal/GatewaySuriotaPOC](https://github.com/GifariKemal/GatewaySuriotaPOC)
 
 ---
 
