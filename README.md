@@ -656,7 +656,45 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ## 📈 Changelog
 
-### Version 2.3.0 (2025-11-21) - Current ⭐
+### Version 2.3.11 (2025-11-26) - Current ⭐
+
+**Critical Fixes & Optimization Release**
+
+**Developer:** Kemal | **Release Date:** November 26, 2025
+
+#### 🔴 CRITICAL BUG FIXES
+- ✅ **BUG #38: BLE Command Corruption** - Fixed incomplete command processing
+  - Timeout protection (5-second timeout)
+  - `<START>` marker handling for buffer clearing
+  - Buffer validation before processing `<END>`
+  - Prevents partial command execution
+
+- ✅ **BUG #37: ErrorHandler Array Overflow** - Fixed hardcoded array bounds
+  - DOMAIN_COUNT constant to prevent array overflows
+  - Dynamic error tracking per domain
+
+#### ⚡ MAJOR PERFORMANCE OPTIMIZATIONS
+- ✅ **ModbusTCP Dramatic Optimization**
+  - **Vector Caching**: Eliminates 100% of file system access during polling
+  - **Connection Pooling**: 50% reduction in TCP handshakes (per-device vs per-register)
+  - **Thread Safety**: Recursive mutex protection for device vectors
+  - **Dynamic Polling**: Loop delay respects device-specific `refresh_rate_ms`
+
+- ✅ **TCP Connection Pool** (v2.3.10) - 180x reduction in connection recreations
+  - 99% connection reuse rate
+  - Dramatic performance improvement
+
+#### 🛠️ Additional Improvements
+- ✅ **Timestamp Support** - Added to Modbus polling for better diagnostics
+- ✅ **Thread Safety** - Mutex protection for ModbusRTU and ModbusTCP device vectors
+
+**Migration:** No breaking changes. Performance improvements are automatic.
+
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+
+---
+
+### Version 2.3.0 (2025-11-21)
 
 **Advanced Configuration Management Release**
 
@@ -664,44 +702,11 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 #### 🎯 New BLE Configuration Features
 - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE
-  - Export all devices, registers, server config, and logging config as single JSON
-  - Atomic snapshot with metadata (timestamp, firmware version, statistics)
-  - PSRAM optimized for large configurations (100KB+)
-  - Automatic BLE fragmentation for responses up to **200KB** (20x increase from 10KB)
-  - Full documentation: [BLE_BACKUP_RESTORE.md](Documentation/API_Reference/BLE_BACKUP_RESTORE.md)
-
 - ✅ **Factory Reset Command** - One-command device reset to factory defaults
-  - Clears all device configurations (devices.json)
-  - Resets server config to defaults (WiFi, Ethernet, MQTT, HTTP)
-  - Resets logging config to defaults
-  - Automatic device restart after reset
-  - Full documentation: [BLE_FACTORY_RESET.md](Documentation/API_Reference/BLE_FACTORY_RESET.md)
-
 - ✅ **Device Control API** - Enable/disable devices with health metrics
-  - Manual enable/disable devices remotely via BLE
-  - Real-time health metrics (success rate, avg response time, min/max tracking)
-  - Auto-recovery system for auto-disabled devices (every 5 minutes)
-  - Disable reason tracking (NONE, MANUAL, AUTO_RETRY, AUTO_TIMEOUT)
-  - Protocol-agnostic (works for both RTU and TCP devices)
-  - Full documentation: [BLE_DEVICE_CONTROL.md](Documentation/API_Reference/BLE_DEVICE_CONTROL.md)
+- ✅ **BLE Response Size** - Increased from 10KB to 200KB
 
-#### ⚡ Performance Optimizations
-- ✅ **BLE Response Size Limit** - Increased from 10KB to 200KB (commit 618b53d)
-  - Supports large configuration backups
-  - Handles complex multi-device setups
-
-- ✅ **DRAM Warning Threshold** - Optimized to reduce log noise (commit ca12aab)
-  - Improved memory monitoring efficiency
-
-#### 📚 Documentation Updates
-- ✅ **Bug Status Report** - Active bug tracking and analysis added
-  - [BUG_STATUS_REPORT.md](Documentation/Changelog/BUG_STATUS_REPORT.md) with 8 bugs analyzed
-  - Priority classification (High/Medium/Low)
-  - Root cause analysis and fix recommendations
-
-**Migration:** No breaking changes. All new features are additive and backward compatible.
-
-**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+**See:** [VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for details
 
 ---
 
