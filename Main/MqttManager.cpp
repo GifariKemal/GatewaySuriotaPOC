@@ -688,7 +688,8 @@ bool MqttManager::publishPayload(
     LOG_MQTT_INFO("[MQTT] ERROR: Failed to allocate %u bytes for topic buffer!\n", topic.length() + 1);
     return false;
   }
-  strcpy(topicBuffer, topic.c_str());
+  // v2.3.15 FIX: Use memcpy for bounds-safe copy (defensive programming)
+  memcpy(topicBuffer, topic.c_str(), topic.length() + 1);
 
   // Allocate separate buffer for payload to prevent String memory issues
   uint8_t *payloadBuffer = (uint8_t *)heap_caps_malloc(payload.length(), MALLOC_CAP_8BIT);
@@ -703,11 +704,27 @@ bool MqttManager::publishPayload(
   memcpy(payloadBuffer, payload.c_str(), payload.length());
   uint32_t payloadLen = payload.length();
 
-  // Use binary publish with explicit length for reliable transmission
+  // v2.3.18 FIX: Adaptive retain flag based on payload size
+  // Some public brokers (e.g., broker.emqx.io) have undocumented ~2KB limit for retained messages
+  // Payloads exceeding this limit are silently dropped by the broker when retain=true
+  // Solution: Only use retain for payloads under the safe threshold
+  // For larger payloads, publish without retain (real-time delivery still works)
+  const uint32_t RETAIN_PAYLOAD_THRESHOLD = 1900; // Safe threshold below 2KB broker limit
+  bool useRetain = (payloadLen <= RETAIN_PAYLOAD_THRESHOLD);
+
+#if PRODUCTION_MODE == 0
+  if (!useRetain)
+  {
+    LOG_MQTT_INFO("[MQTT] Payload %u bytes exceeds retain threshold (%u), publishing without retain flag\n",
+                  payloadLen, RETAIN_PAYLOAD_THRESHOLD);
+  }
+#endif
+
   bool published = mqttClient.publish(
       topicBuffer,   // Topic (dynamically allocated buffer)
       payloadBuffer, // Payload (dedicated buffer)
-      payloadLen     // Explicit length
+      payloadLen,    // Explicit length
+      useRetain      // ADAPTIVE: retain only for small payloads (v2.3.18)
   );
 
   // CRITICAL: Free buffers after publish to prevent memory leak
@@ -798,8 +815,15 @@ void MqttManager::loadBrokerConfig(JsonObject &mqttConfig)
 
   brokerPort = mqttConfig["broker_port"] | 1883;
 
+  // v2.3.17 FIX: Handle empty client_id from config (ArduinoJson doesn't treat "" as missing)
   clientId = mqttConfig["client_id"] | "esp32_gateway";
   clientId.trim();
+  if (clientId.isEmpty()) {
+    // Generate unique ID based on ESP32 MAC address (last 6 hex digits)
+    uint64_t mac = ESP.getEfuseMac();
+    clientId = String("GATEWAY-") + String((uint32_t)(mac & 0xFFFFFF), HEX);
+    LOG_MQTT_INFO("[MQTT] Empty client_id in config, auto-generated: %s\n", clientId.c_str());
+  }
 
   username = mqttConfig["username"] | "";
   username.trim();

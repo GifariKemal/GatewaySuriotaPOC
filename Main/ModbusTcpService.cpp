@@ -1106,7 +1106,14 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   dataPoint["address"] = reg["address"];                      // Register address (e.g., 4112) for BLE streaming
   dataPoint["value"] = calibratedValue;                       // Use calibrated value
   dataPoint["description"] = reg["description"] | "";         // Optional field from BLE config
-  dataPoint["unit"] = reg["unit"] | "";                       // Unit field for measurement
+
+  // v2.3.16 FIX: Sanitize unit to avoid UTF-8 encoding issues in MQTT payload
+  // Replace degree symbol (° or Â°) with "deg" for maximum compatibility
+  String rawUnit = reg["unit"] | "";
+  rawUnit.replace("°", "deg");           // UTF-8 single-byte degree
+  rawUnit.replace("\xC2\xB0", "deg");    // UTF-8 two-byte degree (Â°)
+  dataPoint["unit"] = rawUnit;                                // Sanitized unit field
+
   dataPoint["register_id"] = reg["register_id"].as<String>(); // Internal use for deduplication
   dataPoint["register_index"] = reg["register_index"] | 0;    // For customize mode topic mapping
 
