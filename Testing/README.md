@@ -2,7 +2,7 @@
 
 **SRT-MGATE-1210 Gateway Firmware Testing Suite**
 
-**Last Updated:** November 22, 2025 (v2.3.3)
+**Last Updated:** November 26, 2025 (v2.3.11)
 
 ---
 
@@ -31,7 +31,7 @@ pip install bleak pyserial pymodbus
 ```
 
 **Hardware Requirements:**
-- ESP32-S3 with firmware v2.3.3+
+- ESP32-S3 with firmware v2.3.11+
 - BLE-capable computer/smartphone
 - (Optional) RS485-to-USB adapter for RTU testing
 - (Optional) Network connection for TCP testing
@@ -252,14 +252,14 @@ python test_mqtt_config.py
 | **TCP Polling** | - | ✅ | ✅ | Complete |
 | **MQTT Publish** | - | ✅ | - | Complete |
 | **HTTP Publish** | - | ✅ | - | Complete |
-| **Large Payloads** | ✅ | ✅ | - | Complete (v2.3.3) |
+| **Large Payloads** | ✅ | ✅ | - | Complete (v2.3.11) |
 | **Data Types** | - | ✅ | ✅ | 40+ types |
 
 ### Bug Fix Validation
 
 | Bug # | Description | Test Script | Status |
 |-------|-------------|-------------|--------|
-| **#32** | Restore config failure (large JSON) | `test_backup_restore.py` | ✅ FIXED (v2.3.3) |
+| **#32** | Restore config failure (large JSON) | `test_backup_restore.py` | ✅ FIXED (v2.3.11) |
 | **MQTT** | Partial publish (incomplete data) | Device testing scripts | ✅ FIXED (v2.3.2) |
 | **Cache** | Memory leak after deletion | Device creation/deletion | ✅ FIXED (v2.3.1) |
 
@@ -332,7 +332,7 @@ python test_mqtt_config.py
 
 **Symptom:** Restore fails with "Missing 'config' object"
 **Solution:**
-1. Upgrade firmware to v2.3.3+ (BUG #32 fix)
+1. Upgrade firmware to v2.3.11+ (BUG #32 fix)
 2. Check PSRAM available (>1MB free)
 3. Use `test_backup_restore.py` option 4 (Backup-Restore-Compare)
 
@@ -393,7 +393,7 @@ FLOAT32_ABCD:
 """
 Test: [Feature Name]
 Date: [YYYY-MM-DD]
-Firmware: v2.3.3+
+Firmware: v2.3.11+
 """
 
 import asyncio
@@ -488,7 +488,7 @@ When reporting test failures, include:
 
 **Testing Documentation Version:** 1.0
 **Last Updated:** November 22, 2025
-**Firmware Version:** 2.3.3
+**Firmware Version:** 2.3.11
 **Maintainer:** Kemal
 
 [← Back to Main README](../README.md) | [↑ Top](#-testing-documentation)

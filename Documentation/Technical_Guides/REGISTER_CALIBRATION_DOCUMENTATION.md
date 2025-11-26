@@ -4,7 +4,7 @@
 
 [Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Register Calibration
 
-**Current Version:** v2.3.0
+**Current Version:** v2.3.11
 **Developer:** Kemal
 **Last Updated:** November 21, 2025
 

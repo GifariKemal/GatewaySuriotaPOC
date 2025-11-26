@@ -5,7 +5,7 @@ Dual Network Interface Configuration & Failover
 
 [Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Network Configuration
 
-**Current Version:** v2.3.0
+**Current Version:** v2.3.11
 **Developer:** Kemal
 **Last Updated:** November 21, 2025
 
@@ -821,7 +821,7 @@ graph TD
 ---
 
 **Document Version:** 1.1 (Updated)
-**Firmware Version:** v2.3.0
+**Firmware Version:** v2.3.11
 **Last Updated:** November 21, 2025
 **Author:** Kemal
 

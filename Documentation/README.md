@@ -111,7 +111,7 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 - **MCU:** ESP32-S3-WROOM-1-N16R8 (16MB Flash, 8MB PSRAM)
 - **Protocols:** Modbus RTU, Modbus TCP, MQTT, HTTP, BLE 5.0
 - **Network:** WiFi 802.11 b/g/n, Ethernet (optional)
-- **Firmware:** v2.3.3 (November 2025)
+- **Firmware:** v2.3.11 (November 2025)
 
 ### Key Features
 - ✅ **Multi-Protocol:** Bridge Modbus devices to MQTT/HTTP/BLE
@@ -135,12 +135,13 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 
 ## 🔄 Version Information
 
-### Current Version: 2.3.3 (November 22, 2025)
+### Current Version: 2.3.11 (November 26, 2025)
 
-**Latest Bug Fix:**
-- ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads (backup/restore now fully stable)
-- ✅ **Register Index Bug** - Fixed register_index stuck at 0 during device creation
-- ✅ **Device ID Preservation** - Device IDs now properly preserved during restore operations
+**Latest Updates:**
+- ✅ **CRITICAL BLE Fix (v2.3.11)** - Fixed command corruption with timeout protection and marker handling
+- ✅ **ModbusTCP Optimization (v2.3.11)** - Vector caching (100% file access elimination), connection pooling
+- ✅ **Thread Safety (v2.3.11)** - Mutex protection for device vectors in Modbus services
+- ✅ **BUG #32 Fix (v2.3.3)** - Fixed restore config failure for large JSON payloads
 
 **Recent Features (v2.3.0-2.3.2):**
 - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)

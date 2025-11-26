@@ -572,9 +572,14 @@ Response includes:
 
 **⚠️ Warning:** Some versions have breaking changes. Read migration guide first!
 
-### Q: What's new in v2.3.x (v2.3.0 - v2.3.3)?
+### Q: What's new in v2.3.x (v2.3.0 - v2.3.11)?
 
-**A:** Latest v2.3.3 (November 22, 2025):
+**A:** Latest v2.3.11 (November 26, 2025):
+- ✅ **CRITICAL BLE Fix** - Command corruption with timeout protection
+- ✅ **ModbusTCP Optimization** - Vector caching, connection pooling, thread safety
+- ✅ **Dynamic Polling** - Respects device refresh_rate_ms
+
+**Previous v2.3.3 (November 22, 2025):**
 - ✅ **BUG #32 Fix** - Restore config now works with large JSON payloads (3420+ bytes)
 - ✅ **Register Index Fix** - register_index increments correctly (1→2→3→4→5)
 - ✅ **Device ID Preservation** - Device IDs preserved during restore operations
