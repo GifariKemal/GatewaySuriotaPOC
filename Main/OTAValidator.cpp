@@ -260,33 +260,43 @@ bool OTAValidator::verifySignatureHash(const uint8_t* hash,
     int ret;
 
     if (sigLen == OTA_SIGNATURE_SIZE) {
-        // Raw format (r || s) - need to convert to ASN.1 for mbedtls
-        // mbedtls_pk_verify expects ASN.1 format
-        // For simplicity, we'll use the ECDSA context directly
+        // Raw format (r || s) - convert to ASN.1 DER format for mbedtls
+        // ASN.1 DER format: 0x30 <len> 0x02 <rlen> <r> 0x02 <slen> <s>
+        uint8_t derSig[72];  // Maximum DER size for P-256
+        size_t derLen = 0;
 
-        mbedtls_ecdsa_context* ecdsa = mbedtls_pk_ec(pkContext);
-        if (!ecdsa) {
-            xSemaphoreGive(validatorMutex);
-            return false;
-        }
+        // Build DER signature
+        const uint8_t* rPtr = signature;
+        const uint8_t* sPtr = signature + 32;
 
-        // Import r and s values
-        mbedtls_mpi r, s;
-        mbedtls_mpi_init(&r);
-        mbedtls_mpi_init(&s);
+        // Skip leading zeros but keep at least one byte
+        size_t rLen = 32, sLen = 32;
+        while (rLen > 1 && *rPtr == 0) { rPtr++; rLen--; }
+        while (sLen > 1 && *sPtr == 0) { sPtr++; sLen--; }
 
-        ret = mbedtls_mpi_read_binary(&r, signature, 32);
-        if (ret == 0) {
-            ret = mbedtls_mpi_read_binary(&s, signature + 32, 32);
-        }
+        // Add padding byte if high bit set (to keep positive)
+        bool rPad = (*rPtr & 0x80) != 0;
+        bool sPad = (*sPtr & 0x80) != 0;
 
-        if (ret == 0) {
-            ret = mbedtls_ecdsa_verify(&ecdsa->grp, hash, OTA_HASH_SIZE,
-                                       &ecdsa->Q, &r, &s);
-        }
+        size_t totalLen = 2 + (rPad ? 1 : 0) + rLen + 2 + (sPad ? 1 : 0) + sLen;
 
-        mbedtls_mpi_free(&r);
-        mbedtls_mpi_free(&s);
+        derSig[derLen++] = 0x30;  // SEQUENCE
+        derSig[derLen++] = (uint8_t)totalLen;
+        derSig[derLen++] = 0x02;  // INTEGER (r)
+        derSig[derLen++] = (uint8_t)(rLen + (rPad ? 1 : 0));
+        if (rPad) derSig[derLen++] = 0x00;
+        memcpy(derSig + derLen, rPtr, rLen);
+        derLen += rLen;
+        derSig[derLen++] = 0x02;  // INTEGER (s)
+        derSig[derLen++] = (uint8_t)(sLen + (sPad ? 1 : 0));
+        if (sPad) derSig[derLen++] = 0x00;
+        memcpy(derSig + derLen, sPtr, sLen);
+        derLen += sLen;
+
+        // Verify using DER format
+        ret = mbedtls_pk_verify(&pkContext, MBEDTLS_MD_SHA256,
+                                hash, OTA_HASH_SIZE,
+                                derSig, derLen);
     } else {
         // ASN.1 DER format - use pk_verify directly
         ret = mbedtls_pk_verify(&pkContext, MBEDTLS_MD_SHA256,

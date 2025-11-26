@@ -1390,8 +1390,8 @@ void CRUDHandler::setupCommandHandlers()
       {
         JsonObject manifestObj = (*response)["manifest"].to<JsonObject>();
         manifestObj["version"] = manifest.version;
-        manifestObj["size"] = manifest.size;
-        manifestObj["release_notes"] = manifest.releaseNotes;
+        manifestObj["size"] = manifest.firmwareSize;
+        manifestObj["release_notes"] = manifest.changelog;
       }
 
       LOG_CRUD_INFO("[OTA] Update available: %s -> %s", otaStatus.currentVersion.c_str(), otaStatus.targetVersion.c_str());

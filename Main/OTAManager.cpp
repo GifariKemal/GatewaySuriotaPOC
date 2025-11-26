@@ -187,7 +187,7 @@ bool OTAManager::loadConfiguration() {
         return false;
     }
 
-    SpiRamJsonDocument doc(2048);
+    SpiRamJsonDocument doc;
     DeserializationError error = deserializeJson(doc, f);
     f.close();
 
@@ -254,7 +254,7 @@ bool OTAManager::loadConfiguration() {
 }
 
 bool OTAManager::saveConfiguration() {
-    SpiRamJsonDocument doc(2048);
+    SpiRamJsonDocument doc;
 
     doc["ota_enabled"] = config.enabled;
 
@@ -728,7 +728,7 @@ bool OTAManager::isRollbackPending() const {
 // ============================================
 
 String OTAManager::handleMqttCommand(const String& action, const String& params) {
-    SpiRamJsonDocument responseDoc(512);
+    SpiRamJsonDocument responseDoc;
     responseDoc["action"] = action;
 
     if (action == "check_update") {
@@ -776,7 +776,7 @@ String OTAManager::handleMqttCommand(const String& action, const String& params)
 }
 
 String OTAManager::getStatusJson() const {
-    SpiRamJsonDocument doc(512);
+    SpiRamJsonDocument doc;
 
     doc["state"] = getOTAStateName(currentState);
     doc["progress"] = progress;
@@ -855,7 +855,7 @@ bool OTAManager::handleCrudCommand(const String& command, const JsonObject& para
     }
     else if (command == "ota_config") {
         // Get/set configuration
-        if (params.containsKey("github_repo")) {
+        if (params["github_repo"].is<const char*>()) {
             setGitHubRepo(params["github_owner"] | config.githubOwner,
                          params["github_repo"].as<String>(),
                          params["github_branch"] | config.githubBranch);

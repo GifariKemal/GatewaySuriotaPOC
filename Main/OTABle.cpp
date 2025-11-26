@@ -138,7 +138,7 @@ bool OTABle::initBLEService() {
         OTA_BLE_STATUS_UUID,
         BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
     );
-    pStatusChar->addDescriptor(new BLE2902());
+    // Note: BLE2902 descriptor is automatically added by NimBLE when NOTIFY is enabled
 
     // Start service
     pOTAService->start();
@@ -183,10 +183,10 @@ void OTABle::freeBuffer() {
 // ============================================
 
 void OTABle::onWrite(BLECharacteristic* pCharacteristic) {
-    std::string value = pCharacteristic->getValue();
+    String value = pCharacteristic->getValue();
     if (value.length() == 0) return;
 
-    const uint8_t* data = (const uint8_t*)value.data();
+    const uint8_t* data = (const uint8_t*)value.c_str();
     size_t len = value.length();
     uint8_t cmd = data[0];
 

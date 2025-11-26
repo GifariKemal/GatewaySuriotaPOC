@@ -7,8 +7,10 @@
 
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTAHttps.h"
+#include "JsonDocumentPSRAM.h"  // For SpiRamJsonDocument
 #include <esp_heap_caps.h>
-#include <base64.h>
+#include <WiFi.h>
+#include <mbedtls/base64.h>
 
 // Singleton instance
 OTAHttps* OTAHttps::instance = nullptr;
@@ -455,7 +457,7 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
 
 bool OTAHttps::parseManifest(const String& json, FirmwareManifest& manifest) {
     // Allocate JSON document in PSRAM
-    SpiRamJsonDocument doc(4096);
+    SpiRamJsonDocument doc;
 
     DeserializationError error = deserializeJson(doc, json);
     if (error) {
@@ -610,7 +612,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     }
 
     // Get stream
-    WiFiClient* stream = httpClient.getStreamPtr();
+    Stream* stream = httpClient.getStreamPtr();
     unsigned long startTime = millis();
     unsigned long lastProgressTime = startTime;
 
@@ -698,11 +700,19 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
         size_t sigLen = 0;
 
         if (signature.length() > 0) {
-            sigLen = base64_decode_expected_len(signature.length());
-            sigBytes = (uint8_t*)malloc(sigLen);
+            // Allocate buffer for decoded signature (base64 decodes to ~75% of original)
+            size_t maxSigLen = (signature.length() * 3) / 4 + 4;
+            sigBytes = (uint8_t*)malloc(maxSigLen);
             if (sigBytes) {
-                sigLen = base64_decode_chars(signature.c_str(), signature.length(),
-                                             (char*)sigBytes);
+                int ret = mbedtls_base64_decode(sigBytes, maxSigLen, &sigLen,
+                                                (const unsigned char*)signature.c_str(),
+                                                signature.length());
+                if (ret != 0) {
+                    LOG_OTA_ERROR("Base64 decode failed: %d\n", ret);
+                    free(sigBytes);
+                    sigBytes = nullptr;
+                    sigLen = 0;
+                }
             }
         }
 

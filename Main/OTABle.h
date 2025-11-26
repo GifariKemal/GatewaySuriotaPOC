@@ -30,7 +30,7 @@
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-#include <BLE2902.h>
+// Note: BLE2902 is deprecated in NimBLE - descriptors auto-added for NOTIFY
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 
