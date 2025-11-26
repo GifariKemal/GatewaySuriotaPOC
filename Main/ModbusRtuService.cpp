@@ -387,7 +387,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     polledData["protocol"] = "RTU";
     polledData["slave_id"] = slaveId;
     polledData["timestamp"] = millis();
-    polledRegisters = polledData.createNestedArray("registers");
+    polledRegisters = polledData["registers"].to<JsonArray>();
   }
 
   for (JsonVariant regVar : registers)
@@ -434,7 +434,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // Add to JSON debug output (runtime check)
         if (IS_DEV_MODE())
         {
-          JsonObject regObj = polledRegisters.createNestedObject();
+          JsonObject regObj = polledRegisters.add<JsonObject>();
           regObj["name"] = registerName;
           regObj["address"] = address;
           regObj["function_code"] = functionCode;
@@ -478,7 +478,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // Add to JSON debug output (runtime check)
         if (IS_DEV_MODE())
         {
-          JsonObject regObj = polledRegisters.createNestedObject();
+          JsonObject regObj = polledRegisters.add<JsonObject>();
           regObj["name"] = registerName;
           regObj["address"] = address;
           regObj["function_code"] = functionCode;
@@ -565,7 +565,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // Add to JSON debug output (runtime check)
         if (IS_DEV_MODE())
         {
-          JsonObject regObj = polledRegisters.createNestedObject();
+          JsonObject regObj = polledRegisters.add<JsonObject>();
           regObj["name"] = registerName;
           regObj["address"] = address;
           regObj["function_code"] = functionCode;

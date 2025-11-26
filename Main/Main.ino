@@ -20,6 +20,7 @@
 #define MQTT_MAX_PACKET_SIZE 16384 // 16KB - allows large payloads without truncation
 #endif
 
+#include <LittleFS.h>          // ← Early include for config loading
 #include "DebugConfig.h"       // ← MUST BE FIRST (before all other includes)
 
 // Global runtime production mode (switchable via BLE)
@@ -30,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.3.4"
+#define FIRMWARE_VERSION "2.3.5"
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
@@ -167,6 +168,35 @@ void setup()
   vTaskDelay(pdMS_TO_TICKS(1000));
 
   // ============================================
+  // CRITICAL: LOAD PRODUCTION MODE FROM CONFIG FIRST
+  // ============================================
+  // Initialize LittleFS for config file access
+  if (!LittleFS.begin(true))
+  {
+    Serial.println("[SYSTEM] WARNING: LittleFS mount failed, using compile-time defaults");
+  }
+
+  // Initialize logging config EARLY to load production mode
+  loggingConfig = new LoggingConfig();
+  if (loggingConfig)
+  {
+    loggingConfig->begin(); // This will load saved config if available
+
+    // Load production mode from config (allows runtime switching via BLE)
+    uint8_t savedMode = loggingConfig->getProductionMode();
+    if (savedMode <= 1 && savedMode != g_productionMode)
+    {
+      g_productionMode = savedMode;
+      Serial.printf("[SYSTEM] Production mode loaded from config: %d (%s)\n",
+                    g_productionMode, (g_productionMode == 0) ? "Development" : "Production");
+    }
+  }
+  else
+  {
+    Serial.println("[SYSTEM] WARNING: LoggingConfig init failed, using compile-time defaults");
+  }
+
+  // ============================================
   // LOG LEVEL SYSTEM INITIALIZATION (Phase 1) - Runtime check
   // ============================================
   if (IS_PRODUCTION_MODE())
@@ -299,23 +329,8 @@ void setup()
     return;
   }
 
-  // Initialize logging config
-  loggingConfig = new LoggingConfig();
-  if (!loggingConfig || !loggingConfig->begin())
-  {
-    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize LoggingConfig");
-    cleanup();
-    return;
-  }
-
-  // Load production mode from config (allows runtime switching via BLE)
-  uint8_t savedMode = loggingConfig->getProductionMode();
-  if (savedMode != g_productionMode)
-  {
-    g_productionMode = savedMode;
-    Serial.printf("[SYSTEM] Production mode loaded from config: %d (%s)\n",
-                  g_productionMode, (g_productionMode == 0) ? "Development" : "Production");
-  }
+  // NOTE: LoggingConfig already initialized at start of setup() to load production mode early
+  // No need to re-initialize here
 
   // FIXED BUG #11: Proper handling of network init failure
   // Previous code continued without network, causing MQTT/HTTP failures

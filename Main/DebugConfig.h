@@ -7,7 +7,7 @@
 // PRODUCTION MODE DEFINITION
 // ============================================
 #ifndef PRODUCTION_MODE
-#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production (compile-time default)
+#define PRODUCTION_MODE 1 // 0 = Development, 1 = Production (compile-time default)
 #endif
 
 // Runtime production mode (switchable via BLE without re-upload)

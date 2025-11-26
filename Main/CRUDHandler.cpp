@@ -353,6 +353,42 @@ void CRUDHandler::setupCommandHandlers()
     }
   };
 
+  // Read current production mode status
+  readHandlers["production_mode"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+
+    // Current runtime mode
+    (*response)["current_mode"] = g_productionMode;
+    (*response)["mode_name"] = (g_productionMode == 0) ? "Development" : "Production";
+
+    // Saved mode in config (for verification)
+    uint8_t savedMode = loggingConfig ? loggingConfig->getProductionMode() : PRODUCTION_MODE;
+    (*response)["saved_mode"] = savedMode;
+    (*response)["saved_mode_name"] = (savedMode == 0) ? "Development" : "Production";
+
+    // Mode synchronization status
+    (*response)["is_synced"] = (g_productionMode == savedMode);
+
+    // Additional info
+    (*response)["compile_time_default"] = PRODUCTION_MODE;
+    (*response)["firmware_version"] = "2.3.5";
+
+    // Current log level (use correct type from DebugConfig.h)
+    extern LogLevel currentLogLevel;
+    (*response)["log_level"] = (int)currentLogLevel;
+    const char* logLevelNames[] = {"NONE", "ERROR", "WARN", "INFO", "DEBUG", "VERBOSE"};
+    if (currentLogLevel >= LOG_NONE && currentLogLevel <= LOG_VERBOSE) {
+      (*response)["log_level_name"] = logLevelNames[currentLogLevel];
+    }
+
+    // Uptime
+    (*response)["uptime_ms"] = millis();
+
+    manager->sendResponse(*response);
+  };
+
   readHandlers["full_config"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     LOG_CRUD_INFO("[CRUD] Full config backup requested");
@@ -910,7 +946,7 @@ void CRUDHandler::setupCommandHandlers()
   controlHandlers["set_production_mode"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     // Get requested mode (0 = Development, 1 = Production)
-    if (!command.containsKey("mode"))
+    if (command["mode"].isNull())
     {
       manager->sendError("mode parameter required (0 = Development, 1 = Production)");
       return;

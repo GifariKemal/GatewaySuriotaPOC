@@ -1,6 +1,6 @@
 # BLE API: Production Mode Control
 
-**Version:** 2.3.4
+**Version:** 2.3.5
 **Last Updated:** November 26, 2025
 **Feature:** Runtime Production Mode Switching via BLE
 
@@ -8,13 +8,14 @@
 
 ## 📋 Overview
 
-The **Production Mode Control** feature allows applications to switch the gateway between **Development Mode (0)** and **Production Mode (1)** via BLE command without requiring firmware re-upload.
+The **Production Mode Control** feature allows applications to switch the gateway between **Development Mode (0)** and **Production Mode (1)** via BLE command, and read the current mode status without requiring firmware re-upload.
 
 ### Key Benefits
 - ✅ **No Firmware Re-upload** - Switch modes remotely via BLE
 - ✅ **Persistent Storage** - Mode saved to `/logging_config.json` and survives reboots
 - ✅ **Automatic Restart** - Device restarts automatically after mode change
 - ✅ **Full Response Data** - Get previous/current mode and confirmation
+- ✅ **Status Read** - Check current mode, log level, and sync status anytime
 
 ---
 
@@ -99,7 +100,93 @@ The **Production Mode Control** feature allows applications to switch the gatewa
 
 ---
 
-## 🔄 Complete Flow
+## 📊 Read Production Mode Status
+
+### Command Type
+**Operation:** `read`
+**Type:** `production_mode`
+
+### Request Structure
+```json
+{
+  "op": "read",
+  "type": "production_mode"
+}
+```
+
+### Parameters
+
+| Parameter | Type | Required | Valid Values | Description |
+|-----------|------|----------|--------------|-------------|
+| `op` | String | ✅ Yes | `"read"` | Operation type |
+| `type` | String | ✅ Yes | `"production_mode"` | Command identifier |
+
+### Success Response
+```json
+{
+  "status": "ok",
+  "current_mode": 0,
+  "mode_name": "Development",
+  "saved_mode": 0,
+  "saved_mode_name": "Development",
+  "is_synced": true,
+  "compile_time_default": 0,
+  "firmware_version": "2.3.5",
+  "log_level": 3,
+  "log_level_name": "INFO",
+  "uptime_ms": 45230
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | String | Always `"ok"` on success |
+| `current_mode` | Integer | Current runtime mode (0 = Dev, 1 = Production) |
+| `mode_name` | String | Human-readable current mode name |
+| `saved_mode` | Integer | Mode saved in `/logging_config.json` |
+| `saved_mode_name` | String | Human-readable saved mode name |
+| `is_synced` | Boolean | `true` if current_mode == saved_mode |
+| `compile_time_default` | Integer | Compile-time default from firmware |
+| `firmware_version` | String | Current firmware version |
+| `log_level` | Integer | Current log level (0-5) |
+| `log_level_name` | String | Log level name (NONE/ERROR/WARN/INFO/DEBUG/VERBOSE) |
+| `uptime_ms` | Integer | Device uptime in milliseconds |
+
+### Use Cases
+
+**1. Check Current Mode Before Switching:**
+```javascript
+// Application pseudo-code
+const status = await bleDevice.read("production_mode");
+if (status.current_mode === 0) {
+  console.log("Device in Development mode, switching to Production...");
+  await bleDevice.control("set_production_mode", {mode: 1});
+}
+```
+
+**2. Verify Mode After Restart:**
+```javascript
+// After sending set_production_mode command
+await sleep(8000); // Wait for device restart
+const status = await bleDevice.read("production_mode");
+if (status.is_synced && status.current_mode === 1) {
+  console.log("✅ Production mode applied successfully");
+}
+```
+
+**3. Monitor Log Level:**
+```javascript
+const status = await bleDevice.read("production_mode");
+console.log(`Log Level: ${status.log_level_name} (${status.log_level})`);
+// Production mode should show: "ERROR (1)"
+// Development mode should show: "INFO (3)"
+```
+
+---
+
+## 🔄 Complete Flow (Set Mode)
 
 ### 1. Application Sends Command
 ```json

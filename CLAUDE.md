@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.12 | **Last Updated:** November 26, 2025
+**Version:** 2.3.5 | **Last Updated:** November 26, 2025
 
 ---
 
@@ -31,9 +31,10 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.3.12 - Nov 26, 2025)
+## 🆕 Latest Updates (v2.3.5 - Nov 26, 2025)
 
 ### Critical Fixes & Major Optimizations
+- **v2.3.5:** CRITICAL fix - Production mode switching via BLE now works correctly after restart (log level initialization fixed)
 - **v2.3.12:** CRITICAL fixes - ModbusTCP polling now respects refresh_rate_ms (was ignoring config) + connection pool duplicate entry prevention (eliminated false "unhealthy" warnings)
 - **v2.3.11:** CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread-safe mutex)
 - **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
@@ -41,10 +42,10 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 - **v2.3.8:** Performance optimization (shadow copy pattern, stack optimization, DRAM fragmentation elimination)
 - **v2.3.4-2.3.7:** BLE transmission timeout fixes, MQTT interval corrections, log formatting enhancements
 
-### v2.3.12 Critical Bug Fixes
-- **BUG #1 - Polling Interval:** Fixed `updateDeviceLastRead()` never being called, causing devices to poll every ~2s regardless of `refresh_rate_ms` config (now respects 5000ms accurately)
-- **BUG #2 - Connection Pool:** Fixed duplicate pool entries when connections marked unhealthy, causing false "marked unhealthy, recreating" logs and TCP handshake on every poll (now 99% reuse)
-- **Performance Impact:** 60% traffic reduction for typical configs, eliminated false unhealthy warnings, clean pool state with no duplicates
+### v2.3.5 Critical Bug Fix
+- **BUG - Runtime Mode Switch:** Fixed initialization sequence - LoggingConfig now loaded BEFORE log level init, so production mode from config is properly applied after ESP restart
+- **Impact:** BLE `set_production_mode` command now works end-to-end without firmware re-upload required
+- **Result:** Mode 0→1 switch correctly shows ERROR log level + production JSON logs only; Mode 1→0 switch correctly shows INFO log level + DEVELOPMENT MODE banner
 
 ### v2.3.11 Key Features
 - **BLE Corruption Fix:** Timeout protection (5s), <START> marker handling, buffer validation
