@@ -873,7 +873,7 @@ tail -f /dev/ttyUSB0
 
 **Document Version:** 1.0
 **Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Firmware Version:** 2.3.11
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-logging-reference)
 

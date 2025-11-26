@@ -1695,7 +1695,7 @@ use context7 for any best practice research needed.
 ```
 ❌ Bad: "The gateway crashes"
 
-✅ Good: "The SRT-MGATE-1210 Gateway (firmware v2.3.3) running on ESP32-S3
+✅ Good: "The SRT-MGATE-1210 Gateway (firmware v2.3.11) running on ESP32-S3
 crashes after 48 hours with 'Out of memory' error during ConfigManager::loadDevices().
 Free DRAM decreases from 280KB to 15KB over 48 hours.
 Configuration: 50 RTU devices, 200+ registers, MQTT every 5s."
@@ -1755,7 +1755,7 @@ Add a restart command to the gateway
 FEATURE: Add remote restart command via BLE and MQTT
 
 CONTEXT:
-- Firmware: SRT-MGATE-1210 v2.3.3 on ESP32-S3
+- Firmware: SRT-MGATE-1210 v2.3.11 on ESP32-S3
 - Need graceful restart for remote maintenance
 - Must save state before restart
 - Must be secure (authenticated users only)
