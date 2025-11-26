@@ -1,0 +1,21 @@
+{
+  "version": "2.5.0",
+  "build_number": 2500,
+  "release_date": "2025-11-27",
+  "min_version": "2.3.0",
+  "firmware": {
+    "filename": "Main.ino.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.0/Main.ino.bin",
+    "size": 1891968,
+    "sha256": "c5964cae5f7b0e57f4e2ce75a6e9d5804c29a4662d6a7ec57fdae5b6220fe710",
+    "signature": "9d23e08ab120fe5604f53746ddd34a920299003dabc562fea1e896217fb8dd7f602681d65ee81e6365d39efc0946b8ab9702dc41f340c3349517dc58f298d3a1"
+  },
+  "changelog": [
+    "Added OTA firmware update system",
+    "HTTPS OTA from GitHub Releases",
+    "BLE OTA direct transfer",
+    "ECDSA P-256 signature verification",
+    "Anti-rollback protection"
+  ],
+  "mandatory": false
+}

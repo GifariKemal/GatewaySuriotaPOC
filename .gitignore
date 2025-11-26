@@ -191,7 +191,7 @@ $RECYCLE.BIN/
 
 # Secret keys and certificates
 *.key
-*.pem
+# *.pem  # Moved to custom exclusions for OTA key management
 *.crt
 *.cer
 *.p12
@@ -317,4 +317,11 @@ lib/
 # Custom Exclusions
 # ---------------------------------------------
 # Add any project-specific files to ignore below:
+
+# OTA signing keys (NEVER commit private key!)
+ota_private_key.pem
+!ota_public_key.pem
+!ota_public_key.h
+
+# Note: firmware_manifest.json is tracked for OTA updates
 

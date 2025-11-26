@@ -27,15 +27,27 @@ Panduan lengkap untuk menyiapkan firmware .bin, upload ke GitHub, dan deployment
 | --------------------- | ------------------- | ------------------------------------------------ |
 | Arduino IDE 2.x       | Compile firmware    | [arduino.cc](https://www.arduino.cc/en/software) |
 | Python 3.8+           | Generate signatures | `python.org`                                     |
-| OpenSSL               | Generate keys       | Pre-installed on Linux/Mac                       |
 | Git                   | Version control     | `git-scm.com`                                    |
 | GitHub CLI (optional) | Upload releases     | `gh` command                                     |
 
 ### Python Dependencies
 
 ```bash
-pip install ecdsa hashlib
+pip install ecdsa
 ```
+
+> Note: `hashlib` sudah built-in di Python 3, tidak perlu di-install.
+
+### OpenSSL Alternatives untuk Windows
+
+OpenSSL TIDAK diperlukan jika menggunakan Python scripts yang disediakan di folder `Tools/`:
+- `generate_ota_keys.py` - Generate ECDSA key pair
+- `sign_firmware.py` - Sign firmware binary
+
+Jika tetap ingin menggunakan OpenSSL di Windows:
+1. **Git Bash** - Sudah include OpenSSL (jalankan dari Git Bash)
+2. **WSL** - Windows Subsystem for Linux
+3. **Download** - https://slproweb.com/products/Win32OpenSSL.html
 
 ### Board Configuration (Arduino IDE)
 
@@ -116,6 +128,20 @@ Get-Item build\Main.ino.bin | Select-Object Name, Length
 ## 3. Generate Security Files
 
 ### Step 3.1: Generate ECDSA Key Pair (One-Time Setup)
+
+**Menggunakan Python Script (Recommended untuk Windows):**
+
+```powershell
+cd Tools
+python generate_ota_keys.py
+```
+
+Script akan generate 3 file:
+- `ota_private_key.pem` - **SIMPAN DENGAN AMAN!**
+- `ota_public_key.pem` - Public key
+- `ota_public_key.h` - C header siap copy ke firmware
+
+**Alternatif: Menggunakan OpenSSL (Git Bash / Linux / Mac):**
 
 ```bash
 # Generate private key (SIMPAN DENGAN AMAN!)
