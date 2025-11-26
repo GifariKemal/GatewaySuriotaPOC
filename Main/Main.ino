@@ -21,6 +21,10 @@
 #endif
 
 #include "DebugConfig.h"       // ← MUST BE FIRST (before all other includes)
+
+// Global runtime production mode (switchable via BLE)
+// Initialized from compile-time PRODUCTION_MODE, can be changed at runtime
+uint8_t g_productionMode = PRODUCTION_MODE;
 #include "MemoryRecovery.h"    // Phase 2 optimization
 #include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
 #include "ProductionLogger.h"  // Production mode minimal logging
@@ -302,6 +306,15 @@ void setup()
     DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize LoggingConfig");
     cleanup();
     return;
+  }
+
+  // Load production mode from config (allows runtime switching via BLE)
+  uint8_t savedMode = loggingConfig->getProductionMode();
+  if (savedMode != g_productionMode)
+  {
+    g_productionMode = savedMode;
+    Serial.printf("[SYSTEM] Production mode loaded from config: %d (%s)\n",
+                  g_productionMode, (g_productionMode == 0) ? "Development" : "Production");
   }
 
   // FIXED BUG #11: Proper handling of network init failure

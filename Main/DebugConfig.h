@@ -7,8 +7,16 @@
 // PRODUCTION MODE DEFINITION
 // ============================================
 #ifndef PRODUCTION_MODE
-#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production
+#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production (compile-time default)
 #endif
+
+// Runtime production mode (switchable via BLE without re-upload)
+// Initialized from compile-time default, can be changed via set_production_mode command
+extern uint8_t g_productionMode;
+
+// Runtime mode check macros (use these instead of #if PRODUCTION_MODE)
+#define IS_PRODUCTION_MODE() (g_productionMode == 1)
+#define IS_DEV_MODE() (g_productionMode == 0)
 
 /*
  * ============================================

@@ -620,22 +620,23 @@ bool MqttManager::publishPayload(
     return false;
   }
 
-  // DEBUG: Print publish request info (only in development mode)
-#if PRODUCTION_MODE == 0
-  Serial.printf("\n[MQTT] PUBLISH REQUEST - %s\n", modeLabel);
-  Serial.printf("  Topic: %s\n", topic.c_str());
-  Serial.printf("  Size: %u bytes\n", payload.length());
+  // DEBUG: Print publish request info (only in development mode) - runtime check
+  if (IS_DEV_MODE())
+  {
+    Serial.printf("\n[MQTT] PUBLISH REQUEST - %s\n", modeLabel);
+    Serial.printf("  Topic: %s\n", topic.c_str());
+    Serial.printf("  Size: %u bytes\n", payload.length());
 
-  // Print payload (verbose mode) - show full JSON as one-line
-  if (payload.length() > 0)
-  {
-    Serial.printf("  Payload: %s\n", payload.c_str());
+    // Print payload (verbose mode) - show full JSON as one-line
+    if (payload.length() > 0)
+    {
+      Serial.printf("  Payload: %s\n", payload.c_str());
+    }
+    else
+    {
+      Serial.println("  Payload: [EMPTY]");
+    }
   }
-  else
-  {
-    Serial.println("  Payload: [EMPTY]");
-  }
-#endif
 
   // Check MQTT connection state before publish
   if (!mqttClient.connected())
@@ -647,10 +648,12 @@ bool MqttManager::publishPayload(
   // Calculate total MQTT packet size for validation
   uint32_t mqttPacketSize = 5 + 2 + topic.length() + payload.length();
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
-  Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
-#endif
+  // Show broker info in development mode - runtime check
+  if (IS_DEV_MODE())
+  {
+    Serial.printf("  Broker: %s:%d\n", brokerAddress.c_str(), brokerPort);
+    Serial.printf("  Packet size: %u/%u bytes\n\n", mqttPacketSize, cachedBufferSize);
+  }
 
   // Validate packet size doesn't exceed buffer
   if (mqttPacketSize > cachedBufferSize)

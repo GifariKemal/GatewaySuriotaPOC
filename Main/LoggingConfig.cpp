@@ -126,3 +126,18 @@ String LoggingConfig::getLoggingInterval()
 {
   return (*config)["logging_interval"] | "5m";
 }
+
+void LoggingConfig::setProductionMode(uint8_t mode)
+{
+  (*config)["production_mode"] = mode;
+}
+
+uint8_t LoggingConfig::getProductionMode()
+{
+  return (*config)["production_mode"] | PRODUCTION_MODE; // Default to compile-time value
+}
+
+bool LoggingConfig::save()
+{
+  return saveConfig();
+}

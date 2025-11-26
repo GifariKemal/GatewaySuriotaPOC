@@ -906,6 +906,60 @@ void CRUDHandler::setupCommandHandlers()
     manager->sendResponse(*response);
   };
 
+  // Set Production Mode - Switch between dev (0) and production (1) mode via BLE
+  controlHandlers["set_production_mode"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    // Get requested mode (0 = Development, 1 = Production)
+    if (!command.containsKey("mode"))
+    {
+      manager->sendError("mode parameter required (0 = Development, 1 = Production)");
+      return;
+    }
+
+    uint8_t requestedMode = command["mode"] | 255; // 255 = invalid
+
+    if (requestedMode > 1)
+    {
+      manager->sendError("Invalid mode value. Use 0 (Development) or 1 (Production)");
+      return;
+    }
+
+    // Get current mode for comparison
+    uint8_t previousMode = g_productionMode;
+
+    // Update global runtime mode
+    g_productionMode = requestedMode;
+
+    // Save to logging config for persistence across reboots
+    if (loggingConfig)
+    {
+      loggingConfig->setProductionMode(requestedMode);
+      loggingConfig->save();
+    }
+
+    // Prepare response
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["previous_mode"] = previousMode;
+    (*response)["current_mode"] = g_productionMode;
+    (*response)["mode_name"] = (g_productionMode == 0) ? "Development" : "Production";
+    (*response)["message"] = "Production mode updated. Device will restart in 2 seconds...";
+    (*response)["persistent"] = (loggingConfig != nullptr);
+    (*response)["restarting"] = true;
+
+    manager->sendResponse(*response);
+
+    // Log the change
+    Serial.printf("\n[SYSTEM] Production mode changed: %d -> %d (%s)\n",
+                  previousMode, g_productionMode,
+                  (g_productionMode == 0) ? "Development" : "Production");
+    Serial.println("[SYSTEM] Device will restart in 2 seconds...");
+
+    // Wait for BLE response to be sent, then restart
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    ESP.restart();
+  };
+
   // === SYSTEM HANDLERS ===
 
   // Factory Reset - Simple single-command reset

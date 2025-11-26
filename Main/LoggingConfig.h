@@ -29,6 +29,11 @@ public:
   // Specific getters
   String getLoggingRetention();
   String getLoggingInterval();
+
+  // Production mode management
+  void setProductionMode(uint8_t mode);
+  uint8_t getProductionMode();
+  bool save(); // Public save method for external use
 };
 
 #endif

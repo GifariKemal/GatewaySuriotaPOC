@@ -374,17 +374,21 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   char dataTypeBuf[64]; // For FC3/4 data type parsing (max 64 chars)
   uint16_t values[4];   // For FC3/4 multi-register reads (max 4 registers = 8 bytes)
 
-#if PRODUCTION_MODE == 0
-  // Development mode: Collect polled data in JSON format for debugging
+  // Development mode: Collect polled data in JSON format for debugging (always compiled, runtime-checked)
   SpiRamJsonDocument polledDataDoc;
-  JsonObject polledData = polledDataDoc.to<JsonObject>();
-  polledData["device_id"] = deviceId;
-  polledData["device_name"] = deviceName;
-  polledData["protocol"] = "RTU";
-  polledData["slave_id"] = slaveId;
-  polledData["timestamp"] = millis();
-  JsonArray polledRegisters = polledData.createNestedArray("registers");
-#endif
+  JsonObject polledData;
+  JsonArray polledRegisters;
+
+  if (IS_DEV_MODE())
+  {
+    polledData = polledDataDoc.to<JsonObject>();
+    polledData["device_id"] = deviceId;
+    polledData["device_name"] = deviceName;
+    polledData["protocol"] = "RTU";
+    polledData["slave_id"] = slaveId;
+    polledData["timestamp"] = millis();
+    polledRegisters = polledData.createNestedArray("registers");
+  }
 
   for (JsonVariant regVar : registers)
   {
@@ -427,15 +431,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
-#if PRODUCTION_MODE == 0
-        // Add to JSON debug output
-        JsonObject regObj = polledRegisters.createNestedObject();
-        regObj["name"] = registerName;
-        regObj["address"] = address;
-        regObj["function_code"] = functionCode;
-        regObj["value"] = value;
-        if (strlen(unit) > 0) regObj["unit"] = unit;
-#endif
+        // Add to JSON debug output (runtime check)
+        if (IS_DEV_MODE())
+        {
+          JsonObject regObj = polledRegisters.createNestedObject();
+          regObj["name"] = registerName;
+          regObj["address"] = address;
+          regObj["function_code"] = functionCode;
+          regObj["value"] = value;
+          if (strlen(unit) > 0) regObj["unit"] = unit;
+        }
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -470,15 +475,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
-#if PRODUCTION_MODE == 0
-        // Add to JSON debug output
-        JsonObject regObj = polledRegisters.createNestedObject();
-        regObj["name"] = registerName;
-        regObj["address"] = address;
-        regObj["function_code"] = functionCode;
-        regObj["value"] = value;
-        if (strlen(unit) > 0) regObj["unit"] = unit;
-#endif
+        // Add to JSON debug output (runtime check)
+        if (IS_DEV_MODE())
+        {
+          JsonObject regObj = polledRegisters.createNestedObject();
+          regObj["name"] = registerName;
+          regObj["address"] = address;
+          regObj["function_code"] = functionCode;
+          regObj["value"] = value;
+          if (strlen(unit) > 0) regObj["unit"] = unit;
+        }
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -556,15 +562,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
-#if PRODUCTION_MODE == 0
-        // Add to JSON debug output
-        JsonObject regObj = polledRegisters.createNestedObject();
-        regObj["name"] = registerName;
-        regObj["address"] = address;
-        regObj["function_code"] = functionCode;
-        regObj["value"] = value;
-        if (strlen(unit) > 0) regObj["unit"] = unit;
-#endif
+        // Add to JSON debug output (runtime check)
+        if (IS_DEV_MODE())
+        {
+          JsonObject regObj = polledRegisters.createNestedObject();
+          regObj["name"] = registerName;
+          regObj["address"] = address;
+          regObj["function_code"] = functionCode;
+          regObj["value"] = value;
+          if (strlen(unit) > 0) regObj["unit"] = unit;
+        }
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -658,9 +665,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     }
   }
 
-#if PRODUCTION_MODE == 0
-  // Development mode: Print polled data as JSON (one-line)
-  if (successRegisterCount > 0)
+  // Development mode: Print polled data as JSON (one-line) - runtime check
+  if (IS_DEV_MODE() && successRegisterCount > 0)
   {
     polledData["success_count"] = successRegisterCount;
     polledData["failed_count"] = failedRegisterCount;
@@ -669,7 +675,6 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     serializeJson(polledDataDoc, Serial);
     Serial.println("\n");
   }
-#endif
 }
 
 // NOTE: processRegisterValue() moved to ModbusUtils class (shared with ModbusTcpService)
