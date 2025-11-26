@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "NetworkManager.h"
 #include "ServerConfig.h"
 #include <WiFi.h>
@@ -20,7 +21,7 @@ NetworkMgr::NetworkMgr()
   modeMutex = xSemaphoreCreateMutex();
   if (!modeMutex)
   {
-    Serial.println("[NetworkMgr] ERROR: Failed to create mode mutex");
+    LOG_NET_INFO("[NetworkMgr] ERROR: Failed to create mode mutex");
   }
 
   // Initialize hysteresis system
@@ -40,7 +41,7 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   JsonObject serverRoot = serverConfigDoc.to<JsonObject>();
   if (!serverConfig->getConfig(serverRoot))
   {
-    Serial.println("[NetworkMgr] Failed to get full server config");
+    LOG_NET_INFO("[NetworkMgr] Failed to get full server config");
     // Pertimbangkan penanganan error, misalnya kembali ke default atau return false
   }
 
@@ -96,7 +97,7 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   {
     if (!initWiFi(wifiConfig))
     {
-      Serial.println("[NetworkMgr] ERROR: Failed to initialize WiFi");
+      LOG_NET_INFO("[NetworkMgr] ERROR: Failed to initialize WiFi");
     }
   }
 
@@ -112,12 +113,12 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
       subnet.fromString(ethernetConfig["subnet"] | "0.0.0.0");
       if (staticIp.toString() == "0.0.0.0")
       {
-        Serial.println("[NetworkMgr] WARNING: Static IP is 0.0.0.0 or invalid");
+        LOG_NET_INFO("[NetworkMgr] WARNING: Static IP is 0.0.0.0 or invalid");
       }
     }
     if (!initEthernet(useDhcp, staticIp, gateway, subnet))
     {
-      Serial.println("[NetworkMgr] ERROR: Failed to initialize Ethernet");
+      LOG_NET_INFO("[NetworkMgr] ERROR: Failed to initialize Ethernet");
     }
   }
 
@@ -147,12 +148,12 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   if (activeMode != "NONE")
   {
     networkAvailable = true;
-    Serial.printf("[NetworkMgr] Initial active network: %s. IP: %s\n", activeMode.c_str(), getLocalIP().toString().c_str());
+    LOG_NET_INFO("[NetworkMgr] Initial active network: %s. IP: %s\n", activeMode.c_str(), getLocalIP().toString().c_str());
   }
   else
   {
     networkAvailable = false;
-    Serial.println("[NetworkMgr] No network available initially.");
+    LOG_NET_INFO("[NetworkMgr] No network available initially.");
   }
 
   startFailoverTask(); // Mulai task failover
@@ -173,7 +174,7 @@ bool NetworkMgr::initWiFi(const JsonObject &wifiConfig)
   wifiManager = WiFiManager::getInstance();
   if (wifiManager->init(ssid, password))
   {
-    Serial.printf("[NETWORK] Initialized | Mode: WiFi | SSID: %s\n", ssid.c_str());
+    LOG_NET_INFO("[NETWORK] Initialized | Mode: WiFi | SSID: %s\n", ssid.c_str());
     return true;
   }
 
@@ -185,7 +186,7 @@ bool NetworkMgr::initEthernet(bool useDhcp, IPAddress staticIp, IPAddress gatewa
   ethernetManager = EthernetManager::getInstance();
   if (ethernetManager->init(useDhcp, staticIp, gateway, subnet))
   {
-    Serial.println("[NETWORK] Initialized | Mode: Ethernet");
+    LOG_NET_INFO("[NETWORK] Initialized | Mode: Ethernet");
     return true;
   }
 
@@ -206,7 +207,7 @@ void NetworkMgr::startFailoverTask()
         &failoverTaskHandle,
         0 // Core 0 (moved from Core 1 for load balancing)
     );
-    Serial.println("[NETWORK] Failover task started");
+    LOG_NET_INFO("[NETWORK] Failover task started");
   }
 }
 
@@ -303,7 +304,7 @@ void NetworkMgr::failoverLoop()
           // Check hysteresis decision for secondary
           if (hysteresisEnabled && hysteresis && !hysteresis->shouldSwitchToSecondary())
           {
-            Serial.println("[HYSTERESIS] Holding on secondary network due to hysteresis window");
+            LOG_NET_INFO("[HYSTERESIS] Holding on secondary network due to hysteresis window");
           }
           else if (secondaryAvailable)
           {
@@ -340,7 +341,7 @@ void NetworkMgr::failoverLoop()
           // Check hysteresis decision before switching back to primary
           if (hysteresisEnabled && hysteresis && !hysteresis->shouldSwitchToPrimary())
           {
-            // Serial.println("[HYSTERESIS] Holding on secondary network due to hysteresis window");
+            // LOG_NET_INFO("[HYSTERESIS] Holding on secondary network due to hysteresis window");
           }
           else if (primaryAvailable)
           {
@@ -373,13 +374,13 @@ void NetworkMgr::switchMode(const String &newMode)
   // VERIFIED: Thread-safe mode switching with 1s timeout
   if (!modeMutex)
   {
-    Serial.println("[NetworkMgr] ERROR: Mode mutex not initialized");
+    LOG_NET_INFO("[NetworkMgr] ERROR: Mode mutex not initialized");
     return;
   }
 
   if (xSemaphoreTake(modeMutex, pdMS_TO_TICKS(1000)) != pdTRUE)
   {
-    Serial.println("[NetworkMgr] ERROR: Failed to acquire mode mutex");
+    LOG_NET_INFO("[NetworkMgr] ERROR: Failed to acquire mode mutex");
     return;
   }
 
@@ -454,7 +455,7 @@ bool NetworkMgr::isAvailable()
   }
   else
   {
-    Serial.println("[NetworkMgr] WARNING: isAvailable mutex timeout");
+    LOG_NET_INFO("[NetworkMgr] WARNING: isAvailable mutex timeout");
   }
 
   return available;
@@ -484,7 +485,7 @@ IPAddress NetworkMgr::getLocalIP()
   }
   else
   {
-    Serial.println("[NetworkMgr] WARNING: getLocalIP mutex timeout");
+    LOG_NET_INFO("[NetworkMgr] WARNING: getLocalIP mutex timeout");
   }
 
   return ip;
@@ -507,7 +508,7 @@ String NetworkMgr::getCurrentMode()
   }
   else
   {
-    Serial.println("[NetworkMgr] WARNING: getCurrentMode mutex timeout");
+    LOG_NET_INFO("[NetworkMgr] WARNING: getCurrentMode mutex timeout");
     mode = ""; // Return empty on timeout
   }
 
@@ -538,7 +539,7 @@ Client *NetworkMgr::getActiveClient()
   }
   else
   {
-    Serial.println("[NetworkMgr] WARNING: getActiveClient mutex timeout");
+    LOG_NET_INFO("[NetworkMgr] WARNING: getActiveClient mutex timeout");
   }
 
   return client;
@@ -688,7 +689,7 @@ NetworkMgr::PooledClientConnection *NetworkMgr::getPooledClient(const String &cl
   }
   else
   {
-    Serial.printf("[NetworkMgr] WARNING: Client pool full (%ld/%d), cannot add: %s\n",
+    LOG_NET_INFO("[NetworkMgr] WARNING: Client pool full (%ld/%d), cannot add: %s\n",
                   clientPool.size(), maxPoolSize, clientId.c_str());
   }
 

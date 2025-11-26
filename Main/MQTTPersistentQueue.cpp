@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "MQTTPersistentQueue.h"
 #include <LittleFS.h>
 #include <algorithm>
@@ -8,24 +9,24 @@ MQTTPersistentQueue *MQTTPersistentQueue::instance = nullptr;
 // Private constructor
 MQTTPersistentQueue::MQTTPersistentQueue()
 {
-  Serial.println("[MQTT_QUEUE] Persistent queue initialized");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Persistent queue initialized");
   lastProcessTime = millis();
 
   // CRITICAL FIX: Create mutex for thread safety
   queueMutex = xSemaphoreCreateMutex();
   if (queueMutex == NULL)
   {
-    Serial.println("[MQTT_QUEUE] CRITICAL: Failed to create mutex!");
+    LOG_MQTT_INFO("[MQTT_QUEUE] CRITICAL: Failed to create mutex!");
   }
   else
   {
-    Serial.println("[MQTT_QUEUE] Thread safety mutex created successfully");
+    LOG_MQTT_INFO("[MQTT_QUEUE] Thread safety mutex created successfully");
   }
 
   // Initialize LittleFS if not already done
   if (!LittleFS.begin(true))
   {
-    Serial.println("[MQTT_QUEUE] WARNING: LittleFS initialization failed");
+    LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: LittleFS initialization failed");
   }
 
   // Create queue directory
@@ -33,7 +34,7 @@ MQTTPersistentQueue::MQTTPersistentQueue()
   if (!queueDir)
   {
     LittleFS.mkdir(config.persistenceDir);
-    Serial.printf("[MQTT_QUEUE] Created queue directory: %s\n", config.persistenceDir);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Created queue directory: %s\n", config.persistenceDir);
   }
   else
   {
@@ -57,7 +58,7 @@ MQTTPersistentQueue *MQTTPersistentQueue::getInstance()
 void MQTTPersistentQueue::setConfig(const PersistenceConfig &newConfig)
 {
   config = newConfig;
-  Serial.println("[MQTT_QUEUE] Configuration updated:");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Configuration updated:");
   Serial.printf("  Max queue size: %ld\n", config.maxQueueSize);
   Serial.printf("  Max retries: %d\n", config.maxRetries);
   Serial.printf("  Max retry delay: %ld ms\n", config.maxRetryDelayMs);
@@ -66,32 +67,32 @@ void MQTTPersistentQueue::setConfig(const PersistenceConfig &newConfig)
 void MQTTPersistentQueue::setMaxQueueSize(uint32_t size)
 {
   config.maxQueueSize = size;
-  Serial.printf("[MQTT_QUEUE] Max queue size set to: %ld\n", size);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Max queue size set to: %ld\n", size);
 }
 
 void MQTTPersistentQueue::setMaxRetries(uint8_t retries)
 {
   config.maxRetries = retries;
-  Serial.printf("[MQTT_QUEUE] Max retries set to: %d\n", retries);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Max retries set to: %d\n", retries);
 }
 
 void MQTTPersistentQueue::setRetryDelay(uint32_t initialMs, uint32_t maxMs)
 {
   config.initialRetryDelayMs = initialMs;
   config.maxRetryDelayMs = maxMs;
-  Serial.printf("[MQTT_QUEUE] Retry delay set: %ld - %ld ms\n", initialMs, maxMs);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Retry delay set: %ld - %ld ms\n", initialMs, maxMs);
 }
 
 void MQTTPersistentQueue::setDefaultTimeout(uint32_t timeoutMs)
 {
   config.defaultTimeoutMs = timeoutMs;
-  Serial.printf("[MQTT_QUEUE] Default timeout set to: %ld ms\n", timeoutMs);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Default timeout set to: %ld ms\n", timeoutMs);
 }
 
 void MQTTPersistentQueue::setCompressionThreshold(uint16_t bytes)
 {
   config.compressionThreshold = bytes;
-  Serial.printf("[MQTT_QUEUE] Compression threshold set to: %d bytes\n", bytes);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Compression threshold set to: %d bytes\n", bytes);
 }
 
 // Message queueing
@@ -106,14 +107,14 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
   // Validate inputs
   if (topic.isEmpty())
   {
-    Serial.println("[MQTT_QUEUE] ERROR: Topic is empty");
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Topic is empty");
     xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_TOPIC;
   }
 
   if (payload.isEmpty())
   {
-    Serial.println("[MQTT_QUEUE] ERROR: Payload is empty");
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Payload is empty");
     xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_PAYLOAD;
   }
@@ -125,7 +126,7 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
 
   if (totalMessages >= config.maxQueueSize)
   {
-    Serial.printf("[MQTT_QUEUE] ERROR: Queue full (%ld/%ld)\n",
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Queue full (%ld/%ld)\n",
                   totalMessages, config.maxQueueSize);
     xSemaphoreGive(queueMutex);
     return QUEUE_FULL;
@@ -178,11 +179,11 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
     QueueOperationResult result = persistMessageToDisk(msg);
     if (result != QUEUE_SUCCESS)
     {
-      Serial.printf("[MQTT_QUEUE] WARNING: Failed to persist message %d\n", msg.messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: Failed to persist message %d\n", msg.messageId);
     }
   }
 
-  Serial.printf("[MQTT_QUEUE] Message %d queued [%s] (topic: %s, size: %d bytes)\n",
+  LOG_MQTT_INFO("[MQTT_QUEUE] Message %d queued [%s] (topic: %s, size: %d bytes)\n",
                 msg.messageId, getPriorityString(priority), msg.topic.c_str(),
                 msg.payload.length());
 
@@ -203,7 +204,7 @@ QueueOperationResult MQTTPersistentQueue::enqueueJsonMessage(const String &topic
 void MQTTPersistentQueue::setPublishCallback(PublishCallback callback)
 {
   publishCallback = callback;
-  Serial.println("[MQTT_QUEUE] Publish callback registered");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Publish callback registered");
 }
 
 // Queue processing
@@ -242,7 +243,7 @@ uint32_t MQTTPersistentQueue::processQueue()
       {
         // Success
         msg.status = STATUS_SENT;
-        Serial.printf("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
+        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
         stats.successfulMessages++;
         messagesSent++;
         messagesThisCycle++;
@@ -260,7 +261,7 @@ uint32_t MQTTPersistentQueue::processQueue()
           msg.lastRetryTime = now;
           msg.nextRetryTimeMs = now + calculateRetryDelay(msg.retryCount);
 
-          Serial.printf("[MQTT_QUEUE] Message %d retry %d scheduled (next: +%ld ms)\n",
+          LOG_MQTT_INFO("[MQTT_QUEUE] Message %d retry %d scheduled (next: +%ld ms)\n",
                         msg.messageId, msg.retryCount,
                         calculateRetryDelay(msg.retryCount));
           messagesThisCycle++;
@@ -271,7 +272,7 @@ uint32_t MQTTPersistentQueue::processQueue()
         {
           // Max retries exceeded
           msg.status = STATUS_FAILED;
-          Serial.printf("[MQTT_QUEUE] ERROR: Message %d failed (max %d retries)\n",
+          LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Message %d failed (max %d retries)\n",
                         msg.messageId, config.maxRetries);
           stats.failedMessages++;
           messagesThisCycle++;
@@ -310,7 +311,7 @@ uint32_t MQTTPersistentQueue::processQueue()
       if (publishCallback && publishCallback(msg.topic.toString(), msg.payload.toString()))
       {
         msg.status = STATUS_SENT;
-        Serial.printf("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
+        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
         stats.successfulMessages++;
         messagesSent++;
         messagesThisCycle++;
@@ -466,7 +467,7 @@ void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId)
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      Serial.printf("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
       return;
     }
   }
@@ -478,7 +479,7 @@ void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId)
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      Serial.printf("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
       return;
     }
   }
@@ -490,12 +491,12 @@ void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId)
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      Serial.printf("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
       return;
     }
   }
 
-  Serial.printf("[MQTT_QUEUE] ERROR: Message %d not found\n", messageId);
+  LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Message %d not found\n", messageId);
 }
 
 // Message state queries
@@ -779,7 +780,7 @@ void MQTTPersistentQueue::clearQueue()
   lowPriorityQueue.clear();
   updateStats();
   xSemaphoreGive(queueMutex);
-  Serial.println("[MQTT_QUEUE] Queue cleared");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Queue cleared");
 }
 
 void MQTTPersistentQueue::clearFailedMessages()
@@ -826,7 +827,7 @@ void MQTTPersistentQueue::clearFailedMessages()
   }
 
   updateStats();
-  Serial.printf("[MQTT_QUEUE] Cleared %ld failed messages\n", cleared);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Cleared %ld failed messages\n", cleared);
 }
 
 void MQTTPersistentQueue::clearExpiredMessages()
@@ -881,7 +882,7 @@ void MQTTPersistentQueue::clearExpiredMessages()
 
   if (cleared > 0)
   {
-    Serial.printf("[MQTT_QUEUE] Cleared %ld expired messages\n", cleared);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Cleared %ld expired messages\n", cleared);
     updateStats();
   }
 }
@@ -926,13 +927,13 @@ QueueOperationResult MQTTPersistentQueue::persistMessageToDisk(const QueuedMessa
   File file = LittleFS.open(filename.c_str(), "w");
   if (!file)
   {
-    Serial.printf("[MQTT_QUEUE] ERROR: Cannot create file %s\n", filename.c_str());
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Cannot create file %s\n", filename.c_str());
     return QUEUE_STORAGE_ERROR;
   }
 
   if (serializeJson(doc, file) == 0)
   {
-    Serial.printf("[MQTT_QUEUE] ERROR: Failed to write to %s\n", filename.c_str());
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Failed to write to %s\n", filename.c_str());
     file.close();
     return QUEUE_STORAGE_ERROR;
   }
@@ -946,7 +947,7 @@ bool MQTTPersistentQueue::loadQueueFromDisk()
   File queueDir = LittleFS.open(config.persistenceDir, "r");
   if (!queueDir)
   {
-    Serial.printf("[MQTT_QUEUE] Queue directory not found: %s\n", config.persistenceDir);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Queue directory not found: %s\n", config.persistenceDir);
     return false;
   }
 
@@ -989,7 +990,7 @@ bool MQTTPersistentQueue::loadQueueFromDisk()
 
   if (loadedCount > 0)
   {
-    Serial.printf("[MQTT_QUEUE] Loaded %ld persisted messages from disk\n", loadedCount);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Loaded %ld persisted messages from disk\n", loadedCount);
     updateStats();
   }
 
@@ -1002,7 +1003,7 @@ void MQTTPersistentQueue::cleanupPersistenceStorage()
   if (!queueDir)
   {
     // No valid handle to close - LittleFS returns invalid File object on failure
-    Serial.printf("[MQTT_QUEUE] ERROR: Failed to open persistence directory: %s\n", config.persistenceDir);
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Failed to open persistence directory: %s\n", config.persistenceDir);
     return;
   }
 
@@ -1060,7 +1061,7 @@ void MQTTPersistentQueue::cleanupPersistenceStorage()
 
   if (cleanedCount > 0)
   {
-    Serial.printf("[MQTT_QUEUE] Cleaned %ld orphaned files\n", cleanedCount);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Cleaned %ld orphaned files\n", cleanedCount);
   }
 }
 
@@ -1080,7 +1081,7 @@ QueueOperationResult MQTTPersistentQueue::saveQueueToDisk()
     persistMessageToDisk(msg);
   }
 
-  Serial.println("[MQTT_QUEUE] Queue saved to disk");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Queue saved to disk");
   return QUEUE_SUCCESS;
 }
 
@@ -1114,19 +1115,19 @@ uint32_t MQTTPersistentQueue::getPersistenceUsage() const
 void MQTTPersistentQueue::enableCompression(bool enable)
 {
   config.enableCompression = enable;
-  Serial.printf("[MQTT_QUEUE] Compression %s\n", enable ? "ENABLED" : "DISABLED");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Compression %s\n", enable ? "ENABLED" : "DISABLED");
 }
 
 void MQTTPersistentQueue::setBatchSize(uint8_t messagesPerCycle)
 {
   config.messagesPerCycle = messagesPerCycle;
-  Serial.printf("[MQTT_QUEUE] Batch size set to: %d messages/cycle\n", messagesPerCycle);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Batch size set to: %d messages/cycle\n", messagesPerCycle);
 }
 
 void MQTTPersistentQueue::setProcessInterval(uint32_t intervalMs)
 {
   config.processInterval = intervalMs;
-  Serial.printf("[MQTT_QUEUE] Process interval set to: %ld ms\n", intervalMs);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Process interval set to: %ld ms\n", intervalMs);
 }
 
 // Recovery and robustness
@@ -1161,7 +1162,7 @@ bool MQTTPersistentQueue::verifyQueueIntegrity()
 
   if (issues > 0)
   {
-    Serial.printf("[MQTT_QUEUE] WARNING: Queue integrity check found %ld issues\n", issues);
+    LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: Queue integrity check found %ld issues\n", issues);
   }
 
   return issues == 0;
@@ -1212,7 +1213,7 @@ uint32_t MQTTPersistentQueue::repairQueue()
 
   if (repaired > 0)
   {
-    Serial.printf("[MQTT_QUEUE] Repaired %ld corrupted messages\n", repaired);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Repaired %ld corrupted messages\n", repaired);
     updateStats();
   }
 
@@ -1221,7 +1222,7 @@ uint32_t MQTTPersistentQueue::repairQueue()
 
 void MQTTPersistentQueue::enableAutoRecovery(bool enable)
 {
-  Serial.printf("[MQTT_QUEUE] Auto-recovery %s\n", enable ? "ENABLED" : "DISABLED");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Auto-recovery %s\n", enable ? "ENABLED" : "DISABLED");
 }
 
 // Private helper methods
@@ -1377,7 +1378,7 @@ void MQTTPersistentQueue::cleanExpiredMessages()
   if (expiredCount > 0)
   {
     updateStats();
-    Serial.printf("[MQTT_QUEUE] Cleaned %ld expired messages\n", expiredCount);
+    LOG_MQTT_INFO("[MQTT_QUEUE] Cleaned %ld expired messages\n", expiredCount);
   }
 }
 
@@ -1393,5 +1394,5 @@ MQTTPersistentQueue::~MQTTPersistentQueue()
     queueMutex = NULL;
   }
 
-  Serial.println("[MQTT_QUEUE] Persistent queue destroyed");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Persistent queue destroyed");
 }

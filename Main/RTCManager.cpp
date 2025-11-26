@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "RTCManager.h"
 #include "NetworkManager.h"
 
@@ -18,7 +19,7 @@ bool RTCManager::init()
 {
   if (initialized)
   {
-    Serial.println("[RTC] Already initialized");
+    LOG_NET_INFO("[RTC] Already initialized");
     return true;
   }
 
@@ -26,13 +27,13 @@ bool RTCManager::init()
 
   if (!rtc.begin())
   {
-    Serial.println("[RTC] ERROR: Couldn't find RTC");
+    LOG_NET_INFO("[RTC] ERROR: Couldn't find RTC");
     return false;
   }
 
   if (rtc.lostPower())
   {
-    Serial.println("[RTC] Lost power, setting time from compile time");
+    LOG_NET_INFO("[RTC] Lost power, setting time from compile time");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 
@@ -41,17 +42,17 @@ bool RTCManager::init()
   // Check if RTC time is invalid or too old (before 2024)
   if (rtcTime.year() < 2024)
   {
-    Serial.printf("[RTC] Invalid time (year=%d), setting from compile time\n", rtcTime.year());
+    LOG_NET_INFO("[RTC] Invalid time (year=%d), setting from compile time\n", rtcTime.year());
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     rtcTime = rtc.now();
   }
 
-  Serial.printf("[RTC] Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
+  LOG_NET_INFO("[RTC] Current time: %04d-%02d-%02d %02d:%02d:%02d\n",
                 rtcTime.year(), rtcTime.month(), rtcTime.day(),
                 rtcTime.hour(), rtcTime.minute(), rtcTime.second());
 
   initialized = true;
-  Serial.println("[RTC] Initialized successfully");
+  LOG_NET_INFO("[RTC] Initialized successfully");
 
   // Update system time from RTC immediately
   updateSystemTime(rtcTime);
@@ -77,7 +78,7 @@ void RTCManager::startSync()
       1,
       &syncTaskHandle,
       0); // Core 0 (moved from Core 1 for load balancing)
-  Serial.println("[RTC] Sync service started");
+  LOG_NET_INFO("[RTC] Sync service started");
 }
 
 void RTCManager::stopSync()
@@ -88,7 +89,7 @@ void RTCManager::stopSync()
     vTaskDelete(syncTaskHandle);
     syncTaskHandle = nullptr;
   }
-  Serial.println("[RTC] Sync service stopped");
+  LOG_NET_INFO("[RTC] Sync service stopped");
 }
 
 void RTCManager::timeSyncTask(void *parameter)
@@ -109,12 +110,12 @@ void RTCManager::timeSyncLoop()
       if (syncWithNTP())
       {
         lastNtpSync = now;
-        Serial.println("[RTC] NTP sync successful");
+        LOG_NET_INFO("[RTC] NTP sync successful");
         vTaskDelay(pdMS_TO_TICKS(ntpUpdateInterval)); // Wait full interval
       }
       else
       {
-        Serial.println("[RTC] NTP sync failed, retrying in 1 minute");
+        LOG_NET_INFO("[RTC] NTP sync failed, retrying in 1 minute");
         vTaskDelay(pdMS_TO_TICKS(60000)); // Retry in 1 minute
       }
     }
@@ -131,19 +132,19 @@ bool RTCManager::syncWithNTP()
   NetworkMgr *networkMgr = NetworkMgr::getInstance();
   if (!networkMgr || !networkMgr->isAvailable())
   {
-    Serial.println("[RTC] No network available for NTP sync");
+    LOG_NET_INFO("[RTC] No network available for NTP sync");
     return false;
   }
 
   // Check internet connectivity before attempting NTP sync
   if (!checkInternetConnectivity())
   {
-    Serial.println("[RTC] No internet connectivity, skipping NTP sync");
+    LOG_NET_INFO("[RTC] No internet connectivity, skipping NTP sync");
     return false;
   }
 
   String currentMode = networkMgr->getCurrentMode();
-  Serial.printf("[RTC] Attempting NTP sync via %s\n", currentMode.c_str());
+  LOG_NET_INFO("[RTC] Attempting NTP sync via %s\n", currentMode.c_str());
 
   // Clean up previous NTP client if exists
   if (ntpClient)
@@ -163,7 +164,7 @@ bool RTCManager::syncWithNTP()
   }
   else
   {
-    Serial.println("[RTC] Unknown network mode, cannot sync NTP");
+    LOG_NET_INFO("[RTC] Unknown network mode, cannot sync NTP");
     return false;
   }
 
@@ -186,7 +187,7 @@ bool RTCManager::syncWithNTP()
 
   if (!success)
   {
-    Serial.printf("[RTC] NTP sync timeout after %lums via %s\n", ntpTimeout, currentMode.c_str());
+    LOG_NET_INFO("[RTC] NTP sync timeout after %lums via %s\n", ntpTimeout, currentMode.c_str());
     ntpClient->end();
     delete ntpClient;
     ntpClient = nullptr;
@@ -204,7 +205,7 @@ bool RTCManager::syncWithNTP()
   rtc.adjust(ntpTime);
   updateSystemTime(ntpTime);
 
-  Serial.printf("[RTC] NTP sync: %04d-%02d-%02d %02d:%02d:%02d (WIB/GMT+7) via %s\n",
+  LOG_NET_INFO("[RTC] NTP sync: %04d-%02d-%02d %02d:%02d:%02d (WIB/GMT+7) via %s\n",
                 ntpTime.year(), ntpTime.month(), ntpTime.day(),
                 ntpTime.hour(), ntpTime.minute(), ntpTime.second(),
                 currentMode.c_str());
@@ -234,10 +235,10 @@ bool RTCManager::checkInternetConnectivity()
     int result = WiFi.hostByName("pool.ntp.org", testIP);
     if (result == 1)
     {
-      Serial.println("[RTC] Internet connectivity confirmed via WiFi");
+      LOG_NET_INFO("[RTC] Internet connectivity confirmed via WiFi");
       return true;
     }
-    Serial.println("[RTC] Internet connectivity check failed via WiFi");
+    LOG_NET_INFO("[RTC] Internet connectivity check failed via WiFi");
     return false;
   }
   else if (currentMode == "ETH")
@@ -249,15 +250,15 @@ bool RTCManager::checkInternetConnectivity()
     if (testClient.connect(googleDNS, 53))
     {
       testClient.stop();
-      Serial.println("[RTC] Internet connectivity confirmed via Ethernet");
+      LOG_NET_INFO("[RTC] Internet connectivity confirmed via Ethernet");
       return true;
     }
 
-    Serial.println("[RTC] Internet connectivity check failed via Ethernet");
+    LOG_NET_INFO("[RTC] Internet connectivity check failed via Ethernet");
     return false;
   }
 
-  Serial.printf("[RTC] Unknown network mode: %s\n", currentMode.c_str());
+  LOG_NET_INFO("[RTC] Unknown network mode: %s\n", currentMode.c_str());
   return false;
 }
 
@@ -286,7 +287,7 @@ bool RTCManager::setTime(DateTime newTime)
   rtc.adjust(newTime);
   updateSystemTime(newTime);
 
-  Serial.printf("[RTC] Time set: %04d-%02d-%02d %02d:%02d:%02d\n",
+  LOG_NET_INFO("[RTC] Time set: %04d-%02d-%02d %02d:%02d:%02d\n",
                 newTime.year(), newTime.month(), newTime.day(),
                 newTime.hour(), newTime.minute(), newTime.second());
 

@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "LoggingConfig.h"
 
 const char *LoggingConfig::CONFIG_FILE = "/logging_config.json";
@@ -16,7 +17,7 @@ LoggingConfig::~LoggingConfig()
     delete config;
     config = nullptr;
   }
-  Serial.println("[LOGGING] Config destroyed, resources cleaned up");
+  LOG_CONFIG_INFO("[LOGGING] Config destroyed, resources cleaned up");
 }
 
 bool LoggingConfig::begin()
@@ -26,7 +27,7 @@ bool LoggingConfig::begin()
     Serial.println("No logging config found, using defaults");
     return saveConfig();
   }
-  Serial.println("[LOGGING] Config initialized");
+  LOG_CONFIG_INFO("[LOGGING] Config initialized");
   return true;
 }
 

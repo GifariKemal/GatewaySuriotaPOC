@@ -4,6 +4,30 @@
 // Static instance
 ProductionLogger *ProductionLogger::instance = nullptr;
 
+// Helper function to get ISO 8601 timestamp
+String getTimestampISO()
+{
+    RTCManager *rtc = RTCManager::getInstance();
+    if (rtc)
+    {
+        // Try to get RTC time
+        DateTime now = rtc->getCurrentTime();
+
+        // Check if time is valid (year > 2020 indicates RTC is initialized)
+        if (now.year() > 2020)
+        {
+            char timestamp[32];
+            snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02dT%02d:%02d:%02d",
+                     now.year(), now.month(), now.day(),
+                     now.hour(), now.minute(), now.second());
+            return String(timestamp);
+        }
+    }
+
+    // Fallback to uptime in seconds if RTC not available
+    return String(millis() / 1000);
+}
+
 ProductionLogger::ProductionLogger()
     : logMutex(nullptr),
       heartbeatIntervalMs(60000), // Default: 1 minute
@@ -96,8 +120,8 @@ void ProductionLogger::setNetworkStatus(NetStatus status)
         {
             if (jsonFormat)
             {
-                Serial.printf("{\"t\":\"NET\",\"up\":%lu,\"net\":\"%s\",\"rc\":%lu}\n",
-                              getUptime(), netStatusStr(status), networkReconnectCount);
+                Serial.printf("{\"ts\":\"%s\",\"t\":\"NET\",\"up\":%lu,\"net\":\"%s\",\"rc\":%lu}\n",
+                              getTimestampISO().c_str(), getUptime(), netStatusStr(status), networkReconnectCount);
             }
             else
             {
@@ -207,7 +231,8 @@ void ProductionLogger::logBoot()
         if (jsonFormat)
         {
             Serial.println();
-            Serial.printf("{\"t\":\"SYS\",\"e\":\"BOOT\",\"v\":\"%s\",\"id\":\"%s\",\"mem\":{\"d\":%d,\"p\":%d}}\n",
+            Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"e\":\"BOOT\",\"v\":\"%s\",\"id\":\"%s\",\"mem\":{\"d\":%d,\"p\":%d}}\n",
+                          getTimestampISO().c_str(),
                           firmwareVersion.c_str(),
                           deviceId.c_str(),
                           freeDram,
@@ -257,8 +282,9 @@ void ProductionLogger::heartbeat()
         if (jsonFormat)
         {
             // Compact JSON format for easy parsing
-            // {"t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
-            Serial.printf("{\"t\":\"HB\",\"up\":%lu,\"mem\":{\"d\":%d,\"p\":%d},\"net\":\"%s\",\"proto\":\"%s\",\"st\":\"%s\",\"err\":%lu,\"mb\":{\"ok\":%lu,\"er\":%lu}}\n",
+            // {"ts":"2025-11-26T07:40:06","t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
+            Serial.printf("{\"ts\":\"%s\",\"t\":\"HB\",\"up\":%lu,\"mem\":{\"d\":%d,\"p\":%d},\"net\":\"%s\",\"proto\":\"%s\",\"st\":\"%s\",\"err\":%lu,\"mb\":{\"ok\":%lu,\"er\":%lu}}\n",
+                          getTimestampISO().c_str(),
                           getUptime(),
                           freeDram,
                           freePsram,
@@ -304,8 +330,8 @@ void ProductionLogger::logError(const char *module, const char *message)
     {
         if (jsonFormat)
         {
-            Serial.printf("{\"t\":\"ERR\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\",\"cnt\":%lu}\n",
-                          getUptime(), module, message, errorCount);
+            Serial.printf("{\"ts\":\"%s\",\"t\":\"ERR\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\",\"cnt\":%lu}\n",
+                          getTimestampISO().c_str(), getUptime(), module, message, errorCount);
         }
         else
         {
@@ -327,8 +353,8 @@ void ProductionLogger::logWarning(const char *module, const char *message)
     {
         if (jsonFormat)
         {
-            Serial.printf("{\"t\":\"WARN\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\"}\n",
-                          getUptime(), module, message);
+            Serial.printf("{\"ts\":\"%s\",\"t\":\"WARN\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\"}\n",
+                          getTimestampISO().c_str(), getUptime(), module, message);
         }
         else
         {
@@ -350,13 +376,13 @@ void ProductionLogger::logSystem(const char *event, const char *detail)
         {
             if (detail)
             {
-                Serial.printf("{\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\",\"d\":\"%s\"}\n",
-                              getUptime(), event, detail);
+                Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\",\"d\":\"%s\"}\n",
+                              getTimestampISO().c_str(), getUptime(), event, detail);
             }
             else
             {
-                Serial.printf("{\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\"}\n",
-                              getUptime(), event);
+                Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\"}\n",
+                              getTimestampISO().c_str(), getUptime(), event);
             }
         }
         else

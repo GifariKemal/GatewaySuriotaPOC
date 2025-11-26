@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "BLEManager.h"
 #include "CRUDHandler.h"
 #include "QueueManager.h"
@@ -61,7 +62,7 @@ BLEManager::~BLEManager()
     streamingStateMutex = nullptr;
   }
 
-  Serial.println("[BLE] Manager destroyed, resources cleaned up");
+  LOG_BLE_INFO("[BLE] Manager destroyed, resources cleaned up");
 }
 
 bool BLEManager::begin()
@@ -69,7 +70,7 @@ bool BLEManager::begin()
   // Check if already running (prevent double initialization)
   if (pServer != nullptr)
   {
-    Serial.println("[BLE] Already running, skipping initialization");
+    LOG_BLE_INFO("[BLE] Already running, skipping initialization");
     return true;
   }
 
@@ -77,8 +78,8 @@ bool BLEManager::begin()
   // Previous code didn't check if mutex creation succeeded → NULL pointer crashes!
   if (!metricsMutex || !mtuControlMutex || !transmissionMutex || !streamingStateMutex)
   {
-    Serial.println("[BLE] CRITICAL ERROR: Mutex initialization failed!");
-    Serial.printf("[BLE] metricsMutex: %p, mtuControlMutex: %p, transmissionMutex: %p, streamingStateMutex: %p\n",
+    LOG_BLE_INFO("[BLE] CRITICAL ERROR: Mutex initialization failed!");
+    LOG_BLE_INFO("[BLE] metricsMutex: %p, mtuControlMutex: %p, transmissionMutex: %p, streamingStateMutex: %p\n",
                   metricsMutex, mtuControlMutex, transmissionMutex, streamingStateMutex);
     return false; // Abort initialization - unsafe to continue
   }
@@ -86,18 +87,18 @@ bool BLEManager::begin()
   // CRITICAL FIX: Release Classic Bluetooth memory BEFORE BLE init
   // This frees ~50KB DRAM to prevent "BLE_INIT: Malloc failed" errors
   esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
-  Serial.println("[BLE] Classic BT memory released (~50KB DRAM freed)");
+  LOG_BLE_INFO("[BLE] Classic BT memory released (~50KB DRAM freed)");
 
   // Log free DRAM before BLE init
   size_t freeDRAM_before = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-  Serial.printf("[BLE] Free DRAM before init: %zu KB\n", freeDRAM_before / 1024);
+  LOG_BLE_INFO("[BLE] Free DRAM before init: %zu KB\n", freeDRAM_before / 1024);
 
   // Initialize BLE
   BLEDevice::init(serviceName.c_str());
 
   // Log free DRAM after BLE init
   size_t freeDRAM_after = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-  Serial.printf("[BLE] Free DRAM after init: %zu KB (used: %zu KB)\n",
+  LOG_BLE_INFO("[BLE] Free DRAM after init: %zu KB (used: %zu KB)\n",
                 freeDRAM_after / 1024,
                 (freeDRAM_before - freeDRAM_after) / 1024);
 
@@ -105,7 +106,7 @@ bool BLEManager::begin()
   // Previous: Hardcoded 517 bytes - not all clients support this (especially iOS)
   // New: Start with BLE_MTU_SAFE_DEFAULT (safe for all devices), negotiate higher if supported
   BLEDevice::setMTU(BLE_MTU_SAFE_DEFAULT); // Conservative MTU for maximum compatibility
-  Serial.printf("[BLE] MTU set to %d bytes (safe default, will negotiate higher if supported)\n", BLE_MTU_SAFE_DEFAULT);
+  LOG_BLE_INFO("[BLE] MTU set to %d bytes (safe default, will negotiate higher if supported)\n", BLE_MTU_SAFE_DEFAULT);
 
   // Create BLE Server
   pServer = BLEDevice::createServer();
@@ -140,7 +141,7 @@ bool BLEManager::begin()
   pAdvertising->setName(serviceName.c_str());
 
   BLEDevice::startAdvertising();
-  Serial.printf("[BLE] Advertising started with name: %s\n", serviceName.c_str());
+  LOG_BLE_INFO("[BLE] Advertising started with name: %s\n", serviceName.c_str());
 
   // Create command processing task with PSRAM stack
   xTaskCreatePinnedToCore(
@@ -174,8 +175,8 @@ bool BLEManager::begin()
       &metricsTaskHandle,
       1); // Core 1 (must stay with other BLE tasks to avoid race conditions)
 
-  Serial.println("[BLE] Manager initialized: " + serviceName);
-  Serial.println("[BLE] MTU Metrics and Queue Monitoring enabled");
+  LOG_BLE_INFO("[BLE] Manager initialized: %s\n", serviceName.c_str());
+  LOG_BLE_INFO("[BLE] MTU Metrics and Queue Monitoring enabled\n");
   return true;
 }
 
@@ -184,7 +185,7 @@ void BLEManager::stop()
   // Check if already stopped
   if (pServer == nullptr)
   {
-    Serial.println("[BLE] Already stopped");
+    LOG_BLE_INFO("[BLE] Already stopped");
     return;
   }
 
@@ -221,13 +222,13 @@ void BLEManager::stop()
     pService = nullptr;
     pCommandChar = nullptr;
     pResponseChar = nullptr;
-    Serial.println("[BLE] Manager stopped");
+    LOG_BLE_INFO("[BLE] Manager stopped");
   }
 }
 
 void BLEManager::onConnect(BLEServer *pServer)
 {
-  Serial.println("[BLE] Client connected");
+  LOG_BLE_INFO("[BLE] Client connected");
 
   // Log connection and MTU negotiation
   if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) == pdTRUE)
@@ -255,7 +256,7 @@ void BLEManager::onConnect(BLEServer *pServer)
 
 void BLEManager::onDisconnect(BLEServer *pServer)
 {
-  Serial.println("[BLE] Client disconnected");
+  LOG_BLE_INFO("[BLE] Client disconnected");
 
   // Log connection duration and metrics
   if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) == pdTRUE)
@@ -280,7 +281,7 @@ void BLEManager::onDisconnect(BLEServer *pServer)
     {
       queueMgr->clearStream();
     }
-    Serial.println("[BLE] Cleared streaming on disconnect");
+    LOG_BLE_INFO("[BLE] Cleared streaming on disconnect");
   }
 
   BLEDevice::startAdvertising(); // Restart advertising
@@ -307,9 +308,9 @@ void BLEManager::receiveFragment(const String &fragment)
 
   if (commandBufferIndex > 0 && (now - lastFragmentTime) > COMMAND_TIMEOUT_MS)
   {
-    Serial.printf("[BLE] WARNING: Command timeout! Buffer had %d bytes but no <END> received for %lu ms\n",
+    LOG_BLE_INFO("[BLE] WARNING: Command timeout! Buffer had %d bytes but no <END> received for %lu ms\n",
                   commandBufferIndex, now - lastFragmentTime);
-    Serial.println("[BLE] Clearing dirty buffer to prevent corruption");
+    LOG_BLE_INFO("[BLE] Clearing dirty buffer to prevent corruption");
     commandBufferIndex = 0;
     memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
     processing = false;
@@ -331,7 +332,7 @@ void BLEManager::receiveFragment(const String &fragment)
   if (fragment == "<START>")
   {
 #if PRODUCTION_MODE == 0
-    Serial.println("[BLE] <START> marker received - clearing buffer");
+    LOG_BLE_INFO("[BLE] <START> marker received - clearing buffer");
 #endif
     commandBufferIndex = 0;
     memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
@@ -344,7 +345,7 @@ void BLEManager::receiveFragment(const String &fragment)
     // Validate buffer has data before processing
     if (commandBufferIndex == 0)
     {
-      Serial.println("[BLE] WARNING: <END> received but buffer is empty (missing <START>?)");
+      LOG_BLE_INFO("[BLE] WARNING: <END> received but buffer is empty (missing <START>?)");
       return;
     }
 
@@ -352,7 +353,7 @@ void BLEManager::receiveFragment(const String &fragment)
     commandBuffer[commandBufferIndex] = '\0'; // Null-terminate the command
 
 #if PRODUCTION_MODE == 0
-    Serial.printf("[BLE] <END> marker received - assembling command (%d bytes)\n", commandBufferIndex);
+    LOG_BLE_INFO("[BLE] <END> marker received - assembling command (%d bytes)\n", commandBufferIndex);
 #endif
 
     // Allocate a buffer in PSRAM for the complete command
@@ -364,7 +365,7 @@ void BLEManager::receiveFragment(const String &fragment)
       {
         // If queue is full, free the memory we just allocated
         heap_caps_free(cmdBuffer);
-        Serial.println("[BLE] Command queue full, command dropped.");
+        LOG_BLE_INFO("[BLE] Command queue full, command dropped.");
 
         // Track dropped commands
         if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) == pdTRUE)
@@ -376,7 +377,7 @@ void BLEManager::receiveFragment(const String &fragment)
     }
     else
     {
-      Serial.println("[BLE] ERROR: Failed to allocate memory for BLE command!");
+      LOG_BLE_INFO("[BLE] ERROR: Failed to allocate memory for BLE command!");
     }
 
     // Reset buffer
@@ -399,14 +400,14 @@ void BLEManager::receiveFragment(const String &fragment)
       fragmentCount++;
       if (fragmentCount % 5 == 0)
       {
-        Serial.printf("[BLE] Fragment received (%d bytes, total: %d bytes)\n",
+        LOG_BLE_INFO("[BLE] Fragment received (%d bytes, total: %d bytes)\n",
                       fragmentLen, commandBufferIndex);
       }
 #endif
     }
     else
     {
-      Serial.printf("[BLE] ERROR: Command buffer overflow! (buffer: %d, fragment: %d, total would be: %d)\n",
+      LOG_BLE_INFO("[BLE] ERROR: Command buffer overflow! (buffer: %d, fragment: %d, total would be: %d)\n",
                     commandBufferIndex, fragmentLen, commandBufferIndex + fragmentLen);
       commandBufferIndex = 0;
       memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
@@ -524,7 +525,7 @@ void BLEManager::sendResponse(const JsonDocument &data)
   if (estimatedSize > MAX_RESPONSE_SIZE_BYTES)
   {
     // Payload too large - send simplified error WITHOUT creating full response
-    Serial.printf("[BLE] ERROR: Response too large (%u bytes > %d KB). Sending error.\n",
+    LOG_BLE_INFO("[BLE] ERROR: Response too large (%u bytes > %d KB). Sending error.\n",
                   estimatedSize, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Create minimal error response (< 200 bytes, safe)
@@ -552,13 +553,13 @@ void BLEManager::sendResponse(const JsonDocument &data)
   if (!psramBuffer)
   {
     // PSRAM allocation failed - try DRAM as last resort
-    Serial.printf("[BLE] WARNING: PSRAM allocation failed, trying DRAM (%u bytes)\n", bufferSize);
+    LOG_BLE_INFO("[BLE] WARNING: PSRAM allocation failed, trying DRAM (%u bytes)\n", bufferSize);
     psramBuffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_8BIT);
 
     if (!psramBuffer)
     {
       // Both failed - send error
-      Serial.printf("[BLE] ERROR: Buffer allocation failed (%u bytes)\n", bufferSize);
+      LOG_BLE_INFO("[BLE] ERROR: Buffer allocation failed (%u bytes)\n", bufferSize);
       const char *errorMsg = "{\"status\":\"error\",\"message\":\"Memory allocation failed\"}";
       pResponseChar->setValue(errorMsg);
       pResponseChar->notify();
@@ -574,13 +575,13 @@ void BLEManager::sendResponse(const JsonDocument &data)
 
   if (serializedLength == 0)
   {
-    Serial.printf("[BLE] ERROR: Serialization failed\n");
+    LOG_BLE_INFO("[BLE] ERROR: Serialization failed\n");
     heap_caps_free(psramBuffer);
     return;
   }
 
   // Verbose log suppressed - summary shown in [STREAM] logs
-  // Serial.printf("[BLE] Serialized %u bytes to PSRAM buffer\n", serializedLength);
+  // LOG_BLE_INFO("[BLE] Serialized %u bytes to PSRAM buffer\n", serializedLength);
 
   // Send fragmented data from PSRAM buffer
   sendFragmented(psramBuffer, serializedLength);
@@ -616,7 +617,7 @@ void BLEManager::sendFragmented(const char *data, size_t length)
 
   if (freeDRAM < 5000)
   { // <5KB is critically low - EMERGENCY MODE
-    Serial.printf("[BLE] CRITICAL: DRAM exhausted (%zu bytes). Aborting transmission.\n", freeDRAM);
+    LOG_BLE_INFO("[BLE] CRITICAL: DRAM exhausted (%zu bytes). Aborting transmission.\n", freeDRAM);
 
     // Use stack-allocated const char* - NO heap allocation
     const char *emergencyMsg = "{\"status\":\"error\",\"msg\":\"Out of memory\"}";
@@ -633,7 +634,7 @@ void BLEManager::sendFragmented(const char *data, size_t length)
   // This should never happen since sendResponse() already checks, but double-check for safety
   if (length > MAX_RESPONSE_SIZE_BYTES)
   {
-    Serial.printf("[BLE] ERROR: Payload too large (%u bytes > %d KB limit).\n",
+    LOG_BLE_INFO("[BLE] ERROR: Payload too large (%u bytes > %d KB limit).\n",
                   length, MAX_RESPONSE_SIZE_BYTES / 1024);
 
     // Send error response instead (stack-allocated, no heap)
@@ -654,7 +655,7 @@ void BLEManager::sendFragmented(const char *data, size_t length)
   // - 25KB threshold provides safety margin while reducing log noise
   if (freeDRAM < 25000)
   { // <25KB free DRAM
-    Serial.printf("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
+    LOG_BLE_INFO("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
   }
 
   // Track active transmission (atomic increment)
@@ -663,7 +664,7 @@ void BLEManager::sendFragmented(const char *data, size_t length)
   // Acquire transmission mutex to prevent race conditions
   if (xSemaphoreTake(transmissionMutex, pdMS_TO_TICKS(5000)) != pdTRUE)
   {
-    Serial.println("[BLE] ERROR: Mutex timeout");
+    LOG_BLE_INFO("[BLE] ERROR: Mutex timeout");
     __atomic_sub_fetch(&activeTransmissions, 1, __ATOMIC_SEQ_CST);
     return;
   }
@@ -686,12 +687,12 @@ void BLEManager::sendFragmented(const char *data, size_t length)
     if (freeDRAM < 25000)
     {
       adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE; // 100 bytes
-      Serial.printf("[BLE] XLARGE payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
+      LOG_BLE_INFO("[BLE] XLARGE payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
     else
     {
-      Serial.printf("[BLE] XLARGE payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
+      LOG_BLE_INFO("[BLE] XLARGE payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with XSLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
   }
@@ -705,12 +706,12 @@ void BLEManager::sendFragmented(const char *data, size_t length)
     if (freeDRAM < 25000)
     {
       adaptiveChunkSize = ADAPTIVE_CHUNK_SIZE_LARGE; // 100 bytes
-      Serial.printf("[BLE] Large payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with SLOW delay (size:%zu, delay:%dms)\n",
+      LOG_BLE_INFO("[BLE] Large payload (%u bytes) + LOW DRAM (%zu bytes) = using SMALL chunks with SLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
     else
     {
-      Serial.printf("[BLE] Large payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with SLOW delay (size:%zu, delay:%dms)\n",
+      LOG_BLE_INFO("[BLE] Large payload (%u bytes) with healthy DRAM (%zu bytes) = using NORMAL chunks with SLOW delay (size:%zu, delay:%dms)\n",
                     length, freeDRAM, adaptiveChunkSize, adaptiveDelay);
     }
   }
@@ -770,7 +771,7 @@ void BLEManager::streamingTask(void *parameter)
   BLEManager *manager = static_cast<BLEManager *>(parameter);
   QueueManager *queueMgr = QueueManager::getInstance();
 
-  Serial.println("[BLE] Streaming task started");
+  LOG_BLE_INFO("[BLE] Streaming task started");
 
   while (true)
   {
@@ -804,7 +805,7 @@ void BLEManager::streamingTask(void *parameter)
         }
         else
         {
-          Serial.println("[BLE] ERROR: Stream mutex timeout");
+          LOG_BLE_INFO("[BLE] ERROR: Stream mutex timeout");
         }
       }
     }
@@ -822,7 +823,7 @@ void BLEManager::initializeMetrics()
   metricsMutex = xSemaphoreCreateMutex();
   if (!metricsMutex)
   {
-    Serial.println("[BLE] ERROR: Failed to create metrics mutex");
+    LOG_BLE_INFO("[BLE] ERROR: Failed to create metrics mutex");
     // No cleanup needed, first allocation
     return;
   }
@@ -831,7 +832,7 @@ void BLEManager::initializeMetrics()
   mtuControlMutex = xSemaphoreCreateMutex();
   if (!mtuControlMutex)
   {
-    Serial.println("[BLE] ERROR: Failed to create MTU control mutex");
+    LOG_BLE_INFO("[BLE] ERROR: Failed to create MTU control mutex");
     // Cleanup partial allocations
     vSemaphoreDelete(metricsMutex);
     metricsMutex = nullptr;
@@ -842,7 +843,7 @@ void BLEManager::initializeMetrics()
   transmissionMutex = xSemaphoreCreateMutex();
   if (!transmissionMutex)
   {
-    Serial.println("[BLE] ERROR: Failed to create transmission mutex");
+    LOG_BLE_INFO("[BLE] ERROR: Failed to create transmission mutex");
     // Cleanup partial allocations
     vSemaphoreDelete(metricsMutex);
     vSemaphoreDelete(mtuControlMutex);
@@ -855,7 +856,7 @@ void BLEManager::initializeMetrics()
   streamingStateMutex = xSemaphoreCreateMutex();
   if (!streamingStateMutex)
   {
-    Serial.println("[BLE] ERROR: Failed to create streaming state mutex");
+    LOG_BLE_INFO("[BLE] ERROR: Failed to create streaming state mutex");
     // Cleanup partial allocations
     vSemaphoreDelete(metricsMutex);
     vSemaphoreDelete(mtuControlMutex);
@@ -876,8 +877,8 @@ void BLEManager::initializeMetrics()
   // Initialize MTU control
   mtuControl = MTUNegotiationControl();
 
-  Serial.println("[BLE] Metrics initialized");
-  Serial.println("[BLE] MTU Negotiation timeout protection enabled");
+  LOG_BLE_INFO("[BLE] Metrics initialized");
+  LOG_BLE_INFO("[BLE] MTU Negotiation timeout protection enabled");
 }
 
 void BLEManager::logMTUNegotiation()
@@ -1032,7 +1033,7 @@ void BLEManager::reportMetrics(JsonObject &metricsObj)
 {
   if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
-    Serial.println("[BLE] Could not acquire metrics mutex");
+    LOG_BLE_INFO("[BLE] Could not acquire metrics mutex");
     return;
   }
 
@@ -1076,11 +1077,11 @@ void BLEManager::setStreamingActive(bool active)
   {
     streamingActive = active;
     xSemaphoreGive(streamingStateMutex);
-    Serial.printf("[BLE] Streaming state set to: %s\n", active ? "ACTIVE" : "INACTIVE");
+    LOG_BLE_INFO("[BLE] Streaming state set to: %s\n", active ? "ACTIVE" : "INACTIVE");
   }
   else
   {
-    Serial.println("[BLE] WARNING: Failed to acquire streaming state mutex");
+    LOG_BLE_INFO("[BLE] WARNING: Failed to acquire streaming state mutex");
   }
 }
 
@@ -1101,21 +1102,21 @@ bool BLEManager::waitForTransmissionsComplete(uint32_t timeoutMs)
   uint8_t lastCount = 0xFF;
   uint8_t currentCount = __atomic_load_n(&activeTransmissions, __ATOMIC_SEQ_CST);
 
-  Serial.printf("[BLE] Waiting for %d in-flight transmissions to complete (timeout %dms)...\n", currentCount, timeoutMs);
+  LOG_BLE_INFO("[BLE] Waiting for %d in-flight transmissions to complete (timeout %dms)...\n", currentCount, timeoutMs);
 
   while (currentCount > 0)
   {
     // Print status if count changed
     if (currentCount != lastCount)
     {
-      Serial.printf("[BLE] Active transmissions: %d\n", currentCount);
+      LOG_BLE_INFO("[BLE] Active transmissions: %d\n", currentCount);
       lastCount = currentCount;
     }
 
     // Check timeout
     if (millis() - startTime > timeoutMs)
     {
-      Serial.printf("[BLE] ERROR: Timeout waiting for transmissions (still active: %d)\n", currentCount);
+      LOG_BLE_INFO("[BLE] ERROR: Timeout waiting for transmissions (still active: %d)\n", currentCount);
       return false; // Timeout - still has active transmissions
     }
 
@@ -1123,7 +1124,7 @@ bool BLEManager::waitForTransmissionsComplete(uint32_t timeoutMs)
     currentCount = __atomic_load_n(&activeTransmissions, __ATOMIC_SEQ_CST);
   }
 
-  Serial.println("[BLE] All transmissions completed");
+  LOG_BLE_INFO("[BLE] All transmissions completed");
   return true; // Success - all transmissions completed
 }
 

@@ -20,11 +20,11 @@ ModbusRtuService::ModbusRtuService(ConfigManager *config)
 
 bool ModbusRtuService::init()
 {
-  Serial.println("[RTU] Initializing service with ModbusMaster library...");
+  LOG_RTU_INFO("[RTU] Initializing service with ModbusMaster library...");
 
   if (!configManager)
   {
-    Serial.println("[RTU] ERROR: ConfigManager is null");
+    LOG_RTU_INFO("[RTU] ERROR: ConfigManager is null");
     return false;
   }
 
@@ -33,7 +33,7 @@ bool ModbusRtuService::init()
   // FIXED Bug #12: Check allocation success
   if (!serial1)
   {
-    Serial.println("[RTU] ERROR: Failed to allocate Serial1");
+    LOG_RTU_INFO("[RTU] ERROR: Failed to allocate Serial1");
     return false;
   }
   serial1->begin(9600, SERIAL_8N1, RTU_RX1, RTU_TX1);
@@ -45,7 +45,7 @@ bool ModbusRtuService::init()
   // FIXED Bug #12: Check allocation success
   if (!serial2)
   {
-    Serial.println("[RTU] ERROR: Failed to allocate Serial2");
+    LOG_RTU_INFO("[RTU] ERROR: Failed to allocate Serial2");
     return false;
   }
   serial2->begin(9600, SERIAL_8N1, RTU_RX2, RTU_TX2);
@@ -57,7 +57,7 @@ bool ModbusRtuService::init()
   // FIXED Bug #12: Check allocation success
   if (!modbus1)
   {
-    Serial.println("[RTU] ERROR: Failed to allocate ModbusMaster1");
+    LOG_RTU_INFO("[RTU] ERROR: Failed to allocate ModbusMaster1");
     return false;
   }
   modbus1->begin(1, *serial1);
@@ -66,7 +66,7 @@ bool ModbusRtuService::init()
   // FIXED Bug #12: Check allocation success
   if (!modbus2)
   {
-    Serial.println("[RTU] ERROR: Failed to allocate ModbusMaster2");
+    LOG_RTU_INFO("[RTU] ERROR: Failed to allocate ModbusMaster2");
     return false;
   }
   modbus2->begin(1, *serial2);
@@ -76,17 +76,17 @@ bool ModbusRtuService::init()
   vectorMutex = xSemaphoreCreateRecursiveMutex();
   if (!vectorMutex)
   {
-    Serial.println("[RTU] CRITICAL: Failed to create vector mutex!");
+    LOG_RTU_INFO("[RTU] CRITICAL: Failed to create vector mutex!");
     return false;
   }
 
-  Serial.println("[RTU] Service initialized");
+  LOG_RTU_INFO("[RTU] Service initialized");
   return true;
 }
 
 void ModbusRtuService::start()
 {
-  Serial.println("[RTU] Starting service...");
+  LOG_RTU_INFO("[RTU] Starting service...");
 
   if (running)
   {
@@ -105,7 +105,7 @@ void ModbusRtuService::start()
 
   if (result == pdPASS)
   {
-    Serial.println("[RTU] Service started successfully");
+    LOG_RTU_INFO("[RTU] Service started successfully");
 
     // Start auto-recovery task
     // MUST stay on Core 1: Modifies device status accessed by MODBUS_RTU_TASK (Core 1)
@@ -120,16 +120,16 @@ void ModbusRtuService::start()
 
     if (recoveryResult == pdPASS)
     {
-      Serial.println("[RTU] Auto-recovery task started");
+      LOG_RTU_INFO("[RTU] Auto-recovery task started");
     }
     else
     {
-      Serial.println("[RTU] WARNING: Failed to create auto-recovery task");
+      LOG_RTU_INFO("[RTU] WARNING: Failed to create auto-recovery task");
     }
   }
   else
   {
-    Serial.println("[RTU] ERROR: Failed to create Modbus RTU task");
+    LOG_RTU_INFO("[RTU] ERROR: Failed to create Modbus RTU task");
     running = false;
     rtuTaskHandle = nullptr;
   }
@@ -145,7 +145,7 @@ void ModbusRtuService::stop()
     vTaskDelay(pdMS_TO_TICKS(100));
     vTaskDelete(autoRecoveryTaskHandle);
     autoRecoveryTaskHandle = nullptr;
-    Serial.println("[RTU] Auto-recovery task stopped");
+    LOG_RTU_INFO("[RTU] Auto-recovery task stopped");
   }
 
   // Stop main RTU task
@@ -156,7 +156,7 @@ void ModbusRtuService::stop()
     rtuTaskHandle = nullptr;
   }
 
-  Serial.println("[RTU] Service stopped");
+  LOG_RTU_INFO("[RTU] Service stopped");
 }
 
 void ModbusRtuService::notifyConfigChange()
@@ -178,7 +178,7 @@ void ModbusRtuService::refreshDeviceList()
   // FIXED ISSUE #1: Protect vector operations from race conditions
   xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
 
-  Serial.println("[RTU Task] Refreshing device list...");
+  LOG_RTU_INFO("[RTU Task] Refreshing device list...");
   rtuDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
 
   JsonDocument devicesIdList;
@@ -210,7 +210,7 @@ void ModbusRtuService::refreshDeviceList()
       }
     }
   }
-  Serial.printf("[RTU Task] Found %d RTU devices. Schedule rebuilt.\n", rtuDevices.size());
+  LOG_RTU_INFO("[RTU Task] Found %d RTU devices. Schedule rebuilt.\n", rtuDevices.size());
 
   // Initialize device tracking after device list is loaded
   initializeDeviceFailureTracking();
@@ -260,7 +260,7 @@ void ModbusRtuService::readRtuDevicesLoop()
       // This prevents continuing to poll deleted devices until next full iteration
       if (ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
-        Serial.println("[RTU] Configuration changed during polling, refreshing immediately...");
+        LOG_RTU_INFO("[RTU] Configuration changed during polling, refreshing immediately...");
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list
       }
@@ -374,6 +374,18 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   char dataTypeBuf[64]; // For FC3/4 data type parsing (max 64 chars)
   uint16_t values[4];   // For FC3/4 multi-register reads (max 4 registers = 8 bytes)
 
+#if PRODUCTION_MODE == 0
+  // Development mode: Collect polled data in JSON format for debugging
+  SpiRamJsonDocument polledDataDoc;
+  JsonObject polledData = polledDataDoc.to<JsonObject>();
+  polledData["device_id"] = deviceId;
+  polledData["device_name"] = deviceName;
+  polledData["protocol"] = "RTU";
+  polledData["slave_id"] = slaveId;
+  polledData["timestamp"] = millis();
+  JsonArray polledRegisters = polledData.createNestedArray("registers");
+#endif
+
   for (JsonVariant regVar : registers)
   {
     if (!running)
@@ -415,6 +427,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
 
+#if PRODUCTION_MODE == 0
+        // Add to JSON debug output
+        JsonObject regObj = polledRegisters.createNestedObject();
+        regObj["name"] = registerName;
+        regObj["address"] = address;
+        regObj["function_code"] = functionCode;
+        regObj["value"] = value;
+        if (strlen(unit) > 0) regObj["unit"] = unit;
+#endif
+
         registerSuccess = true;
         anyRegisterSucceeded = true;
       }
@@ -447,6 +469,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // FIXED ISSUE #3: Use helper function to eliminate duplication
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
+
+#if PRODUCTION_MODE == 0
+        // Add to JSON debug output
+        JsonObject regObj = polledRegisters.createNestedObject();
+        regObj["name"] = registerName;
+        regObj["address"] = address;
+        regObj["function_code"] = functionCode;
+        regObj["value"] = value;
+        if (strlen(unit) > 0) regObj["unit"] = unit;
+#endif
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -496,7 +528,7 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       // FIXED Bug #8: Validate address range doesn't overflow uint16_t address space
       if (address > (65535 - registerCount + 1))
       {
-        Serial.printf("[RTU] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
+        LOG_RTU_INFO("[RTU] ERROR: Address range overflow for %s (addr=%d, count=%d, max=%d)\n",
                       registerName, address, registerCount, address + registerCount - 1); // BUG #31: removed .c_str()
         failedRegisterCount++;
         continue; // Skip this register
@@ -523,6 +555,16 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
         // FIXED ISSUE #3: Use helper function to eliminate duplication
         const char *unit = reg["unit"] | "";
         appendRegisterToLog(registerName, value, unit, deviceId, outputBuffer, compactLine, successCount, lineNumber);
+
+#if PRODUCTION_MODE == 0
+        // Add to JSON debug output
+        JsonObject regObj = polledRegisters.createNestedObject();
+        regObj["name"] = registerName;
+        regObj["address"] = address;
+        regObj["function_code"] = functionCode;
+        regObj["value"] = value;
+        if (strlen(unit) > 0) regObj["unit"] = unit;
+#endif
 
         registerSuccess = true;
         anyRegisterSucceeded = true;
@@ -566,7 +608,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       outputBuffer += "\n";
     }
     // Print all at once (atomic - prevents interruption by other tasks)
-    Serial.print(outputBuffer.c_str());
+    // Use LOG_DATA_DEBUG so it's compiled out in production mode
+    LOG_DATA_DEBUG("%s", outputBuffer.c_str());
   }
 
   // Handle device failure state based on read results
@@ -614,6 +657,19 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       LOG_RTU_WARN("Failed to enqueue batch marker for device %s\n", deviceId);
     }
   }
+
+#if PRODUCTION_MODE == 0
+  // Development mode: Print polled data as JSON (one-line)
+  if (successRegisterCount > 0)
+  {
+    polledData["success_count"] = successRegisterCount;
+    polledData["failed_count"] = failedRegisterCount;
+
+    Serial.print("\n[RTU] POLLED DATA: ");
+    serializeJson(polledDataDoc, Serial);
+    Serial.println("\n");
+  }
+#endif
 }
 
 // NOTE: processRegisterValue() moved to ModbusUtils class (shared with ModbusTcpService)
@@ -626,7 +682,7 @@ bool ModbusRtuService::storeRegisterValue(const char *deviceId, const JsonObject
   // FIXED Bug #12: Defensive null check for QueueManager
   if (!queueMgr)
   {
-    Serial.println("[RTU] ERROR: QueueManager is null, cannot store register value");
+    LOG_RTU_INFO("[RTU] ERROR: QueueManager is null, cannot store register value");
     return false; // FIXED: Return false on failure
   }
 
@@ -834,7 +890,7 @@ void ModbusRtuService::initializeDeviceFailureTracking()
     deviceFailureStates.push_back(state);
   }
   // Concise summary log
-  Serial.printf("[RTU] Failure tracking init: %d devices\n", deviceFailureStates.size());
+  LOG_RTU_INFO("[RTU] Failure tracking init: %d devices\n", deviceFailureStates.size());
 }
 
 void ModbusRtuService::initializeDeviceTimeouts()
@@ -852,7 +908,7 @@ void ModbusRtuService::initializeDeviceTimeouts()
     deviceTimeouts.push_back(timeout);
   }
   // Concise summary log
-  Serial.printf("[RTU] Timeout tracking init: %d devices\n", deviceTimeouts.size());
+  LOG_RTU_INFO("[RTU] Timeout tracking init: %d devices\n", deviceTimeouts.size());
 }
 
 ModbusRtuService::DeviceFailureState *ModbusRtuService::getDeviceFailureState(const char *deviceId)
@@ -898,7 +954,7 @@ void ModbusRtuService::initializeDeviceMetrics()
     deviceMetrics.push_back(metrics);
   }
   // Concise summary log
-  Serial.printf("[RTU] Metrics tracking init: %d devices\n", deviceMetrics.size());
+  LOG_RTU_INFO("[RTU] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
 ModbusRtuService::DeviceHealthMetrics *ModbusRtuService::getDeviceMetrics(const char *deviceId)
@@ -918,12 +974,12 @@ bool ModbusRtuService::configureDeviceBaudRate(const char *deviceId, uint16_t ba
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[RTU] ERROR: Device %s not found for baud rate configuration\n", deviceId);
+    LOG_RTU_INFO("[RTU] ERROR: Device %s not found for baud rate configuration\n", deviceId);
     return false;
   }
 
   state->baudRate = baudRate;
-  Serial.printf("[RTU] Configured device %s baud rate to: %d\n", deviceId, baudRate);
+  LOG_RTU_INFO("[RTU] Configured device %s baud rate to: %d\n", deviceId, baudRate);
   return true;
 }
 
@@ -953,7 +1009,7 @@ bool ModbusRtuService::validateBaudRate(uint32_t baudRate)
   case 115200: // Not recommended for long cables, but supported
     return true;
   default:
-    Serial.printf("[RTU] ERROR: Invalid baudrate %d (only 1200-115200 allowed)\n", baudRate);
+    LOG_RTU_INFO("[RTU] ERROR: Invalid baudrate %d (only 1200-115200 allowed)\n", baudRate);
     return false;
   }
 }
@@ -964,7 +1020,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
   // Validate baudrate first
   if (!validateBaudRate(baudRate))
   {
-    Serial.printf("[RTU] Using default baudrate 9600 instead\n");
+    LOG_RTU_INFO("[RTU] Using default baudrate 9600 instead\n");
     baudRate = 9600;
   }
 
@@ -973,7 +1029,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
     // Check if baudrate actually changed (avoid unnecessary reconfiguration)
     if (currentBaudRate1 != baudRate)
     {
-      Serial.printf("[RTU] Reconfiguring Serial1 from %d to %d baud\n", currentBaudRate1, baudRate);
+      LOG_RTU_INFO("[RTU] Reconfiguring Serial1 from %d to %d baud\n", currentBaudRate1, baudRate);
       serial1->end();
       serial1->begin(baudRate, SERIAL_8N1, RTU_RX1, RTU_TX1);
       serial1->setTimeout(200); // FIXED: Reset timeout after baudrate change
@@ -988,7 +1044,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
     // Check if baudrate actually changed
     if (currentBaudRate2 != baudRate)
     {
-      Serial.printf("[RTU] Reconfiguring Serial2 from %d to %d baud\n", currentBaudRate2, baudRate);
+      LOG_RTU_INFO("[RTU] Reconfiguring Serial2 from %d to %d baud\n", currentBaudRate2, baudRate);
       serial2->end();
       serial2->begin(baudRate, SERIAL_8N1, RTU_RX2, RTU_TX2);
       serial2->setTimeout(200); // FIXED: Reset timeout after baudrate change
@@ -1000,7 +1056,7 @@ void ModbusRtuService::configureBaudRate(int serialPort, uint32_t baudRate)
   }
   else
   {
-    Serial.printf("[RTU] ERROR: Invalid serial port %d\n", serialPort);
+    LOG_RTU_INFO("[RTU] ERROR: Invalid serial port %d\n", serialPort);
   }
 }
 
@@ -1019,13 +1075,13 @@ void ModbusRtuService::handleReadFailure(const char *deviceId)
     unsigned long backoffTime = calculateBackoffTime(state->retryCount);
     state->nextRetryTime = millis() + backoffTime;
 
-    Serial.printf("[RTU] Device %s read failed. Retry %d/%d in %lums\n",
+    LOG_RTU_INFO("[RTU] Device %s read failed. Retry %d/%d in %lums\n",
                   deviceId, state->retryCount, state->maxRetries, backoffTime);
   }
   else
   {
     // Max retries exceeded
-    Serial.printf("[RTU] Device %s exceeded max retries (%d), disabling...\n",
+    LOG_RTU_INFO("[RTU] Device %s exceeded max retries (%d), disabling...\n",
                   deviceId, state->maxRetries);
     disableDevice(deviceId, DeviceFailureState::AUTO_RETRY, "Max retries exceeded");
   }
@@ -1064,7 +1120,7 @@ unsigned long ModbusRtuService::calculateBackoffTime(uint8_t retryCount)
   uint32_t jitter = (esp_random() % (baseBackoff / 2));
   unsigned long totalBackoff = baseBackoff + jitter;
 
-  Serial.printf("[RTU] Exponential backoff: retry %d to %lums base + %lums jitter = %lums total\n",
+  LOG_RTU_INFO("[RTU] Exponential backoff: retry %d to %lums base + %lums jitter = %lums total\n",
                 retryCount, baseBackoff, jitter, totalBackoff);
 
   return totalBackoff;
@@ -1081,7 +1137,7 @@ void ModbusRtuService::resetDeviceFailureState(const char *deviceId)
   state->nextRetryTime = 0;
   state->lastReadAttempt = millis();
 
-  Serial.printf("[RTU] Reset failure state for device %s\n", deviceId);
+  LOG_RTU_INFO("[RTU] Reset failure state for device %s\n", deviceId);
 }
 
 void ModbusRtuService::handleReadTimeout(const char *deviceId)
@@ -1094,13 +1150,13 @@ void ModbusRtuService::handleReadTimeout(const char *deviceId)
 
   if (timeout->consecutiveTimeouts >= timeout->maxConsecutiveTimeouts)
   {
-    Serial.printf("[RTU] Device %s exceeded timeout limit (%d), disabling...\n",
+    LOG_RTU_INFO("[RTU] Device %s exceeded timeout limit (%d), disabling...\n",
                   deviceId, timeout->maxConsecutiveTimeouts);
     disableDevice(deviceId, DeviceFailureState::AUTO_TIMEOUT, "Max consecutive timeouts exceeded");
   }
   else
   {
-    Serial.printf("[RTU] Device %s timeout %d/%d\n",
+    LOG_RTU_INFO("[RTU] Device %s timeout %d/%d\n",
                   deviceId, timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
   }
 }
@@ -1145,11 +1201,11 @@ void ModbusRtuService::enableDevice(const char *deviceId, bool clearMetrics)
       metrics->minResponseTimeMs = 65535;
       metrics->maxResponseTimeMs = 0;
       metrics->lastResponseTimeMs = 0;
-      Serial.printf("[RTU] Device %s metrics cleared\n", deviceId);
+      LOG_RTU_INFO("[RTU] Device %s metrics cleared\n", deviceId);
     }
   }
 
-  Serial.printf("[RTU] Device %s enabled (reason cleared)\n", deviceId);
+  LOG_RTU_INFO("[RTU] Device %s enabled (reason cleared)\n", deviceId);
 }
 
 void ModbusRtuService::disableDevice(const char *deviceId, DeviceFailureState::DisableReason reason, const char *reasonDetail)
@@ -1180,7 +1236,7 @@ void ModbusRtuService::disableDevice(const char *deviceId, DeviceFailureState::D
     break;
   }
 
-  Serial.printf("[RTU] Device %s disabled (reason: %s, detail: %s)\n",
+  LOG_RTU_INFO("[RTU] Device %s disabled (reason: %s, detail: %s)\n",
                 deviceId, reasonText, reasonDetail);
 }
 
@@ -1244,7 +1300,7 @@ void ModbusRtuService::updateDataTransmissionTime()
 void ModbusRtuService::setDataTransmissionInterval(uint32_t intervalMs)
 {
   dataTransmissionSchedule.dataIntervalMs = intervalMs;
-  Serial.printf("[RTU] Data transmission interval set to: %lums\n", intervalMs);
+  LOG_RTU_INFO("[RTU] Data transmission interval set to: %lums\n", intervalMs);
 }
 
 // ============================================
@@ -1253,13 +1309,13 @@ void ModbusRtuService::setDataTransmissionInterval(uint32_t intervalMs)
 
 bool ModbusRtuService::enableDeviceByCommand(const char *deviceId, bool clearMetrics)
 {
-  Serial.printf("[RTU] BLE Command: Enable device %s (clearMetrics: %s)\n",
+  LOG_RTU_INFO("[RTU] BLE Command: Enable device %s (clearMetrics: %s)\n",
                 deviceId, clearMetrics ? "true" : "false");
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    LOG_RTU_INFO("[RTU] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -1269,13 +1325,13 @@ bool ModbusRtuService::enableDeviceByCommand(const char *deviceId, bool clearMet
 
 bool ModbusRtuService::disableDeviceByCommand(const char *deviceId, const char *reasonDetail)
 {
-  Serial.printf("[RTU] BLE Command: Disable device %s (reason: %s)\n",
+  LOG_RTU_INFO("[RTU] BLE Command: Disable device %s (reason: %s)\n",
                 deviceId, reasonDetail);
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    LOG_RTU_INFO("[RTU] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -1288,7 +1344,7 @@ bool ModbusRtuService::getDeviceStatusInfo(const char *deviceId, JsonObject &sta
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    Serial.printf("[RTU] ERROR: Device %s not found\n", deviceId);
+    LOG_RTU_INFO("[RTU] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -1378,7 +1434,7 @@ void ModbusRtuService::autoRecoveryTask(void *parameter)
 
 void ModbusRtuService::autoRecoveryLoop()
 {
-  Serial.println("[RTU AutoRecovery] Task started");
+  LOG_RTU_INFO("[RTU AutoRecovery] Task started");
   const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
 
   while (running)
@@ -1388,7 +1444,7 @@ void ModbusRtuService::autoRecoveryLoop()
     if (!running)
       break;
 
-    Serial.println("[RTU AutoRecovery] Checking for auto-disabled devices...");
+    LOG_RTU_INFO("[RTU AutoRecovery] Checking for auto-disabled devices...");
     unsigned long now = millis();
 
     // FIXED ISSUE #1: Protect vector access with mutex
@@ -1401,18 +1457,18 @@ void ModbusRtuService::autoRecoveryLoop()
            state.disableReason == DeviceFailureState::AUTO_TIMEOUT))
       {
         unsigned long disabledDuration = now - state.disabledTimestamp;
-        Serial.printf("[RTU AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
+        LOG_RTU_INFO("[RTU AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
                       state.deviceId.c_str(), disabledDuration);
 
         enableDevice(state.deviceId.c_str(), false); // Don't clear metrics
-        Serial.printf("[RTU AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
+        LOG_RTU_INFO("[RTU AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
       }
     }
 
     xSemaphoreGiveRecursive(vectorMutex);
   }
 
-  Serial.println("[RTU AutoRecovery] Task stopped");
+  LOG_RTU_INFO("[RTU AutoRecovery] Task stopped");
 }
 
 ModbusRtuService::~ModbusRtuService()
@@ -1451,5 +1507,5 @@ ModbusRtuService::~ModbusRtuService()
     vectorMutex = nullptr;
   }
 
-  Serial.println("[RTU] Service destroyed, resources cleaned up");
+  LOG_RTU_INFO("[RTU] Service destroyed, resources cleaned up");
 }

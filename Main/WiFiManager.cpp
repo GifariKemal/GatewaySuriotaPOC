@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "WiFiManager.h"
 
 WiFiManager *WiFiManager::instance = nullptr;
@@ -9,7 +10,7 @@ WiFiManager::WiFiManager()
   refCountMutex = xSemaphoreCreateMutex();
   if (!refCountMutex)
   {
-    Serial.println("[WiFi] ERROR: Failed to create refCountMutex");
+    LOG_NET_INFO("[WiFi] ERROR: Failed to create refCountMutex");
   }
 }
 
@@ -30,7 +31,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
     if (refCountMutex && xSemaphoreTake(refCountMutex, pdMS_TO_TICKS(100)) == pdTRUE)
     {
       referenceCount++;
-      Serial.printf("[WiFi] Already initialized (refs: %d)\n", referenceCount);
+      LOG_NET_INFO("[WiFi] Already initialized (refs: %d)\n", referenceCount);
       xSemaphoreGive(refCountMutex);
     }
     return true;
@@ -44,7 +45,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   {
     initialized = true;
     referenceCount = 1;
-    Serial.printf("[WiFi] Already connected to: %s\n", ssid.c_str());
+    LOG_NET_INFO("[WiFi] Already connected to: %s\n", ssid.c_str());
     return true;
   }
 
@@ -55,7 +56,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
     delay(1000);
   }
 
-  Serial.printf("[WiFi] Connecting to: %s\n", ssid.c_str());
+  LOG_NET_INFO("[WiFi] Connecting to: %s\n", ssid.c_str());
   WiFi.begin(ssid.c_str(), password.c_str());
 
   // Wait for connection with timeout
@@ -71,7 +72,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   {
     initialized = true;
     referenceCount = 1;
-    Serial.printf("\n[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
+    LOG_NET_INFO("\n[WiFi] Connected | IP: %s\n", WiFi.localIP().toString().c_str());
     return true;
   }
   else
@@ -89,7 +90,7 @@ void WiFiManager::addReference()
     if (initialized)
     {
       referenceCount++;
-      Serial.printf("[WiFi] Reference added (refs: %d)\n", referenceCount);
+      LOG_NET_INFO("[WiFi] Reference added (refs: %d)\n", referenceCount);
     }
     xSemaphoreGive(refCountMutex);
   }
@@ -103,7 +104,7 @@ void WiFiManager::removeReference()
     if (referenceCount > 0)
     {
       referenceCount--;
-      Serial.printf("[WiFi] Reference removed (refs: %d)\n", referenceCount);
+      LOG_NET_INFO("[WiFi] Reference removed (refs: %d)\n", referenceCount);
 
       if (referenceCount == 0)
       {
@@ -124,7 +125,7 @@ void WiFiManager::cleanup()
     initialized = false;
   }
   referenceCount = 0;
-  Serial.println("[WiFi] Resources cleaned up");
+  LOG_NET_INFO("[WiFi] Resources cleaned up");
 }
 
 bool WiFiManager::isAvailable()
@@ -192,5 +193,5 @@ WiFiManager::~WiFiManager()
     refCountMutex = nullptr;
   }
 
-  Serial.println("[WiFi] Manager destroyed, resources cleaned up");
+  LOG_NET_INFO("[WiFi] Manager destroyed, resources cleaned up");
 }

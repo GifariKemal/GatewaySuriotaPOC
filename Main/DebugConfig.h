@@ -3,6 +3,13 @@
 
 #include <Arduino.h>
 
+// ============================================
+// PRODUCTION MODE DEFINITION
+// ============================================
+#ifndef PRODUCTION_MODE
+#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production
+#endif
+
 /*
  * ============================================
  * DEBUG CONFIGURATION - ENHANCED LOG LEVEL SYSTEM
@@ -94,7 +101,7 @@ void setLogTimestamps(bool enabled);
 // ============================================
 #ifndef COMPILE_LOG_LEVEL
 #if PRODUCTION_MODE == 1
-#define COMPILE_LOG_LEVEL LOG_INFO // Production: INFO only
+#define COMPILE_LOG_LEVEL LOG_WARN // Production: ERROR & WARN only (suppress INFO)
 #else
 #define COMPILE_LOG_LEVEL LOG_VERBOSE // Development: All logs
 #endif

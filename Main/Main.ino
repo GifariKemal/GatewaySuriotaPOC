@@ -5,13 +5,13 @@
  * Hardware: ESP32 with BLE support
  * Features: CRUD operations, fragmentation, FreeRTOS tasks
  * Optimization: 9 firmware optimizations integrated
- * Debug: Development vs Production mode (PRODUCTION_MODE = 0/1)
+ * Debug: Development vs Production mode (PRODUCTION_MODE defined in DebugConfig.h)
  *
  * MQTT Fix: Payload corruption fix with separate buffers (2025-11-22)
  * Task Optimization: Low-priority tasks moved to Core 0 for load balancing (2025-11-22)
  */
 
-#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production
+// PRODUCTION_MODE is now defined in DebugConfig.h (0 = Development, 1 = Production)
 
 // CRITICAL: Override MQTT_MAX_PACKET_SIZE BEFORE any library includes
 // This MUST be defined here (not in MqttManager.h) to ensure Arduino IDE
@@ -28,6 +28,19 @@
 // Firmware version and device identification
 #define FIRMWARE_VERSION "2.3.3"
 #define DEVICE_ID "SRT-MGATE-1210"
+
+// Smart Serial wrapper - auto-suppresses in production mode
+#if PRODUCTION_MODE == 1
+  // Production mode: Suppress development Serial output
+  #define DEV_SERIAL_PRINT(...) do {} while(0)
+  #define DEV_SERIAL_PRINTF(...) do {} while(0)
+  #define DEV_SERIAL_PRINTLN(...) do {} while(0)
+#else
+  // Development mode: Pass through to Serial
+  #define DEV_SERIAL_PRINT(...) Serial.print(__VA_ARGS__)
+  #define DEV_SERIAL_PRINTF(...) Serial.printf(__VA_ARGS__)
+  #define DEV_SERIAL_PRINTLN(...) Serial.println(__VA_ARGS__)
+#endif
 
 #include "BLEManager.h"
 #include "CRUDHandler.h"
@@ -148,7 +161,7 @@ void cleanup()
   buttonManager = nullptr;
   productionLogger = nullptr;
 
-  Serial.println("[CLEANUP] All resources released");
+  DEV_SERIAL_PRINTLN("[CLEANUP] All resources released");
 }
 
 void setup()
@@ -159,7 +172,11 @@ void setup()
   // ============================================
   // LOG LEVEL SYSTEM INITIALIZATION (Phase 1)
   // ============================================
-  setLogLevel(LOG_INFO); // Production default: ERROR + WARN + INFO
+#if PRODUCTION_MODE == 1
+  setLogLevel(LOG_ERROR); // Production: ONLY critical errors (suppress WARN/INFO)
+#else
+  setLogLevel(LOG_INFO); // Development: ERROR + WARN + INFO
+#endif
 
   // ============================================
   // RTC TIMESTAMPS (Phase 3)
@@ -195,20 +212,20 @@ void setup()
 
   uint32_t seed = esp_random();
   randomSeed(seed); // Seed the random number generator for unique IDs
-  Serial.printf("[SYSTEM] Random seed initialized: %u\n", seed);
+  DEV_SERIAL_PRINTF("[SYSTEM] Random seed initialized: %u\n", seed);
 
   // Check PSRAM availability
   if (esp_psram_is_initialized())
   {
-    Serial.printf("[SYSTEM] PSRAM available: %d bytes | Free: %d bytes\n",
+    DEV_SERIAL_PRINTF("[SYSTEM] PSRAM available: %d bytes | Free: %d bytes\n",
                   ESP.getPsramSize(), ESP.getFreePsram());
   }
   else
   {
-    Serial.println("[SYSTEM] PSRAM not available - using internal RAM");
+    DEV_SERIAL_PRINTLN("[SYSTEM] PSRAM not available - using internal RAM");
   }
 
-  Serial.println("[MAIN] Starting BLE CRUD Manager...");
+  DEV_SERIAL_PRINTLN("[MAIN] Starting BLE CRUD Manager...");
 
   // Initialize configuration manager in PSRAM
   configManager = (ConfigManager *)heap_caps_malloc(sizeof(ConfigManager), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -221,29 +238,31 @@ void setup()
     configManager = new ConfigManager(); // Fallback to internal RAM
     if (!configManager)
     {
-      Serial.println("[MAIN] ERROR: Failed to allocate ConfigManager");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate ConfigManager");
       return;
     }
   }
 
   if (!configManager->begin())
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize ConfigManager");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize ConfigManager");
     cleanup();
     return;
   }
 
   // Debug: Show devices file content
+  #if PRODUCTION_MODE == 0
   configManager->debugDevicesFile();
+  #endif
 
   // Pre-load the cache once to prevent race conditions from other tasks
-  Serial.println("[MAIN] Forcing initial cache load...");
+  DEV_SERIAL_PRINTLN("[MAIN] Forcing initial cache load...");
   configManager->refreshCache();
 
   // FIXED: Removed automatic config clear - only clear manually when needed
   // configManager->clearAllConfigurations();  // DISABLED - Uncomment only for factory reset
 
-  Serial.println("[MAIN] Configuration initialization completed.");
+  DEV_SERIAL_PRINTLN("[MAIN] Configuration initialization completed.");
 
   // Initialize LED Manager
   ledManager = LEDManager::getInstance();
@@ -253,7 +272,7 @@ void setup()
   }
   else
   {
-    Serial.println("[MAIN] ERROR: Failed to get LEDManager instance");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to get LEDManager instance");
     cleanup();
     return;
   }
@@ -262,7 +281,7 @@ void setup()
   queueManager = QueueManager::getInstance();
   if (!queueManager || !queueManager->init())
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize QueueManager");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize QueueManager");
     cleanup();
     return;
   }
@@ -271,7 +290,7 @@ void setup()
   serverConfig = new ServerConfig();
   if (!serverConfig || !serverConfig->begin())
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize ServerConfig");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize ServerConfig");
     cleanup();
     return;
   }
@@ -280,7 +299,7 @@ void setup()
   loggingConfig = new LoggingConfig();
   if (!loggingConfig || !loggingConfig->begin())
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize LoggingConfig");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize LoggingConfig");
     cleanup();
     return;
   }
@@ -292,20 +311,20 @@ void setup()
   networkManager = NetworkMgr::getInstance();
   if (!networkManager)
   {
-    Serial.println("[MAIN] ERROR: Failed to get NetworkManager instance");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to get NetworkManager instance");
     cleanup();
     return;
   }
 
   if (!networkManager->init(serverConfig))
   {
-    Serial.println("[MAIN] WARNING: NetworkManager init failed - network services will be disabled");
-    Serial.println("[MAIN] System will continue in offline mode (BLE/Modbus RTU only)");
+    DEV_SERIAL_PRINTLN("[MAIN] WARNING: NetworkManager init failed - network services will be disabled");
+    DEV_SERIAL_PRINTLN("[MAIN] System will continue in offline mode (BLE/Modbus RTU only)");
     networkInitialized = false;
   }
   else
   {
-    Serial.println("[MAIN] NetworkManager initialized successfully");
+    DEV_SERIAL_PRINTLN("[MAIN] NetworkManager initialized successfully");
     networkInitialized = true;
   }
 
@@ -313,7 +332,7 @@ void setup()
   rtcManager = RTCManager::getInstance();
   if (!rtcManager || !rtcManager->init())
   {
-    Serial.println("[MAIN] WARNING: Failed to initialize RTCManager");
+    DEV_SERIAL_PRINTLN("[MAIN] WARNING: Failed to initialize RTCManager");
   }
   else
   {
@@ -328,18 +347,18 @@ void setup()
     if (modbusTcpService && modbusTcpService->init())
     {
       modbusTcpService->start();
-      Serial.println("[MAIN] Modbus TCP service started");
+      DEV_SERIAL_PRINTLN("[MAIN] Modbus TCP service started");
     }
     else
     {
-      Serial.println("[MAIN] ERROR: Failed to initialize Modbus TCP service");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize Modbus TCP service");
     }
   }
   else
   {
-    Serial.println("[MAIN] WARNING: EthernetManager not available for Modbus TCP");
+    DEV_SERIAL_PRINTLN("[MAIN] WARNING: EthernetManager not available for Modbus TCP");
   }
-  Serial.println("[MAIN] Modbus TCP service initialized (TCP/IP polling enabled)");
+  DEV_SERIAL_PRINTLN("[MAIN] Modbus TCP service initialized (TCP/IP polling enabled)");
 
   // Initialize CRUD handler in PSRAM FIRST (before Modbus services)
   crudHandler = (CRUDHandler *)heap_caps_malloc(sizeof(CRUDHandler), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -352,18 +371,18 @@ void setup()
     crudHandler = new CRUDHandler(configManager, serverConfig, loggingConfig); // Fallback to internal RAM
     if (!crudHandler)
     {
-      Serial.println("[MAIN] ERROR: Failed to allocate CRUDHandler");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate CRUDHandler");
       cleanup();
       return;
     }
   }
-  Serial.println("[MAIN] CRUDHandler initialized");
+  DEV_SERIAL_PRINTLN("[MAIN] CRUDHandler initialized");
 
   // Link Modbus TCP Service to CRUD Handler for device control commands
   if (crudHandler && modbusTcpService)
   {
     crudHandler->setModbusTcpService(modbusTcpService);
-    Serial.println("[MAIN] Modbus TCP Service linked to CRUD Handler");
+    DEV_SERIAL_PRINTLN("[MAIN] Modbus TCP Service linked to CRUD Handler");
   }
 
   // Initialize Modbus RTU service (after CRUDHandler)
@@ -371,23 +390,23 @@ void setup()
   if (modbusRtuService && modbusRtuService->init())
   {
     modbusRtuService->start();
-    Serial.println("[MAIN] Modbus RTU service started");
+    DEV_SERIAL_PRINTLN("[MAIN] Modbus RTU service started");
 
     // Link Modbus RTU Service to CRUD Handler for device control commands
     if (crudHandler)
     {
       crudHandler->setModbusRtuService(modbusRtuService);
-      Serial.println("[MAIN] Modbus RTU Service linked to CRUD Handler");
+      DEV_SERIAL_PRINTLN("[MAIN] Modbus RTU Service linked to CRUD Handler");
     }
   }
   else
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize Modbus RTU service");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize Modbus RTU service");
   }
 
   // Initialize protocol managers based on server configuration
   String protocol = serverConfig->getProtocol();
-  Serial.printf("[MAIN] Selected protocol: %s\n", protocol.c_str());
+  DEV_SERIAL_PRINTF("[MAIN] Selected protocol: %s\n", protocol.c_str());
 
   // FIXED BUG #11: Initialize MQTT only if network is available
   if (networkInitialized)
@@ -399,27 +418,27 @@ void setup()
       if (crudHandler)
       {
         crudHandler->setMqttManager(mqttManager);
-        Serial.println("[MAIN] MQTT Manager linked to CRUD Handler");
+        DEV_SERIAL_PRINTLN("[MAIN] MQTT Manager linked to CRUD Handler");
       }
 
       if (protocol == "mqtt")
       {
         mqttManager->start();
-        Serial.println("[MAIN] MQTT Manager started (active protocol)");
+        DEV_SERIAL_PRINTLN("[MAIN] MQTT Manager started (active protocol)");
       }
       else
       {
-        Serial.println("[MAIN] MQTT Manager initialized but not started (inactive protocol)");
+        DEV_SERIAL_PRINTLN("[MAIN] MQTT Manager initialized but not started (inactive protocol)");
       }
     }
     else
     {
-      Serial.println("[MAIN] ERROR: Failed to initialize MQTT Manager");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize MQTT Manager");
     }
   }
   else
   {
-    Serial.println("[MAIN] Skipping MQTT Manager - network not initialized");
+    DEV_SERIAL_PRINTLN("[MAIN] Skipping MQTT Manager - network not initialized");
   }
 
   // FIXED BUG #11: Initialize HTTP only if network is available
@@ -432,27 +451,27 @@ void setup()
       if (crudHandler)
       {
         crudHandler->setHttpManager(httpManager);
-        Serial.println("[MAIN] HTTP Manager linked to CRUD Handler");
+        DEV_SERIAL_PRINTLN("[MAIN] HTTP Manager linked to CRUD Handler");
       }
 
       if (protocol == "http")
       {
         httpManager->start();
-        Serial.println("[MAIN] HTTP Manager started (active protocol)");
+        DEV_SERIAL_PRINTLN("[MAIN] HTTP Manager started (active protocol)");
       }
       else
       {
-        Serial.println("[MAIN] HTTP Manager initialized but not started (inactive protocol)");
+        DEV_SERIAL_PRINTLN("[MAIN] HTTP Manager initialized but not started (inactive protocol)");
       }
     }
     else
     {
-      Serial.println("[MAIN] ERROR: Failed to initialize HTTP Manager");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize HTTP Manager");
     }
   }
   else
   {
-    Serial.println("[MAIN] Skipping HTTP Manager - network not initialized");
+    DEV_SERIAL_PRINTLN("[MAIN] Skipping HTTP Manager - network not initialized");
   }
 
   // CRUDHandler already initialized above
@@ -468,7 +487,7 @@ void setup()
     bleManager = new BLEManager("SURIOTA GW", crudHandler); // Fallback to internal RAM
     if (!bleManager)
     {
-      Serial.println("[MAIN] ERROR: Failed to allocate BLE Manager");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate BLE Manager");
       cleanup();
       return;
     }
@@ -483,7 +502,7 @@ void setup()
   }
   else
   {
-    Serial.println("[MAIN] ERROR: Failed to initialize Button Manager");
+    DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize Button Manager");
     cleanup();
     return;
   }
@@ -496,19 +515,19 @@ void setup()
     // Development mode: start BLE immediately
     if (!bleManager->begin())
     {
-      Serial.println("[MAIN] ERROR: Failed to initialize BLE Manager");
+      DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to initialize BLE Manager");
       cleanup();
       return;
     }
-    Serial.println("[MAIN] BLE started (Development mode)");
+    DEV_SERIAL_PRINTLN("[MAIN] BLE started (Development mode)");
   }
   else
   {
     // Production mode: BLE controlled by button (starts OFF)
-    Serial.println("[MAIN] BLE controlled by button (Production mode)");
+    DEV_SERIAL_PRINTLN("[MAIN] BLE controlled by button (Production mode)");
   }
 
-  Serial.println("[MAIN] BLE CRUD Manager started successfully");
+  DEV_SERIAL_PRINTLN("[MAIN] BLE CRUD Manager started successfully");
 
   // ============================================
   // PRODUCTION LOGGER INITIALIZATION
@@ -543,7 +562,7 @@ void setup()
 
     // Log boot message
     productionLogger->logBoot();
-    Serial.println("[MAIN] Production Logger initialized - minimal logging active");
+    DEV_SERIAL_PRINTLN("[MAIN] Production Logger initialized - minimal logging active");
   }
 #else
   // Development mode: Full logging already active

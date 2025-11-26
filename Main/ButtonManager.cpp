@@ -46,7 +46,7 @@ void ButtonManager::begin(bool isProductionMode)
   modeMutex = xSemaphoreCreateMutex();
   if (!modeMutex)
   {
-    Serial.println("[BUTTON] ERROR: Failed to create mode mutex");
+    LOG_LED_INFO("[BUTTON] ERROR: Failed to create mode mutex");
     return;
   }
 
@@ -55,13 +55,13 @@ void ButtonManager::begin(bool isProductionMode)
   {
     // Production mode: start in RUNNING mode (BLE OFF)
     currentMode = MODE_RUNNING;
-    Serial.println("[BUTTON] Production mode: Starting in RUNNING mode (BLE OFF)");
+    LOG_LED_INFO("[BUTTON] Production mode: Starting in RUNNING mode (BLE OFF)");
   }
   else
   {
     // Development mode: start in CONFIG mode (BLE ON, button disabled)
     currentMode = MODE_CONFIG;
-    Serial.println("[BUTTON] Development mode: Starting in CONFIG mode (BLE ON, button disabled)");
+    LOG_LED_INFO("[BUTTON] Development mode: Starting in CONFIG mode (BLE ON, button disabled)");
   }
 
   // Create button monitoring task
@@ -74,7 +74,7 @@ void ButtonManager::begin(bool isProductionMode)
       &buttonTaskHandle,
       APP_CPU_NUM // Pin to APP_CPU_NUM (core 1)
   );
-  Serial.println("[BUTTON] Manager initialized");
+  LOG_LED_INFO("[BUTTON] Manager initialized");
 }
 
 // Static callback for long press
@@ -105,7 +105,7 @@ void ButtonManager::enterConfigMode()
     if (currentMode != MODE_CONFIG)
     {
       currentMode = MODE_CONFIG;
-      Serial.println("[BUTTON] Entering CONFIG mode - BLE ON");
+      LOG_LED_INFO("[BUTTON] Entering CONFIG mode - BLE ON");
 
       // Turn on BLE
       if (bleManager)
@@ -125,7 +125,7 @@ void ButtonManager::enterRunningMode()
     if (currentMode != MODE_RUNNING)
     {
       currentMode = MODE_RUNNING;
-      Serial.println("[BUTTON] Entering RUNNING mode - BLE OFF");
+      LOG_LED_INFO("[BUTTON] Entering RUNNING mode - BLE OFF");
 
       // Turn off BLE
       if (bleManager)
@@ -181,7 +181,7 @@ void ButtonManager::stop()
     vTaskDelete(buttonTaskHandle);
     buttonTaskHandle = nullptr;
     digitalWrite(LED_STATUS, LOW);
-    Serial.println("[BUTTON] Manager task stopped");
+    LOG_LED_INFO("[BUTTON] Manager task stopped");
   }
 }
 
@@ -230,5 +230,5 @@ ButtonManager::~ButtonManager()
     button = nullptr;
   }
 
-  Serial.println("[BUTTON] Manager destroyed, resources cleaned up");
+  LOG_LED_INFO("[BUTTON] Manager destroyed, resources cleaned up");
 }

@@ -1,3 +1,4 @@
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "NetworkHysteresis.h"
 #include <Arduino.h>
 
@@ -7,7 +8,7 @@ NetworkHysteresis *NetworkHysteresis::instance = nullptr;
 // Private constructor
 NetworkHysteresis::NetworkHysteresis()
 {
-  Serial.println("[HYSTERESIS] Network Hysteresis initialized");
+  LOG_NET_INFO("[HYSTERESIS] Network Hysteresis initialized");
   currentActiveMode = "NONE";
   modeChangeTime = millis();
 }
@@ -25,7 +26,7 @@ NetworkHysteresis *NetworkHysteresis::getInstance()
 void NetworkHysteresis::setHysteresisConfig(const HysteresisConfig &newConfig)
 {
   config = newConfig;
-  Serial.println("[HYSTERESIS] Configuration updated:");
+  LOG_NET_INFO("[HYSTERESIS] Configuration updated:");
   Serial.printf("  Hysteresis window: %u ms\n", config.hysteresisWindowMs);
   Serial.printf("  Stabilization delay: %u ms\n", config.stabilizationDelayMs);
   Serial.printf("  Min connection time: %u ms\n", config.minConnectionTimeMs);
@@ -34,37 +35,37 @@ void NetworkHysteresis::setHysteresisConfig(const HysteresisConfig &newConfig)
 void NetworkHysteresis::setHysteresisWindow(uint32_t windowMs)
 {
   config.hysteresisWindowMs = windowMs;
-  Serial.printf("[HYSTERESIS] Hysteresis window set to %u ms\n", windowMs);
+  LOG_NET_INFO("[HYSTERESIS] Hysteresis window set to %u ms\n", windowMs);
 }
 
 void NetworkHysteresis::setStabilizationDelay(uint32_t delayMs)
 {
   config.stabilizationDelayMs = delayMs;
-  Serial.printf("[HYSTERESIS] Stabilization delay set to %u ms\n", delayMs);
+  LOG_NET_INFO("[HYSTERESIS] Stabilization delay set to %u ms\n", delayMs);
 }
 
 void NetworkHysteresis::setMinConnectionTime(uint32_t timeMs)
 {
   config.minConnectionTimeMs = timeMs;
-  Serial.printf("[HYSTERESIS] Min connection time set to %u ms\n", timeMs);
+  LOG_NET_INFO("[HYSTERESIS] Min connection time set to %u ms\n", timeMs);
 }
 
 void NetworkHysteresis::setPrimaryQualityThreshold(uint8_t minQuality)
 {
   config.primaryQualityMin = minQuality;
-  Serial.printf("[HYSTERESIS] Primary quality threshold set to %u\n", minQuality);
+  LOG_NET_INFO("[HYSTERESIS] Primary quality threshold set to %u\n", minQuality);
 }
 
 void NetworkHysteresis::setSecondaryQualityThreshold(uint8_t minQuality)
 {
   config.secondaryQualityMin = minQuality;
-  Serial.printf("[HYSTERESIS] Secondary quality threshold set to %u\n", minQuality);
+  LOG_NET_INFO("[HYSTERESIS] Secondary quality threshold set to %u\n", minQuality);
 }
 
 void NetworkHysteresis::setSwitchToSecondaryThreshold(uint8_t quality)
 {
   config.switchToSecondaryQuality = quality;
-  Serial.printf("[HYSTERESIS] Switch to secondary threshold set to %u\n", quality);
+  LOG_NET_INFO("[HYSTERESIS] Switch to secondary threshold set to %u\n", quality);
 }
 
 // Signal quality mapping
@@ -150,13 +151,13 @@ void NetworkHysteresis::updatePrimaryNetworkState(bool isAvailable, int8_t rssi)
     {
       primaryNetworkState.lastSuccessfulUseTime = now;
       primaryNetworkState.consecutiveFailureCount = 0;
-      Serial.printf("[HYSTERESIS] Primary network became AVAILABLE (RSSI: %d dBm, Quality: %u%%)\n",
+      LOG_NET_INFO("[HYSTERESIS] Primary network became AVAILABLE (RSSI: %d dBm, Quality: %u%%)\n",
                     rssi, primaryNetworkState.signalQuality);
     }
     else
     {
       primaryNetworkState.consecutiveFailureCount++;
-      Serial.printf("[HYSTERESIS] Primary network became UNAVAILABLE (failure count: %u)\n",
+      LOG_NET_INFO("[HYSTERESIS] Primary network became UNAVAILABLE (failure count: %u)\n",
                     primaryNetworkState.consecutiveFailureCount);
     }
   }
@@ -167,7 +168,7 @@ void NetworkHysteresis::updatePrimaryNetworkState(bool isAvailable, int8_t rssi)
     uint8_t newQuality = calculateQualityPercentage(rssi);
     if (newQuality != primaryNetworkState.signalQuality)
     {
-      Serial.printf("[HYSTERESIS] Primary signal quality changed: %u%% -> %u%% (RSSI: %d dBm)\n",
+      LOG_NET_INFO("[HYSTERESIS] Primary signal quality changed: %u%% -> %u%% (RSSI: %d dBm)\n",
                     primaryNetworkState.signalQuality, newQuality, rssi);
       primaryNetworkState.signalQuality = newQuality;
     }
@@ -195,13 +196,13 @@ void NetworkHysteresis::updateSecondaryNetworkState(bool isAvailable, int8_t rss
     {
       secondaryNetworkState.lastSuccessfulUseTime = now;
       secondaryNetworkState.consecutiveFailureCount = 0;
-      Serial.printf("[HYSTERESIS] Secondary network became AVAILABLE (RSSI: %d dBm, Quality: %u%%)\n",
+      LOG_NET_INFO("[HYSTERESIS] Secondary network became AVAILABLE (RSSI: %d dBm, Quality: %u%%)\n",
                     rssi, secondaryNetworkState.signalQuality);
     }
     else
     {
       secondaryNetworkState.consecutiveFailureCount++;
-      Serial.printf("[HYSTERESIS] Secondary network became UNAVAILABLE (failure count: %u)\n",
+      LOG_NET_INFO("[HYSTERESIS] Secondary network became UNAVAILABLE (failure count: %u)\n",
                     secondaryNetworkState.consecutiveFailureCount);
     }
   }
@@ -212,7 +213,7 @@ void NetworkHysteresis::updateSecondaryNetworkState(bool isAvailable, int8_t rss
     uint8_t newQuality = calculateQualityPercentage(rssi);
     if (newQuality != secondaryNetworkState.signalQuality)
     {
-      Serial.printf("[HYSTERESIS] Secondary signal quality changed: %u%% -> %u%% (RSSI: %d dBm)\n",
+      LOG_NET_INFO("[HYSTERESIS] Secondary signal quality changed: %u%% -> %u%% (RSSI: %d dBm)\n",
                     secondaryNetworkState.signalQuality, newQuality, rssi);
       secondaryNetworkState.signalQuality = newQuality;
     }
@@ -227,11 +228,11 @@ void NetworkHysteresis::recordNetworkSwitch(const String &fromMode, const String
   {
     currentActiveMode = toMode;
     modeChangeTime = now;
-    Serial.printf("[HYSTERESIS] Successfully switched from %s to %s\n", fromMode.c_str(), toMode.c_str());
+    LOG_NET_INFO("[HYSTERESIS] Successfully switched from %s to %s\n", fromMode.c_str(), toMode.c_str());
   }
   else
   {
-    Serial.printf("[HYSTERESIS] Failed to switch from %s to %s\n", fromMode.c_str(), toMode.c_str());
+    LOG_NET_INFO("[HYSTERESIS] Failed to switch from %s to %s\n", fromMode.c_str(), toMode.c_str());
   }
 }
 
@@ -450,7 +451,7 @@ void NetworkHysteresis::clearPendingTransition()
 
   hysteresisActive = true;
   hysteresisStartTime = millis();
-  Serial.printf("[HYSTERESIS] Hysteresis window activated for %u ms\n", config.hysteresisWindowMs);
+  LOG_NET_INFO("[HYSTERESIS] Hysteresis window activated for %u ms\n", config.hysteresisWindowMs);
 }
 
 // Reporting and diagnostics
@@ -484,7 +485,7 @@ void NetworkHysteresis::printNetworkStates()
   Serial.printf("  State changes: %lu ms ago\n", millis() - primaryNetworkState.stateChangeTime);
   Serial.printf("  Consecutive failures: %u\n\n", primaryNetworkState.consecutiveFailureCount);
 
-  Serial.println("[HYSTERESIS] SECONDARY NETWORK");
+  LOG_NET_INFO("[HYSTERESIS] SECONDARY NETWORK");
   Serial.printf("  Status: %s\n", secondaryNetworkState.isActive ? "ACTIVE" : "INACTIVE");
   Serial.printf("  RSSI: %d dBm\n", secondaryNetworkState.rssi);
   Serial.printf("  Quality: %u%% (%s)\n", secondaryNetworkState.signalQuality,
@@ -596,5 +597,5 @@ uint8_t NetworkHysteresis::getConsecutiveSwitchFailures() const
 // Destructor
 NetworkHysteresis::~NetworkHysteresis()
 {
-  Serial.println("[HYSTERESIS] Network Hysteresis destroyed");
+  LOG_NET_INFO("[HYSTERESIS] Network Hysteresis destroyed");
 }
