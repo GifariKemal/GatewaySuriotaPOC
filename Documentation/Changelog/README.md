@@ -26,9 +26,10 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Version History
 
-### Current Version: 2.3.10 (November 25, 2025)
+### Current Version: 2.3.11 (November 26, 2025)
 
-**Latest Performance & Stability Updates (v2.3.8-v2.3.10):**
+**Latest Fixes & Optimizations (v2.3.8-v2.3.11):**
+- v2.3.11: CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread safety)
 - v2.3.10: TCP connection pool optimization (180x reduction in recreations, 99% reuse)
 - v2.3.9: CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
 - v2.3.8: Performance optimization (shadow copy, stack optimization, DRAM defragmentation)
@@ -274,8 +275,8 @@ Found a bug or have a feature request?
 
 ---
 
-**Last Updated:** November 25, 2025
-**Current Version:** 2.3.10
+**Last Updated:** November 26, 2025
+**Current Version:** 2.3.11
 **Next Release:** TBA
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#changelog)
