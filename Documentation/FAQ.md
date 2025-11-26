@@ -626,6 +626,6 @@ Response includes:
 
 **Document Version:** 1.0
 **Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.10
+**Firmware Version:** 2.3.11
 
 [← Back to Documentation Index](README.md) | [↑ Top](#frequently-asked-questions-faq)

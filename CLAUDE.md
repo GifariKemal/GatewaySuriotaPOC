@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.10 | **Last Updated:** November 26, 2025
+**Version:** 2.3.11 | **Last Updated:** November 26, 2025
 
 ---
 
@@ -31,13 +31,22 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.3.10 - Nov 26, 2025)
+## 🆕 Latest Updates (v2.3.11 - Nov 26, 2025)
 
-### Critical Performance & Stability Fixes
+### Critical Fixes & Major Optimizations
+- **v2.3.11:** CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread-safe mutex)
 - **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
 - **v2.3.9:** CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
 - **v2.3.8:** Performance optimization (shadow copy pattern, stack optimization, DRAM fragmentation elimination)
 - **v2.3.4-2.3.7:** BLE transmission timeout fixes, MQTT interval corrections, log formatting enhancements
+
+### v2.3.11 Key Features
+- **BLE Corruption Fix:** Timeout protection (5s), <START> marker handling, buffer validation
+- **ModbusTCP Optimization:** 100% file system access elimination via vector caching, 50% TCP handshake reduction via connection pooling
+- **Thread Safety:** Mutex protection for device vectors in ModbusTCP and ModbusRTU
+- **Dynamic Polling:** Loop delay respects device-specific refresh_rate_ms (was hardcoded 2000ms)
+- **ErrorHandler Fix:** Array overflow prevention with DOMAIN_COUNT constant
+- **Timestamp Support:** Added to Modbus polling for better diagnostics
 
 ### v2.3.0 Features (Nov 21, 2025)
 

@@ -532,7 +532,7 @@ Now that your gateway is running, explore these topics:
 
 **Document Version:** 1.0
 **Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.10
+**Firmware Version:** 2.3.11
 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md)

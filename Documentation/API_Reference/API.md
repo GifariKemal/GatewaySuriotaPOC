@@ -5,15 +5,19 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.3.10 (November 26, 2025)
+**Version:** 2.3.11 (November 26, 2025)
 **Developer:** Kemal
 **Last Updated:** November 26, 2025
 
-> **What's New in v2.3.10:**
+> **What's New in v2.3.11:**
+> - ✅ **CRITICAL BLE Fix** - Command corruption fix (timeout protection, marker handling)
+> - ✅ **ModbusTCP Optimization** - Vector caching (100% file access elimination), connection pooling (50% handshake reduction)
+> - ✅ **Thread Safety** - Mutex protection for device vectors
+> - ✅ **Dynamic Polling** - Respects device refresh_rate_ms
+> - ✅ **ErrorHandler Fix** - Array overflow prevention
+>
+> **Previous (v2.3.10):**
 > - ✅ **TCP Pool Optimization** - 180x reduction in connection recreations, 99% connection reuse
-> - ✅ **CRITICAL DRAM Fix (v2.3.9)** - Fixed TCP memory leak causing ESP32 restarts
-> - ✅ **Performance Optimization (v2.3.8)** - Shadow copy pattern, stack optimization
-> - ✅ **BLE Transmission Fix (v2.3.4)** - Fixed timeout for large payloads
 >
 > **Previous (v2.3.3):**
 > - ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads
@@ -1906,7 +1910,7 @@ class SuriotaGateway {
 
 **Document Version:** 1.3 (Updated)
 **Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.10
+**Firmware Version:** 2.3.11
 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)

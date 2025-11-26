@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-2.3.10-blue.svg)
+![Version](https://img.shields.io/badge/version-2.3.11-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
