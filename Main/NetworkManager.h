@@ -5,8 +5,7 @@
 #include <ArduinoJson.h>
 #include "WiFiManager.h"
 #include "EthernetManager.h"
-#include "ServerConfig.h"      // Added for ServerConfig declaration
-#include "NetworkHysteresis.h" //Hysteresis management
+#include "ServerConfig.h" // Added for ServerConfig declaration
 #include <vector>
 #include <freertos/semphr.h> // For mutex (Bug #6 fix)
 
@@ -43,10 +42,6 @@ private:
     unsigned long lastChecked = 0;     // Timestamp of last check
     uint32_t rssiCheckInterval = 2000; // Check interval (2 seconds)
   } wifiSignalMetrics;
-
-  // Network hysteresis management
-  NetworkHysteresis *hysteresis; // Hysteresis instance
-  bool hysteresisEnabled = true; // Enable/disable hysteresis
 
   // Connection pooling for clients
   struct PooledClientConnection
@@ -103,11 +98,7 @@ public:
   int getPooledClientCount() const;
   void getPoolStats(JsonObject &stats) const;
 
-  // Hysteresis management methods
-  NetworkHysteresis *getHysteresis() const;
-  void setHysteresisEnabled(bool enable);
-  bool isHysteresisEnabled() const;
-  void configureHysteresis(const HysteresisConfig &config);
+  // Network status methods
   void printNetworkStatus() const;
 
   ~NetworkMgr();

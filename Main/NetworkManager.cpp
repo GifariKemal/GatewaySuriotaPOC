@@ -23,9 +23,6 @@ NetworkMgr::NetworkMgr()
   {
     LOG_NET_INFO("[NetworkMgr] ERROR: Failed to create mode mutex");
   }
-
-  // Initialize hysteresis system
-  hysteresis = NetworkHysteresis::getInstance();
 }
 
 bool NetworkMgr::init(ServerConfig *serverConfig)
@@ -50,7 +47,8 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   String oldMode = "";
   String primaryNetworkMode = "ETH"; // Default jika tidak ditemukan
 
-  if (serverRoot["communication"])
+  // v2.3.14 FIX: Add defensive JsonObject validation before cast
+  if (serverRoot["communication"] && serverRoot["communication"].is<JsonObject>())
   {
     JsonObject comm = serverRoot["communication"].as<JsonObject>();
     oldMode = comm["mode"] | "";                               // Baca field lama jika ada
@@ -70,7 +68,8 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   // 3. Ambil config WiFi dari ROOT server config
   JsonObject wifiConfig;
   bool wifiConfigPresent = false;
-  if (serverRoot["wifi"])
+  // v2.3.14 FIX: Validate JsonObject type before cast
+  if (serverRoot["wifi"] && serverRoot["wifi"].is<JsonObject>())
   {
     wifiConfig = serverRoot["wifi"].as<JsonObject>();
     wifiConfigPresent = true;
@@ -81,7 +80,8 @@ bool NetworkMgr::init(ServerConfig *serverConfig)
   // 4. Ambil config Ethernet dari ROOT server config
   JsonObject ethernetConfig;
   bool ethernetConfigPresent = false;
-  if (serverRoot["ethernet"])
+  // v2.3.14 FIX: Validate JsonObject type before cast
+  if (serverRoot["ethernet"] && serverRoot["ethernet"].is<JsonObject>())
   {
     ethernetConfig = serverRoot["ethernet"].as<JsonObject>();
     ethernetConfigPresent = true;
@@ -264,34 +264,17 @@ void NetworkMgr::failoverLoop()
         secondaryAvailable = ethernetManager->isAvailable();
       }
 
-      // Update hysteresis state with network availability and signal quality
-      if (hysteresisEnabled && hysteresis)
-      {
-        hysteresis->updatePrimaryNetworkState(primaryAvailable, primaryRSSI);
-        hysteresis->updateSecondaryNetworkState(secondaryAvailable, secondaryRSSI);
-      }
-
-      // Use hysteresis-aware switching decisions
+      // Network failover switching logic
       if (activeMode == "NONE")
       {
         if (primaryAvailable)
         {
           switchMode(primaryMode);
-          if (hysteresisEnabled && hysteresis)
-          {
-            hysteresis->recordNetworkSwitch("NONE", primaryMode, true);
-            hysteresis->clearPendingTransition();
-          }
         }
         else if (secondaryAvailable)
         {
           String secondaryMode = (primaryMode == "ETH") ? "WIFI" : "ETH";
           switchMode(secondaryMode);
-          if (hysteresisEnabled && hysteresis)
-          {
-            hysteresis->recordNetworkSwitch("NONE", secondaryMode, true);
-            hysteresis->clearPendingTransition();
-          }
         }
       }
       else if (activeMode == primaryMode)
@@ -301,19 +284,9 @@ void NetworkMgr::failoverLoop()
           Serial.printf("Primary network (%s) lost. Attempting to switch to secondary.\n", primaryMode.c_str());
           String secondaryMode = (primaryMode == "ETH") ? "WIFI" : "ETH";
 
-          // Check hysteresis decision for secondary
-          if (hysteresisEnabled && hysteresis && !hysteresis->shouldSwitchToSecondary())
-          {
-            LOG_NET_INFO("[HYSTERESIS] Holding on secondary network due to hysteresis window");
-          }
-          else if (secondaryAvailable)
+          if (secondaryAvailable)
           {
             switchMode(secondaryMode);
-            if (hysteresisEnabled && hysteresis)
-            {
-              hysteresis->recordNetworkSwitch(primaryMode, secondaryMode, true);
-              hysteresis->clearPendingTransition();
-            }
           }
           else
           {
@@ -329,31 +302,13 @@ void NetworkMgr::failoverLoop()
           if (primaryAvailable)
           {
             switchMode(primaryMode);
-            if (hysteresisEnabled && hysteresis)
-            {
-              hysteresis->recordNetworkSwitch(activeMode, primaryMode, true);
-              hysteresis->clearPendingTransition();
-            }
           }
         }
         else if (primaryAvailable)
         {
-          // Check hysteresis decision before switching back to primary
-          if (hysteresisEnabled && hysteresis && !hysteresis->shouldSwitchToPrimary())
-          {
-            // LOG_NET_INFO("[HYSTERESIS] Holding on secondary network due to hysteresis window");
-          }
-          else if (primaryAvailable)
-          {
-            // Primary is back and hysteresis allows, switch back to primary
-            Serial.printf("Primary network (%s) restored. Switching back.\n", primaryMode.c_str());
-            switchMode(primaryMode);
-            if (hysteresisEnabled && hysteresis)
-            {
-              hysteresis->recordNetworkSwitch(activeMode, primaryMode, true);
-              hysteresis->clearPendingTransition();
-            }
-          }
+          // Primary is back, switch back to primary
+          Serial.printf("Primary network (%s) restored. Switching back.\n", primaryMode.c_str());
+          switchMode(primaryMode);
         }
       }
 
@@ -745,53 +700,18 @@ void NetworkMgr::getPoolStats(JsonObject &stats) const
   }
 }
 
-// Hysteresis management methods
-NetworkHysteresis *NetworkMgr::getHysteresis() const
-{
-  return hysteresis;
-}
-
-void NetworkMgr::setHysteresisEnabled(bool enable)
-{
-  hysteresisEnabled = enable;
-  // Verbose logging removed for cleaner output
-}
-
-bool NetworkMgr::isHysteresisEnabled() const
-{
-  return hysteresisEnabled;
-}
-
-void NetworkMgr::configureHysteresis(const HysteresisConfig &config)
-{
-  if (hysteresis)
-  {
-    hysteresis->setHysteresisConfig(config);
-    // Verbose logging removed for cleaner output
-  }
-}
-
 void NetworkMgr::printNetworkStatus() const
 {
-  Serial.println("\n[NETWORK MGR] NETWORK FAILOVER & HYSTERESIS STATUS REPORT\n");
+  Serial.println("\n[NETWORK MGR] NETWORK FAILOVER STATUS REPORT\n");
 
   Serial.printf("  Current Active Mode: %s\n", activeMode.c_str());
   Serial.printf("  Primary Mode: %s\n", primaryMode.c_str());
-  Serial.printf("  Overall Network Available: %s\n", networkAvailable ? "YES" : "NO");
-  Serial.printf("  Hysteresis Enabled: %s\n\n", hysteresisEnabled ? "YES" : "NO");
+  Serial.printf("  Overall Network Available: %s\n\n", networkAvailable ? "YES" : "NO");
 
   if (wifiManager && wifiManager->isAvailable())
   {
     Serial.printf("  WiFi Signal: RSSI=%ld dBm, Quality=%d%%\n\n",
                   wifiSignalMetrics.rssi, wifiSignalMetrics.signalQuality);
-  }
-
-  if (hysteresisEnabled && hysteresis)
-  {
-    hysteresis->printHysteresisStatus();
-    hysteresis->printNetworkStates();
-    hysteresis->printQualityThresholds();
-    hysteresis->printSwitchDecisionRationale();
   }
 
   Serial.println();

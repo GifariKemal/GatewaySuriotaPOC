@@ -360,7 +360,8 @@ void BLEManager::receiveFragment(const String &fragment)
     char *cmdBuffer = (char *)heap_caps_malloc(commandBufferIndex + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (cmdBuffer)
     {
-      strcpy(cmdBuffer, commandBuffer);
+      // v2.3.14 FIX: Use memcpy instead of strcpy for defensive programming (bounds-safe)
+      memcpy(cmdBuffer, commandBuffer, commandBufferIndex + 1);
       if (xQueueSend(commandQueue, &cmdBuffer, 0) != pdPASS)
       {
         // If queue is full, free the memory we just allocated

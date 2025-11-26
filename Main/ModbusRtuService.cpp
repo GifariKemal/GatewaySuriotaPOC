@@ -2,7 +2,6 @@
 #include "QueueManager.h"
 #include "CRUDHandler.h"
 #include "RTCManager.h"
-// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <byteswap.h>

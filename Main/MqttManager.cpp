@@ -1,7 +1,6 @@
 #include "MqttManager.h"
 #include "LEDManager.h"
 #include "RTCManager.h"
-// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <set> // For std::set to track cleared devices

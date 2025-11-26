@@ -2,6 +2,7 @@
 #include "QueueManager.h"
 #include "MqttManager.h"
 #include <esp_system.h>
+#include <atomic>
 
 // ============================================
 // STATIC VARIABLE INITIALIZATION
@@ -15,7 +16,8 @@ bool MemoryRecovery::autoRecoveryEnabled = true;
 
 // FIXED BUG #7: Add recursion guard to prevent infinite recursion
 // Previous code could recurse if logging functions called checkAndRecover()
-static bool inRecoveryCall = false;
+// v2.3.14 FIX: Changed to atomic for thread-safety (prevents race condition)
+static std::atomic<bool> inRecoveryCall{false};
 
 // ============================================
 // CORE FUNCTIONS IMPLEMENTATION

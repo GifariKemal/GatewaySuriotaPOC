@@ -1,6 +1,5 @@
 #include "ModbusTcpService.h"
 #include "QueueManager.h"
-// DeviceBatchManager removed - using End-of-Batch Marker pattern instead
 #include "CRUDHandler.h"
 #include "RTCManager.h"
 #include "NetworkManager.h"
