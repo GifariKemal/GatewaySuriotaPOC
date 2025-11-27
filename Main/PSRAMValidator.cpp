@@ -7,9 +7,11 @@ PSRAMValidator *PSRAMValidator::instance = nullptr;
 
 PSRAMValidator::PSRAMValidator()
 {
-#if VERBOSE_PSRAM_LOG
-  Serial.println("[PSRAM] Validator initialized");
-#endif
+  // v2.5.2: Use runtime check instead of compile-time
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.println("[PSRAM] Validator initialized");
+  }
   lastCheckTime = millis();
 }
 
@@ -27,8 +29,12 @@ bool PSRAMValidator::canAllocate(size_t requestedSize, const char *component)
   // Check if requested size is too large
   if (requestedSize > maxAllocationSize)
   {
-    Serial.printf("[PSRAM] ERROR: Allocation %zu bytes exceeds max %zu bytes\n",
-                  requestedSize, maxAllocationSize);
+    // v2.5.2: Error logs only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[PSRAM] ERROR: Allocation %zu bytes exceeds max %zu bytes\n",
+                    requestedSize, maxAllocationSize);
+    }
     return false;
   }
 
@@ -40,10 +46,14 @@ bool PSRAMValidator::canAllocate(size_t requestedSize, const char *component)
 
   if (freePSRAM < requiredFree)
   {
-    Serial.printf("[PSRAM] WARNING: Insufficient memory for %s\n", component);
-    Serial.printf("  Requested: %zu bytes\n", requestedSize);
-    Serial.printf("  Required (+ margin): %zu bytes\n", requiredFree);
-    Serial.printf("  Available: %zu bytes\n", freePSRAM);
+    // v2.5.2: Warning logs only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[PSRAM] WARNING: Insufficient memory for %s\n", component);
+      Serial.printf("  Requested: %zu bytes\n", requestedSize);
+      Serial.printf("  Required (+ margin): %zu bytes\n", requiredFree);
+      Serial.printf("  Available: %zu bytes\n", freePSRAM);
+    }
     return false;
   }
 
@@ -59,7 +69,11 @@ bool PSRAMValidator::canAllocateMultiple(const std::vector<size_t> &sizes, const
   {
     if (size > maxAllocationSize)
     {
-      Serial.printf("[PSRAM] ERROR: Single allocation %zu exceeds max %zu\n", size, maxAllocationSize);
+      // v2.5.2: Error log only in development mode
+      if (!IS_PRODUCTION_MODE())
+      {
+        Serial.printf("[PSRAM] ERROR: Single allocation %zu exceeds max %zu\n", size, maxAllocationSize);
+      }
       return false;
     }
     totalSize += size;
@@ -71,9 +85,13 @@ bool PSRAMValidator::canAllocateMultiple(const std::vector<size_t> &sizes, const
 
   if (freePSRAM < requiredFree)
   {
-    Serial.printf("[PSRAM] WARNING: Cannot allocate %d items for %s (total %zu bytes)\n",
-                  sizes.size(), component, totalSize);
-    Serial.printf("  Available: %zu bytes, Required: %zu bytes\n", freePSRAM, requiredFree);
+    // v2.5.2: Warning log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[PSRAM] WARNING: Cannot allocate %d items for %s (total %zu bytes)\n",
+                    sizes.size(), component, totalSize);
+      Serial.printf("  Available: %zu bytes, Required: %zu bytes\n", freePSRAM, requiredFree);
+    }
     return false;
   }
 
@@ -94,14 +112,19 @@ void *PSRAMValidator::allocatePSRAM(size_t size, const char *component)
 
   if (!ptr)
   {
-    Serial.printf("[PSRAM] ERROR: Failed to allocate %zu bytes for %s\n", size, component);
+    // v2.5.2: Error log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[PSRAM] ERROR: Failed to allocate %zu bytes for %s\n", size, component);
+    }
     return nullptr;
   }
 
-  // Tracking removed for performance - minimal logging only
-#if VERBOSE_PSRAM_LOG
-  Serial.printf("[PSRAM] Allocated %zu bytes for %s\n", size, component);
-#endif
+  // v2.5.2: Allocation log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[PSRAM] Allocated %zu bytes for %s\n", size, component);
+  }
 
   return ptr;
 }
@@ -110,7 +133,11 @@ void PSRAMValidator::freePSRAM(void *ptr, const char *component)
 {
   if (!ptr)
   {
-    Serial.printf("[PSRAM] WARNING: Attempt to free null pointer from %s\n", component);
+    // v2.5.2: Warning log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[PSRAM] WARNING: Attempt to free null pointer from %s\n", component);
+    }
     return;
   }
 
@@ -190,25 +217,41 @@ MemoryHealthStatus PSRAMValidator::getHealthStatus()
 void PSRAMValidator::setMinSafeThreshold(size_t bytes)
 {
   minSafeThreshold = bytes;
-  Serial.printf("[PSRAM] Min safe threshold set to %zu bytes\n", bytes);
+  // v2.5.2: Config log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[PSRAM] Min safe threshold set to %zu bytes\n", bytes);
+  }
 }
 
 void PSRAMValidator::setCriticalThreshold(size_t bytes)
 {
   criticalThreshold = bytes;
-  Serial.printf("[PSRAM] Critical threshold set to %zu bytes\n", bytes);
+  // v2.5.2: Config log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[PSRAM] Critical threshold set to %zu bytes\n", bytes);
+  }
 }
 
 void PSRAMValidator::setWarningThreshold(size_t bytes)
 {
   warningThreshold = bytes;
-  Serial.printf("[PSRAM] Warning threshold set to %zu bytes\n", bytes);
+  // v2.5.2: Config log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[PSRAM] Warning threshold set to %zu bytes\n", bytes);
+  }
 }
 
 void PSRAMValidator::setMaxAllocationSize(size_t bytes)
 {
   maxAllocationSize = bytes;
-  Serial.printf("[PSRAM] Max allocation size set to %zu bytes\n", bytes);
+  // v2.5.2: Config log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[PSRAM] Max allocation size set to %zu bytes\n", bytes);
+  }
 }
 
 // Fragmentation analysis
@@ -269,6 +312,12 @@ bool PSRAMValidator::hasEnoughMemory()
 // Reporting and diagnostics
 void PSRAMValidator::printMemoryStatus()
 {
+  // v2.5.2: Skip memory status printing in production mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   MemoryStats stats = getMemoryStats();
   MemoryHealthStatus health = getHealthStatus();
 
@@ -286,6 +335,12 @@ void PSRAMValidator::printMemoryStatus()
 
 void PSRAMValidator::printDetailedStats()
 {
+  // v2.5.2: Skip detailed stats printing in production mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   MemoryStats stats = getMemoryStats();
 
   Serial.println("\n[PSRAM] DETAILED MEMORY STATISTICS");
@@ -304,6 +359,12 @@ void PSRAMValidator::printDetailedStats()
 
 void PSRAMValidator::printMemoryWarnings()
 {
+  // v2.5.2: Skip memory warnings printing in production mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   MemoryStats stats = getMemoryStats();
   MemoryHealthStatus health = getHealthStatus();
 
@@ -341,7 +402,11 @@ void PSRAMValidator::resetPeakTracking()
 {
   peakMemoryUsage = 0;
   peakAllocationCount = 0;
-  Serial.println("[PSRAM] Peak tracking reset");
+  // v2.5.2: Reset log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.println("[PSRAM] Peak tracking reset");
+  }
 }
 
 // Utility methods
@@ -364,6 +429,12 @@ const char *PSRAMValidator::getHealthStatusString(MemoryHealthStatus status)
 
 void PSRAMValidator::logMemoryEvent(const char *event, const char *component, size_t size)
 {
+  // v2.5.2: Event log only in development mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   MemoryStats stats = getMemoryStats();
   Serial.printf("[PSRAM] EVENT: %s | %s | Size: %zu KB | Free: %zu KB\n",
                 event, component, size / 1024, stats.freePSRAM / 1024);
@@ -371,5 +442,9 @@ void PSRAMValidator::logMemoryEvent(const char *event, const char *component, si
 
 PSRAMValidator::~PSRAMValidator()
 {
-  Serial.println("[PSRAM] Validator destroyed");
+  // v2.5.2: Destructor log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.println("[PSRAM] Validator destroyed");
+  }
 }

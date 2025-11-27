@@ -8,7 +8,73 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.1 (Current - Critical Bug Fixes & Safety Improvements)
+## 🚀 Version 2.5.2 (Current - Production Mode Logging Optimization)
+
+**Release Date:** November 27, 2025 (Wednesday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release optimizes serial output in production mode for cleaner operation and reduced overhead.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. Production Mode Serial Output Suppression
+**Severity:** 🟡 MEDIUM (UX/Performance)
+
+**Issue:** In production mode, verbose BLE/CRUD/PSRAM logs were still appearing on serial output, causing unnecessary overhead and cluttered output.
+
+**Root Cause:** Many logs used `Serial.printf()` directly instead of respecting `IS_PRODUCTION_MODE()` runtime check. Some used compile-time `#if PRODUCTION_MODE == 0` which doesn't work when mode is changed via BLE at runtime.
+
+**Fix:** Wrapped all verbose logs with `if (!IS_PRODUCTION_MODE())` runtime check across multiple files:
+- BLEManager.cpp - [BLE CMD], [BLE METRICS], [BLE MTU], [BLE QUEUE] logs
+- CRUDHandler.cpp - [CRUD QUEUE], [CRUD EXEC], [CRUD BATCH] logs
+- ConfigManager.cpp - [CREATE_REG], device creation logs
+- PSRAMValidator.cpp - [PSRAM] allocation/status logs
+
+**Impact:**
+- Production mode: Only ERROR-level logs and JSON telemetry appear
+- Development mode: Full verbose logging retained for debugging
+- Reduced serial overhead in production
+- Cleaner output for field deployment
+
+**Files Modified:** `BLEManager.cpp`, `CRUDHandler.cpp`, `ConfigManager.cpp`, `PSRAMValidator.cpp`
+
+---
+
+### 📝 **Known Limitations**
+
+#### DRAM Exhaustion during Rapid BLE Command Bursts
+**Status:** Under Investigation
+
+When sending 45+ BLE commands in rapid succession (e.g., creating many registers), DRAM may become exhausted despite PSRAM being available.
+
+**Root Cause:** `Command.payloadJson` in CRUDHandler uses Arduino `String` which allocates in DRAM. With rapid-fire commands, multiple String objects accumulate in DRAM before processing completes.
+
+**Workaround:**
+- Add small delays (50-100ms) between BLE commands
+- Process register creation in smaller batches (10-15 at a time)
+- The saveJson() fix from v2.5.1 prevents exhaustion during file writes, but queue processing is a separate issue
+
+**Future Fix:** Refactor Command struct to use PSRAM-allocated buffer instead of Arduino String
+
+---
+
+### 📁 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `BLEManager.cpp` | Wrapped [BLE CMD], [BLE METRICS], [BLE MTU], [BLE QUEUE] logs |
+| `CRUDHandler.cpp` | Wrapped [CRUD QUEUE], [CRUD EXEC], [CRUD BATCH] logs |
+| `ConfigManager.cpp` | Wrapped [CREATE_REG], device creation logs |
+| `PSRAMValidator.cpp` | Wrapped all [PSRAM] logs |
+
+---
+
+## 🚀 Version 2.5.1 (Critical Bug Fixes & Safety Improvements)
 
 **Release Date:** November 27, 2025 (Wednesday)
 **Developer:** Kemal (with Claude Code)
@@ -117,6 +183,7 @@ This release addresses multiple critical bugs discovered during deep-dive code a
 | MQTT Loop | ~14 logs/sec spam when idle | 1 log/60sec interval | CPU/log fixed |
 | Memory Thresholds | False CRITICAL at 16KB | Realistic 12KB threshold | No false alarms |
 | DRAM Exhaustion | DRAM→5KB, ESP restart | PSRAM buffer, stable DRAM | 100+ registers OK |
+| Button/LED | Button ignored in prod mode | Runtime flag fix + LED feedback | BLE control works |
 
 ---
 
@@ -170,6 +237,7 @@ EventBits_t bits = xEventGroupWaitBits(taskExitEvent, TASK_EXITED_BIT,
 | `MemoryRecovery.h` | Adjusted DRAM thresholds for BLE operation |
 | `MemoryRecovery.cpp` | Updated threshold comments |
 | `ConfigManager.cpp` | PSRAM buffer for saveJson() to prevent DRAM exhaustion |
+| `ButtonManager.cpp` | LED interval fix (CONFIG=100ms flicker, RUNNING=1000ms), Serial feedback |
 
 ---
 
@@ -230,6 +298,38 @@ EventBits_t bits = xEventGroupWaitBits(taskExitEvent, TASK_EXITED_BIT,
 
 ---
 
+#### 9. Button Production Mode Fix & LED Feedback Enhancement (ButtonManager.cpp, Main.ino)
+**Severity:** 🟠 HIGH (Functionality Bug)
+
+**Bug:** Long-pressing button to enable BLE in production mode didn't work - button callbacks were ignored.
+
+**Root Cause:** `buttonManager->begin(PRODUCTION_MODE == 1)` used **compile-time** constant `PRODUCTION_MODE`. When user sets production mode via BLE (`set_production_mode`), it updates the **runtime** variable `g_productionMode`, but ButtonManager's `productionMode` flag was already set from the compile-time constant at boot.
+
+**Fix #1 (Main.ino):** Changed to use runtime macro `IS_PRODUCTION_MODE()`:
+```cpp
+// Before (broken):
+buttonManager->begin(PRODUCTION_MODE == 1);  // Compile-time constant
+
+// After (fixed):
+buttonManager->begin(IS_PRODUCTION_MODE());  // Runtime value from config
+```
+
+**Fix #2 (ButtonManager.cpp):** Added Serial.println feedback for mode changes (visible even in production mode where LOG_LED_INFO is suppressed):
+```cpp
+Serial.println("[BUTTON] Entering CONFIG mode - BLE ON");
+Serial.println("[BUTTON] Entering RUNNING mode - BLE OFF");
+```
+
+**Fix #3 (ButtonManager.cpp):** LED blink intervals now properly indicate BLE state:
+- CONFIG mode (BLE ON): 100ms fast flicker (5Hz) - visual indicator BLE is active
+- RUNNING mode (BLE OFF): 1000ms slow blink (0.5Hz) - normal operation indicator
+
+**Impact:** Button-based BLE control now works correctly in production mode; LED provides clear visual feedback of current mode.
+
+**Files Modified:** `Main.ino`, `ButtonManager.cpp`
+
+---
+
 ### 🔬 **Testing Recommendations**
 
 1. **Memory Cleanup Test:** Force PSRAM allocation failure (fill PSRAM), verify cleanup doesn't crash
@@ -238,6 +338,7 @@ EventBits_t bits = xEventGroupWaitBits(taskExitEvent, TASK_EXITED_BIT,
 4. **SSL Test:** Connect to multiple HTTPS endpoints (GitHub, AWS, custom) to verify CA bundle
 5. **MQTT Empty Queue Test:** Run with no Modbus devices, verify logs show interval only once per period
 6. **Register Creation Stress Test:** Create 50+ registers via BLE, monitor DRAM stays above 10KB throughout
+7. **Button/LED Test:** In production mode, verify long-press enables BLE (LED flickers fast at 100ms), double-click disables BLE (LED blinks slow at 1000ms)
 
 ---
 

@@ -568,7 +568,9 @@ void setup()
   buttonManager = ButtonManager::getInstance();
   if (buttonManager)
   {
-    buttonManager->begin(PRODUCTION_MODE == 1); // Pass production mode flag
+    // v2.5.1 FIX: Use runtime production mode from config, not compile-time constant
+    // This allows button to work correctly when production mode is set via BLE
+    buttonManager->begin(IS_PRODUCTION_MODE()); // Use runtime flag from config
     buttonManager->setBLEManager(bleManager);   // Set BLE manager reference
   }
   else

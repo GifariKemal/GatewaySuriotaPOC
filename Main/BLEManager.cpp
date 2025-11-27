@@ -265,8 +265,12 @@ void BLEManager::onDisconnect(BLEServer *pServer)
     connectionMetrics.totalConnectionTime += connectionDuration;
     connectionMetrics.isConnected = false;
 
-    Serial.printf("[BLE METRICS] Duration: %lu ms  Fragments: %lu  Bytes TX: %lu\n",
-                  connectionDuration, connectionMetrics.fragmentsSent, connectionMetrics.bytesTransmitted);
+    // v2.5.2: Metrics log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE METRICS] Duration: %lu ms  Fragments: %lu  Bytes TX: %lu\n",
+                    connectionDuration, connectionMetrics.fragmentsSent, connectionMetrics.bytesTransmitted);
+    }
 
     xSemaphoreGive(metricsMutex);
   }
@@ -441,21 +445,21 @@ void BLEManager::handleCompleteCommand(const char *command)
   // Log complete command for debugging (with size limit for very large commands)
   size_t cmdLen = strlen(command);
 
-#if PRODUCTION_MODE == 0
-  // Development mode: Show full command for normal operations
-  if (cmdLen <= 2000)
+  // v2.5.2: Only show command details in development mode
+  if (!IS_PRODUCTION_MODE())
   {
-    Serial.printf("\n[BLE CMD] Received command (%u bytes):\n", cmdLen);
-    Serial.printf("  %s\n\n", command);
+    // Development mode: Show full command for debugging
+    if (cmdLen <= 2000)
+    {
+      Serial.printf("\n[BLE CMD] Received command (%u bytes):\n", cmdLen);
+      Serial.printf("  %s\n\n", command);
+    }
+    else
+    {
+      Serial.printf("\n[BLE CMD] Received large command (%u bytes) - too large to display\n\n", cmdLen);
+    }
   }
-  else
-  {
-    Serial.printf("\n[BLE CMD] Received large command (%u bytes) - too large to display\n\n", cmdLen);
-  }
-#else
-  // Production mode: Just log length
-  Serial.printf("[BLE CMD] Received %u bytes JSON\n", cmdLen);
-#endif
+  // Production mode: No verbose logging (errors only)
 
   // FIXED BUG #32: Validate command length before parsing
   // Restore commands can be 3-4KB, backup responses can be 10-20KB
@@ -478,33 +482,34 @@ void BLEManager::handleCompleteCommand(const char *command)
 
   if (error)
   {
-    Serial.printf("[BLE CMD] ERROR: JSON parse failed - %s\n", error.c_str());
-    Serial.printf("[BLE CMD] Command length: %u bytes\n", cmdLen);
-
-// Show where parsing failed for debugging
-#if PRODUCTION_MODE == 0
-    if (cmdLen > 100)
+    // v2.5.2: Error logs only in development mode (errors are returned via BLE response)
+    if (!IS_PRODUCTION_MODE())
     {
-      char context[101];
-      size_t errorPos = error.code() == DeserializationError::IncompleteInput ? cmdLen : 0;
-      size_t contextStart = (errorPos > 50) ? (errorPos - 50) : 0;
-      size_t contextLen = min((size_t)100, cmdLen - contextStart); // Cast to size_t
-      strncpy(context, command + contextStart, contextLen);
-      context[contextLen] = '\0';
-      Serial.printf("[BLE CMD] Context: ...%s...\n", context);
+      Serial.printf("[BLE CMD] ERROR: JSON parse failed - %s\n", error.c_str());
+      Serial.printf("[BLE CMD] Command length: %u bytes\n", cmdLen);
+
+      // Show where parsing failed for debugging
+      if (cmdLen > 100)
+      {
+        char context[101];
+        size_t errorPos = error.code() == DeserializationError::IncompleteInput ? cmdLen : 0;
+        size_t contextStart = (errorPos > 50) ? (errorPos - 50) : 0;
+        size_t contextLen = min((size_t)100, cmdLen - contextStart);
+        strncpy(context, command + contextStart, contextLen);
+        context[contextLen] = '\0';
+        Serial.printf("[BLE CMD] Context: ...%s...\n", context);
+      }
     }
-#endif
 
     sendError("Invalid JSON: " + String(error.c_str()));
     return;
   }
 
-// Validation successful
-#if PRODUCTION_MODE == 0
-  // ArduinoJson v7: memoryUsage() is deprecated (always returns 0)
-  // Just log successful parse with input size
-  Serial.printf("[BLE CMD] JSON parsed successfully (%u bytes input)\n", cmdLen);
-#endif
+  // v2.5.2: Success log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[BLE CMD] JSON parsed successfully (%u bytes input)\n", cmdLen);
+  }
 
   if (handler)
   {
@@ -902,19 +907,25 @@ void BLEManager::logMTUNegotiation()
   if (actualMTU > 23)
   {
     mtuMetrics.mtuNegotiated = true;
-    Serial.printf("[BLE MTU] Negotiation OK  Actual MTU: %d bytes  Effective: %d bytes  Max: %d bytes  Time: %lu ms  Attempts: %d\n",
-                  actualMTU, mtuMetrics.mtuSize, mtuMetrics.maxMTUSize, mtuMetrics.lastNegotiationTime, mtuMetrics.negotiationAttempts);
+    // v2.5.2: MTU log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE MTU] Negotiation OK  Actual MTU: %d bytes  Effective: %d bytes  Max: %d bytes  Time: %lu ms  Attempts: %d\n",
+                    actualMTU, mtuMetrics.mtuSize, mtuMetrics.maxMTUSize, mtuMetrics.lastNegotiationTime, mtuMetrics.negotiationAttempts);
+    }
 
     // CRITICAL FIX: Mark negotiation as completed to stop timeout monitoring
-    // Without this, checkMTUNegotiationTimeout() continues checking and triggers
-    // false positive timeouts (e.g., after 54s even though negotiation succeeded at 10s)
-    xSemaphoreGive(metricsMutex); // Release metrics mutex before acquiring MTU mutex
+    xSemaphoreGive(metricsMutex);
     completeMTUNegotiation();
   }
   else
   {
     mtuMetrics.mtuNegotiated = false;
-    Serial.printf("[BLE MTU] Negotiation pending  Current MTU: %d bytes (waiting for higher MTU)\n", actualMTU);
+    // v2.5.2: MTU log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE MTU] Negotiation pending  Current MTU: %d bytes (waiting for higher MTU)\n", actualMTU);
+    }
     xSemaphoreGive(metricsMutex);
     // State remains INITIATING - timeout monitoring continues
   }
@@ -947,7 +958,11 @@ void BLEManager::metricsMonitorTask(void *parameter)
 {
   BLEManager *manager = static_cast<BLEManager *>(parameter);
 
-  Serial.println("[BLE METRICS] Monitoring task started");
+  // v2.5.2: Only log in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.println("[BLE METRICS] Monitoring task started");
+  }
 
   uint32_t lastMetricsPublish = 0;
   const uint32_t METRICS_PUBLISH_INTERVAL = 60000; // Publish metrics every 60s
@@ -974,12 +989,18 @@ void BLEManager::metricsMonitorTask(void *parameter)
 
 void BLEManager::publishMetrics()
 {
+  // v2.5.2: Skip metrics publishing entirely in production mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   if (xSemaphoreTake(metricsMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
     return;
   }
 
-  // Log queue metrics
+  // Log queue metrics (development mode only)
   Serial.printf("[BLE QUEUE] Depth: %lu/%d (%.1f%%)  Peak: %lu  Enqueued: %lu  Dequeued: %lu  Dropped: %lu\n",
                 queueMetrics.currentDepth, 20, queueMetrics.utilizationPercent,
                 queueMetrics.peakDepth, queueMetrics.totalEnqueued,
@@ -1137,7 +1158,11 @@ void BLEManager::initiateMTUNegotiation()
 {
   if (xSemaphoreTake(mtuControlMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
-    Serial.println("[BLE MTU] WARNING: Could not acquire MTU control mutex for initiation");
+    // v2.5.2: Warning log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[BLE MTU] WARNING: Could not acquire MTU control mutex for initiation");
+    }
     return;
   }
 
@@ -1180,7 +1205,11 @@ void BLEManager::checkMTUNegotiationTimeout()
   // Check if timeout threshold exceeded
   if (elapsed > mtuControl.negotiationTimeoutMs)
   {
-    Serial.printf("[BLE MTU] WARNING: Timeout detected after %lu ms\n", elapsed);
+    // v2.5.2: Warning log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE MTU] WARNING: Timeout detected after %lu ms\n", elapsed);
+    }
     xSemaphoreGive(mtuControlMutex);
 
     // Handle timeout (don't hold mutex during this operation)
@@ -1211,17 +1240,24 @@ void BLEManager::handleMTUNegotiationTimeout()
   // Check if we should retry
   if (mtuControl.retryCount < mtuControl.maxRetries)
   {
-    Serial.printf("[BLE MTU] Retry %d/%d after timeout\n",
-                  mtuControl.retryCount + 1, mtuControl.maxRetries);
+    // v2.5.2: Retry log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE MTU] Retry %d/%d after timeout\n",
+                    mtuControl.retryCount + 1, mtuControl.maxRetries);
+    }
 
     xSemaphoreGive(mtuControlMutex);
     retryMTUNegotiation();
   }
   else
   {
-    // Max retries exceeded - use fallback
-    Serial.printf("[BLE MTU] Max retries exceeded, using fallback MTU (%d bytes)\n",
-                  mtuControl.fallbackMTU);
+    // v2.5.2: Fallback log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[BLE MTU] Max retries exceeded, using fallback MTU (%d bytes)\n",
+                    mtuControl.fallbackMTU);
+    }
 
     mtuControl.state = MTU_STATE_FAILED;
     mtuControl.usesFallback = true;
@@ -1281,7 +1317,11 @@ bool BLEManager::isMTUNegotiationActive() const
   else
   {
     // Mutex timeout - assume not active to avoid blocking
-    Serial.println("[BLE MTU] WARNING: Mutex timeout in isMTUNegotiationActive()");
+    // v2.5.2: Warning log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[BLE MTU] WARNING: Mutex timeout in isMTUNegotiationActive()");
+    }
   }
 
   return isActive;

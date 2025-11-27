@@ -1747,24 +1747,32 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   // BUG #32 FIX: Serialize to String instead of using .set() which corrupts type info
   size_t commandSize = measureJson(command);
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("[CRUD QUEUE] Serializing command payload (%u bytes JSON)...\n", commandSize);
-#endif
+  // v2.5.2: Use runtime check instead of compile-time for production mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD QUEUE] Serializing command payload (%u bytes JSON)...\n", commandSize);
+  }
 
   // Serialize JsonDocument to String (avoids .set() corruption issue)
   serializeJson(command, cmd.payloadJson);
 
   if (cmd.payloadJson.isEmpty())
   {
-    Serial.println("[CRUD QUEUE] ERROR: Failed to serialize command payload!");
+    // Error logs only in development mode (error is returned via BLE)
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[CRUD QUEUE] ERROR: Failed to serialize command payload!");
+    }
     xSemaphoreGive(queueMutex);
     manager->sendError("Failed to serialize command payload");
     return;
   }
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("[CRUD QUEUE] Command serialized successfully (%u bytes String)\n", cmd.payloadJson.length());
-#endif
+  // v2.5.2: Use runtime check
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD QUEUE] Command serialized successfully (%u bytes String)\n", cmd.payloadJson.length());
+  }
 
   // Track statistics
   if (priority == CommandPriority::PRIORITY_HIGH)
@@ -1784,8 +1792,12 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
   commandQueue.push(std::move(cmd));
   updateQueueDepth();
 
-  Serial.printf("[CRUD QUEUE] Command %lu enqueued (Priority: %d, Queue Depth: %lu)\n",
-                cmdId, (uint8_t)priority, (unsigned long)commandQueue.size());
+  // v2.5.2: Enqueue log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD QUEUE] Command %lu enqueued (Priority: %d, Queue Depth: %lu)\n",
+                  cmdId, (uint8_t)priority, (unsigned long)commandQueue.size());
+  }
 
   xSemaphoreGive(queueMutex);
 }
@@ -1823,18 +1835,24 @@ void CRUDHandler::processPriorityQueue()
   // Deserialize JSON String to JsonDocument (outside mutex to prevent blocking)
   SpiRamJsonDocument payload;
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("[CRUD EXEC] Deserializing payload from queue (%u bytes String)...\n", cmd.payloadJson.length());
-#endif
+  // v2.5.2: Use runtime check
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD EXEC] Deserializing payload from queue (%u bytes String)...\n", cmd.payloadJson.length());
+  }
 
   DeserializationError error = deserializeJson(payload, cmd.payloadJson);
 
   if (error)
   {
-    Serial.printf("[CRUD EXEC] ERROR: Failed to deserialize payload - %s\n", error.c_str());
-    Serial.printf("[CRUD EXEC] JSON String length: %u bytes\n", cmd.payloadJson.length());
-    Serial.printf("[CRUD EXEC] Free PSRAM: %u bytes\n",
-                  heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    // v2.5.2: Error logs only in development mode (error returned via BLE)
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[CRUD EXEC] ERROR: Failed to deserialize payload - %s\n", error.c_str());
+      Serial.printf("[CRUD EXEC] JSON String length: %u bytes\n", cmd.payloadJson.length());
+      Serial.printf("[CRUD EXEC] Free PSRAM: %u bytes\n",
+                    heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    }
 
     if (cmd.manager)
     {
@@ -1843,9 +1861,11 @@ void CRUDHandler::processPriorityQueue()
     return;
   }
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
-#endif
+  // v2.5.2: Use runtime check
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD EXEC] Payload deserialized successfully (%u bytes)\n", measureJson(payload));
+  }
 
   // CRITICAL FIX (v2.3.5): DO NOT free String yet!
   // Zero-copy deserialization means payload JsonDocument holds pointers to cmd.payloadJson
@@ -1863,8 +1883,11 @@ void CRUDHandler::processPriorityQueue()
     return;
   }
 
-  // Execute command (outside mutex to prevent blocking)
-  Serial.printf("[CRUD EXEC] Processing command %lu\n", cmd.id);
+  // v2.5.2: Processing log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD EXEC] Processing command %lu\n", cmd.id);
+  }
 
   String op = payload["op"] | "";
   String type = payload["type"] | "";
@@ -1910,13 +1933,12 @@ void CRUDHandler::processPriorityQueue()
 
   if (!handlerFound)
   {
-    Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
+    // v2.5.2: Error log only in development mode (error returned via BLE)
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
+    }
     cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
-  }
-  else
-  {
-    // Add newline after successful command processing for better readability
-    Serial.println();
   }
 
   // CRITICAL FIX (v2.3.5): NOW safe to free payload String after handlers complete
@@ -1924,10 +1946,12 @@ void CRUDHandler::processPriorityQueue()
   cmd.payloadJson.clear();
   cmd.payloadJson = String(); // Force deallocation
 
-#if PRODUCTION_MODE == 0
-  Serial.printf("[CRUD EXEC] Freed payload string after processing (%u bytes DRAM free)\n",
-                heap_caps_get_free_size(MALLOC_CAP_8BIT));
-#endif
+  // v2.5.2: Use runtime check
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD EXEC] Freed payload string after processing (%u bytes DRAM free)\n",
+                  heap_caps_get_free_size(MALLOC_CAP_8BIT));
+  }
 
   batchStats.totalCommandsProcessed++;
 }
@@ -1970,8 +1994,12 @@ void CRUDHandler::handleBatchOperation(BLEManager *manager, const JsonDocument &
   // Create batch ID
   String batchId = createBatch(command, mode);
 
-  Serial.printf("[CRUD BATCH] Starting batch %s with %d commands (Mode: %s)\n",
-                batchId.c_str(), commands.size(), batchMode.c_str());
+  // v2.5.2: Batch log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD BATCH] Starting batch %s with %d commands (Mode: %s)\n",
+                  batchId.c_str(), commands.size(), batchMode.c_str());
+  }
 
   // Execute batch based on mode
   if (mode == BatchMode::ATOMIC)
@@ -2009,7 +2037,11 @@ String CRUDHandler::createBatch(const JsonDocument &batchConfig, BatchMode mode)
 
 void CRUDHandler::executeBatchSequential(BLEManager *manager, const String &batchId, JsonArrayConst commands)
 {
-  Serial.printf("[CRUD BATCH] Executing SEQUENTIAL batch %s\n", batchId.c_str());
+  // v2.5.2: Batch log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD BATCH] Executing SEQUENTIAL batch %s\n", batchId.c_str());
+  }
 
   uint32_t completed = 0;
   uint32_t failed = 0;
@@ -2093,13 +2125,21 @@ void CRUDHandler::executeBatchSequential(BLEManager *manager, const String &batc
     xSemaphoreGive(queueMutex);
   }
 
-  Serial.printf("[CRUD BATCH] Batch %s completed: %lu succeeded, %lu failed\n",
-                batchId.c_str(), completed, failed);
+  // v2.5.2: Batch log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD BATCH] Batch %s completed: %lu succeeded, %lu failed\n",
+                  batchId.c_str(), completed, failed);
+  }
 }
 
 void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId, JsonArrayConst commands)
 {
-  Serial.printf("[CRUD BATCH] Executing ATOMIC batch %s\n", batchId.c_str());
+  // v2.5.2: Batch log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD BATCH] Executing ATOMIC batch %s\n", batchId.c_str());
+  }
 
   // In ATOMIC mode, all commands must succeed or all must fail
   uint32_t completed = 0;
@@ -2147,7 +2187,11 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
     {
       shouldRollback = true;
       failed++;
-      Serial.printf("[CRUD BATCH] Validation failed for op '%s' type '%s'\n", op.c_str(), type.c_str());
+      // v2.5.2: Validation log only in development mode
+      if (!IS_PRODUCTION_MODE())
+      {
+        Serial.printf("[CRUD BATCH] Validation failed for op '%s' type '%s'\n", op.c_str(), type.c_str());
+      }
     }
   }
 
@@ -2224,8 +2268,12 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
     xSemaphoreGive(queueMutex);
   }
 
-  Serial.printf("[CRUD BATCH] Batch %s (ATOMIC) completed: %lu succeeded, %lu failed\n",
-                batchId.c_str(), completed, failed);
+  // v2.5.2: Batch log only in development mode
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CRUD BATCH] Batch %s (ATOMIC) completed: %lu succeeded, %lu failed\n",
+                  batchId.c_str(), completed, failed);
+  }
 }
 
 void CRUDHandler::updateQueueDepth()
@@ -2239,6 +2287,12 @@ void CRUDHandler::updateQueueDepth()
 
 void CRUDHandler::logBatchStats()
 {
+  // v2.5.2: Skip batch stats logging entirely in production mode
+  if (IS_PRODUCTION_MODE())
+  {
+    return;
+  }
+
   if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
     return;

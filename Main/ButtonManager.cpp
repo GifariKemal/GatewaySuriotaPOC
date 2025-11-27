@@ -105,7 +105,8 @@ void ButtonManager::enterConfigMode()
     if (currentMode != MODE_CONFIG)
     {
       currentMode = MODE_CONFIG;
-      LOG_LED_INFO("[BUTTON] Entering CONFIG mode - BLE ON");
+      // v2.5.1: Use Serial.printf for production mode feedback (LOG_LED_INFO suppressed in prod)
+      Serial.println("[BUTTON] Entering CONFIG mode - BLE ON");
 
       // Turn on BLE
       if (bleManager)
@@ -125,7 +126,8 @@ void ButtonManager::enterRunningMode()
     if (currentMode != MODE_RUNNING)
     {
       currentMode = MODE_RUNNING;
-      LOG_LED_INFO("[BUTTON] Entering RUNNING mode - BLE OFF");
+      // v2.5.1: Use Serial.printf for production mode feedback (LOG_LED_INFO suppressed in prod)
+      Serial.println("[BUTTON] Entering RUNNING mode - BLE OFF");
 
       // Turn off BLE
       if (bleManager)
@@ -143,19 +145,19 @@ unsigned long ButtonManager::getStatusBlinkInterval()
   if (!productionMode)
   {
     // Development mode: slow blink (2000ms = 0.5Hz)
-    return 3000;
+    return 2000;
   }
   else
   {
     if (currentMode == MODE_CONFIG)
     {
-      // Config mode: very slow blink (3000ms = 0.33Hz)
-      return 1000;
+      // v2.5.1: CONFIG mode (BLE ON): Fast flicker (100ms = 5Hz) - visual indicator BLE active
+      return 100;
     }
     else
     {
-      // Running mode: medium blink (500ms = 2Hz)
-      return 300;
+      // v2.5.1: RUNNING mode (BLE OFF): Slow blink (1000ms = 0.5Hz) - normal operation
+      return 1000;
     }
   }
 }

@@ -417,7 +417,11 @@ String ConfigManager::createDevice(JsonObjectConst config)
     // SHADOW COPY OPTIMIZATION (v2.3.8): Update shadow copy after successful write
     updateDevicesShadowCopy();
 
-    Serial.printf("Device %s created and cache updated (shadow synced)\n", deviceId.c_str());
+    // v2.5.2: Success log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("Device %s created and cache updated (shadow synced)\n", deviceId.c_str());
+    }
     lastDevicesCacheTime = millis(); // Update TTL timestamp
     xSemaphoreGive(cacheMutex);
     return deviceId;
@@ -775,29 +779,41 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
 
 String ConfigManager::createRegister(const String &deviceId, JsonObjectConst config)
 {
-  // Concise logging - only show register name and address
+  // v2.5.2: Concise logging only in development mode
   int address = config["address"].is<String>() ? config["address"].as<String>().toInt() : config["address"].as<int>();
-  Serial.printf("[CREATE_REG] Device %s: %s (addr %d)\n",
-                deviceId.c_str(),
-                config["register_name"].as<String>().c_str(),
-                address);
+  if (!IS_PRODUCTION_MODE())
+  {
+    Serial.printf("[CREATE_REG] Device %s: %s (addr %d)\n",
+                  deviceId.c_str(),
+                  config["register_name"].as<String>().c_str(),
+                  address);
+  }
 
   if (!loadDevicesCache())
   {
-    Serial.println("[CREATE_REGISTER] Failed to load devices cache");
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[CREATE_REGISTER] Failed to load devices cache");
+    }
     return "";
   }
 
   if (!devicesCache->as<JsonObject>()[deviceId])
   {
-    Serial.printf("[CREATE_REGISTER] Device %s not found in cache\n", deviceId.c_str());
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[CREATE_REGISTER] Device %s not found in cache\n", deviceId.c_str());
+    }
     return "";
   }
 
   // Validate required fields (use isNull() to check existence, not truthiness)
   if (config["address"].isNull() || config["register_name"].isNull())
   {
-    Serial.println("[CREATE_REGISTER] Missing required register fields: address or register_name");
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[CREATE_REGISTER] Missing required register fields: address or register_name");
+    }
     return "";
   }
 
@@ -809,7 +825,10 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
   if (registersVariant.isNull() || !registersVariant.is<JsonArray>())
   {
     device["registers"].to<JsonArray>();
-    Serial.println("Created registers array for device");
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("Created registers array for device");
+    }
   }
 
   JsonArray registers = device["registers"].as<JsonArray>();
@@ -817,7 +836,10 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
   // Address already parsed at the beginning for logging
   if (address < 0)
   {
-    Serial.printf("[CREATE_REG] Invalid address: %d\n", address);
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[CREATE_REG] Invalid address: %d\n", address);
+    }
     return "";
   }
 
@@ -829,7 +851,10 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
 
     if (existingAddress == address)
     {
-      Serial.printf("Register address %d already exists in device %s\n", address, deviceId.c_str());
+      if (!IS_PRODUCTION_MODE())
+      {
+        Serial.printf("Register address %d already exists in device %s\n", address, deviceId.c_str());
+      }
       return "";
     }
   }
@@ -883,15 +908,23 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache))
   {
-    Serial.printf("[CREATE_REG] OK: %s (ID: %s, idx: %d)\n",
-                  newRegister["register_name"].as<String>().c_str(),
-                  registerId.c_str(),
-                  registerIndex);
+    // v2.5.2: Success log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.printf("[CREATE_REG] OK: %s (ID: %s, idx: %d)\n",
+                    newRegister["register_name"].as<String>().c_str(),
+                    registerId.c_str(),
+                    registerIndex);
+    }
     return registerId;
   }
   else
   {
-    Serial.println("[CREATE_REG] FAIL: Save error");
+    // v2.5.2: Error log only in development mode
+    if (!IS_PRODUCTION_MODE())
+    {
+      Serial.println("[CREATE_REG] FAIL: Save error");
+    }
     invalidateDevicesCache();
   }
   return "";
