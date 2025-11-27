@@ -133,6 +133,13 @@ class DeviceCreationClient:
             {"address": 0, "name": "Register_1", "desc": "Data Point 1", "unit": "unit"},\n            {"address": 1, "name": "Register_2", "desc": "Data Point 2", "unit": "unit"},\n            {"address": 2, "name": "Register_3", "desc": "Data Point 3", "unit": "unit"},\n            {"address": 3, "name": "Register_4", "desc": "Data Point 4", "unit": "unit"},\n            {"address": 4, "name": "Register_5", "desc": "Data Point 5", "unit": "unit"},\n            {"address": 5, "name": "Register_6", "desc": "Data Point 6", "unit": "unit"},\n            {"address": 6, "name": "Register_7", "desc": "Data Point 7", "unit": "unit"},\n            {"address": 7, "name": "Register_8", "desc": "Data Point 8", "unit": "unit"},\n            {"address": 8, "name": "Register_9", "desc": "Data Point 9", "unit": "unit"},\n            {"address": 9, "name": "Register_10", "desc": "Data Point 10", "unit": "unit"},\n            {"address": 10, "name": "Register_11", "desc": "Data Point 11", "unit": "unit"},\n            {"address": 11, "name": "Register_12", "desc": "Data Point 12", "unit": "unit"},\n            {"address": 12, "name": "Register_13", "desc": "Data Point 13", "unit": "unit"},\n            {"address": 13, "name": "Register_14", "desc": "Data Point 14", "unit": "unit"},\n            {"address": 14, "name": "Register_15", "desc": "Data Point 15", "unit": "unit"},\n            {"address": 15, "name": "Register_16", "desc": "Data Point 16", "unit": "unit"},\n            {"address": 16, "name": "Register_17", "desc": "Data Point 17", "unit": "unit"},\n            {"address": 17, "name": "Register_18", "desc": "Data Point 18", "unit": "unit"},\n            {"address": 18, "name": "Register_19", "desc": "Data Point 19", "unit": "unit"},\n            {"address": 19, "name": "Register_20", "desc": "Data Point 20", "unit": "unit"},\n            {"address": 20, "name": "Register_21", "desc": "Data Point 21", "unit": "unit"},\n            {"address": 21, "name": "Register_22", "desc": "Data Point 22", "unit": "unit"},\n            {"address": 22, "name": "Register_23", "desc": "Data Point 23", "unit": "unit"},\n            {"address": 23, "name": "Register_24", "desc": "Data Point 24", "unit": "unit"},\n            {"address": 24, "name": "Register_25", "desc": "Data Point 25", "unit": "unit"},\n            {"address": 25, "name": "Register_26", "desc": "Data Point 26", "unit": "unit"},\n            {"address": 26, "name": "Register_27", "desc": "Data Point 27", "unit": "unit"},\n            {"address": 27, "name": "Register_28", "desc": "Data Point 28", "unit": "unit"},\n            {"address": 28, "name": "Register_29", "desc": "Data Point 29", "unit": "unit"},\n            {"address": 29, "name": "Register_30", "desc": "Data Point 30", "unit": "unit"},\n            {"address": 30, "name": "Register_31", "desc": "Data Point 31", "unit": "unit"},\n            {"address": 31, "name": "Register_32", "desc": "Data Point 32", "unit": "unit"},\n            {"address": 32, "name": "Register_33", "desc": "Data Point 33", "unit": "unit"},\n            {"address": 33, "name": "Register_34", "desc": "Data Point 34", "unit": "unit"},\n            {"address": 34, "name": "Register_35", "desc": "Data Point 35", "unit": "unit"},\n            {"address": 35, "name": "Register_36", "desc": "Data Point 36", "unit": "unit"},\n            {"address": 36, "name": "Register_37", "desc": "Data Point 37", "unit": "unit"},\n            {"address": 37, "name": "Register_38", "desc": "Data Point 38", "unit": "unit"},\n            {"address": 38, "name": "Register_39", "desc": "Data Point 39", "unit": "unit"},\n            {"address": 39, "name": "Register_40", "desc": "Data Point 40", "unit": "unit"}
         ]
 
+        # v2.5.2 FIX: Batch processing to prevent DRAM exhaustion
+        BATCH_SIZE = 10
+        DELAY_BETWEEN_COMMANDS = 0.15  # 150ms between commands in same batch
+        DELAY_BETWEEN_BATCHES = 3.0    # 3 seconds between batches for DRAM recovery
+
+        total_registers = len(registers)
+
         for idx, reg in enumerate(registers, 1):
             register_config = {
                 "op": "create",
@@ -153,9 +160,18 @@ class DeviceCreationClient:
 
             await self.send_command(
                 register_config,
-                f"Creating Register {idx}/40: {reg['name']} (Address: {reg['address']})"
+                f"Creating Register {idx}/{total_registers}: {reg['name']} (Address: {reg['address']})"
             )
-            await asyncio.sleep(0.5)
+
+            # v2.5.2 FIX: Batch processing with recovery pauses
+            await asyncio.sleep(DELAY_BETWEEN_COMMANDS)
+
+            # Every BATCH_SIZE commands, pause for DRAM recovery
+            if idx % BATCH_SIZE == 0 and idx < total_registers:
+                batch_num = idx // BATCH_SIZE
+                total_batches = (total_registers + BATCH_SIZE - 1) // BATCH_SIZE
+                print(f"\n[BATCH {batch_num}/{total_batches}] Pausing {DELAY_BETWEEN_BATCHES}s for DRAM recovery...")
+                await asyncio.sleep(DELAY_BETWEEN_BATCHES)
 
         print("\n" + "="*70)
         print("  SUMMARY")

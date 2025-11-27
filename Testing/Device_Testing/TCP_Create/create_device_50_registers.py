@@ -206,7 +206,7 @@ class DeviceCreationClient:
         # STEP 2: Create 50 Registers (ALIGNED with RTU)
         # =============================================================================
         print(f"\n>>> STEP 2: Creating 50 Registers for Device ID: {self.device_id}")
-        print("[INFO] Using 1.5 second delay between registers to prevent BLE packet loss")
+        print("[INFO] Using batch processing with DRAM recovery pauses (v2.5.2 fix)")
 
         # Generate 50 registers with diverse sensor types
         registers = []
@@ -284,9 +284,17 @@ class DeviceCreationClient:
             })
 
         # Create all 50 registers with retry mechanism
+        # v2.5.2 FIX: Batch processing to prevent DRAM exhaustion
+        # Process in batches of 10 with recovery pause between batches
+        BATCH_SIZE = 10
+        DELAY_BETWEEN_COMMANDS = 0.15  # 150ms between commands in same batch
+        DELAY_BETWEEN_BATCHES = 3.0    # 3 seconds between batches for DRAM recovery
+
         success_count = 0
         failed_count = 0
         failed_registers = []
+
+        total_registers = len(registers)
 
         for idx, reg in enumerate(registers, 1):
             register_config = {
@@ -306,7 +314,7 @@ class DeviceCreationClient:
                 }
             }
 
-            print(f"\n[{idx}/50] {reg['name']} (Addr: {reg['address']})", end=" ")
+            print(f"\n[{idx}/{total_registers}] {reg['name']} (Addr: {reg['address']})", end=" ")
             success = await self.send_command(register_config, "")
 
             if success:
@@ -317,8 +325,16 @@ class DeviceCreationClient:
                 failed_registers.append(reg)
                 print(f"✗ FAILED")
 
-            # Increased delay to prevent BLE packet loss during low DRAM
-            await asyncio.sleep(1.5)
+            # v2.5.2 FIX: Batch processing with recovery pauses
+            # Short delay between commands in same batch
+            await asyncio.sleep(DELAY_BETWEEN_COMMANDS)
+
+            # Every BATCH_SIZE commands, pause for DRAM recovery
+            if idx % BATCH_SIZE == 0 and idx < total_registers:
+                batch_num = idx // BATCH_SIZE
+                total_batches = (total_registers + BATCH_SIZE - 1) // BATCH_SIZE
+                print(f"\n[BATCH {batch_num}/{total_batches}] Pausing {DELAY_BETWEEN_BATCHES}s for DRAM recovery...")
+                await asyncio.sleep(DELAY_BETWEEN_BATCHES)
 
         # =============================================================================
         # STEP 3: Summary

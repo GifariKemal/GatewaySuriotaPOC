@@ -183,6 +183,13 @@ class DeviceCreationClient:
             {"address": 44, "name": "Current_5", "desc": "Current Measurement 5", "unit": "A"}
         ]
 
+        # v2.5.2 FIX: Batch processing to prevent DRAM exhaustion
+        BATCH_SIZE = 10
+        DELAY_BETWEEN_COMMANDS = 0.15  # 150ms between commands in same batch
+        DELAY_BETWEEN_BATCHES = 3.0    # 3 seconds between batches for DRAM recovery
+
+        total_registers = len(registers)
+
         for idx, reg in enumerate(registers, 1):
             register_config = {
                 "op": "create",
@@ -203,9 +210,18 @@ class DeviceCreationClient:
 
             await self.send_command(
                 register_config,
-                f"Creating Register {idx}/45: {reg['name']} (Address: {reg['address']})"
+                f"Creating Register {idx}/{total_registers}: {reg['name']} (Address: {reg['address']})"
             )
-            await asyncio.sleep(0.5)
+
+            # v2.5.2 FIX: Batch processing with recovery pauses
+            await asyncio.sleep(DELAY_BETWEEN_COMMANDS)
+
+            # Every BATCH_SIZE commands, pause for DRAM recovery
+            if idx % BATCH_SIZE == 0 and idx < total_registers:
+                batch_num = idx // BATCH_SIZE
+                total_batches = (total_registers + BATCH_SIZE - 1) // BATCH_SIZE
+                print(f"\n[BATCH {batch_num}/{total_batches}] Pausing {DELAY_BETWEEN_BATCHES}s for DRAM recovery...")
+                await asyncio.sleep(DELAY_BETWEEN_BATCHES)
 
         print("\n" + "="*70)
         print("  SUMMARY")
