@@ -3,6 +3,7 @@
 
 #include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <WiFi.h>
+#include <freertos/event_groups.h>  // v2.5.1 FIX: For safe task termination
 
 // CRITICAL FIX: Override PubSubClient's default MQTT_MAX_PACKET_SIZE (256 bytes)
 // Must be defined BEFORE including PubSubClient.h
@@ -46,6 +47,10 @@ private:
 
   bool running;
   TaskHandle_t taskHandle;
+
+  // v2.5.1 FIX: Event group for safe task termination (race condition fix)
+  EventGroupHandle_t taskExitEvent;
+  static constexpr uint32_t TASK_EXITED_BIT = BIT0;
 
   String brokerAddress;
   int brokerPort;

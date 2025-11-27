@@ -57,7 +57,7 @@ RecoveryAction MemoryRecovery::checkAndRecover()
   uint32_t freePsram = ESP.getFreePsram();
 
   // ============================================
-  // TIER 1: EMERGENCY (< 10KB DRAM)
+  // TIER 1: EMERGENCY (< 8KB DRAM) - v2.5.1 adjusted threshold
   // ============================================
   if (freeDram < MemoryThresholds::DRAM_EMERGENCY)
   {
@@ -84,7 +84,7 @@ RecoveryAction MemoryRecovery::checkAndRecover()
   }
 
   // ============================================
-  // TIER 2: CRITICAL (< 15KB DRAM)
+  // TIER 2: CRITICAL (< 12KB DRAM) - v2.5.1 adjusted threshold
   // ============================================
   if (freeDram < MemoryThresholds::DRAM_CRITICAL)
   {

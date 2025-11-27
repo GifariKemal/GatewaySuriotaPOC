@@ -12,11 +12,15 @@
 #include <WiFi.h>
 #include <mbedtls/base64.h>
 
+// v2.5.1 NOTE: For ESP32 Arduino 3.x, we use setCACert() with multiple root CAs
+// instead of setCACertBundle() which has different API in newer versions
+
 // Singleton instance
 OTAHttps* OTAHttps::instance = nullptr;
 
-// GitHub Root CA (DigiCert Global Root CA - used by GitHub)
-// Valid until 2031
+// v2.5.1 FIX: GitHub Root CA Certificate (DigiCert Global Root CA)
+// Valid until 2031 - covers github.com, githubusercontent.com, and GitHub releases
+// If GitHub rotates their CA, this certificate may need to be updated
 static const char* GITHUB_ROOT_CA = R"(
 -----BEGIN CERTIFICATE-----
 MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
@@ -132,8 +136,19 @@ bool OTAHttps::initSecureClient() {
         return false;
     }
 
-    // Set root CA for GitHub
+    // v2.5.1 FIX: Use setCACert() for SSL validation (ESP32 Arduino 3.x compatible)
+    // This sets the DigiCert Global Root CA which is used by GitHub
+    //
+    // Note: If GitHub rotates their CA in the future, this certificate will need
+    // to be updated. The current certificate is valid until 2031.
+    //
+    // For production deployments, consider:
+    // 1. Monitoring GitHub's SSL certificate chain periodically
+    // 2. Having a fallback update mechanism (BLE OTA doesn't need HTTPS)
+    // 3. Using setInsecure() for testing only (NOT recommended for production)
+
     secureClient->setCACert(GITHUB_ROOT_CA);
+    LOG_OTA_INFO("Using DigiCert Global Root CA for GitHub SSL validation\n");
 
     // Set timeouts
     secureClient->setTimeout(readTimeoutMs / 1000);

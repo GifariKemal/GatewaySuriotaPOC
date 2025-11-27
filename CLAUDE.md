@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.3.15 | **Last Updated:** November 26, 2025
+**Version:** 2.5.1 | **Last Updated:** November 27, 2025
 
 ---
 
@@ -31,7 +31,16 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.3.15 - Nov 26, 2025)
+## 🆕 Latest Updates (v2.5.1 - Nov 27, 2025)
+
+### v2.5.1 - Critical Bug Fixes & Memory Safety (Nov 27, 2025)
+- **DRAM Exhaustion Fix:** `saveJson()` now uses PSRAM buffer instead of Arduino String (DRAM) - prevents crash when creating 45+ registers
+- **MQTT Loop Fix:** Interval timestamp updated BEFORE queue empty check - stops 14 logs/sec spam when idle
+- **Memory Thresholds:** Adjusted for realistic BLE operation (CRITICAL: 20KB→12KB, EMERGENCY: 10KB→8KB)
+- **SSL Compatibility:** `setCACert()` with DigiCert for ESP32 Arduino 3.x compatibility
+- **Race Condition Fix:** MqttManager uses EventGroup for safe task termination
+- **Data Loss Prevention:** HttpManager uses peek-then-dequeue pattern
+- **OTA Non-Blocking:** Version check runs in async FreeRTOS task
 
 ### v2.3.15 - CRITICAL MQTT Retain Flag Fix (Nov 26, 2025)
 - **CRITICAL BUG FIX:** Added `retain=true` flag to MQTT publish - messages now persist on broker

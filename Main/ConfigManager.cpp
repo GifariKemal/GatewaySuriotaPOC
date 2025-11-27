@@ -189,68 +189,87 @@ String ConfigManager::generateId(const String &prefix)
 
 bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
 {
-  // FIXED BUG #5: Reduce critical section to prevent deadlock/watchdog timeout
-  // Previous code held fileMutex during entire atomic write (could be >5s on slow FS)
-  // New approach: Serialize JSON OUTSIDE mutex, then quick file write
+  // v2.5.1 FIX: Use PSRAM buffer instead of String to prevent DRAM exhaustion
+  // Previous code used Arduino String which allocates in DRAM
+  // With 45+ registers (~20KB JSON), this caused DRAM to drop to critical levels
+  // New approach: Allocate serialization buffer in PSRAM
 
-  // Step 1: Serialize JSON to String (no mutex needed - doc is const reference)
-  String jsonStr;
-  size_t jsonSize = serializeJson(doc, jsonStr);
-
+  // Step 1: Calculate required buffer size
+  size_t jsonSize = measureJson(doc);
   if (jsonSize == 0)
   {
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Empty JSON document for %s\n", filename.c_str());
+    return false;
+  }
+
+  // Step 2: Allocate buffer in PSRAM (with 10% margin for safety)
+  size_t bufferSize = jsonSize + (jsonSize / 10) + 16;
+  char *psramBuffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+
+  if (!psramBuffer)
+  {
+    // Fallback to DRAM only if PSRAM fails (shouldn't happen with 8MB PSRAM)
+    LOG_CONFIG_INFO("[CONFIG] WARNING: PSRAM alloc failed for %u bytes, using DRAM\n", bufferSize);
+    psramBuffer = (char *)malloc(bufferSize);
+    if (!psramBuffer)
+    {
+      LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to allocate %u bytes for JSON serialization\n", bufferSize);
+      return false;
+    }
+  }
+
+  // Step 3: Serialize JSON to PSRAM buffer
+  size_t written = serializeJson(doc, psramBuffer, bufferSize);
+  if (written == 0)
+  {
+    heap_caps_free(psramBuffer);
     LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to serialize JSON for %s\n", filename.c_str());
     return false;
   }
 
-  // Step 2: Acquire mutex with REDUCED timeout (2s instead of 5s)
-  // This reduces watchdog risk - if file system is stuck, fail faster
+  // Step 4: Acquire mutex with REDUCED timeout (2s instead of 5s)
   if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
+    heap_caps_free(psramBuffer);
     LOG_CONFIG_INFO("[CONFIG] ERROR: saveJson(%s) - mutex timeout (2s)\n", filename.c_str());
     return false;
   }
 
-  // Step 3: Fast file write with pre-serialized string
+  // Step 5: Write to file
   bool success = false;
 
   if (atomicFileOps)
   {
     // AtomicFileOps has its own internal mutex (walMutex)
-    // So we can release fileMutex before calling it to reduce contention
     xSemaphoreGive(fileMutex);
 
-    // Create temporary JsonDocument from pre-serialized string
-    JsonDocument tempDoc;
-    DeserializationError error = deserializeJson(tempDoc, jsonStr);
-
-    if (error != DeserializationError::Ok)
-    {
-      LOG_CONFIG_INFO("[CONFIG] ERROR: Re-deserialization failed: %s\n", error.c_str());
-      return false;
-    }
-
-    success = atomicFileOps->writeAtomic(filename, tempDoc);
+    // v2.5.1 FIX: Pass the already-serialized doc directly to atomicFileOps
+    // Avoid re-deserialization which doubles memory usage
+    success = atomicFileOps->writeAtomic(filename, doc);
   }
   else
   {
-    // Fallback: direct write (still holding fileMutex)
+    // Fallback: direct write using PSRAM buffer
     LOG_CONFIG_INFO("[CONFIG] WARNING: AtomicFileOps not available, using direct write");
 
     File file = LittleFS.open(filename, "w");
     if (!file)
     {
       xSemaphoreGive(fileMutex);
+      heap_caps_free(psramBuffer);
       return false;
     }
 
-    // Write pre-serialized string (faster than serializeJson to file)
-    file.print(jsonStr);
+    // Write from PSRAM buffer (no DRAM String involved!)
+    file.write((const uint8_t *)psramBuffer, written);
     file.close();
     success = true;
 
     xSemaphoreGive(fileMutex);
   }
+
+  // Step 6: Free PSRAM buffer
+  heap_caps_free(psramBuffer);
 
   return success;
 }

@@ -194,6 +194,7 @@ private:
     SemaphoreHandle_t managerMutex;
     TaskHandle_t otaTaskHandle;
     TaskHandle_t checkTaskHandle;
+    volatile bool checkTaskRunning;  // v2.5.1 FIX: Track if async check is running
 
     // BLE server reference
     BLEServer* bleServer;

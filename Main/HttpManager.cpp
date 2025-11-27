@@ -347,7 +347,10 @@ void HttpManager::publishQueueData()
     JsonDocument dataDoc;
     JsonObject dataPoint = dataDoc.to<JsonObject>();
 
-    if (!queueManager->dequeue(dataPoint))
+    // v2.5.1 FIX: Use peek-then-dequeue pattern to prevent data loss
+    // Previous: dequeue first, then re-enqueue on failure (data lost if queue full)
+    // New: peek first to validate, only dequeue after successful send
+    if (!queueManager->peek(dataPoint))
     {
       break; // No more data in queue
     }
@@ -355,14 +358,20 @@ void HttpManager::publishQueueData()
     // Send HTTP request
     if (sendHttpRequest(dataPoint))
     {
+      // v2.5.1 FIX: Only remove from queue AFTER successful send
+      // This ensures data is never lost (stays in queue if send fails)
+      JsonDocument tempDoc;
+      JsonObject tempPoint = tempDoc.to<JsonObject>();
+      queueManager->dequeue(tempPoint);  // Now safe to remove
+
       LOG_NET_INFO("[HTTP] Data sent successfully (Batch @ %lu ms)\n", now);
       anySent = true;
       sendCount++;
     }
     else
     {
-      LOG_NET_INFO("[HTTP] Failed to send data, re-queuing\n");
-      queueManager->enqueue(dataPoint);
+      // v2.5.1 FIX: Data remains in queue (not dequeued), will retry next cycle
+      LOG_NET_INFO("[HTTP] Failed to send data, keeping in queue for retry\n");
       break;
     }
 

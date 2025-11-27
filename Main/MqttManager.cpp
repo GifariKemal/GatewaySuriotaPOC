@@ -34,7 +34,8 @@ MqttManager *MqttManager::instance = nullptr;
 
 MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, NetworkMgr *netMgr)
     : configManager(config), queueManager(nullptr), serverConfig(serverCfg), networkManager(netMgr), mqttClient(PubSubClient()),
-      running(false), taskHandle(nullptr), brokerPort(1883), lastReconnectAttempt(0),
+      running(false), taskHandle(nullptr), taskExitEvent(nullptr),  // v2.5.1 FIX: Initialize event group
+      brokerPort(1883), lastReconnectAttempt(0),
       cachedBufferSize(0), bufferSizeNeedsRecalculation(true), // FIXED BUG #5: Initialize cache
       lastDebugTime(0)                                         // v2.3.8 PHASE 1: Initialize connection state
 {
@@ -60,6 +61,13 @@ MqttManager::MqttManager(ConfigManager *config, ServerConfig *serverCfg, Network
   else
   {
     LOG_MQTT_INFO("[MQTT] Thread safety mutexes created successfully");
+  }
+
+  // v2.5.1 FIX: Create event group for safe task termination (prevents race condition)
+  taskExitEvent = xEventGroupCreate();
+  if (!taskExitEvent)
+  {
+    LOG_MQTT_INFO("[MQTT] WARNING: Failed to create task exit event group");
   }
 
   LOG_MQTT_INFO("[MQTT] Persistent queue initialized");
@@ -140,10 +148,37 @@ void MqttManager::stop()
 {
   running = false;
 
-  // Give task time to exit gracefully (checks 'running' flag in loop)
+  // v2.5.1 FIX: Wait for task to signal exit (prevents race condition)
+  // Previous: 50ms delay was insufficient - task might still access member variables
+  // New: Wait up to 2 seconds for task to confirm exit via event group
   if (taskHandle)
   {
-    vTaskDelay(pdMS_TO_TICKS(50)); // Brief delay for current iteration to complete
+    if (taskExitEvent)
+    {
+      // Clear the bit first in case it was set from previous run
+      xEventGroupClearBits(taskExitEvent, TASK_EXITED_BIT);
+
+      // Wait for task to signal it has exited (max 2 seconds)
+      EventBits_t bits = xEventGroupWaitBits(
+          taskExitEvent,
+          TASK_EXITED_BIT,   // Wait for this bit
+          pdTRUE,            // Clear bit after return
+          pdTRUE,            // Wait for all bits (only 1 in this case)
+          pdMS_TO_TICKS(2000) // 2 second timeout
+      );
+
+      if (!(bits & TASK_EXITED_BIT))
+      {
+        LOG_MQTT_INFO("[MQTT] WARNING: Task did not exit gracefully within 2s, forcing deletion");
+      }
+    }
+    else
+    {
+      // Fallback if event group creation failed
+      vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    // Now safe to delete the task (it has confirmed exit or timed out)
     vTaskDelete(taskHandle);
     taskHandle = nullptr;
   }
@@ -277,6 +312,13 @@ void MqttManager::mqttLoop()
     // v2.3.7 OPTIMIZED: Reduced from 100ms to 50ms for better timing precision
     // This improves interval detection accuracy from ±100ms to ±50ms
     vTaskDelay(pdMS_TO_TICKS(50));
+  }
+
+  // v2.5.1 FIX: Signal that task has exited (for safe stop() synchronization)
+  // This prevents race condition where stop() deletes object while task still runs
+  if (taskExitEvent)
+  {
+    xEventGroupSetBits(taskExitEvent, TASK_EXITED_BIT);
   }
 
   LOG_MQTT_INFO("[MQTT] Task stopped");
@@ -1109,6 +1151,25 @@ void MqttManager::publishQueueData()
 #endif
   }
 
+  // v2.5.1 CRITICAL FIX: Update lastPublish timestamps IMMEDIATELY when interval elapses
+  // This MUST happen BEFORE queue empty check to prevent tight loop spam when no data
+  // Previous bug: When queue empty, lastDefaultPublish was never updated, causing
+  // defaultIntervalElapsed to stay true and spam "Target time captured" every ~70ms
+  if (defaultIntervalElapsed)
+  {
+    lastDefaultPublish = publishState.targetTime;
+  }
+  if (customizeIntervalElapsed)
+  {
+    for (auto &customTopic : customTopics)
+    {
+      if ((now - customTopic.lastPublish) >= customTopic.interval)
+      {
+        customTopic.lastPublish = publishState.targetTime;
+      }
+    }
+  }
+
 // v2.3.7 FIX: Only log ONCE per interval (not every loop!)
 // v2.3.8 PHASE 1: Moved from static to instance member for thread safety
 #if PRODUCTION_MODE == 0
@@ -1131,34 +1192,22 @@ void MqttManager::publishQueueData()
   if (queueMgr && queueMgr->isEmpty())
   {
     // Queue is empty - no data to publish, skip silently
+    // v2.5.1: lastDefaultPublish already updated above, so next interval check will be correct
     publishState.timeLocked = false; // Reset for next interval
     xSemaphoreGive(publishStateMutex);
     return;
   }
 
-  // v2.3.7 FIX: Lock timestamp NOW (right before publish)
-  // This ensures interval consistency while avoiding early-return bugs
+#if PRODUCTION_MODE == 0
   if (defaultIntervalElapsed)
   {
-    lastDefaultPublish = publishState.targetTime;
-#if PRODUCTION_MODE == 0
-    LOG_MQTT_INFO("[MQTT] Default mode timestamp locked at %lu ms (ready to publish)\n", publishState.targetTime);
-#endif
+    LOG_MQTT_INFO("[MQTT] Default mode ready to publish at %lu ms\n", publishState.targetTime);
   }
-
   if (customizeIntervalElapsed)
   {
-    for (auto &customTopic : customTopics)
-    {
-      if ((now - customTopic.lastPublish) >= customTopic.interval)
-      {
-        customTopic.lastPublish = publishState.targetTime;
-      }
-    }
-#if PRODUCTION_MODE == 0
-    LOG_MQTT_INFO("[MQTT] Customize mode timestamps locked at %lu ms (ready to publish)\n", publishState.targetTime);
-#endif
+    LOG_MQTT_INFO("[MQTT] Customize mode ready to publish at %lu ms\n", publishState.targetTime);
   }
+#endif
 
   // v2.3.7 OPTIMIZED: Process persistent queue AFTER batch wait (before dequeue)
   // This prevents queue processing delays from affecting interval precision
@@ -1655,5 +1704,12 @@ MqttManager::~MqttManager()
   {
     vSemaphoreDelete(publishStateMutex);
     publishStateMutex = NULL;
+  }
+
+  // v2.5.1 FIX: Delete event group for cleanup
+  if (taskExitEvent != NULL)
+  {
+    vEventGroupDelete(taskExitEvent);
+    taskExitEvent = NULL;
   }
 }

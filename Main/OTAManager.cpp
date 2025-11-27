@@ -50,6 +50,7 @@ OTAManager::OTAManager() :
     stateCallback(nullptr),
     otaTaskHandle(nullptr),
     checkTaskHandle(nullptr),
+    checkTaskRunning(false),  // v2.5.1 FIX: Initialize async check flag
     bleServer(nullptr)
 {
     managerMutex = xSemaphoreCreateMutex();
@@ -153,10 +154,12 @@ void OTAManager::stop() {
         vTaskDelete(otaTaskHandle);
         otaTaskHandle = nullptr;
     }
+    // v2.5.1 FIX: Proper async check task cleanup
     if (checkTaskHandle) {
         vTaskDelete(checkTaskHandle);
         checkTaskHandle = nullptr;
     }
+    checkTaskRunning = false;  // v2.5.1 FIX: Reset flag
 
     // Stop transports
     if (httpsTransport) {
@@ -873,6 +876,28 @@ bool OTAManager::handleCrudCommand(const String& command, const JsonObject& para
 }
 
 // ============================================
+// ASYNC CHECK TASK (v2.5.1 FIX)
+// ============================================
+
+void OTAManager::checkTaskFunction(void* param) {
+    OTAManager* manager = static_cast<OTAManager*>(param);
+
+    LOG_OTA_INFO("[OTA] Async update check started (non-blocking)\n");
+
+    // Perform the blocking check in this dedicated task
+    manager->checkForUpdate();
+
+    // Mark task as complete
+    manager->checkTaskRunning = false;
+    manager->checkTaskHandle = nullptr;
+
+    LOG_OTA_INFO("[OTA] Async update check completed\n");
+
+    // Self-delete task
+    vTaskDelete(nullptr);
+}
+
+// ============================================
 // PROCESS LOOP
 // ============================================
 
@@ -882,12 +907,33 @@ void OTAManager::process() {
         bleTransport->process();
     }
 
-    // Auto-check for updates (if enabled and interval elapsed)
+    // v2.5.1 FIX: Auto-check for updates using async task (non-blocking)
+    // This prevents the OTA check from blocking BLE, MQTT, HTTP and other tasks
     if (config.enabled && checkIntervalMs > 0) {
         if (millis() - lastCheckTime > checkIntervalMs) {
-            if (currentState == OTAState::IDLE) {
-                LOG_OTA_INFO("Periodic update check...\n");
-                checkForUpdate();
+            if (currentState == OTAState::IDLE && !checkTaskRunning) {
+                LOG_OTA_INFO("Scheduling async periodic update check...\n");
+
+                // Update lastCheckTime BEFORE starting task to prevent multiple spawns
+                lastCheckTime = millis();
+
+                // Launch async check task
+                checkTaskRunning = true;
+                BaseType_t result = xTaskCreatePinnedToCore(
+                    checkTaskFunction,
+                    "OTA_CHECK",
+                    8192,           // Stack size for HTTPS operations
+                    this,
+                    1,              // Low priority - doesn't block critical tasks
+                    &checkTaskHandle,
+                    0               // Core 0 (same as network tasks)
+                );
+
+                if (result != pdPASS) {
+                    LOG_OTA_ERROR("[OTA] Failed to create async check task\n");
+                    checkTaskRunning = false;
+                    checkTaskHandle = nullptr;
+                }
             }
         }
     }

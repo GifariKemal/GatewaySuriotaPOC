@@ -31,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.5.0" // Increment dari versi sebelumnya
+#define FIRMWARE_VERSION "2.5.1" // v2.5.1: Critical bug fixes (memory cleanup, race condition, data loss, SSL)
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
@@ -82,17 +82,33 @@ ButtonManager *buttonManager = nullptr;
 ProductionLogger *productionLogger = nullptr;
 OTAManager *otaManager = nullptr;
 
+// v2.5.1 FIX: Track allocation method for safe cleanup (PSRAM placement new vs standard new)
+// If true: allocated with heap_caps_malloc + placement new (use ~destructor + heap_caps_free)
+// If false: allocated with standard new (use delete)
+static bool bleManagerInPsram = false;
+static bool crudHandlerInPsram = false;
+static bool configManagerInPsram = false;
+
 // FIXED BUG #1: Complete cleanup function for all global objects
-// Previously leaked memory for singleton instances (networkManager, queueManager, etc.)
+// v2.5.1 FIX: Safe cleanup that handles both PSRAM (placement new) and DRAM (standard new) allocations
 void cleanup()
 {
   // Stop all services first (prevent dangling references)
   if (bleManager)
   {
     bleManager->stop();
-    bleManager->~BLEManager();
-    heap_caps_free(bleManager);
+    // v2.5.1 FIX: Use correct deallocation based on allocation method
+    if (bleManagerInPsram)
+    {
+      bleManager->~BLEManager();
+      heap_caps_free(bleManager);
+    }
+    else
+    {
+      delete bleManager;
+    }
     bleManager = nullptr;
+    bleManagerInPsram = false;
   }
 
   if (mqttManager)
@@ -126,16 +142,34 @@ void cleanup()
   // Clean up managers and handlers
   if (crudHandler)
   {
-    crudHandler->~CRUDHandler();
-    heap_caps_free(crudHandler);
+    // v2.5.1 FIX: Use correct deallocation based on allocation method
+    if (crudHandlerInPsram)
+    {
+      crudHandler->~CRUDHandler();
+      heap_caps_free(crudHandler);
+    }
+    else
+    {
+      delete crudHandler;
+    }
     crudHandler = nullptr;
+    crudHandlerInPsram = false;
   }
 
   if (configManager)
   {
-    configManager->~ConfigManager();
-    heap_caps_free(configManager);
+    // v2.5.1 FIX: Use correct deallocation based on allocation method
+    if (configManagerInPsram)
+    {
+      configManager->~ConfigManager();
+      heap_caps_free(configManager);
+    }
+    else
+    {
+      delete configManager;
+    }
     configManager = nullptr;
+    configManagerInPsram = false;
   }
 
   if (serverConfig)
@@ -268,10 +302,12 @@ void setup()
   if (configManager)
   {
     new (configManager) ConfigManager();
+    configManagerInPsram = true;  // v2.5.1 FIX: Track allocation method
   }
   else
   {
     configManager = new ConfigManager(); // Fallback to internal RAM
+    configManagerInPsram = false;  // v2.5.1 FIX: Track allocation method
     if (!configManager)
     {
       DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate ConfigManager");
@@ -396,10 +432,12 @@ void setup()
   if (crudHandler)
   {
     new (crudHandler) CRUDHandler(configManager, serverConfig, loggingConfig);
+    crudHandlerInPsram = true;  // v2.5.1 FIX: Track allocation method
   }
   else
   {
     crudHandler = new CRUDHandler(configManager, serverConfig, loggingConfig); // Fallback to internal RAM
+    crudHandlerInPsram = false;  // v2.5.1 FIX: Track allocation method
     if (!crudHandler)
     {
       DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate CRUDHandler");
@@ -512,10 +550,12 @@ void setup()
   if (bleManager)
   {
     new (bleManager) BLEManager("SURIOTA GW", crudHandler);
+    bleManagerInPsram = true;  // v2.5.1 FIX: Track allocation method
   }
   else
   {
     bleManager = new BLEManager("SURIOTA GW", crudHandler); // Fallback to internal RAM
+    bleManagerInPsram = false;  // v2.5.1 FIX: Track allocation method
     if (!bleManager)
     {
       DEV_SERIAL_PRINTLN("[MAIN] ERROR: Failed to allocate BLE Manager");
@@ -567,7 +607,7 @@ void setup()
   if (otaManager)
   {
     // Set current firmware version
-    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2500); // Build number derived from version (2.5.0 = 2500)
+    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2501); // Build number derived from version (2.5.1 = 2501)
 
     // Get BLE server from BLEManager for OTA BLE service
     // Note: BLE server is internal to BLEManager, OTA BLE will create its own service

@@ -24,11 +24,13 @@
 namespace MemoryThresholds
 {
   // DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
-  // OPTIMIZED for large BLE responses (up to 10KB) and device reads with 45+ registers
-  constexpr uint32_t DRAM_HEALTHY = 80000;   // 80KB - Normal operation (increased from 50KB)
-  constexpr uint32_t DRAM_WARNING = 40000;   // 40KB - Proactive cleanup (increased from 25KB for large responses)
-  constexpr uint32_t DRAM_CRITICAL = 20000;  // 20KB - Emergency recovery (increased from 15KB)
-  constexpr uint32_t DRAM_EMERGENCY = 10000; // 10KB - Imminent crash (unchanged)
+  // v2.5.1 FIX: Adjusted thresholds for realistic operation with BLE active
+  // BLE stack alone uses ~63KB DRAM, plus 10+ FreeRTOS tasks with 4-8KB stacks each
+  // Normal idle DRAM with BLE active: ~15-20KB (not a problem, system is stable)
+  constexpr uint32_t DRAM_HEALTHY = 50000;   // 50KB - Normal operation (lowered - rarely achievable with BLE)
+  constexpr uint32_t DRAM_WARNING = 25000;   // 25KB - Proactive cleanup
+  constexpr uint32_t DRAM_CRITICAL = 12000;  // 12KB - Emergency recovery (lowered from 20KB to stop false alarms)
+  constexpr uint32_t DRAM_EMERGENCY = 8000;  // 8KB - Imminent crash (lowered from 10KB)
 
   // PSRAM thresholds (ESP32-S3 has 8MB OPI PSRAM)
   constexpr uint32_t PSRAM_WARNING = 1000000; // 1MB - Warn if PSRAM low
