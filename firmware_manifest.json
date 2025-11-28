@@ -1,21 +1,19 @@
 {
-  "version": "2.5.3",
-  "build_number": 2503,
+  "version": "2.5.4",
+  "build_number": 2504,
   "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.3.bin",
-    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.3/SRT-MGATE-1210_v2.5.3.bin",
-    "size": 1977216,
-    "sha256": "092b5d50da4592ce5f39c20a48ae92156b71e2d52895f8b9775e397373bc8e1c",
-    "signature": "2b89a6554bee0651fc20a0b8cb8185d3a3c999fe6e48275967aaa9c904cffc244f20e327ea384717c925c6b95eca251e5ec6bb833361381d0ab1a2409e192fcb"
+    "filename": "SRT-MGATE-1210_v2.5.4.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.4/SRT-MGATE-1210_v2.5.4.bin",
+    "size": 1977488,
+    "sha256": "b4cfdd665281efa34cb07d0ffae8f351a3ed327ee0873756c99e1f4a6d88b8d1",
+    "signature": "615f9a3f20e3d4b29680487fdb50a078b280ab5a7832d84341ce77164e615238ba85963d20e64cd030cce86df0c75aa743a008a36f0179edac232d555599d7c1"
   },
   "changelog": [
-    "SSL Root CA update - GitHub switched to USERTrust/Sectigo certificates",
-    "Unified SSLClient (BearSSL) for WiFi and Ethernet OTA",
-    "Lazy initialization for HTTPS transport (saves ~30KB DRAM)",
-    "Fixed WiFi SSL connection failure (error -32512)",
-    "OTA code cleanup and bug fixes"
+    "Added USERTrust ECC trust anchor for github.com SSL connections",
+    "Fixed OTA firmware download SSL error (Chain could not be linked to trust anchor)",
+    "Now supports both RSA and ECC certificate chains from GitHub"
   ],
   "mandatory": false
 }
