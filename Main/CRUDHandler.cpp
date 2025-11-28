@@ -1510,6 +1510,7 @@ void CRUDHandler::setupCommandHandlers()
   };
 
   // Apply downloaded update and reboot (op: "ota", type: "apply_update")
+  // v2.5.9: Simplified - just reboot. ESP will boot from OTA partition if update was successful.
   otaHandlers["apply_update"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     if (!otaManager)
@@ -1518,16 +1519,21 @@ void CRUDHandler::setupCommandHandlers()
       return;
     }
 
+    // v2.5.9: Check for valid states - IDLE (with updateAvailable) or VALIDATING
     OTAState state = otaManager->getState();
-    if (state != OTAState::IDLE)
+    OTAStatus status = otaManager->getStatus();
+
+    // Valid states: VALIDATING (just finished download) or IDLE with updateAvailable
+    bool canApply = (state == OTAState::VALIDATING) ||
+                    (state == OTAState::IDLE && status.updateAvailable);
+
+    if (!canApply)
     {
-      // Check if firmware is downloaded and validated
-      OTAStatus status = otaManager->getStatus();
-      if (status.state != OTAState::IDLE || !status.updateAvailable)
-      {
-        manager->sendError("No validated firmware ready to apply");
-        return;
-      }
+      String errorMsg = "No firmware ready to apply. State: " + String(static_cast<int>(state)) +
+                       ", updateAvailable: " + String(status.updateAvailable ? "true" : "false");
+      LOG_CRUD_ERROR("[OTA] %s", errorMsg.c_str());
+      manager->sendError(errorMsg);
+      return;
     }
 
     auto response = make_psram_unique<JsonDocument>();

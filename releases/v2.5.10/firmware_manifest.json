@@ -1,20 +1,16 @@
 {
-  "version": "2.5.11",
-  "build_number": 2511,
+  "version": "2.5.10",
+  "build_number": 2510,
   "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
     "filename": "SRT-MGATE-1210_v2.5.10.bin",
-    "url": "https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/SRT-MGATE-1210_v2.5.10.bin",
     "size": 2001344,
     "sha256": "8b584e3c9269090cca47f4b2e4e0018e8f3bfe2e7b441b1405afc2894a1e0cb5",
     "signature": "304502203233295033d7e8998c38937566fa59b0cbed196c57e16aab7afdafbdd9ad660a022100a6b1ba3f80a9d47abe336bcf36bd9aeb9c5ac4c38b98bbf8df876935f900a9d3"
   },
   "changelog": [
-    "v2.5.10: Fix apply_update not rebooting after OTA download",
-    "Fix signature decode - use hex instead of base64",
-    "Fix disabled device log spam with LogThrottle",
-    "ESP_SSLClient with PSRAM for OTA over Ethernet"
+    "Version 2.5.10 release"
   ],
   "mandatory": false
 }

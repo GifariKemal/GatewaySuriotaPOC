@@ -312,7 +312,14 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
   // Check if device is enabled (failure state check)
   if (!isDeviceEnabled(deviceId))
   {
-    LOG_RTU_INFO("Device %s is disabled, skipping read\n", deviceId);
+    // v2.5.9: Use throttled logging to prevent spam (log once per 30s per device)
+    static LogThrottle disabledThrottle(30000);
+    char contextMsg[64];
+    snprintf(contextMsg, sizeof(contextMsg), "RTU Device %s disabled", deviceId);
+    if (disabledThrottle.shouldLog(contextMsg))
+    {
+      LOG_RTU_INFO("Device %s is disabled, skipping read\n", deviceId);
+    }
     return;
   }
 

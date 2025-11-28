@@ -1102,23 +1102,33 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
 
     // Validate if validator available
     if (validator && (expectedHash.length() > 0 || signature.length() > 0)) {
-        // Decode signature from base64 if provided
+        // v2.5.9: Decode signature from hex format (DER/ASN.1 encoded)
         uint8_t* sigBytes = nullptr;
         size_t sigLen = 0;
 
         if (signature.length() > 0) {
-            // Allocate buffer for decoded signature (base64 decodes to ~75% of original)
-            size_t maxSigLen = (signature.length() * 3) / 4 + 4;
-            sigBytes = (uint8_t*)malloc(maxSigLen);
+            // Hex string is 2 chars per byte
+            sigLen = signature.length() / 2;
+            sigBytes = (uint8_t*)malloc(sigLen);
             if (sigBytes) {
-                int ret = mbedtls_base64_decode(sigBytes, maxSigLen, &sigLen,
-                                                (const unsigned char*)signature.c_str(),
-                                                signature.length());
-                if (ret != 0) {
-                    LOG_OTA_ERROR("Base64 decode failed: %d\n", ret);
+                bool decodeOk = true;
+                for (size_t i = 0; i < sigLen && decodeOk; i++) {
+                    char hex[3] = {signature[i*2], signature[i*2+1], 0};
+                    char* endptr;
+                    long val = strtol(hex, &endptr, 16);
+                    if (*endptr != '\0') {
+                        decodeOk = false;
+                    } else {
+                        sigBytes[i] = (uint8_t)val;
+                    }
+                }
+                if (!decodeOk) {
+                    LOG_OTA_ERROR("Hex signature decode failed\n");
                     free(sigBytes);
                     sigBytes = nullptr;
                     sigLen = 0;
+                } else {
+                    LOG_OTA_INFO("Signature decoded: %u bytes (DER format)\n", sigLen);
                 }
             }
         }
