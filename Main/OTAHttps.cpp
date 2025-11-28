@@ -1,8 +1,11 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 1.0.0
- * @date 2025-11-26
+ * @version 2.0.0
+ * @date 2025-11-28
+ *
+ * v2.0.0: Switched to ESP_SSLClient (mobizt) with PSRAM support
+ *         Solves "record too large" error by using PSRAM for SSL buffers
  */
 
 #include "DebugConfig.h"  // MUST BE FIRST
@@ -11,9 +14,7 @@
 #include "JsonDocumentPSRAM.h"  // For SpiRamJsonDocument
 #include <esp_heap_caps.h>
 #include <mbedtls/base64.h>
-// v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
-
-// v2.5.3: Trust anchors moved to GitHubTrustAnchors.h
+// v2.5.9: ESP_SSLClient (mobizt) with PSRAM support for large SSL buffers
 
 // Singleton instance
 OTAHttps* OTAHttps::instance = nullptr;
@@ -47,7 +48,7 @@ OTAHttps::OTAHttps() :
 {
     httpMutex = xSemaphoreCreateMutex();
 
-    // v2.5.3: Get NetworkManager for network status
+    // Get NetworkManager for network status
     networkManager = NetworkMgr::getInstance();
 
     // Set default GitHub config
@@ -112,9 +113,8 @@ void OTAHttps::stop() {
 bool OTAHttps::initSecureClient() {
     cleanupSecureClient();
 
-    // v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
-    // WiFi -> SSLClient wrapping WiFiClient
-    // Ethernet -> SSLClient wrapping EthernetClient
+    // v2.5.9: ESP_SSLClient (mobizt) with PSRAM support
+    // Uses PSRAM for SSL buffers - solves "record too large" error
 
     // Get NetworkManager instance
     if (!networkManager) {
@@ -133,17 +133,27 @@ bool OTAHttps::initSecureClient() {
     // Check if using WiFi or Ethernet
     usingWiFi = (activeMode == "WIFI" || activeMode == "WiFi");
 
+    // Log memory status
+    size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+    size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
     if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Network mode: %s, Using SSLClient (BearSSL) over %s\n",
+        Serial.printf("[OTA DEBUG] Network mode: %s, Using ESP_SSLClient (mobizt) over %s\n",
                       activeMode.c_str(),
                       usingWiFi ? "WiFiClient" : "EthernetClient");
+        Serial.printf("[OTA DEBUG] Free DRAM: %u bytes, Free PSRAM: %u bytes\n", freeDram, freePsram);
+    }
+
+    // Check PSRAM availability (SSL buffers go here)
+    if (freePsram < 50000) {
+        LOG_OTA_ERROR("Insufficient PSRAM for SSL (%u bytes, need 50KB+)\n", freePsram);
+        lastError = OTAError::NOT_ENOUGH_SPACE;
+        lastErrorMessage = "Insufficient PSRAM for SSL";
+        return false;
     }
 
     if (usingWiFi) {
-        // ========== WiFi: Use SSLClient wrapping WiFiClient (BearSSL) ==========
-        // v2.5.3: Changed from WiFiClientSecure (mbedTLS) to SSLClient (BearSSL)
-        // BearSSL is much more memory efficient (~8KB vs ~32KB for mbedTLS)
-
+        // ========== WiFi: ESP_SSLClient wrapping WiFiClient ==========
         // Verify WiFi is actually connected
         if (WiFi.status() != WL_CONNECTED) {
             LOG_OTA_ERROR("WiFi not connected (status: %d)\n", WiFi.status());
@@ -155,49 +165,44 @@ bool OTAHttps::initSecureClient() {
                           WiFi.localIP().toString().c_str(), WiFi.RSSI());
         }
 
-        // Check available DRAM
-        size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-        if (!IS_PRODUCTION_MODE()) {
-            Serial.printf("[OTA DEBUG] Free DRAM before SSL: %u bytes\n", freeDram);
-        }
-
-        // BearSSL needs less memory, lower threshold to 15KB
-        if (freeDram < 15000) {
-            LOG_OTA_ERROR("Insufficient DRAM for SSL (%u bytes, need 15KB+)\n", freeDram);
-            lastError = OTAError::NOT_ENOUGH_SPACE;
-            lastErrorMessage = "Insufficient memory for SSL";
-            return false;
-        }
-
-        // Create WiFiClient as base transport (not WiFiClientSecure!)
+        // Create WiFiClient as base transport
         wifiBase = new WiFiClient();
         if (!wifiBase) {
             LOG_OTA_ERROR("Failed to create WiFiClient\n");
             return false;
         }
 
-        // Wrap WiFiClient with SSLClient (BearSSL) - same as Ethernet
-        wifiSecure = new SSLClient(*wifiBase, TAs, (size_t)TAs_NUM, A0);
+        // Create ESP_SSLClient (allocate in PSRAM if possible)
+        void* ptr = heap_caps_malloc(sizeof(ESP_SSLClient), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ptr) {
+            wifiSecure = new (ptr) ESP_SSLClient();
+        } else {
+            wifiSecure = new ESP_SSLClient();
+        }
+
         if (!wifiSecure) {
-            LOG_OTA_ERROR("Failed to create SSLClient for WiFi\n");
+            LOG_OTA_ERROR("Failed to create ESP_SSLClient for WiFi\n");
             delete wifiBase;
             wifiBase = nullptr;
             return false;
         }
 
-        // Set timeout (SSLClient uses milliseconds)
+        // Configure ESP_SSLClient
+        wifiSecure->setClient(wifiBase);
+        wifiSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB
+        wifiSecure->setCACert(GITHUB_ROOT_CA);  // Use PEM format certificate
+        wifiSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
         wifiSecure->setTimeout(readTimeoutMs);
 
         if (!IS_PRODUCTION_MODE()) {
-            Serial.printf("[OTA DEBUG] SSLClient (BearSSL) for WiFi initialized, timeout: %lu ms\n", readTimeoutMs);
+            Serial.printf("[OTA DEBUG] ESP_SSLClient for WiFi configured, RX buffer: %d bytes (PSRAM)\n",
+                          ESP_SSLCLIENT_BUFFER_SIZE);
         }
 
-        // Use SSLClient as the active client
+        // Use ESP_SSLClient as the active client
         sslClient = wifiSecure;
     } else {
-        // ========== Ethernet: Use SSLClient wrapping EthernetClient ==========
-        // OPEnSLab SSLClient provides TLS over any Arduino Client
-
+        // ========== Ethernet: ESP_SSLClient wrapping EthernetClient ==========
         // Create base EthernetClient
         ethBase = new EthernetClient();
         if (!ethBase) {
@@ -205,33 +210,43 @@ bool OTAHttps::initSecureClient() {
             return false;
         }
 
-        // Create SSLClient wrapping EthernetClient
-        // SSLClient(Client& client, TAs, TAs_NUM, analog_pin_for_RNG)
-        // Using A0 for random seed (important for SSL)
-        ethSecure = new SSLClient(*ethBase, TAs, (size_t)TAs_NUM, A0);
+        // Create ESP_SSLClient (allocate in PSRAM if possible)
+        void* ptr = heap_caps_malloc(sizeof(ESP_SSLClient), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (ptr) {
+            ethSecure = new (ptr) ESP_SSLClient();
+        } else {
+            ethSecure = new ESP_SSLClient();
+        }
+
         if (!ethSecure) {
-            LOG_OTA_ERROR("Failed to create SSLClient\n");
+            LOG_OTA_ERROR("Failed to create ESP_SSLClient for Ethernet\n");
             delete ethBase;
             ethBase = nullptr;
             return false;
         }
 
-        // Set timeout (SSLClient uses milliseconds)
+        // Configure ESP_SSLClient
+        ethSecure->setClient(ethBase);
+        ethSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB
+        ethSecure->setCACert(GITHUB_ROOT_CA);  // Use PEM format certificate
+        ethSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
         ethSecure->setTimeout(readTimeoutMs);
 
-        // Enable session caching for faster reconnects
-        // ethSecure->setSessionCaching(true);
+        if (!IS_PRODUCTION_MODE()) {
+            Serial.printf("[OTA DEBUG] ESP_SSLClient for Ethernet configured, RX buffer: %d bytes (PSRAM)\n",
+                          ESP_SSLCLIENT_BUFFER_SIZE);
+        }
 
-        // Use SSLClient as the active client
+        // Use ESP_SSLClient as the active client
         sslClient = ethSecure;
     }
 
-    LOG_OTA_INFO("SSL client initialized successfully\n");
+    LOG_OTA_INFO("ESP_SSLClient initialized (PSRAM enabled)\n");
     return true;
 }
 
 void OTAHttps::cleanupSecureClient() {
-    // v2.5.3: Clean up all SSL clients
+    // v2.5.9: Clean up all ESP_SSLClient instances
     sslClient = nullptr;  // Just clear the pointer, actual objects deleted below
 
     if (wifiSecure) {
@@ -306,7 +321,7 @@ void OTAHttps::setConnectTimeout(uint32_t timeoutMs) {
 
 void OTAHttps::setReadTimeout(uint32_t timeoutMs) {
     readTimeoutMs = timeoutMs;
-    // v2.5.3: SSLClient uses milliseconds for setTimeout
+    // v2.5.9: ESP_SSLClient uses milliseconds for setTimeout
     if (sslClient) {
         sslClient->setTimeout(timeoutMs);
     }
@@ -369,7 +384,7 @@ String OTAHttps::buildApiUrl(const String& endpoint) {
 }
 
 // ============================================
-// HTTP HELPERS (v2.5.3: Manual HTTP without HTTPClient for multi-network support)
+// HTTP HELPERS (Manual HTTP without HTTPClient for multi-network support)
 // ============================================
 
 // Helper to parse URL into host and path
@@ -402,7 +417,7 @@ bool parseUrl(const String& url, String& host, String& path, uint16_t& port) {
 }
 
 bool OTAHttps::setupHttpClient(const String& url) {
-    // v2.5.3: Check if network mode changed and reinitialize SSL client
+    // v2.5.9: Check if network mode changed and reinitialize SSL client
     if (networkManager) {
         String currentMode = networkManager->getCurrentMode();
         bool currentlyWiFi = (currentMode == "WIFI" || currentMode == "WiFi");
@@ -428,7 +443,7 @@ bool OTAHttps::setupHttpClient(const String& url) {
 }
 
 int OTAHttps::performRequest(const char* method) {
-    // v2.5.3: Manual HTTP request using SSLClient (BearSSL) for both WiFi and Ethernet
+    // v2.5.9: Manual HTTP request using ESP_SSLClient (mobizt) with PSRAM
     String host, path;
     uint16_t port;
 
@@ -438,20 +453,20 @@ int OTAHttps::performRequest(const char* method) {
     }
 
     if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Connecting to %s:%d%s via %s (SSLClient/BearSSL)\n",
+        Serial.printf("[OTA DEBUG] Connecting to %s:%d%s via %s (ESP_SSLClient/PSRAM)\n",
                       host.c_str(), port, path.c_str(),
                       usingWiFi ? "WiFi" : "Ethernet");
     }
 
-    // Connect to server using SSLClient
+    // Connect to server using ESP_SSLClient
     unsigned long connectStart = millis();
     bool connected = false;
 
     if (usingWiFi && wifiSecure) {
-        // SSLClient wrapping WiFiClient
+        // ESP_SSLClient wrapping WiFiClient
         connected = wifiSecure->connect(host.c_str(), port);
     } else if (!usingWiFi && ethSecure) {
-        // SSLClient wrapping EthernetClient
+        // ESP_SSLClient wrapping EthernetClient
         connected = ethSecure->connect(host.c_str(), port);
     }
     unsigned long connectTime = millis() - connectStart;
@@ -519,7 +534,7 @@ int OTAHttps::performRequest(const char* method) {
 }
 
 bool OTAHttps::followRedirects(String& finalUrl) {
-    // v2.5.3: Manual redirect handling with SSLClient
+    // v2.5.9: Manual redirect handling with ESP_SSLClient
     int redirectCount = 0;
     while (redirectCount < OTA_HTTPS_MAX_REDIRECTS) {
         int httpCode = performRequest("HEAD");
@@ -663,7 +678,7 @@ bool OTAHttps::fetchManifest(FirmwareManifest& manifest) {
 bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifest) {
     LOG_OTA_INFO("Fetching manifest: %s\n", url.c_str());
 
-    // v2.5.3: Check network connectivity first
+    // Check network connectivity first
     if (networkManager && !networkManager->isAvailable()) {
         lastError = OTAError::NETWORK_ERROR;
         lastErrorMessage = "Network not connected";
@@ -671,7 +686,7 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
         return false;
     }
 
-    // v2.5.3: Using SSLClient (BearSSL) for secure connection
+    // v2.5.9: Using ESP_SSLClient (mobizt) for secure connection with PSRAM
     if (!IS_PRODUCTION_MODE()) {
         Serial.printf("[OTA DEBUG] Fetching: %s\n", url.c_str());
     }
@@ -837,7 +852,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     progress.percent = 0;
     progress.inProgress = true;
 
-    // v2.5.3: Setup SSLClient and perform manual HTTP request
+    // Setup ESP_SSLClient and perform manual HTTP request
     if (!setupHttpClient(url)) {
         downloading = false;
         progress.inProgress = false;
@@ -932,7 +947,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
         return false;
     }
 
-    // v2.5.3: Read headers and get content length
+    // Read headers and get content length
     size_t contentLength = 0;
     while (sslClient->connected()) {
         String line = sslClient->readStringUntil('\n');

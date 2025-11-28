@@ -1,8 +1,8 @@
 /**
  * @file OTAHttps.h
  * @brief HTTPS OTA Transport Layer - GitHub Integration
- * @version 1.0.0
- * @date 2025-11-26
+ * @version 2.0.0
+ * @date 2025-11-28
  *
  * Provides HTTPS firmware download from GitHub:
  * - GitHub Releases download
@@ -11,6 +11,8 @@
  * - Streaming download with progress
  * - TLS 1.2+ security
  * - Manifest parsing
+ *
+ * v2.0.0: Switched to ESP_SSLClient (mobizt) with PSRAM support
  */
 
 #ifndef OTA_HTTPS_H
@@ -23,18 +25,27 @@
 #include <Arduino.h>
 #include <WiFi.h>              // v2.5.3: For WiFiClient base transport
 
-// Suppress SSLClient library warning (noreturn function)
-// Note: SSLClient already uses 16KB+ buffers (BR_SSL_BUFSIZE_INPUT = 16384+325)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
-#include <SSLClient.h>          // v2.5.3: OPEnSLab SSLClient (BearSSL) for WiFi & Ethernet
-#pragma GCC diagnostic pop
-#include "GitHubTrustAnchors.h" // v2.5.3: GitHub root CA certificates (BearSSL format)
+// ============================================
+// v2.5.9: ESP_SSLClient Configuration (MUST BE BEFORE #include)
+// ============================================
+// Enable PSRAM for SSL buffers - this is the KEY fix for "record too large" error
+// ESP32-S3 has 8MB PSRAM, plenty for SSL buffers
+#define ENABLE_PSRAM
+
+// Use larger buffers since we have PSRAM (16KB for TLS records from GitHub)
+#define ESP_SSLCLIENT_BUFFER_SIZE 16384
+
+// Enable debug for troubleshooting (set to 0 for production)
+#define ESP_SSLCLIENT_ENABLE_DEBUG 0
+
+#include <ESP_SSLClient.h>      // v2.5.9: mobizt ESP_SSLClient with PSRAM support
+
+#include "GitHubTrustAnchors.h" // GitHub root CA certificates
 #include <Update.h>
 #include <ArduinoJson.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
-// v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet - memory efficient
+// v2.5.9: ESP_SSLClient (mobizt) - PSRAM support for large SSL buffers
 
 // Forward declarations
 class OTAHttps;
@@ -105,12 +116,12 @@ class OTAHttps {
 private:
     static OTAHttps* instance;
 
-    // HTTP clients - v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
+    // HTTP clients - v2.5.9: ESP_SSLClient (mobizt) with PSRAM support
     Client* sslClient;               // Active SSL client (polymorphic)
-    WiFiClient* wifiBase;            // Base client for WiFi (wrapped by SSLClient)
-    SSLClient* wifiSecure;           // SSLClient wrapping WiFiClient
+    WiFiClient* wifiBase;            // Base client for WiFi (wrapped by SSL)
+    ESP_SSLClient* wifiSecure;       // ESP_SSLClient wrapping WiFiClient
     EthernetClient* ethBase;         // Base client for Ethernet
-    SSLClient* ethSecure;            // SSLClient wrapping EthernetClient
+    ESP_SSLClient* ethSecure;        // ESP_SSLClient wrapping EthernetClient
     NetworkMgr* networkManager;      // For network status
     bool usingWiFi;                  // Track which interface is active
 
