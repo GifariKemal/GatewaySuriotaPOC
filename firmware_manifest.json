@@ -1,21 +1,20 @@
 {
-  "version": "2.5.11",
-  "build_number": 2511,
-  "release_date": "2025-11-28",
+  "version": "2.5.12",
+  "build_number": 2512,
+  "release_date": "2025-11-29",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.10.bin",
-    "url": "https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/SRT-MGATE-1210_v2.5.10.bin",
-    "size": 2001344,
-    "sha256": "8b584e3c9269090cca47f4b2e4e0018e8f3bfe2e7b441b1405afc2894a1e0cb5",
-    "signature": "3045022057c665a0b3bc5287d618ea4d9c1cf655b611b5362af04cb6c55fc0e66c75ce28022100998bf5103d6a593f42de0cd0bb1cbfea225842be2cae6df8b0d51b984c1dc87f"
+    "filename": "SRT-MGATE-1210_v2.5.12.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.12/SRT-MGATE-1210_v2.5.12.bin",
+    "size": 2004896,
+    "sha256": "49ff8710afbba8a88e86640d44ed1723e3afe8d2a11ce4124227aa63a1ec3896",
+    "signature": "3045022100c0927eeefdf94308f41ec2c42b8dd60434a7501ba390fdc8dfac4ff747aa61e0022055050fa8278cc4d1b8af27dc1e0d89e3c4d63ec232364c16ffda02c91a68026b"
   },
   "changelog": [
-    "v2.5.10: Fix apply_update not rebooting after OTA download",
-    "Fix signature decode - use hex instead of base64",
-    "Fix signing script double-hash bug",
-    "Fix disabled device log spam with LogThrottle",
-    "ESP_SSLClient with PSRAM for OTA over Ethernet"
+    "v2.5.12: Private repository OTA support",
+    "Uses GitHub API for private repo manifest fetch",
+    "Authorization: token header for authentication",
+    "Backward compatible with public repos"
   ],
   "mandatory": false
 }
