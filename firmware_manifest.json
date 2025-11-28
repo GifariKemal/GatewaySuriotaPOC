@@ -4,16 +4,16 @@
   "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.6.bin",
-    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.6/SRT-MGATE-1210_v2.5.6.bin",
-    "size": 1979376,
-    "sha256": "f72ca879e494d22ba836d168e921ed26f04b0d21b95f081eb42e236b8e6d63e5",
-    "signature": "32a72f7346057a5508face27ed60d7a9009b56cd40882965b16ab976240fcf3cc207bee91fbf44eb9a4e744ce2c379cbe770deed371a8240d5cfd2a4adbc27bf"
+    "filename": "SRT-MGATE-1210_v2.5.7.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.7/SRT-MGATE-1210_v2.5.7.bin",
+    "size": 1979392,
+    "sha256": "09fe92ccb8a661d56b2c3e0d98390a18372632f2f7e8dd3fcf880e0a12e85ae7",
+    "signature": "1ee71e2127d20f76a65492d1e692aa936b3a2c3c53795bab9c002137327c5daf395241f769abbddff9eb6871ecd1283db67c67c287294c43a59f2cf0d8029f00"
   },
   "changelog": [
-    "Fixed OTA download timeout for large files from GitHub CDN",
-    "Download loop now properly waits for data instead of exiting early",
-    "Added 30-second no-data timeout with progress logging"
+    "Full SSL client reinitialization on HTTP redirects",
+    "Proper memory cleanup before connecting to CDN",
+    "Fixes record too large error when downloading from GitHub CDN"
   ],
   "mandatory": false
 }

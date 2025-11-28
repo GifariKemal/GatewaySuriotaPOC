@@ -886,7 +886,14 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                 Serial.printf("[OTA DEBUG] Following redirect to: %s\n", location.c_str());
             }
 
-            // Follow redirect
+            // v2.5.7: Full SSL client reinit for redirect to different host
+            // This ensures clean buffers and proper memory allocation
+            cleanupSecureClient();
+
+            // Small delay to allow memory to be freed
+            vTaskDelay(pdMS_TO_TICKS(100));
+
+            // Follow redirect with fresh SSL client
             currentUrl = location;
             if (!setupHttpClient(currentUrl)) {
                 downloading = false;

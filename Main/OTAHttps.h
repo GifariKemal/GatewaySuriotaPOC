@@ -24,6 +24,7 @@
 #include <WiFi.h>              // v2.5.3: For WiFiClient base transport
 
 // Suppress SSLClient library warning (noreturn function)
+// Note: SSLClient already uses 16KB+ buffers (BR_SSL_BUFSIZE_INPUT = 16384+325)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
 #include <SSLClient.h>          // v2.5.3: OPEnSLab SSLClient (BearSSL) for WiFi & Ethernet
