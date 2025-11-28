@@ -225,6 +225,10 @@ private:
     bool performBleUpdate();
     void handleUpdateComplete(bool success);
 
+    // v2.5.3: Lazy initialization for memory optimization
+    bool initHttpsTransportIfNeeded();
+    void cleanupHttpsTransport();
+
     // Task functions
     static void otaTaskFunction(void* param);
     static void checkTaskFunction(void* param);

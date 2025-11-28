@@ -19,13 +19,21 @@
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTAConfig.h"
 #include "OTAValidator.h"
+#include "NetworkManager.h"  // v2.5.3: For multi-network support (WiFi + Ethernet)
 #include <Arduino.h>
-#include <HTTPClient.h>
-#include <WiFiClientSecure.h>
+#include <WiFiClientSecure.h>   // v2.5.3: For WiFi SSL
+
+// Suppress SSLClient library warning (noreturn function)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wattributes"
+#include <SSLClient.h>          // v2.5.3: OPEnSLab SSLClient for Ethernet SSL
+#pragma GCC diagnostic pop
+#include "GitHubTrustAnchors.h" // v2.5.3: GitHub root CA certificates
 #include <Update.h>
 #include <ArduinoJson.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
+// v2.5.3: Hybrid SSL - WiFiClientSecure for WiFi, SSLClient for Ethernet
 
 // Forward declarations
 class OTAHttps;
@@ -96,9 +104,14 @@ class OTAHttps {
 private:
     static OTAHttps* instance;
 
-    // HTTP clients
-    WiFiClientSecure* secureClient;
-    HTTPClient httpClient;
+    // HTTP clients - v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
+    Client* sslClient;               // Active SSL client (polymorphic)
+    WiFiClient* wifiBase;            // Base client for WiFi (wrapped by SSLClient)
+    SSLClient* wifiSecure;           // SSLClient wrapping WiFiClient
+    EthernetClient* ethBase;         // Base client for Ethernet
+    SSLClient* ethSecure;            // SSLClient wrapping EthernetClient
+    NetworkMgr* networkManager;      // For network status
+    bool usingWiFi;                  // Track which interface is active
 
     // Configuration
     GitHubConfig githubConfig;

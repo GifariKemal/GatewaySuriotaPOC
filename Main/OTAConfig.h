@@ -59,7 +59,7 @@
 
 // Repository configuration (configurable via ota_config.json)
 #define OTA_DEFAULT_GITHUB_OWNER    "GifariKemal"
-#define OTA_DEFAULT_GITHUB_REPO     "GatewaySuriotaPOC-Firmware"
+#define OTA_DEFAULT_GITHUB_REPO     "GatewaySuriotaPOC"
 #define OTA_DEFAULT_GITHUB_BRANCH   "main"
 
 // File paths in repository
@@ -214,7 +214,7 @@ enum class OTAError : uint16_t {
   "ota_enabled": true,
   "github": {
     "owner": "GifariKemal",
-    "repo": "GatewaySuriotaPOC-Firmware",
+    "repo": "GatewaySuriotaPOC",
     "branch": "main",
     "token": "",  // Optional: For private repos
     "use_releases": true

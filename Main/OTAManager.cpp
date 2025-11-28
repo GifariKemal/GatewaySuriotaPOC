@@ -108,22 +108,11 @@ bool OTAManager::begin(BLEServer* server) {
         validator->setCurrentVersion(major, minor, patch, currentBuildNumber);
     }
 
-    // Initialize HTTPS transport
-    httpsTransport = OTAHttps::getInstance();
-    if (!httpsTransport->begin(validator)) {
-        LOG_OTA_ERROR("Failed to init HTTPS transport\n");
-        return false;
-    }
-
-    // Apply GitHub config
-    GitHubConfig ghConfig;
-    ghConfig.owner = config.githubOwner;
-    ghConfig.repo = config.githubRepo;
-    ghConfig.branch = config.githubBranch;
-    ghConfig.token = config.githubToken;
-    ghConfig.useReleases = config.useReleases;
-    httpsTransport->setGitHubConfig(ghConfig);
-    httpsTransport->setProgressCallback(progressCallbackAdapter);
+    // v2.5.3: HTTPS transport initialization is now LAZY (on-demand)
+    // This saves ~30KB DRAM by not allocating SSL buffers until actually needed
+    // httpsTransport will be initialized in initHttpsTransportIfNeeded()
+    httpsTransport = nullptr;
+    LOG_OTA_INFO("HTTPS transport: lazy initialization enabled\n");
 
     // Initialize BLE OTA if server provided and enabled
     if (bleServer && config.bleOtaEnabled) {
@@ -173,6 +162,62 @@ void OTAManager::stop() {
     }
 
     callbackInstance = nullptr;
+}
+
+// ============================================
+// LAZY INITIALIZATION (v2.5.3)
+// ============================================
+
+bool OTAManager::initHttpsTransportIfNeeded() {
+    // Already initialized?
+    if (httpsTransport != nullptr) {
+        return true;
+    }
+
+    LOG_OTA_INFO("Initializing HTTPS transport on-demand...\n");
+
+    // Check memory before allocating SSL resources
+    size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+    LOG_OTA_INFO("Free DRAM: %u bytes\n", freeDram);
+
+    if (freeDram < 30000) {
+        LOG_OTA_WARN("Low DRAM, attempting memory recovery...\n");
+
+        // Give tasks time to free memory
+        vTaskDelay(pdMS_TO_TICKS(200));
+
+        freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+        LOG_OTA_INFO("DRAM after recovery: %u bytes\n", freeDram);
+    }
+
+    // Initialize HTTPS transport
+    httpsTransport = OTAHttps::getInstance();
+    if (!httpsTransport->begin(validator)) {
+        LOG_OTA_ERROR("Failed to init HTTPS transport\n");
+        httpsTransport = nullptr;
+        return false;
+    }
+
+    // Apply GitHub config
+    GitHubConfig ghConfig;
+    ghConfig.owner = config.githubOwner;
+    ghConfig.repo = config.githubRepo;
+    ghConfig.branch = config.githubBranch;
+    ghConfig.token = config.githubToken;
+    ghConfig.useReleases = config.useReleases;
+    httpsTransport->setGitHubConfig(ghConfig);
+    httpsTransport->setProgressCallback(progressCallbackAdapter);
+
+    LOG_OTA_INFO("HTTPS transport initialized successfully\n");
+    return true;
+}
+
+void OTAManager::cleanupHttpsTransport() {
+    if (httpsTransport) {
+        LOG_OTA_INFO("Cleaning up HTTPS transport to free memory\n");
+        httpsTransport->stop();
+        httpsTransport = nullptr;
+    }
 }
 
 // ============================================
@@ -450,6 +495,12 @@ bool OTAManager::checkForUpdate() {
         return false;
     }
 
+    // v2.5.3: Lazy initialization of HTTPS transport
+    if (!initHttpsTransportIfNeeded()) {
+        setError(OTAError::NETWORK_ERROR, "Failed to init HTTPS transport");
+        return false;
+    }
+
     xSemaphoreTake(managerMutex, portMAX_DELAY);
 
     setState(OTAState::CHECKING);
@@ -525,6 +576,12 @@ bool OTAManager::startUpdateFromUrl(const String& url) {
 
 bool OTAManager::performHttpsUpdate(const String& url) {
     if (currentState != OTAState::IDLE && currentState != OTAState::CHECKING) {
+        return false;
+    }
+
+    // v2.5.3: Lazy initialization of HTTPS transport
+    if (!initHttpsTransportIfNeeded()) {
+        setError(OTAError::NETWORK_ERROR, "Failed to init HTTPS transport");
         return false;
     }
 

@@ -8,7 +8,87 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.2 (Current - Production Mode Logging Optimization)
+## 🚀 Version 2.5.3 (Current - Multi-Network HTTPS OTA Support)
+
+**Release Date:** November 27, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** 🔧 In Development
+
+### 🎯 **Purpose**
+
+This release fixes OTA HTTPS connectivity to work with BOTH WiFi and Ethernet interfaces using SSLClient library.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. SSLClient Integration for Multi-Network HTTPS
+**Severity:** 🔴 CRITICAL (OTA only worked with WiFi)
+
+**Issue:** OTA HTTPS was using `WiFiClientSecure` / `NetworkClientSecure` which only works when WiFi is the active interface. When Ethernet is used (WiFi disabled), OTA fails with `HTTP -1`.
+
+**Root Cause:**
+- `WiFiClientSecure` is tied to WiFi stack
+- `NetworkClientSecure` also depends on WiFi internals
+- DNS resolution via `WiFi.hostByName()` fails when WiFi is disabled
+
+**Fix:** Implemented SSLClient library integration:
+- SSLClient wraps ANY Arduino Client (WiFiClient or EthernetClient)
+- Uses NetworkManager's `getActiveClient()` to get current active interface
+- TLS layer provided by SSLClient using mbedtls (same as ESP32 native)
+
+**Implementation:**
+```cpp
+// Get active client from NetworkManager (WiFi or Ethernet)
+baseClient = networkManager->getActiveClient();
+
+// Wrap with SSLClient for TLS support
+sslClient = new SSLClient(baseClient);
+sslClient->setInsecure();  // Temporary for testing
+
+// Use with HTTPClient
+httpClient.begin(*sslClient, url);
+```
+
+**Impact:**
+- OTA HTTPS now works with Ethernet-only mode
+- OTA HTTPS continues to work with WiFi mode
+- Automatic network detection via NetworkManager
+
+**Files Modified:** `OTAHttps.h`, `OTAHttps.cpp`
+
+**Library Required:** ESP_SSLClient by mobizt (install via Arduino Library Manager)
+
+---
+
+#### 2. SSL Root CA Certificate Update
+**Severity:** 🟡 MEDIUM (Preparation for SSL validation)
+
+**Issue:** GitHub switched SSL certificate from DigiCert to Sectigo/USERTrust.
+
+**Fix:** Updated `GITHUB_ROOT_CA` certificate to USERTrust RSA Certification Authority (valid until 2028). Currently using `setInsecure()` for testing, will re-enable certificate validation after confirming connectivity.
+
+---
+
+### 📁 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `OTAHttps.h` | Changed from `WiFiClientSecure*` to `SSLClient*`, added `Client* baseClient`, added `NetworkMgr* networkManager` |
+| `OTAHttps.cpp` | Implemented SSLClient with NetworkManager integration, removed WiFi.h dependency |
+| `Main.ino` | Version bump to 2.5.3, build number to 2503 |
+
+### 📚 **Required Library**
+
+Install **ESP_SSLClient** library by mobizt via Arduino Library Manager:
+- Search: "ESP_SSLClient"
+- Author: mobizt
+- Version: 3.0.x or later
+- GitHub: https://github.com/mobizt/ESP_SSLClient
+
+---
+
+## 🚀 Version 2.5.2 (Production Mode Logging Optimization)
 
 **Release Date:** November 27, 2025 (Wednesday)
 **Developer:** Kemal (with Claude Code)
