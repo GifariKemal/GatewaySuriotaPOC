@@ -652,6 +652,10 @@ void OTAManager::handleUpdateComplete(bool success) {
 
     if (success) {
         LOG_OTA_INFO("Update complete. Call applyUpdate() to reboot.\n");
+    } else {
+        // v2.5.8: Reset state to IDLE on failure to allow retry
+        setState(OTAState::IDLE);
+        LOG_OTA_INFO("Update failed. State reset to IDLE for retry.\n");
     }
 }
 

@@ -1,19 +1,19 @@
 {
-  "version": "2.5.8",
-  "build_number": 2508,
+  "version": "2.5.9",
+  "build_number": 2509,
   "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.7.bin",
-    "url": "https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/SRT-MGATE-1210_v2.5.7.bin",
-    "size": 1979392,
-    "sha256": "09fe92ccb8a661d56b2c3e0d98390a18372632f2f7e8dd3fcf880e0a12e85ae7",
-    "signature": "1ee71e2127d20f76a65492d1e692aa936b3a2c3c53795bab9c002137327c5daf395241f769abbddff9eb6871ecd1283db67c67c287294c43a59f2cf0d8029f00"
+    "filename": "SRT-MGATE-1210_v2.5.8.bin",
+    "url": "https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/SRT-MGATE-1210_v2.5.8.bin",
+    "size": 1979600,
+    "sha256": "26ca720dd49a5a6188cf3b983c28fdeddfde303254a8a06e2c6802a7dad62666",
+    "signature": "0863018e0e3318d9050f67b85e9f5888ea48c5ec27c5e709b34ca8068bfef660afa4082d84a251c27d07a1a9ee1abd6b3949af850d5acd078519e381a4a6a53a"
   },
   "changelog": [
-    "OTA now uses raw.githubusercontent.com for direct download",
-    "Avoids GitHub releases redirect which requires extra SSL memory",
-    "Single SSL connection instead of two"
+    "Fix OTA state stuck on failure - auto-resets to IDLE",
+    "handleUpdateComplete() now properly resets state after failed downloads",
+    "Allows immediate OTA retry without device restart"
   ],
   "mandatory": false
 }
