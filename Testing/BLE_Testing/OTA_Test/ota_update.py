@@ -4,24 +4,30 @@
 ===============================================
 
 Automated OTA update process via BLE:
-  1. Check for updates
-  2. Download & verify firmware
-  3. Apply update and reboot
+  1. Set GitHub token (for private repos)
+  2. Check for updates
+  3. Download & verify firmware
+  4. Apply update and reboot
 
 Dependencies:
     pip install bleak colorama
 
 Usage:
-    python ota_update.py
+    python ota_update.py                    # Interactive menu
+    python ota_update.py --set-token TOKEN  # Set GitHub token
+    python ota_update.py --check            # Check for updates only
+    python ota_update.py --update           # Full update flow
+    python ota_update.py --auto             # Auto update (no prompts)
 
 Author: Claude Code
-Version: 1.0.0
+Version: 1.1.0
 """
 
 import asyncio
 import json
 import sys
 import time
+import argparse
 from datetime import datetime
 
 try:
@@ -435,6 +441,105 @@ async def step_apply_update(client):
     return True
 
 
+async def step_set_github_token(client, token):
+    """Set GitHub token for private repo access"""
+    print_step(0, 1, "Setting GitHub Token")
+
+    global response_buffer, response_complete
+    response_buffer = []
+    response_complete = False
+
+    # Build command
+    command = {"op": "ota", "type": "set_github_token", "token": token}
+    command_str = json.dumps(command, separators=(',', ':'))
+
+    print(f"\n  {Fore.CYAN}📤 Sending: set_github_token (token: {token[:10]}...{token[-4:]}){Style.RESET_ALL}")
+    print(f"  {Fore.CYAN}📥 Receiving: ", end="", flush=True)
+
+    # Fragment and send
+    chunk_size = 18
+    for i in range(0, len(command_str), chunk_size):
+        chunk = command_str[i:i+chunk_size]
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        await asyncio.sleep(CHUNK_DELAY)
+
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+
+    # Wait for response
+    elapsed = 0
+    while not response_complete and elapsed < 30:
+        await asyncio.sleep(0.1)
+        elapsed += 0.1
+
+    print()
+
+    if response_complete:
+        full_response = ''.join(response_buffer)
+        data = parse_response(full_response)
+
+        print_box("📋 Response", full_response[:300], Fore.CYAN)
+
+        if data.get("status") == "ok":
+            print_success(f"GitHub token configured! (Length: {data.get('token_length', len(token))} chars)")
+            return True
+        else:
+            print_error(f"Failed: {data.get('message', 'Unknown error')}")
+            return False
+    else:
+        print_error("Timeout waiting for response")
+        return False
+
+
+async def step_get_config(client):
+    """Get OTA configuration"""
+    print_step(0, 1, "Getting OTA Configuration")
+
+    response = await send_ota_command(client, "get_config", wait_time=15)
+
+    if not response:
+        print_error("Timeout waiting for response")
+        return None
+
+    data = parse_response(response)
+    print_box("📋 OTA Configuration", response[:600], Fore.CYAN)
+
+    if data.get("status") == "ok":
+        config = data.get("config", {})
+        info = {
+            "Enabled": "Yes" if config.get("enabled") else "No",
+            "GitHub Owner": config.get("github_owner", "Not set"),
+            "GitHub Repo": config.get("github_repo", "Not set"),
+            "Branch": config.get("github_branch", "main"),
+            "Verify Signature": "Yes" if config.get("verify_signature") else "No",
+            "Auto Update": "Yes" if config.get("auto_update") else "No"
+        }
+        print_box("⚙️ Current Settings", info, Fore.GREEN)
+        return config
+
+    return None
+
+
+async def show_menu():
+    """Show interactive menu"""
+    print()
+    print(f"  {Fore.CYAN}{'─' * 50}")
+    print(f"  {Fore.WHITE}{Style.BRIGHT}Select an option:{Style.RESET_ALL}")
+    print(f"  {Fore.CYAN}{'─' * 50}")
+    print(f"  {Fore.WHITE}  1. {Fore.GREEN}Check for updates{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  2. {Fore.YELLOW}Set GitHub token (for private repos){Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  3. {Fore.CYAN}Get OTA configuration{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  4. {Fore.MAGENTA}Full OTA update{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  5. {Fore.RED}Exit{Style.RESET_ALL}")
+    print(f"  {Fore.CYAN}{'─' * 50}")
+    print()
+
+    try:
+        choice = input(f"  {Fore.WHITE}Enter choice (1-5): {Style.RESET_ALL}").strip()
+        return choice
+    except (KeyboardInterrupt, EOFError):
+        return "5"
+
+
 async def show_final_summary(success, update_info=None):
     """Show final summary"""
     print()
@@ -572,13 +677,234 @@ async def run_ota_update():
 
 
 # ============================================================================
+# Interactive Menu Mode
+# ============================================================================
+async def run_interactive_menu():
+    """Run interactive menu mode"""
+    print_header()
+
+    client = None
+
+    try:
+        # Connect first
+        print_step(0, 0, "Connecting to SURIOTA Gateway", "running")
+
+        device = await scan_for_device()
+        if not device:
+            print_error(f"Device '{SERVICE_NAME}' not found!")
+            print_info("Make sure device is powered on and BLE is enabled")
+            return False
+
+        client = await connect_device(device.address)
+        if not client:
+            print_error("Failed to connect to device")
+            return False
+
+        print_success("Connected to SURIOTA Gateway!")
+        await asyncio.sleep(1)
+
+        # Menu loop
+        while True:
+            choice = await show_menu()
+
+            if choice == "1":
+                # Check for updates
+                await step_check_update(client)
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "2":
+                # Set GitHub token
+                print()
+                print(f"  {Fore.YELLOW}Enter GitHub Personal Access Token:{Style.RESET_ALL}")
+                print(f"  {Fore.WHITE}(Format: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx){Style.RESET_ALL}")
+                try:
+                    token = input(f"  {Fore.WHITE}> {Style.RESET_ALL}").strip()
+                    if token and token.startswith("ghp_"):
+                        await step_set_github_token(client, token)
+                    else:
+                        print_error("Invalid token format. Should start with 'ghp_'")
+                except (KeyboardInterrupt, EOFError):
+                    pass
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "3":
+                # Get config
+                await step_get_config(client)
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "4":
+                # Full OTA update - run the full flow
+                update_info = await step_check_update(client)
+
+                if update_info:
+                    await asyncio.sleep(COMMAND_DELAY)
+                    download_success = await step_start_update(client)
+
+                    if download_success:
+                        await asyncio.sleep(COMMAND_DELAY)
+                        confirm = await step_confirm_apply(client)
+
+                        if confirm:
+                            success = await step_apply_update(client)
+                            await show_final_summary(success, update_info)
+                            return success
+                        else:
+                            print_warning("Update cancelled by user")
+                    else:
+                        print_error("Download failed")
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "5":
+                print_info("Exiting...")
+                break
+
+            else:
+                print_error("Invalid choice. Please enter 1-5.")
+
+    except KeyboardInterrupt:
+        print(f"\n\n  {Fore.YELLOW}⚠️  Interrupted by user{Style.RESET_ALL}")
+
+    finally:
+        if client and client.is_connected:
+            try:
+                await client.stop_notify(RESPONSE_CHAR_UUID)
+                await client.disconnect()
+                print(f"\n  {Fore.CYAN}🔌 Disconnected from device{Style.RESET_ALL}")
+            except:
+                pass
+
+    return False
+
+
+async def run_set_token(token):
+    """Set GitHub token mode"""
+    print_header()
+
+    client = None
+    try:
+        print_step(0, 1, "Connecting to set GitHub token", "running")
+
+        device = await scan_for_device()
+        if not device:
+            print_error(f"Device '{SERVICE_NAME}' not found!")
+            return False
+
+        client = await connect_device(device.address)
+        if not client:
+            print_error("Failed to connect to device")
+            return False
+
+        print_success("Connected!")
+        await asyncio.sleep(1)
+
+        result = await step_set_github_token(client, token)
+        return result
+
+    finally:
+        if client and client.is_connected:
+            try:
+                await client.stop_notify(RESPONSE_CHAR_UUID)
+                await client.disconnect()
+                print(f"\n  {Fore.CYAN}🔌 Disconnected{Style.RESET_ALL}")
+            except:
+                pass
+
+
+async def run_check_only():
+    """Check for updates only"""
+    print_header()
+
+    client = None
+    try:
+        print_step(0, 1, "Connecting to check updates", "running")
+
+        device = await scan_for_device()
+        if not device:
+            print_error(f"Device '{SERVICE_NAME}' not found!")
+            return False
+
+        client = await connect_device(device.address)
+        if not client:
+            print_error("Failed to connect to device")
+            return False
+
+        print_success("Connected!")
+        await asyncio.sleep(1)
+
+        result = await step_check_update(client)
+        return result is not None
+
+    finally:
+        if client and client.is_connected:
+            try:
+                await client.stop_notify(RESPONSE_CHAR_UUID)
+                await client.disconnect()
+                print(f"\n  {Fore.CYAN}🔌 Disconnected{Style.RESET_ALL}")
+            except:
+                pass
+
+
+# ============================================================================
 # Entry Point
 # ============================================================================
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="OTA Firmware Update Tool for SRT-MGATE-1210",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python ota_update.py                    # Interactive menu
+  python ota_update.py --set-token ghp_xxx  # Set GitHub token
+  python ota_update.py --check            # Check for updates only
+  python ota_update.py --update           # Full update flow
+  python ota_update.py --auto             # Auto update (no prompts)
+        """
+    )
+    parser.add_argument("--set-token", metavar="TOKEN",
+                        help="Set GitHub Personal Access Token for private repos")
+    parser.add_argument("--check", action="store_true",
+                        help="Check for updates only (no download)")
+    parser.add_argument("--update", action="store_true",
+                        help="Run full OTA update flow")
+    parser.add_argument("--auto", action="store_true",
+                        help="Auto update without prompts (dangerous!)")
+
+    return parser.parse_args()
+
+
 def main():
     """Entry point"""
+    args = parse_args()
+
     try:
-        result = asyncio.run(run_ota_update())
-        sys.exit(0 if result else 1)
+        if args.set_token:
+            # Set token mode
+            if not args.set_token.startswith("ghp_"):
+                print(f"{Fore.RED}❌ Invalid token format. Should start with 'ghp_'{Style.RESET_ALL}")
+                sys.exit(1)
+            result = asyncio.run(run_set_token(args.set_token))
+            sys.exit(0 if result else 1)
+
+        elif args.check:
+            # Check only mode
+            result = asyncio.run(run_check_only())
+            sys.exit(0 if result else 1)
+
+        elif args.update or args.auto:
+            # Full update mode
+            result = asyncio.run(run_ota_update())
+            sys.exit(0 if result else 1)
+
+        else:
+            # Interactive menu mode
+            result = asyncio.run(run_interactive_menu())
+            sys.exit(0 if result else 1)
+
     except KeyboardInterrupt:
         print(f"\n\n{Fore.YELLOW}⚠️  Interrupted{Style.RESET_ALL}")
         sys.exit(1)
