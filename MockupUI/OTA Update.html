@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTA Firmware Update - SRT-MGATE-1210</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#2f6f64', dark: '#1e4a42', light: '#3d8b7e' },
+            cyber: { DEFAULT: '#00d4ff', dark: '#0099cc', glow: '#00d4ff33' }
+          },
+          boxShadow: {
+            soft: '0 10px 30px rgba(2,8,20,.08)',
+            glow: '0 0 20px rgba(47,111,100,.2)',
+            cyber: '0 0 30px rgba(0,212,255,.3)',
+            'cyber-lg': '0 0 60px rgba(0,212,255,.4)'
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.4s ease-out',
+            'scale-in': 'scaleIn 0.2s ease-out',
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'spin-slow': 'spin 3s linear infinite',
+            'bounce-slow': 'bounce 2s infinite',
+            'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+            'gradient': 'gradient 3s ease infinite',
+            'shimmer': 'shimmer 2s infinite',
+            'pulse-ring': 'pulseRing 1.5s ease-out infinite',
+            'float': 'float 3s ease-in-out infinite',
+            'glow-pulse': 'glowPulse 2s ease-in-out infinite',
+            'data-flow': 'dataFlow 2s linear infinite',
+            'typing': 'typing 1s steps(3) infinite'
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            scaleIn: { '0%': { transform: 'scale(0.9)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+            gradient: { '0%, 100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
+            shimmer: { '0%': { backgroundPosition: '-200% 0' }, '100%': { backgroundPosition: '200% 0' } },
+            pulseRing: { '0%': { transform: 'scale(0.8)', opacity: '1' }, '100%': { transform: 'scale(2)', opacity: '0' } },
+            float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+            glowPulse: { '0%, 100%': { boxShadow: '0 0 20px rgba(0,212,255,.3)' }, '50%': { boxShadow: '0 0 40px rgba(0,212,255,.6)' } },
+            dataFlow: { '0%': { backgroundPosition: '0% 0%' }, '100%': { backgroundPosition: '200% 0%' } },
+            typing: { '0%': { content: '"."' }, '33%': { content: '".."' }, '66%': { content: '"..."' } }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Tech Background Pattern */
+    .tech-bg {
+      background:
+        linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      background-size: 400% 400%;
+      animation: gradient 8s ease infinite;
+    }
+
+    /* Cyber Grid */
+    .cyber-grid {
+      background-image:
+        linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+
+    /* Gradient Text */
+    .gradient-text {
+      background: linear-gradient(135deg, #00d4ff, #2f6f64, #00d4ff);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: gradient 3s linear infinite;
+    }
+
+    /* Shimmer Effect */
+    .shimmer {
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.1) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+
+    /* Progress Bar Glow */
+    .progress-glow {
+      box-shadow: 0 0 20px rgba(0,212,255,.5), inset 0 0 10px rgba(0,212,255,.2);
+    }
+
+    /* Data Flow Animation */
+    .data-flow {
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(0,212,255,.3) 25%,
+        rgba(0,212,255,.6) 50%,
+        rgba(0,212,255,.3) 75%,
+        transparent 100%);
+      background-size: 200% 100%;
+      animation: dataFlow 2s linear infinite;
+    }
+
+    /* Particle Container */
+    .particles {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(0,212,255,.6);
+      border-radius: 50%;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    /* Toast Animation */
+    .toast { transform: translateX(400px); transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(0); }
+
+    /* Card Hover Effect */
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,.15);
+    }
+
+    /* Typing Dots */
+    .typing-dots::after {
+      content: '...';
+      animation: typing 1s steps(3) infinite;
+    }
+
+    /* Progress Wave */
+    .progress-wave {
+      position: relative;
+      overflow: hidden;
+    }
+    .progress-wave::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.3), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 3px; }
+  </style>
+</head>
+<body class="tech-bg cyber-grid text-white min-h-screen pb-96 md:pb-80">
+
+  <!-- Floating Particles Background -->
+  <div class="particles" id="particles"></div>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 backdrop-blur-xl bg-slate-900/80 border-b border-cyan-500/20">
+    <div class="max-w-4xl mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-brand flex items-center justify-center">
+              <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+              </svg>
+            </div>
+            <div class="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold gradient-text">Firmware Update</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Over-The-Air (OTA)</p>
+          </div>
+        </div>
+        <button onclick="window.history.back()" class="p-2 rounded-xl hover:bg-white/10 transition border border-slate-700">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6 animate-fade-in">
+
+    <!-- Current Version Card -->
+    <section class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 card-hover">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold flex items-center gap-2">
+          <span class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+            </svg>
+          </span>
+          Device Information
+        </h2>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+          Online
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+          <p class="text-xs text-slate-500 mb-1">Current Version</p>
+          <p id="currentVersion" class="text-lg font-bold text-cyan-400">v2.5.10</p>
+        </div>
+        <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+          <p class="text-xs text-slate-500 mb-1">Build Number</p>
+          <p id="buildNumber" class="text-lg font-bold text-white">2510</p>
+        </div>
+        <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+          <p class="text-xs text-slate-500 mb-1">Device Model</p>
+          <p class="text-lg font-bold text-white">SRT-1210</p>
+        </div>
+        <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50">
+          <p class="text-xs text-slate-500 mb-1">Last Updated</p>
+          <p id="lastUpdated" class="text-lg font-bold text-white">Nov 28</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Update Status Card -->
+    <section id="updateCard" class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden card-hover">
+      <!-- Card Header -->
+      <div class="p-6 border-b border-slate-700/50">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold flex items-center gap-2">
+            <span class="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center">
+              <svg class="w-5 h-5 text-brand-light" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/>
+              </svg>
+            </span>
+            Firmware Update
+          </h2>
+          <div id="statusBadge" class="hidden px-3 py-1 rounded-full text-xs font-medium"></div>
+        </div>
+      </div>
+
+      <!-- Dynamic Content Area -->
+      <div id="updateContent" class="p-6">
+        <!-- Initial State: Check for Updates -->
+        <div id="stateIdle" class="text-center py-8">
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-brand/20 flex items-center justify-center border border-cyan-500/30 animate-glow-pulse">
+            <svg class="w-10 h-10 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">Check for Updates</h3>
+          <p class="text-slate-400 mb-6 text-sm">Verify if a new firmware version is available</p>
+          <button id="btnCheckUpdate" onclick="checkForUpdate()" class="px-8 py-3 rounded-xl font-semibold bg-gradient-to-r from-cyan-500 to-brand hover:from-cyan-400 hover:to-brand-light transition-all duration-300 transform hover:scale-105 hover:shadow-cyber flex items-center gap-2 mx-auto">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Check for Updates
+          </button>
+        </div>
+
+        <!-- Checking State -->
+        <div id="stateChecking" class="hidden text-center py-8">
+          <div class="relative w-24 h-24 mx-auto mb-6">
+            <!-- Outer Ring -->
+            <div class="absolute inset-0 rounded-full border-4 border-cyan-500/20"></div>
+            <!-- Spinning Ring -->
+            <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-cyan-500 animate-spin"></div>
+            <!-- Inner Pulse -->
+            <div class="absolute inset-4 rounded-full bg-cyan-500/10 animate-pulse flex items-center justify-center">
+              <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+            <!-- Pulse Rings -->
+            <div class="absolute inset-0 rounded-full border-2 border-cyan-500/50 animate-pulse-ring"></div>
+          </div>
+          <h3 class="text-xl font-bold mb-2">Checking for Updates</h3>
+          <p class="text-slate-400 text-sm">Connecting to update server<span class="typing-dots"></span></p>
+        </div>
+
+        <!-- Update Available State -->
+        <div id="stateAvailable" class="hidden">
+          <!-- Update Info Header -->
+          <div class="flex items-center gap-4 mb-6">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center animate-float">
+              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">NEW</span>
+                <span class="text-xs text-slate-500">Available</span>
+              </div>
+              <h3 class="text-2xl font-bold">
+                <span class="text-slate-500" id="oldVersion">v2.5.10</span>
+                <svg class="w-5 h-5 inline mx-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+                <span class="gradient-text" id="newVersion">v2.5.11</span>
+              </h3>
+            </div>
+          </div>
+
+          <!-- Update Details Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 text-center">
+              <svg class="w-5 h-5 mx-auto mb-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+              </svg>
+              <p class="text-xs text-slate-500">Size</p>
+              <p id="updateSize" class="font-bold text-white">1.95 MB</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 text-center">
+              <svg class="w-5 h-5 mx-auto mb-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              <p class="text-xs text-slate-500">Verified</p>
+              <p class="font-bold text-emerald-400">Signed</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 text-center">
+              <svg class="w-5 h-5 mx-auto mb-2 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="text-xs text-slate-500">Est. Time</p>
+              <p id="updateTime" class="font-bold text-white">~2 min</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 text-center">
+              <svg class="w-5 h-5 mx-auto mb-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+              <p class="text-xs text-slate-500">Priority</p>
+              <p id="updatePriority" class="font-bold text-white">Optional</p>
+            </div>
+          </div>
+
+          <!-- Changelog -->
+          <div class="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 mb-6">
+            <h4 class="font-semibold mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+              Release Notes
+            </h4>
+            <ul id="changelog" class="space-y-2 text-sm text-slate-300">
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></span>
+                <span>Fix apply_update not rebooting after OTA download</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-500 mt-1.5 flex-shrink-0"></span>
+                <span>Fix signature decode - use hex instead of base64</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 flex-shrink-0"></span>
+                <span>ESP_SSLClient with PSRAM for OTA over Ethernet</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Action Button -->
+          <button id="btnStartUpdate" onclick="startUpdate()" class="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-cyber-lg flex items-center justify-center gap-3 text-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Download & Install Update
+          </button>
+        </div>
+
+        <!-- Downloading State -->
+        <div id="stateDownloading" class="hidden py-4">
+          <!-- Progress Header -->
+          <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+              <div class="relative">
+                <div class="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                  <svg class="w-6 h-6 text-cyan-400 animate-bounce-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                  </svg>
+                </div>
+                <!-- Spinning Ring -->
+                <div class="absolute -inset-1 rounded-xl border-2 border-transparent border-t-cyan-500 animate-spin-slow"></div>
+              </div>
+              <div>
+                <h3 class="font-bold text-lg">Downloading Firmware</h3>
+                <p class="text-sm text-slate-400" id="downloadStatus">Connecting to server...</p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold gradient-text" id="progressPercent">0%</p>
+              <p class="text-xs text-slate-500" id="downloadSpeed">-- KB/s</p>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="relative mb-4">
+            <div class="h-4 bg-slate-900/80 rounded-full overflow-hidden border border-slate-700">
+              <div id="progressBar" class="h-full bg-gradient-to-r from-cyan-500 via-brand to-emerald-500 rounded-full transition-all duration-300 progress-wave" style="width: 0%"></div>
+            </div>
+            <!-- Progress Glow -->
+            <div id="progressGlow" class="absolute top-0 h-4 bg-cyan-500/30 rounded-full blur-md transition-all duration-300" style="width: 0%"></div>
+          </div>
+
+          <!-- Download Stats -->
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="bg-slate-900/50 rounded-lg p-3 text-center border border-slate-700/30">
+              <p class="text-xs text-slate-500">Downloaded</p>
+              <p id="downloadedBytes" class="font-bold text-cyan-400">0 KB</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-3 text-center border border-slate-700/30">
+              <p class="text-xs text-slate-500">Total Size</p>
+              <p id="totalBytes" class="font-bold text-white">1.95 MB</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-3 text-center border border-slate-700/30">
+              <p class="text-xs text-slate-500">Time Left</p>
+              <p id="timeLeft" class="font-bold text-amber-400">--:--</p>
+            </div>
+          </div>
+
+          <!-- Progress Steps -->
+          <div class="space-y-3">
+            <div id="step1" class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/30 border border-slate-700/30">
+              <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm">Connecting to server</p>
+                <p class="text-xs text-slate-500">raw.githubusercontent.com</p>
+              </div>
+              <span class="text-xs text-emerald-400">Done</span>
+            </div>
+
+            <div id="step2" class="flex items-center gap-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30">
+              <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                <div class="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm">Downloading firmware</p>
+                <p class="text-xs text-slate-500">SRT-MGATE-1210_v2.5.11.bin</p>
+              </div>
+              <span class="text-xs text-cyan-400" id="step2Status">In Progress</span>
+            </div>
+
+            <div id="step3" class="flex items-center gap-3 p-3 rounded-xl bg-slate-900/30 border border-slate-700/30 opacity-50">
+              <div class="w-8 h-8 rounded-full bg-slate-700/50 flex items-center justify-center">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="font-medium text-sm text-slate-400">Verify signature</p>
+                <p class="text-xs text-slate-600">ECDSA P-256 verification</p>
+              </div>
+              <span class="text-xs text-slate-500">Pending</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verifying State -->
+        <div id="stateVerifying" class="hidden text-center py-8">
+          <div class="relative w-24 h-24 mx-auto mb-6">
+            <div class="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 animate-pulse"></div>
+            <div class="absolute inset-2 rounded-full bg-slate-900 flex items-center justify-center">
+              <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+            </div>
+            <svg class="absolute inset-0 w-full h-full animate-spin-slow" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(16,185,129,0.2)" stroke-width="4"/>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="70 200" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2 text-emerald-400">Verifying Firmware</h3>
+          <p class="text-slate-400 text-sm mb-4">Checking SHA-256 checksum & ECDSA signature<span class="typing-dots"></span></p>
+          <div class="flex justify-center gap-4 text-sm">
+            <span class="flex items-center gap-1 text-emerald-400">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Checksum OK
+            </span>
+            <span class="flex items-center gap-1 text-slate-400 animate-pulse">
+              <div class="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+              Signature...
+            </span>
+          </div>
+        </div>
+
+        <!-- Ready to Install State -->
+        <div id="stateReady" class="hidden text-center py-8">
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center animate-float shadow-cyber-lg">
+            <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2 text-emerald-400">Ready to Install</h3>
+          <p class="text-slate-400 text-sm mb-6">Firmware verified successfully. Device will restart after installation.</p>
+
+          <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 text-left">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+              <div>
+                <p class="font-semibold text-amber-400 text-sm">Important Notice</p>
+                <p class="text-xs text-slate-400 mt-1">Do not power off the device during installation. The process takes approximately 30 seconds.</p>
+              </div>
+            </div>
+          </div>
+
+          <button id="btnApplyUpdate" onclick="applyUpdate()" class="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-cyber-lg flex items-center justify-center gap-3 text-lg">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Install & Restart Device
+          </button>
+        </div>
+
+        <!-- Installing State -->
+        <div id="stateInstalling" class="hidden text-center py-8">
+          <div class="relative w-24 h-24 mx-auto mb-6">
+            <!-- Outer Glow -->
+            <div class="absolute -inset-4 rounded-full bg-cyan-500/20 animate-ping-slow"></div>
+            <!-- Main Circle -->
+            <div class="relative w-24 h-24 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 border-4 border-cyan-500/50 flex items-center justify-center">
+              <svg class="w-10 h-10 text-cyan-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              </svg>
+            </div>
+            <!-- Spinning Progress -->
+            <svg class="absolute inset-0 w-full h-full animate-spin" viewBox="0 0 100 100" style="animation-duration: 2s;">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(0,212,255,0.1)" stroke-width="8"/>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="#00d4ff" stroke-width="8" stroke-dasharray="100 200" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2 gradient-text">Installing Firmware</h3>
+          <p class="text-slate-400 text-sm mb-4">Please wait, do not power off the device<span class="typing-dots"></span></p>
+
+          <!-- Installation Progress -->
+          <div class="max-w-xs mx-auto">
+            <div class="flex justify-between text-xs text-slate-500 mb-2">
+              <span>Writing to flash</span>
+              <span id="installProgress">0%</span>
+            </div>
+            <div class="h-2 bg-slate-900 rounded-full overflow-hidden">
+              <div id="installBar" class="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full data-flow" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success State -->
+        <div id="stateSuccess" class="hidden text-center py-8">
+          <div class="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-cyber-lg animate-scale-in">
+            <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h3 class="text-2xl font-bold mb-2 text-emerald-400">Update Complete!</h3>
+          <p class="text-slate-400 text-sm mb-6">Device is restarting with the new firmware...</p>
+
+          <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 mb-6">
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-slate-500">Previous Version</p>
+                <p class="font-bold text-slate-400">v2.5.10</p>
+              </div>
+              <div>
+                <p class="text-slate-500">New Version</p>
+                <p class="font-bold text-emerald-400">v2.5.11</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-500 animate-pulse">
+            <svg class="w-4 h-4 inline mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Reconnecting to device...
+          </p>
+        </div>
+
+        <!-- No Update Available State -->
+        <div id="stateNoUpdate" class="hidden text-center py-8">
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-slate-700/50 flex items-center justify-center border border-slate-600">
+            <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2">You're Up to Date</h3>
+          <p class="text-slate-400 mb-4 text-sm">Your device is running the latest firmware version.</p>
+          <p class="text-sm text-slate-500">Current: <span class="text-cyan-400 font-bold">v2.5.11</span></p>
+          <button onclick="resetToIdle()" class="mt-6 px-6 py-2 rounded-xl font-semibold border border-slate-600 hover:bg-slate-700/50 transition">
+            Check Again
+          </button>
+        </div>
+
+        <!-- Error State -->
+        <div id="stateError" class="hidden text-center py-8">
+          <div class="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
+            <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold mb-2 text-red-400">Update Failed</h3>
+          <p id="errorMessage" class="text-slate-400 mb-6 text-sm">An error occurred during the update process.</p>
+          <button onclick="resetToIdle()" class="px-6 py-2 rounded-xl font-semibold bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition">
+            Try Again
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Network Info -->
+    <section class="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-4 card-hover">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+            </svg>
+          </div>
+          <div>
+            <p class="font-semibold text-sm">Network Connection</p>
+            <p class="text-xs text-slate-500">Used for OTA download</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p id="networkType" class="font-bold text-purple-400">WiFi</p>
+          <p id="networkIP" class="text-xs text-slate-500">192.168.1.7</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast fixed top-20 right-4 bg-slate-800 backdrop-blur-xl rounded-xl shadow-cyber p-4 border border-slate-700 hidden z-50 max-w-sm">
+    <div class="flex items-start gap-3">
+      <div id="toastIcon" class="flex-shrink-0"></div>
+      <div class="flex-1">
+        <h4 id="toastTitle" class="font-semibold text-sm"></h4>
+        <p id="toastMessage" class="text-xs text-slate-400 mt-1"></p>
+      </div>
+      <button onclick="hideToast()" class="text-slate-500 hover:text-white transition">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- JSON Preview Panel -->
+  <div id="jsonPreviewPanel" class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t-2 border-cyan-500/50 shadow-2xl z-50 transition-all duration-300" style="max-height: 380px;">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-slate-800/80 transition-colors border-b border-slate-700/50" onclick="toggleJSONPreview()">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-bold text-sm text-white">JSON Preview</h3>
+          <p class="text-xs text-slate-500">BLE Commands & Responses</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-1 rounded text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">Live</span>
+        <svg id="toggleIcon" class="w-5 h-5 text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div id="jsonPreviewContent" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 overflow-auto" style="max-height: 320px;">
+      <!-- Command Panel -->
+      <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
+        <div class="bg-blue-600/20 border-b border-blue-500/30 px-3 py-2 flex justify-between items-center">
+          <h4 class="font-semibold text-xs flex items-center gap-2 text-blue-400">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            Request (Command)
+          </h4>
+          <button onclick="copyJSON('command')" class="text-xs bg-blue-500/20 hover:bg-blue-500/30 px-2 py-1 rounded transition-colors text-blue-400">
+            Copy
+          </button>
+        </div>
+        <div class="p-3">
+          <p id="jsonCommandTime" class="text-xs text-slate-600 mb-2">No command sent yet</p>
+          <pre id="jsonCommand" class="text-xs bg-slate-900/80 text-emerald-400 p-3 rounded-lg overflow-x-auto font-mono max-h-40 border border-slate-700/50">// Waiting for command...</pre>
+        </div>
+      </div>
+
+      <!-- Response Panel -->
+      <div class="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
+        <div class="bg-emerald-600/20 border-b border-emerald-500/30 px-3 py-2 flex justify-between items-center">
+          <h4 class="font-semibold text-xs flex items-center gap-2 text-emerald-400">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+            Response
+          </h4>
+          <button onclick="copyJSON('response')" class="text-xs bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-1 rounded transition-colors text-emerald-400">
+            Copy
+          </button>
+        </div>
+        <div class="p-3">
+          <p id="jsonResponseTime" class="text-xs text-slate-600 mb-2">No response received yet</p>
+          <pre id="jsonResponse" class="text-xs bg-slate-900/80 text-emerald-400 p-3 rounded-lg overflow-x-auto font-mono max-h-40 border border-slate-700/50">// Waiting for response...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // PARTICLES BACKGROUND
+    // ============================================
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 3 + 's';
+        particle.style.opacity = Math.random() * 0.5 + 0.2;
+        container.appendChild(particle);
+      }
+    }
+    createParticles();
+
+    // ============================================
+    // STATE MANAGEMENT
+    // ============================================
+    const states = ['stateIdle', 'stateChecking', 'stateAvailable', 'stateDownloading', 'stateVerifying', 'stateReady', 'stateInstalling', 'stateSuccess', 'stateNoUpdate', 'stateError'];
+
+    function showState(stateName) {
+      states.forEach(s => {
+        document.getElementById(s).classList.add('hidden');
+      });
+      document.getElementById(stateName).classList.remove('hidden');
+    }
+
+    function resetToIdle() {
+      showState('stateIdle');
+    }
+
+    // ============================================
+    // MOCK BLE MANAGER
+    // ============================================
+    class MockBLEManager {
+      async sendCommand(command) {
+        updateJSONCommand(command);
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        let response;
+
+        if (command.op === 'ota' && command.type === 'check_update') {
+          response = {
+            status: 'ok',
+            command: 'check_update',
+            update_available: true,
+            current_version: '2.5.10',
+            target_version: '2.5.11',
+            mandatory: false,
+            manifest: {
+              version: '2.5.11',
+              size: 2001344,
+              release_notes: 'Fix apply_update, signature decode, ESP_SSLClient PSRAM'
+            }
+          };
+        } else if (command.op === 'ota' && command.type === 'start_update') {
+          response = {
+            status: 'ok',
+            command: 'start_update',
+            message: 'Download started',
+            download_url: 'https://raw.githubusercontent.com/.../SRT-MGATE-1210_v2.5.11.bin'
+          };
+        } else if (command.op === 'ota' && command.type === 'apply_update') {
+          response = {
+            status: 'ok',
+            command: 'apply_update',
+            message: 'Installing firmware and rebooting...',
+            reboot_in_ms: 3000
+          };
+        } else {
+          response = { status: 'error', error: 'Unknown command' };
+        }
+
+        updateJSONResponse(response);
+        return response;
+      }
+    }
+
+    const bleManager = new MockBLEManager();
+
+    // ============================================
+    // OTA FUNCTIONS
+    // ============================================
+    async function checkForUpdate() {
+      showState('stateChecking');
+
+      const response = await bleManager.sendCommand({
+        op: 'ota',
+        type: 'check_update'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      if (response.status === 'ok' && response.update_available) {
+        document.getElementById('oldVersion').textContent = 'v' + response.current_version;
+        document.getElementById('newVersion').textContent = 'v' + response.target_version;
+        document.getElementById('updateSize').textContent = (response.manifest.size / 1024 / 1024).toFixed(2) + ' MB';
+        showState('stateAvailable');
+        showToast('Update Found!', `New version ${response.target_version} is available`, 'success');
+      } else if (response.status === 'ok') {
+        showState('stateNoUpdate');
+      } else {
+        document.getElementById('errorMessage').textContent = response.error || 'Failed to check for updates';
+        showState('stateError');
+      }
+    }
+
+    async function startUpdate() {
+      showState('stateDownloading');
+
+      const response = await bleManager.sendCommand({
+        op: 'ota',
+        type: 'start_update'
+      });
+
+      if (response.status === 'ok') {
+        simulateDownload();
+      } else {
+        document.getElementById('errorMessage').textContent = response.error || 'Failed to start download';
+        showState('stateError');
+      }
+    }
+
+    function simulateDownload() {
+      const totalSize = 2001344;
+      let downloaded = 0;
+      const progressBar = document.getElementById('progressBar');
+      const progressGlow = document.getElementById('progressGlow');
+      const progressPercent = document.getElementById('progressPercent');
+      const downloadedBytes = document.getElementById('downloadedBytes');
+      const downloadSpeed = document.getElementById('downloadSpeed');
+      const downloadStatus = document.getElementById('downloadStatus');
+      const timeLeft = document.getElementById('timeLeft');
+
+      downloadStatus.textContent = 'Downloading firmware...';
+
+      const interval = setInterval(() => {
+        downloaded += Math.random() * 80000 + 20000;
+        if (downloaded > totalSize) downloaded = totalSize;
+
+        const percent = Math.round((downloaded / totalSize) * 100);
+        const speed = Math.round(Math.random() * 50 + 30);
+        const remaining = Math.round((totalSize - downloaded) / (speed * 1024));
+
+        progressBar.style.width = percent + '%';
+        progressGlow.style.width = percent + '%';
+        progressPercent.textContent = percent + '%';
+        downloadedBytes.textContent = (downloaded / 1024).toFixed(0) + ' KB';
+        downloadSpeed.textContent = speed + ' KB/s';
+        timeLeft.textContent = remaining > 0 ? remaining + 's' : '0s';
+
+        if (downloaded >= totalSize) {
+          clearInterval(interval);
+          document.getElementById('step2').classList.remove('bg-cyan-500/10', 'border-cyan-500/30');
+          document.getElementById('step2').classList.add('bg-emerald-500/10', 'border-emerald-500/30');
+          document.getElementById('step2Status').textContent = 'Done';
+          document.getElementById('step2').querySelector('svg, div').outerHTML = '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+
+          setTimeout(() => {
+            verifyFirmware();
+          }, 500);
+        }
+      }, 200);
+    }
+
+    async function verifyFirmware() {
+      showState('stateVerifying');
+
+      // Simulate verification
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      showState('stateReady');
+      showToast('Verification Complete', 'Firmware is ready to install', 'success');
+    }
+
+    async function applyUpdate() {
+      showState('stateInstalling');
+
+      const response = await bleManager.sendCommand({
+        op: 'ota',
+        type: 'apply_update'
+      });
+
+      if (response.status === 'ok') {
+        simulateInstallation();
+      } else {
+        document.getElementById('errorMessage').textContent = response.error || 'Failed to apply update';
+        showState('stateError');
+      }
+    }
+
+    function simulateInstallation() {
+      let progress = 0;
+      const installBar = document.getElementById('installBar');
+      const installProgress = document.getElementById('installProgress');
+
+      const interval = setInterval(() => {
+        progress += Math.random() * 5 + 2;
+        if (progress > 100) progress = 100;
+
+        installBar.style.width = progress + '%';
+        installProgress.textContent = Math.round(progress) + '%';
+
+        if (progress >= 100) {
+          clearInterval(interval);
+          setTimeout(() => {
+            showState('stateSuccess');
+            showToast('Update Complete!', 'Device is restarting...', 'success');
+          }, 500);
+        }
+      }, 100);
+    }
+
+    // ============================================
+    // TOAST NOTIFICATION
+    // ============================================
+    function showToast(title, message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastIcon = document.getElementById('toastIcon');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+
+      const icons = {
+        success: `<div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>`,
+        error: `<div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></div>`,
+        warning: `<div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>`,
+        info: `<div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>`
+      };
+
+      toastIcon.innerHTML = icons[type];
+      toastTitle.textContent = title;
+      toastMessage.textContent = message;
+
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('show'), 10);
+      setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.remove('show');
+      setTimeout(() => toast.classList.add('hidden'), 300);
+    }
+
+    // ============================================
+    // JSON PREVIEW FUNCTIONS
+    // ============================================
+    function toggleJSONPreview() {
+      const content = document.getElementById('jsonPreviewContent');
+      const icon = document.getElementById('toggleIcon');
+      const panel = document.getElementById('jsonPreviewPanel');
+
+      if (content.style.display === 'none') {
+        content.style.display = 'grid';
+        icon.style.transform = 'rotate(0deg)';
+        panel.style.maxHeight = '380px';
+      } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(180deg)';
+        panel.style.maxHeight = '56px';
+      }
+    }
+
+    function updateJSONCommand(command) {
+      const el = document.getElementById('jsonCommand');
+      const timeEl = document.getElementById('jsonCommandTime');
+      const timestamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      timeEl.textContent = `Sent at ${timestamp}`;
+      el.textContent = JSON.stringify(command, null, 2);
+      el.classList.add('animate-pulse');
+      setTimeout(() => el.classList.remove('animate-pulse'), 500);
+    }
+
+    function updateJSONResponse(response) {
+      const el = document.getElementById('jsonResponse');
+      const timeEl = document.getElementById('jsonResponseTime');
+      const timestamp = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      timeEl.textContent = `Received at ${timestamp}`;
+      el.textContent = JSON.stringify(response, null, 2);
+      el.classList.add('animate-pulse');
+      setTimeout(() => el.classList.remove('animate-pulse'), 500);
+    }
+
+    function copyJSON(type) {
+      const el = document.getElementById(type === 'command' ? 'jsonCommand' : 'jsonResponse');
+      const text = el.textContent;
+
+      if (text.includes('Waiting for')) {
+        showToast('No Data', 'No JSON data to copy yet', 'warning');
+        return;
+      }
+
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied!', `JSON ${type} copied to clipboard`, 'success');
+      }).catch(() => {
+        showToast('Copy Failed', 'Failed to copy to clipboard', 'error');
+      });
+    }
+
+    // ============================================
+    // INIT
+    // ============================================
+    // Set initial state
+    showState('stateIdle');
+  </script>
+
+</body>
+</html>
