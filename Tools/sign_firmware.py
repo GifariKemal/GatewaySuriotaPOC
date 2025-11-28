@@ -62,15 +62,16 @@ def sign_firmware(firmware_path, private_key_path, version=None):
     firmware_size = len(firmware_data)
     print(f"       Firmware size: {firmware_size:,} bytes ({firmware_size/1024/1024:.2f} MB)")
 
-    # Calculate SHA-256 hash
+    # Calculate SHA-256 hash (for manifest checksum field)
     print("[3/5] Calculating SHA-256 checksum...")
     firmware_hash = hashlib.sha256(firmware_data).digest()
     hash_hex = firmware_hash.hex()
     print(f"       SHA-256: {hash_hex}")
 
-    # Sign the hash (using DER/ASN.1 format for mbedtls compatibility)
-    print("[4/5] Signing firmware hash...")
-    signature = private_key.sign_deterministic(firmware_hash, sigencode=sigencode_der)
+    # Sign the firmware DATA (not the hash!) - ecdsa.sign_deterministic hashes internally
+    # This ensures both Python and mbedtls compute SHA256(firmware_data) before signing/verifying
+    print("[4/5] Signing firmware data...")
+    signature = private_key.sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)
     signature_hex = signature.hex()
     print(f"       Signature ({len(signature)} bytes, DER format): {signature_hex[:64]}...")
 
@@ -153,11 +154,11 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
     with open(firmware_path, 'rb') as f:
         firmware_data = f.read()
 
-    firmware_hash = hashlib.sha256(firmware_data).digest()
     signature = bytes.fromhex(signature_hex)
 
     try:
-        public_key.verify(signature, firmware_hash, sigdecode=sigdecode_der)
+        # Verify against firmware DATA (not hash) - ecdsa.verify hashes internally
+        public_key.verify(signature, firmware_data, hashfunc=hashlib.sha256, sigdecode=sigdecode_der)
         print("Signature verification: PASSED")
         return True
     except Exception as e:

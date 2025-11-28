@@ -7,10 +7,14 @@
     "filename": "SRT-MGATE-1210_v2.5.10.bin",
     "size": 2001344,
     "sha256": "8b584e3c9269090cca47f4b2e4e0018e8f3bfe2e7b441b1405afc2894a1e0cb5",
-    "signature": "304502203233295033d7e8998c38937566fa59b0cbed196c57e16aab7afdafbdd9ad660a022100a6b1ba3f80a9d47abe336bcf36bd9aeb9c5ac4c38b98bbf8df876935f900a9d3"
+    "signature": "3045022057c665a0b3bc5287d618ea4d9c1cf655b611b5362af04cb6c55fc0e66c75ce28022100998bf5103d6a593f42de0cd0bb1cbfea225842be2cae6df8b0d51b984c1dc87f"
   },
   "changelog": [
-    "Version 2.5.10 release"
+    "Fix apply_update not rebooting after OTA download",
+    "Fix signature decode - use hex instead of base64",
+    "Fix signing script double-hash bug",
+    "Fix disabled device log spam with LogThrottle",
+    "ESP_SSLClient with PSRAM for OTA over Ethernet"
   ],
   "mandatory": false
 }
