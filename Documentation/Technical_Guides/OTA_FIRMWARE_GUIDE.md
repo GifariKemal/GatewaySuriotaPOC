@@ -357,47 +357,44 @@ gh release create v2.5.0 \
 #### Step 5.3: Verify Release URLs
 
 ```
-Manifest URL:
-https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.0/firmware_manifest.json
-
-Firmware URL:
-https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.0/firmware.bin
+Firmware URL (in manifest):
+https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.0/SRT-MGATE-1210_v2.5.0.bin
 ```
 
-### Option B: Raw Files (Development/Testing)
+### Option B: Raw Files (Manifest)
 
-#### Step 5.1: Create OTA Folder
+OTA system fetches manifest from repository root via raw.githubusercontent.com:
+
+#### Repository Structure
 
 ```
 repository/
-├── ota/
-│   ├── firmware_manifest.json
-│   └── firmware.bin
+├── firmware_manifest.json      # Main manifest (root)
+├── releases/
+│   └── v{VERSION}/
+│       └── SRT-MGATE-1210_v{VERSION}.bin  # Binary for GitHub Releases
 ├── Main/
 │   └── ...
 └── ...
 ```
 
-#### Step 5.2: Commit and Push
+#### Update and Push Manifest
 
 ```bash
-mkdir -p ota
-cp build/Main.ino.bin ota/firmware.bin
-cp firmware_manifest.json ota/
-
-git add ota/
-git commit -m "Add OTA firmware v2.5.0"
+# Edit firmware_manifest.json at root with new version info
+git add firmware_manifest.json
+git commit -m "Update OTA manifest for v2.5.0"
 git push origin main
 ```
 
-#### Step 5.3: Raw File URLs
+#### Raw File URL
 
 ```
 Manifest URL:
-https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/firmware_manifest.json
+https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/firmware_manifest.json
 
-Firmware URL:
-https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/firmware.bin
+Firmware URL (from GitHub Releases):
+https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.0/SRT-MGATE-1210_v2.5.0.bin
 ```
 
 ### Private Repository Setup

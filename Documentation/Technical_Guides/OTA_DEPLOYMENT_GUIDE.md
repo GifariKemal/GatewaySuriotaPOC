@@ -49,14 +49,16 @@ GatewaySuriotaPOC/
 │   └── build/esp32.esp32.esp32s3/
 │       └── Main.ino.bin          # Compiled firmware
 ├── Tools/
+│   ├── OTA_Keys/
+│   │   ├── ota_private_key.pem   # PRIVATE KEY (JANGAN COMMIT!)
+│   │   ├── ota_public_key.pem    # Public key
+│   │   └── ota_public_key.h      # C header for firmware
 │   ├── generate_ota_keys.py      # Key generator
 │   └── sign_firmware.py          # Firmware signer
-├── ota/
-│   └── firmware_manifest.json    # Manifest copy
-├── firmware_manifest.json        # Main manifest (root)
-├── ota_private_key.pem          # PRIVATE KEY (JANGAN COMMIT!)
-├── ota_public_key.pem           # Public key
-└── ota_public_key.h             # C header for firmware
+├── releases/
+│   └── v{VERSION}/
+│       └── SRT-MGATE-1210_v{VERSION}.bin  # Signed binary (upload to GitHub Releases)
+└── firmware_manifest.json        # OTA manifest (fetched via raw.githubusercontent.com)
 ```
 
 ---
