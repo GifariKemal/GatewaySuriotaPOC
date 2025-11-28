@@ -5,15 +5,15 @@
   "min_version": "2.3.0",
   "firmware": {
     "filename": "SRT-MGATE-1210_v2.5.7.bin",
-    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.7/SRT-MGATE-1210_v2.5.7.bin",
+    "url": "https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/ota/SRT-MGATE-1210_v2.5.7.bin",
     "size": 1979392,
     "sha256": "09fe92ccb8a661d56b2c3e0d98390a18372632f2f7e8dd3fcf880e0a12e85ae7",
     "signature": "1ee71e2127d20f76a65492d1e692aa936b3a2c3c53795bab9c002137327c5daf395241f769abbddff9eb6871ecd1283db67c67c287294c43a59f2cf0d8029f00"
   },
   "changelog": [
-    "Full SSL client reinitialization on HTTP redirects",
-    "Proper memory cleanup before connecting to CDN",
-    "Fixes record too large error when downloading from GitHub CDN"
+    "OTA now uses raw.githubusercontent.com for direct download",
+    "Avoids GitHub releases redirect which requires extra SSL memory",
+    "Single SSL connection instead of two"
   ],
   "mandatory": false
 }
