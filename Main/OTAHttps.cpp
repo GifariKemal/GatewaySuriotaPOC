@@ -971,9 +971,11 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
 
     unsigned long startTime = millis();
     unsigned long lastProgressTime = startTime;
+    unsigned long lastDataTime = startTime;  // v2.5.6: Track last data received time
 
-    // v2.5.3: Download loop using SSLClient directly
-    while (sslClient->connected() && progress.bytesDownloaded < contentLength) {
+    // v2.5.6: Robust download loop - don't exit just because connected() is false
+    // Keep reading as long as: (1) data available, OR (2) connected and not timed out
+    while (progress.bytesDownloaded < contentLength) {
         // Check abort
         if (abortRequested) {
             lastError = OTAError::ABORTED;
@@ -992,6 +994,8 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
             size_t bytesRead = sslClient->readBytes(downloadBuffer, toRead);
 
             if (bytesRead > 0) {
+                lastDataTime = millis();  // Reset timeout on data received
+
                 // Write to OTA partition
                 if (!writeOTAData(downloadBuffer, bytesRead)) {
                     abortOTA();
@@ -1026,6 +1030,31 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                     progressCallback(progress.percent, progress.bytesDownloaded, contentLength);
                     lastProgressTime = millis();
                 }
+
+                // Log progress every 10%
+                if (!IS_PRODUCTION_MODE() && (progress.percent % 10 == 0)) {
+                    static uint8_t lastLoggedPercent = 0;
+                    if (progress.percent != lastLoggedPercent) {
+                        Serial.printf("[OTA DEBUG] Progress: %u%% (%u / %u bytes)\n",
+                                      progress.percent, progress.bytesDownloaded, contentLength);
+                        lastLoggedPercent = progress.percent;
+                    }
+                }
+            }
+        } else {
+            // No data available - check timeout
+            unsigned long noDataDuration = millis() - lastDataTime;
+
+            // If no data for too long, check if connection is still alive
+            if (noDataDuration > readTimeoutMs) {
+                LOG_OTA_ERROR("Download timeout: no data for %lu ms\n", noDataDuration);
+                break;
+            }
+
+            // If disconnected and no data, exit
+            if (!sslClient->connected() && noDataDuration > 1000) {
+                LOG_OTA_WARN("Connection closed, no data for %lu ms\n", noDataDuration);
+                break;
             }
         }
 

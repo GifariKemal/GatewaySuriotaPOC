@@ -4,16 +4,16 @@
   "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.5.bin",
-    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.5/SRT-MGATE-1210_v2.5.5.bin",
-    "size": 1978848,
-    "sha256": "722b25bf9f25afdbaffef65fcfa570125d50e4afb02d46285cc7e163f669eb71",
-    "signature": "6297c78837c3af06dad82f700308ec33ffd999f39cc3e32a83c8d6c4f53d5a50ab7c19e45643ee4103bc9dead88bff9efacb5cd5b54bbf2c146cfeb4be7b4631"
+    "filename": "SRT-MGATE-1210_v2.5.6.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.6/SRT-MGATE-1210_v2.5.6.bin",
+    "size": 1979376,
+    "sha256": "f72ca879e494d22ba836d168e921ed26f04b0d21b95f081eb42e236b8e6d63e5",
+    "signature": "32a72f7346057a5508face27ed60d7a9009b56cd40882965b16ab976240fcf3cc207bee91fbf44eb9a4e744ce2c379cbe770deed371a8240d5cfd2a4adbc27bf"
   },
   "changelog": [
-    "Added HTTP redirect handling for GitHub releases CDN",
-    "OTA download now follows 301/302/307 redirects automatically",
-    "Includes USERTrust RSA + ECC trust anchors for GitHub SSL"
+    "Fixed OTA download timeout for large files from GitHub CDN",
+    "Download loop now properly waits for data instead of exiting early",
+    "Added 30-second no-data timeout with progress logging"
   ],
   "mandatory": false
 }
