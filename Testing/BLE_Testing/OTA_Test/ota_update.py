@@ -288,30 +288,53 @@ async def step_check_update(client):
     # Display response
     print_box("📋 Server Response", response[:500] if len(response) > 500 else response, Fore.CYAN)
 
-    # Check if update available
-    if data.get("status") == "ok":
-        update_info = data.get("update_info", {})
-        if update_info.get("update_available"):
-            current = update_info.get("current_version", "?")
-            available = update_info.get("available_version", "?")
-
-            print_success(f"Update available: {current} → {available}")
-
-            info = {
-                "Current Version": current,
-                "Available Version": available,
-                "Build Number": update_info.get("available_build", "?"),
-                "Firmware Size": f"{update_info.get('firmware_size', 0):,} bytes",
-                "Mandatory": "Yes" if update_info.get("mandatory") else "No"
-            }
-            print_box("📦 Update Information", info, Fore.GREEN)
-            return data
-        else:
-            print_info("Already running latest version")
-            return None
-    else:
+    # Check status
+    if data.get("status") != "ok":
         print_error(f"Error: {data.get('message', 'Unknown error')}")
         return None
+
+    # Parse update info - handle both response formats:
+    # Format 1: {"status":"ok", "update_available":true, "current_version":"...", ...}
+    # Format 2: {"status":"ok", "update_info":{"update_available":true, ...}}
+    update_info = data.get("update_info", {})
+    update_available = data.get("update_available", update_info.get("update_available", False))
+    current = data.get("current_version", update_info.get("current_version", "?"))
+    available = data.get("available_version", update_info.get("available_version", "?"))
+    firmware_size = data.get("firmware_size", update_info.get("firmware_size", 0))
+    available_build = data.get("available_build", update_info.get("available_build", "?"))
+    mandatory = data.get("mandatory", update_info.get("mandatory", False))
+
+    # Build info display
+    info = {
+        "Current Version": current,
+        "Available Version": available,
+        "Build Number": available_build,
+        "Firmware Size": f"{firmware_size:,} bytes" if firmware_size else "Unknown",
+        "Mandatory": "Yes" if mandatory else "No"
+    }
+
+    if update_available:
+        print_success(f"Update available: {current} → {available}")
+        print_box("📦 Update Information", info, Fore.GREEN)
+        return data
+    else:
+        # Same version - offer re-flash option
+        print_info(f"Already running latest version ({current})")
+        print_box("📦 Firmware Information", info, Fore.YELLOW)
+
+        print()
+        print(f"  {Fore.YELLOW}Do you want to re-flash the same firmware anyway? (y/n){Style.RESET_ALL}")
+
+        try:
+            choice = input(f"  {Fore.WHITE}> {Style.RESET_ALL}").strip().lower()
+            if choice in ['y', 'yes']:
+                print_info("Proceeding with re-flash...")
+                return data  # Return data to continue with update
+            else:
+                print_info("Update skipped")
+                return None
+        except KeyboardInterrupt:
+            return None
 
 
 async def step_start_update(client):
@@ -471,8 +494,11 @@ async def run_ota_update():
         update_info = await step_check_update(client)
 
         if not update_info:
-            print_info("No update available or check failed")
-            await show_final_summary(False)
+            # User skipped or check failed - just exit cleanly
+            print()
+            print(f"{Fore.CYAN}{'═' * 70}")
+            print(f"{Fore.WHITE}  Session ended: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{Fore.CYAN}{'═' * 70}")
             return False
 
         # Delay before next command
