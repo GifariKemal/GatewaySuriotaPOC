@@ -21,19 +21,19 @@
 #include "OTAValidator.h"
 #include "NetworkManager.h"  // v2.5.3: For multi-network support (WiFi + Ethernet)
 #include <Arduino.h>
-#include <WiFiClientSecure.h>   // v2.5.3: For WiFi SSL
+#include <WiFi.h>              // v2.5.3: For WiFiClient base transport
 
 // Suppress SSLClient library warning (noreturn function)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
-#include <SSLClient.h>          // v2.5.3: OPEnSLab SSLClient for Ethernet SSL
+#include <SSLClient.h>          // v2.5.3: OPEnSLab SSLClient (BearSSL) for WiFi & Ethernet
 #pragma GCC diagnostic pop
-#include "GitHubTrustAnchors.h" // v2.5.3: GitHub root CA certificates
+#include "GitHubTrustAnchors.h" // v2.5.3: GitHub root CA certificates (BearSSL format)
 #include <Update.h>
 #include <ArduinoJson.h>
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
-// v2.5.3: Hybrid SSL - WiFiClientSecure for WiFi, SSLClient for Ethernet
+// v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet - memory efficient
 
 // Forward declarations
 class OTAHttps;
@@ -165,7 +165,6 @@ private:
     bool setupHttpClient(const String& url);
     int performRequest(const char* method = "GET");
     bool followRedirects(String& finalUrl);
-    void addAuthHeader();
 
     // Download helpers
     bool beginOTAPartition(size_t firmwareSize);

@@ -11,9 +11,7 @@
 #include "JsonDocumentPSRAM.h"  // For SpiRamJsonDocument
 #include <esp_heap_caps.h>
 #include <mbedtls/base64.h>
-#include <WiFi.h>  // v2.5.3: For WiFi.status() check
-#include <esp_task_wdt.h>  // v2.5.3: For watchdog reset during memory recovery
-// v2.5.3: Hybrid SSL - WiFiClientSecure for WiFi, SSLClient for Ethernet
+// v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
 
 // v2.5.3: Trust anchors moved to GitHubTrustAnchors.h
 
@@ -114,9 +112,9 @@ void OTAHttps::stop() {
 bool OTAHttps::initSecureClient() {
     cleanupSecureClient();
 
-    // v2.5.3: Hybrid SSL - detect network type and use appropriate client
-    // WiFi -> WiFiClientSecure (native ESP32)
-    // Ethernet -> SSLClient wrapping EthernetClient (OPEnSLab library)
+    // v2.5.3: Unified SSLClient (BearSSL) for both WiFi and Ethernet
+    // WiFi -> SSLClient wrapping WiFiClient
+    // Ethernet -> SSLClient wrapping EthernetClient
 
     // Get NetworkManager instance
     if (!networkManager) {
@@ -308,9 +306,9 @@ void OTAHttps::setConnectTimeout(uint32_t timeoutMs) {
 
 void OTAHttps::setReadTimeout(uint32_t timeoutMs) {
     readTimeoutMs = timeoutMs;
-    // v2.5.3: Use NetworkClientSecure
+    // v2.5.3: SSLClient uses milliseconds for setTimeout
     if (sslClient) {
-        sslClient->setTimeout(timeoutMs / 1000);
+        sslClient->setTimeout(timeoutMs);
     }
 }
 
@@ -429,10 +427,6 @@ bool OTAHttps::setupHttpClient(const String& url) {
     return true;
 }
 
-void OTAHttps::addAuthHeader() {
-    // This is now handled in performRequest
-}
-
 int OTAHttps::performRequest(const char* method) {
     // v2.5.3: Manual HTTP request using SSLClient (BearSSL) for both WiFi and Ethernet
     String host, path;
@@ -525,7 +519,7 @@ int OTAHttps::performRequest(const char* method) {
 }
 
 bool OTAHttps::followRedirects(String& finalUrl) {
-    // v2.5.3: Manual redirect handling with NetworkClientSecure
+    // v2.5.3: Manual redirect handling with SSLClient
     int redirectCount = 0;
     while (redirectCount < OTA_HTTPS_MAX_REDIRECTS) {
         int httpCode = performRequest("HEAD");
@@ -677,7 +671,7 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
         return false;
     }
 
-    // v2.5.3: Using hybrid SSL (WiFiClientSecure or SSLClient)
+    // v2.5.3: Using SSLClient (BearSSL) for secure connection
     if (!IS_PRODUCTION_MODE()) {
         Serial.printf("[OTA DEBUG] Fetching: %s\n", url.c_str());
     }
@@ -843,7 +837,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     progress.percent = 0;
     progress.inProgress = true;
 
-    // v2.5.3: Setup NetworkClientSecure and perform manual HTTP request
+    // v2.5.3: Setup SSLClient and perform manual HTTP request
     if (!setupHttpClient(url)) {
         downloading = false;
         progress.inProgress = false;
@@ -912,7 +906,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     unsigned long startTime = millis();
     unsigned long lastProgressTime = startTime;
 
-    // v2.5.3: Download loop using NetworkClientSecure directly
+    // v2.5.3: Download loop using SSLClient directly
     while (sslClient->connected() && progress.bytesDownloaded < contentLength) {
         // Check abort
         if (abortRequested) {
