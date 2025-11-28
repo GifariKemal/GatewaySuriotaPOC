@@ -137,12 +137,9 @@ bool OTAHttps::initSecureClient() {
     size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
     size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
 
-    if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Network mode: %s, Using ESP_SSLClient (mobizt) over %s\n",
-                      activeMode.c_str(),
-                      usingWiFi ? "WiFiClient" : "EthernetClient");
-        Serial.printf("[OTA DEBUG] Free DRAM: %u bytes, Free PSRAM: %u bytes\n", freeDram, freePsram);
-    }
+    LOG_OTA_DEBUG("Network mode: %s, Using ESP_SSLClient over %s\n",
+                  activeMode.c_str(), usingWiFi ? "WiFiClient" : "EthernetClient");
+    LOG_OTA_DEBUG("Free DRAM: %u bytes, Free PSRAM: %u bytes\n", freeDram, freePsram);
 
     // Check PSRAM availability (SSL buffers go here)
     if (freePsram < 50000) {
@@ -160,10 +157,8 @@ bool OTAHttps::initSecureClient() {
             return false;
         }
 
-        if (!IS_PRODUCTION_MODE()) {
-            Serial.printf("[OTA DEBUG] WiFi connected, IP: %s, RSSI: %d dBm\n",
-                          WiFi.localIP().toString().c_str(), WiFi.RSSI());
-        }
+        LOG_OTA_DEBUG("WiFi connected, IP: %s, RSSI: %d dBm\n",
+                      WiFi.localIP().toString().c_str(), WiFi.RSSI());
 
         // Create WiFiClient as base transport
         wifiBase = new WiFiClient();
@@ -194,10 +189,8 @@ bool OTAHttps::initSecureClient() {
         wifiSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
         wifiSecure->setTimeout(readTimeoutMs);
 
-        if (!IS_PRODUCTION_MODE()) {
-            Serial.printf("[OTA DEBUG] ESP_SSLClient for WiFi configured, RX buffer: %d bytes (PSRAM)\n",
-                          ESP_SSLCLIENT_BUFFER_SIZE);
-        }
+        LOG_OTA_DEBUG("ESP_SSLClient for WiFi configured, RX buffer: %d bytes (PSRAM)\n",
+                      ESP_SSLCLIENT_BUFFER_SIZE);
 
         // Use ESP_SSLClient as the active client
         sslClient = wifiSecure;
@@ -232,10 +225,8 @@ bool OTAHttps::initSecureClient() {
         ethSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
         ethSecure->setTimeout(readTimeoutMs);
 
-        if (!IS_PRODUCTION_MODE()) {
-            Serial.printf("[OTA DEBUG] ESP_SSLClient for Ethernet configured, RX buffer: %d bytes (PSRAM)\n",
-                          ESP_SSLCLIENT_BUFFER_SIZE);
-        }
+        LOG_OTA_DEBUG("ESP_SSLClient for Ethernet configured, RX buffer: %d bytes (PSRAM)\n",
+                      ESP_SSLCLIENT_BUFFER_SIZE);
 
         // Use ESP_SSLClient as the active client
         sslClient = ethSecure;
@@ -452,11 +443,8 @@ int OTAHttps::performRequest(const char* method) {
         return -1;
     }
 
-    if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Connecting to %s:%d%s via %s (ESP_SSLClient/PSRAM)\n",
-                      host.c_str(), port, path.c_str(),
-                      usingWiFi ? "WiFi" : "Ethernet");
-    }
+    LOG_OTA_DEBUG("Connecting to %s:%d%s via %s\n",
+                  host.c_str(), port, path.c_str(), usingWiFi ? "WiFi" : "Ethernet");
 
     // Connect to server using ESP_SSLClient
     unsigned long connectStart = millis();
@@ -476,20 +464,15 @@ int OTAHttps::performRequest(const char* method) {
                       host.c_str(), port, connectTime);
 
         // Additional debug info
-        if (!IS_PRODUCTION_MODE()) {
-            if (usingWiFi) {
-                Serial.printf("[OTA DEBUG] WiFi status: %d, RSSI: %d dBm\n",
-                              WiFi.status(), WiFi.RSSI());
-            }
-            size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-            Serial.printf("[OTA DEBUG] Free DRAM at failure: %u bytes\n", freeDram);
+        if (usingWiFi) {
+            LOG_OTA_DEBUG("WiFi status: %d, RSSI: %d dBm\n", WiFi.status(), WiFi.RSSI());
         }
+        size_t freeDramFail = heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+        LOG_OTA_DEBUG("Free DRAM at failure: %u bytes\n", freeDramFail);
         return -1;
     }
 
-    if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Connected in %lu ms\n", connectTime);
-    }
+    LOG_OTA_DEBUG("Connected in %lu ms\n", connectTime);
 
     // Build HTTP request
     String request = String(method) + " " + path + " HTTP/1.1\r\n";
@@ -686,10 +669,7 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
         return false;
     }
 
-    // v2.5.9: Using ESP_SSLClient (mobizt) for secure connection with PSRAM
-    if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Fetching: %s\n", url.c_str());
-    }
+    LOG_OTA_DEBUG("Fetching: %s\n", url.c_str());
 
     xSemaphoreTake(httpMutex, portMAX_DELAY);
 
@@ -738,9 +718,7 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
     sslClient->stop();
     xSemaphoreGive(httpMutex);
 
-    if (!IS_PRODUCTION_MODE()) {
-        Serial.printf("[OTA DEBUG] Received %d bytes\n", payload.length());
-    }
+    LOG_OTA_DEBUG("Received %d bytes\n", payload.length());
 
     return parseManifest(payload, manifest);
 }
@@ -895,11 +873,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                 return false;
             }
 
-            LOG_OTA_INFO("Redirect %d -> %s\n", httpCode, location.c_str());
-
-            if (!IS_PRODUCTION_MODE()) {
-                Serial.printf("[OTA DEBUG] Following redirect to: %s\n", location.c_str());
-            }
+            LOG_OTA_DEBUG("Redirect %d -> %s\n", httpCode, location.c_str());
 
             // v2.5.7: Full SSL client reinit for redirect to different host
             // This ensures clean buffers and proper memory allocation
@@ -1054,10 +1028,10 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                 }
 
                 // Log progress every 10%
-                if (!IS_PRODUCTION_MODE() && (progress.percent % 10 == 0)) {
+                if (progress.percent % 10 == 0) {
                     static uint8_t lastLoggedPercent = 0;
                     if (progress.percent != lastLoggedPercent) {
-                        Serial.printf("[OTA DEBUG] Progress: %u%% (%u / %u bytes)\n",
+                        LOG_OTA_DEBUG("Progress: %u%% (%u / %u bytes)\n",
                                       progress.percent, progress.bytesDownloaded, contentLength);
                         lastLoggedPercent = progress.percent;
                     }
