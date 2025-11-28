@@ -25,6 +25,7 @@ from datetime import datetime
 
 try:
     from ecdsa import SigningKey, NIST256p
+    from ecdsa.util import sigencode_der  # For DER/ASN.1 format (mbedtls compatible)
 except ImportError:
     print("Error: ecdsa module not found")
     print("Install with: pip install ecdsa")
@@ -67,11 +68,11 @@ def sign_firmware(firmware_path, private_key_path, version=None):
     hash_hex = firmware_hash.hex()
     print(f"       SHA-256: {hash_hex}")
 
-    # Sign the hash
+    # Sign the hash (using DER/ASN.1 format for mbedtls compatibility)
     print("[4/5] Signing firmware hash...")
-    signature = private_key.sign(firmware_hash)
+    signature = private_key.sign_deterministic(firmware_hash, sigencode=sigencode_der)
     signature_hex = signature.hex()
-    print(f"       Signature ({len(signature)} bytes): {signature_hex[:64]}...")
+    print(f"       Signature ({len(signature)} bytes, DER format): {signature_hex[:64]}...")
 
     # Determine version
     if version is None:
@@ -146,6 +147,7 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
 
     with open(public_key_path, 'rb') as f:
         from ecdsa import VerifyingKey
+        from ecdsa.util import sigdecode_der  # For DER/ASN.1 format
         public_key = VerifyingKey.from_pem(f.read())
 
     with open(firmware_path, 'rb') as f:
@@ -155,7 +157,7 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
     signature = bytes.fromhex(signature_hex)
 
     try:
-        public_key.verify(signature, firmware_hash)
+        public_key.verify(signature, firmware_hash, sigdecode=sigdecode_der)
         print("Signature verification: PASSED")
         return True
     except Exception as e:
