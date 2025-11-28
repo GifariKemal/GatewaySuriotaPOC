@@ -1,6 +1,6 @@
 # OTA Update System - SRT-MGATE-1210
 
-**Version:** 1.0.0 | **Created:** November 26, 2025 | **Author:** Suriota R&D Team
+**Version:** 1.1.0 | **Updated:** November 28, 2025 | **Author:** Suriota R&D Team
 
 ---
 
@@ -248,44 +248,59 @@ littlefs,  data, spiffs,  0x920000, 0x6E0000,
 
 ### 4.2 Firmware Signing Process
 
+**IMPORTANT: Signature Format**
+- Algorithm: ECDSA P-256 (secp256r1)
+- Format: DER encoded (70-72 bytes, variable length)
+- Encoding: Hexadecimal string (140-144 characters)
+- Hash: SHA-256 of firmware binary
+
+**Common Bug: Double Hashing (v2.5.10 Fix)**
+```python
+# WRONG - causes double hash (Python ecdsa internally hashes):
+firmware_hash = hashlib.sha256(firmware_data).digest()
+signature = private_key.sign_deterministic(firmware_hash, sigencode=sigencode_der)
+
+# CORRECT - single hash (pass raw data with hashfunc):
+signature = private_key.sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)
+```
+
 ```
 Build Server                              Device
      │                                       │
      │  1. Compile firmware.bin              │
      │  ────────────┐                        │
      │              │                        │
-     │  2. Calculate SHA-256 hash            │
+     │  2. Sign firmware with private key    │
+     │     (ECDSA P-256, DER format)         │
      │  ────────────┐                        │
      │              │                        │
-     │  3. Sign hash with private key        │
+     │  3. Calculate SHA-256 hash            │
      │  ────────────┐                        │
      │              │                        │
-     │  4. Create firmware package:          │
+     │  4. Create manifest with:             │
      │     ┌─────────────────────────┐       │
-     │     │ Header (32 bytes)       │       │
-     │     │ - Magic: "SRTA"         │       │
-     │     │ - Version: x.y.z        │       │
-     │     │ - Size: uint32          │       │
-     │     │ - Flags: uint16         │       │
-     │     ├─────────────────────────┤       │
-     │     │ Signature (64 bytes)    │       │
-     │     │ - ECDSA P-256           │       │
-     │     ├─────────────────────────┤       │
-     │     │ Firmware Binary         │       │
-     │     │ - Actual .bin file      │       │
+     │     │ version: "x.y.z"        │       │
+     │     │ size: bytes             │       │
+     │     │ sha256: hex string      │       │
+     │     │ signature: hex string   │       │
+     │     │   (70-72 bytes DER)     │       │
      │     └─────────────────────────┘       │
      │                                       │
-     │  5. Upload to server                  │
+     │  5. Upload to GitHub Releases         │
      │  ─────────────────────────────────►   │
      │                                       │
-     │                    6. Download package│
+     │                    6. Download manifest│
      │                    ◄──────────────────│
      │                                       │
-     │                    7. Verify signature│
-     │                       with public key │
+     │                    7. Download firmware│
+     │                    ◄──────────────────│
+     │                                       │
+     │                    8. Verify signature │
+     │                       with public key  │
+     │                       (mbedtls)        │
      │                    ────────────┐      │
      │                                │      │
-     │                    8. Flash if valid  │
+     │                    9. Flash if valid  │
      │                    ────────────┐      │
      │                                │      │
 ```
@@ -335,7 +350,7 @@ Authorization: Bearer {device_token}
     "url": "https://ota.suriota.com/firmware/srt-mgate-1210/2.4.0/firmware.bin",
     "size": 1856000,
     "sha256": "a1b2c3d4e5f6...",
-    "signature": "base64_encoded_signature..."
+    "signature": "3045022057c665a0b3bc5287...022100998bf5103d6a593f..."
   },
   "mandatory": false,
   "min_battery": 30
@@ -1078,9 +1093,10 @@ CREATE TABLE device_updates (
 
 ## 12. Changelog
 
-| Version | Date       | Changes                   |
-| ------- | ---------- | ------------------------- |
-| 1.0.0   | 2025-11-25 | Initial OTA documentation |
+| Version | Date       | Changes                                                       |
+| ------- | ---------- | ------------------------------------------------------------- |
+| 1.1.0   | 2025-11-28 | Added DER signature format, double-hash bug fix documentation |
+| 1.0.0   | 2025-11-25 | Initial OTA documentation                                     |
 
 ---
 

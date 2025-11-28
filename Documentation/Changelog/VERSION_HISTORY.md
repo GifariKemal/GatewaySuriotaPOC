@@ -8,11 +8,135 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.3 (Current - Multi-Network HTTPS OTA Support)
+## 🚀 Version 2.5.10 (Current - OTA Signature Bug Fix)
+
+**Release Date:** November 28, 2025 (Friday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release fixes a CRITICAL bug in the OTA firmware signing process that caused signature verification to always fail. Also includes OTA debug logging cleanup and new testing tools.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. CRITICAL: Double-Hash Bug Fix in sign_firmware.py
+**Severity:** 🔴 CRITICAL (OTA signature verification always failed)
+
+**Issue:** OTA firmware signature verification was failing with "Signature verification failed" error on device, even though the signing process appeared to work correctly.
+
+**Root Cause:** Python `ecdsa.sign_deterministic()` internally hashes the data passed to it. The script was passing the firmware hash (SHA256), causing double-hashing:
+- Python signed: `SHA256(SHA256(firmware_data))`
+- mbedtls verified: `SHA256(firmware_data)`
+- Hash mismatch = signature verification failed
+
+**Fix:** Changed signing approach to pass raw firmware data with explicit hashfunc parameter:
+
+```python
+# BEFORE (double hash - WRONG):
+firmware_hash = hashlib.sha256(firmware_data).digest()
+signature = private_key.sign_deterministic(firmware_hash, sigencode=sigencode_der)
+
+# AFTER (single hash - CORRECT):
+signature = private_key.sign_deterministic(
+    firmware_data,
+    hashfunc=hashlib.sha256,
+    sigencode=sigencode_der
+)
+```
+
+**Files Modified:** `Tools/sign_firmware.py`
+
+**Signature Format Details:**
+- Format: DER encoded (70-72 bytes, variable length)
+- Encoding: Hexadecimal string
+- Algorithm: ECDSA P-256
+
+---
+
+#### 2. OTA Debug Logging Cleanup
+**Severity:** 🟡 MEDIUM (Code quality/cleanliness)
+
+**Issue:** OTAHttps.cpp contained 47 lines of `Serial.printf("[OTA DEBUG]...")` statements cluttering serial output in production mode.
+
+**Fix:** Converted all debug statements to use `LOG_OTA_DEBUG()` macro which respects `PRODUCTION_MODE` setting:
+- Development mode (PRODUCTION_MODE=0): Full debug output
+- Production mode (PRODUCTION_MODE=1): No debug output
+
+**Files Modified:** `OTAHttps.cpp` (26 lines removed, replaced with macro calls)
+
+---
+
+#### 3. New OTA Testing Tool via BLE
+**Severity:** 🟢 LOW (Developer tooling)
+
+**Feature:** Created comprehensive Python BLE testing tool for OTA operations with beautiful terminal UI.
+
+**Features:**
+- Step-by-step OTA flow (Check → Download → Apply)
+- Progress visualization with emoji indicators
+- Re-flash same version support for testing
+- Handles both WiFi and Ethernet OTA modes
+
+**Files Created:**
+- `Testing/BLE_Testing/OTA_Test/ota_update.py`
+- `Testing/BLE_Testing/OTA_Test/README.md`
+
+---
+
+#### 4. OTA MockupUI for Android Development
+**Severity:** 🟢 LOW (Developer tooling)
+
+**Feature:** Created OTA Firmware Update MockupUI in HTML for Android developers reference.
+
+**Features:**
+- Dark tech theme with cyber grid and particle effects
+- All OTA states visualized (Idle, Checking, Available, Downloading, Verifying, Ready, Installing, Success, Error)
+- Live JSON preview panel
+- Responsive design
+
+**Files Created:** `MockupUI/OTA Update.html`
+
+---
+
+### 📊 **OTA Testing Results**
+
+| Interface | Connection | Download | Verification | Total Time |
+|-----------|------------|----------|--------------|------------|
+| Ethernet  | 422ms      | 62 sec   | ✅ PASSED    | ~63 sec    |
+| WiFi      | 3686ms     | 84 sec   | ✅ PASSED    | ~88 sec    |
+
+**Firmware Size:** 1,891,968 bytes (1.80 MB)
+
+---
+
+### 📁 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `Tools/sign_firmware.py` | Fixed double-hash bug, pass firmware_data with hashfunc |
+| `Main/OTAHttps.cpp` | Replaced Serial.printf with LOG_OTA_DEBUG macro |
+| `firmware_manifest.json` | Updated with correct signature |
+| `ota/firmware_manifest.json` | Updated with correct signature |
+| `releases/v2.5.10/firmware_manifest.json` | Updated with correct signature |
+
+### 📁 **Files Created**
+
+| File | Description |
+|------|-------------|
+| `Testing/BLE_Testing/OTA_Test/ota_update.py` | Python BLE OTA testing tool |
+| `Testing/BLE_Testing/OTA_Test/README.md` | Testing tool documentation |
+| `MockupUI/OTA Update.html` | OTA UI mockup for Android devs |
+
+---
+
+## 🚀 Version 2.5.3 (Multi-Network HTTPS OTA Support)
 
 **Release Date:** November 27, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)
-**Status:** 🔧 In Development
+**Status:** ✅ Production Ready
 
 ### 🎯 **Purpose**
 

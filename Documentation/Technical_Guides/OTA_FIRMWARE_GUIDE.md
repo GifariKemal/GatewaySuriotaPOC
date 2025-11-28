@@ -1,7 +1,7 @@
 # OTA Firmware Preparation & Deployment Guide
 
-**Version:** 2.4.0
-**Last Updated:** November 26, 2025
+**Version:** 2.5.10
+**Last Updated:** November 28, 2025
 
 Panduan lengkap untuk menyiapkan firmware .bin, upload ke GitHub, dan deployment OTA update ke device.
 
@@ -199,74 +199,98 @@ Get-FileHash -Algorithm SHA256 build\Main.ino.bin
 
 ### Step 3.4: Sign Firmware
 
-**Python Script: `sign_firmware.py`**
+**IMPORTANT: Use the correct signing approach to avoid double-hash bug!**
+
+**Python Script: `Tools/sign_firmware.py`**
 
 ```python
 #!/usr/bin/env python3
 """
-OTA Firmware Signing Tool
-Generates ECDSA P-256 signature for firmware binary
+OTA Firmware Signing Tool for SRT-MGATE-1210
+Generates ECDSA P-256 signature in DER format
+
+CRITICAL: Uses sign_deterministic with hashfunc parameter
+to avoid double-hashing bug. The Python ecdsa library
+internally hashes data passed to sign_deterministic().
+
+v2.5.10 Fix: Pass firmware_data directly, not firmware_hash!
 """
 
 import hashlib
 import sys
+import os
+import json
+from datetime import datetime
 from ecdsa import SigningKey, NIST256p
+from ecdsa.util import sigencode_der
 
-def sign_firmware(firmware_path, private_key_path):
+def sign_firmware(firmware_path, private_key_path, version=None):
     # Load private key
     with open(private_key_path, 'r') as f:
         private_key = SigningKey.from_pem(f.read())
 
-    # Read firmware
+    # Read firmware binary
     with open(firmware_path, 'rb') as f:
         firmware_data = f.read()
 
-    # Calculate SHA-256 hash
-    firmware_hash = hashlib.sha256(firmware_data).digest()
-    print(f"Firmware size: {len(firmware_data)} bytes")
-    print(f"SHA-256: {firmware_hash.hex()}")
+    firmware_size = len(firmware_data)
+    print(f"Firmware size: {firmware_size} bytes ({firmware_size/1024/1024:.2f} MB)")
 
-    # Sign the hash
-    signature = private_key.sign(firmware_hash)
-    print(f"Signature ({len(signature)} bytes): {signature.hex()}")
+    # Calculate SHA-256 hash (for manifest, NOT for signing)
+    firmware_hash = hashlib.sha256(firmware_data).hexdigest()
+    print(f"SHA-256: {firmware_hash}")
 
-    # Save signature
-    sig_path = firmware_path + '.sig'
-    with open(sig_path, 'wb') as f:
-        f.write(signature)
-    print(f"Signature saved to: {sig_path}")
+    # CRITICAL: Sign the RAW firmware data with hashfunc parameter
+    # Python ecdsa will hash internally - DO NOT pre-hash!
+    signature = private_key.sign_deterministic(
+        firmware_data,              # Raw data, NOT hash!
+        hashfunc=hashlib.sha256,    # Library hashes internally
+        sigencode=sigencode_der     # DER format (70-72 bytes)
+    )
+
+    sig_hex = signature.hex()
+    print(f"Signature ({len(signature)} bytes DER): {sig_hex[:40]}...{sig_hex[-20:]}")
 
     # Output for manifest
     print("\n=== For firmware_manifest.json ===")
-    print(f'"size": {len(firmware_data)},')
-    print(f'"sha256": "{firmware_hash.hex()}",')
-    print(f'"signature": "{signature.hex()}"')
+    print(f'"size": {firmware_size},')
+    print(f'"sha256": "{firmware_hash}",')
+    print(f'"signature": "{sig_hex}"')
 
-    return firmware_hash.hex(), signature.hex()
+    return firmware_hash, sig_hex, firmware_size
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python sign_firmware.py <firmware.bin> <private_key.pem>")
+    if len(sys.argv) < 3:
+        print("Usage: python sign_firmware.py <firmware.bin> <private_key.pem> [version]")
         sys.exit(1)
 
-    sign_firmware(sys.argv[1], sys.argv[2])
+    version = sys.argv[3] if len(sys.argv) > 3 else "1.0.0"
+    sign_firmware(sys.argv[1], sys.argv[2], version)
 ```
 
 **Jalankan:**
 
 ```bash
-python sign_firmware.py build/Main.ino.bin ota_private_key.pem
+python Tools/sign_firmware.py "Main/build/esp32.esp32.esp32s3/Main.ino.bin" "Tools/OTA_Keys/ota_private_key.pem" "2.5.10"
 
 # Output:
-# Firmware size: 1892352 bytes
-# SHA-256: a1b2c3d4e5f6078192a3b4c5d6e7f8091a2b3c4d5e6f7081...
-# Signature (64 bytes): 30440220...
+# Firmware size: 1891968 bytes (1.80 MB)
+# SHA-256: c5964cae5f7b0e57f4e2ce75a6e9d5804c29a4662d6a7ec57fdae5b6220fe710
+# Signature (71 bytes DER): 3045022057c665a0b3bc5287d618ea...022100998bf5103d6a593f42de0cd0
 #
 # === For firmware_manifest.json ===
-# "size": 1892352,
-# "sha256": "a1b2c3d4e5f6078192a3b4c5d6e7f8091a2b3c4d5e6f7081...",
-# "signature": "30440220..."
+# "size": 1891968,
+# "sha256": "c5964cae5f7b0e57f4e2ce75a6e9d5804c29a4662d6a7ec57fdae5b6220fe710",
+# "signature": "3045022057c665a0b3bc5287d618ea4d9c1cf655b611b5362af04cb6c55fc0e66c75ce28022100998bf5103d6a593f42de0cd0bb1cbfea225842be2cae6df8b0d51b984c1dc87f"
 ```
+
+**Signature Format:**
+| Property | Value |
+|----------|-------|
+| Algorithm | ECDSA P-256 (secp256r1) |
+| Format | DER encoded |
+| Size | 70-72 bytes (variable) |
+| Encoding | Hexadecimal string |
 
 ---
 
@@ -550,11 +574,28 @@ Setelah reboot:
 }
 ```
 
-**Solution:**
+**Common Causes & Solutions:**
 
-- Re-generate signature dengan private key yang benar
-- Verify public key di firmware sama dengan yang digunakan untuk sign
-- Check signature format (hex string, 64-128 bytes)
+1. **Double-Hash Bug (Most Common - Fixed in v2.5.10):**
+   ```python
+   # WRONG - Python ecdsa hashes internally, causing double-hash:
+   firmware_hash = hashlib.sha256(firmware_data).digest()
+   signature = private_key.sign_deterministic(firmware_hash)
+
+   # CORRECT - Pass raw data with hashfunc parameter:
+   signature = private_key.sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)
+   ```
+
+2. **Wrong Signature Format:**
+   - Must use DER format (`sigencode=sigencode_der`)
+   - Size should be 70-72 bytes (not 64 bytes raw)
+   - Must be hex encoded (not base64)
+
+3. **Key Mismatch:**
+   - Verify public key di firmware match dengan private key yang digunakan
+
+4. **File Corruption:**
+   - Re-download firmware dan re-sign
 
 ### Error: SHA-256 checksum mismatch
 

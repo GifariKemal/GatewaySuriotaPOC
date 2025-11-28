@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.1 | **Last Updated:** November 27, 2025
+**Version:** 2.5.10 | **Last Updated:** November 28, 2025
 
 ---
 
@@ -31,7 +31,17 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.1 - Nov 27, 2025)
+## 🆕 Latest Updates (v2.5.10 - Nov 28, 2025)
+
+### v2.5.10 - OTA Signature Bug Fix (Nov 28, 2025)
+- **CRITICAL OTA FIX:** Fixed double-hash bug in `sign_firmware.py` that caused all OTA signature verifications to fail
+- **Root Cause:** Python ecdsa library internally hashes data passed to `sign_deterministic()`. Script was pre-hashing, causing `SHA256(SHA256(firmware))`
+- **Fix:** Pass raw firmware data with `hashfunc=hashlib.sha256` parameter: `sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)`
+- **Signature Format:** DER encoded (70-72 bytes), hex string encoding
+- **OTA Debug Cleanup:** Replaced `Serial.printf("[OTA DEBUG]...")` with `LOG_OTA_DEBUG()` macro (respects PRODUCTION_MODE)
+- **Testing Tools:** New `Testing/BLE_Testing/OTA_Test/ota_update.py` for BLE OTA testing
+- **MockupUI:** New `MockupUI/OTA Update.html` for Android developers
+- **Test Results:** OTA verified working on both WiFi (84 sec) and Ethernet (62 sec)
 
 ### v2.5.1 - Critical Bug Fixes & Memory Safety (Nov 27, 2025)
 - **DRAM Exhaustion Fix:** `saveJson()` now uses PSRAM buffer instead of Arduino String (DRAM) - prevents crash when creating 45+ registers

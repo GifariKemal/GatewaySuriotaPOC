@@ -4,8 +4,8 @@ Tools for testing OTA (Over-The-Air) firmware updates via BLE.
 
 ## Files
 
-| File | Description |
-|------|-------------|
+| File            | Description                       |
+| --------------- | --------------------------------- |
 | `ota_update.py` | Full automated OTA update process |
 
 ## Requirements
@@ -23,6 +23,7 @@ python ota_update.py
 ```
 
 This will:
+
 1. 📡 Scan and connect to SURIOTA Gateway
 2. 🔍 Check for available updates
 3. 📥 Download and verify firmware

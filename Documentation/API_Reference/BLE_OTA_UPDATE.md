@@ -1,7 +1,7 @@
 # BLE OTA Update API Reference
 
-**Version:** 2.4.0
-**Last Updated:** November 26, 2025
+**Version:** 2.5.10
+**Last Updated:** November 28, 2025
 
 ---
 
@@ -669,10 +669,39 @@ asyncio.run(check_ota_update())
 
 ---
 
+## Testing Tools
+
+### Python BLE OTA Testing Tool
+
+A comprehensive Python testing tool is available at `Testing/BLE_Testing/OTA_Test/ota_update.py`:
+
+```bash
+cd Testing/BLE_Testing/OTA_Test
+python ota_update.py
+```
+
+**Features:**
+- Automatic BLE device scanning
+- Step-by-step OTA flow (Check → Download → Apply)
+- Progress visualization with emoji indicators
+- Re-flash same version support for testing
+- Beautiful terminal UI
+
+### MockupUI Reference
+
+For Android developers, an OTA UI mockup is available at `MockupUI/OTA Update.html`:
+
+**States Visualized:**
+- Idle, Checking, Available, Downloading
+- Verifying, Ready, Installing, Success, Error
+
+---
+
 ## Related Documentation
 
 - [OTA Technical Guide](../Technical_Guides/OTA_FIRMWARE_GUIDE.md) - Step-by-step firmware preparation
 - [OTA_UPDATE.md](../Technical_Guides/OTA_UPDATE.md) - System architecture
+- [OTA Deployment Guide](../Technical_Guides/OTA_DEPLOYMENT_GUIDE.md) - Full deployment workflow
 - [API.md](API.md) - Main BLE CRUD API reference
 
 ---

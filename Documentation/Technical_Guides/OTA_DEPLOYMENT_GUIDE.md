@@ -1,8 +1,8 @@
 # OTA Deployment Guide - Step by Step
 
-**Document Version:** 1.0
-**Date:** November 27, 2025
-**Firmware Version:** 2.5.0
+**Document Version:** 1.1
+**Date:** November 28, 2025
+**Firmware Version:** 2.5.10
 
 Panduan lengkap untuk deploy OTA firmware update pada SRT-MGATE-1210 Gateway.
 
@@ -155,7 +155,7 @@ python Tools/sign_firmware.py \
 
 ```
 ============================================================
-OTA Firmware Signing Tool
+OTA Firmware Signing Tool for SRT-MGATE-1210
 ============================================================
 
 [1/5] Loading private key: ota_private_key.pem
@@ -163,8 +163,8 @@ OTA Firmware Signing Tool
        Firmware size: 1,891,968 bytes (1.80 MB)
 [3/5] Calculating SHA-256 checksum...
        SHA-256: c5964cae5f7b0e57f4e2ce75a6e9d5804c29a4662d6a7ec57fdae5b6220fe710
-[4/5] Signing firmware hash...
-       Signature (64 bytes): 9d23e08ab120fe5604f53746ddd34a92...
+[4/5] Signing firmware with ECDSA P-256 (DER format)...
+       Signature (71 bytes DER): 3045022057c665a0b3bc5287d618ea...
 [5/5] Generating firmware_manifest.json...
        Saved: Main/build/esp32.esp32.esp32s3/firmware_manifest.json
 
@@ -176,26 +176,34 @@ Verifying signature...
 Signature verification: PASSED
 ```
 
+**IMPORTANT:** Signature must be in DER format (70-72 bytes). If you see 64 bytes, the signing script needs to be updated with `sigencode=sigencode_der` parameter. See v2.5.10 fix for details.
+
 ### Generated Manifest
 
 ```json
 {
-  "version": "2.5.0",
-  "build_number": 2500,
-  "release_date": "2025-11-27",
+  "version": "2.5.10",
+  "build_number": 25010,
+  "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
     "filename": "Main.ino.bin",
     "size": 1891968,
     "sha256": "c5964cae5f7b0e57f4e2ce75a6e9d5804c29a4662d6a7ec57fdae5b6220fe710",
-    "signature": "9d23e08ab120fe5604f53746ddd34a920299003dabc562fea1e896217fb8dd7f..."
+    "signature": "3045022057c665a0b3bc5287d618ea4d9c1cf655b611b5362af04cb6c55fc0e66c75ce28022100998bf5103d6a593f42de0cd0bb1cbfea225842be2cae6df8b0d51b984c1dc87f"
   },
   "changelog": [
-    "Version 2.5.0 release"
+    "Fixed OTA signature verification (v2.5.10)",
+    "DER format signature support"
   ],
   "mandatory": false
 }
 ```
+
+**Signature Format Notes:**
+- Format: DER encoded (starts with `3044` or `3045`)
+- Size: 70-72 bytes (140-144 hex characters)
+- Encoding: Hexadecimal string (NOT base64)
 
 ---
 
