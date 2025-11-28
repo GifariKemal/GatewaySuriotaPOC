@@ -66,6 +66,10 @@ RESPONSE_TIMEOUT = 120  # 2 minutes for OTA operations
 CHUNK_DELAY = 0.1       # Delay between BLE chunks
 COMMAND_DELAY = 3.0     # Delay between OTA commands
 
+# GitHub Token for Private Repository Access
+# This token is automatically set when connecting to the device
+GITHUB_TOKEN = "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"
+
 # ============================================================================
 # Global Variables
 # ============================================================================
@@ -606,6 +610,9 @@ async def run_ota_update():
         # Brief delay for connection stabilization
         await asyncio.sleep(1)
 
+        # Auto-set GitHub token for private repo access
+        await auto_set_token(client)
+
         # ═══════════════════════════════════════════════════════════════════
         # STEP 1: Check for updates
         # ═══════════════════════════════════════════════════════════════════
@@ -679,6 +686,46 @@ async def run_ota_update():
 # ============================================================================
 # Interactive Menu Mode
 # ============================================================================
+async def auto_set_token(client):
+    """Automatically set GitHub token if configured"""
+    if not GITHUB_TOKEN:
+        return True
+
+    print_info(f"Auto-configuring GitHub token ({GITHUB_TOKEN[:10]}...{GITHUB_TOKEN[-4:]})")
+
+    global response_buffer, response_complete
+    response_buffer = []
+    response_complete = False
+
+    command = {"op": "ota", "type": "set_github_token", "token": GITHUB_TOKEN}
+    command_str = json.dumps(command, separators=(',', ':'))
+
+    # Fragment and send
+    chunk_size = 18
+    for i in range(0, len(command_str), chunk_size):
+        chunk = command_str[i:i+chunk_size]
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        await asyncio.sleep(CHUNK_DELAY)
+
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+
+    # Wait for response
+    elapsed = 0
+    while not response_complete and elapsed < 10:
+        await asyncio.sleep(0.1)
+        elapsed += 0.1
+
+    if response_complete:
+        full_response = ''.join(response_buffer)
+        data = parse_response(full_response)
+        if data.get("status") == "ok":
+            print_success("GitHub token configured automatically!")
+            return True
+
+    print_warning("Could not auto-set token (may already be set)")
+    return True  # Continue anyway
+
+
 async def run_interactive_menu():
     """Run interactive menu mode"""
     print_header()
@@ -702,6 +749,9 @@ async def run_interactive_menu():
 
         print_success("Connected to SURIOTA Gateway!")
         await asyncio.sleep(1)
+
+        # Auto-set GitHub token
+        await auto_set_token(client)
 
         # Menu loop
         while True:
@@ -834,6 +884,9 @@ async def run_check_only():
 
         print_success("Connected!")
         await asyncio.sleep(1)
+
+        # Auto-set GitHub token for private repo access
+        await auto_set_token(client)
 
         result = await step_check_update(client)
         return result is not None
