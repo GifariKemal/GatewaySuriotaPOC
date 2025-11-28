@@ -293,25 +293,38 @@ async def step_check_update(client):
         print_error(f"Error: {data.get('message', 'Unknown error')}")
         return None
 
-    # Parse update info - handle both response formats:
-    # Format 1: {"status":"ok", "update_available":true, "current_version":"...", ...}
-    # Format 2: {"status":"ok", "update_info":{"update_available":true, ...}}
-    update_info = data.get("update_info", {})
-    update_available = data.get("update_available", update_info.get("update_available", False))
-    current = data.get("current_version", update_info.get("current_version", "?"))
-    available = data.get("available_version", update_info.get("available_version", "?"))
-    firmware_size = data.get("firmware_size", update_info.get("firmware_size", 0))
-    available_build = data.get("available_build", update_info.get("available_build", "?"))
-    mandatory = data.get("mandatory", update_info.get("mandatory", False))
+    # Parse update info from firmware response format:
+    # {
+    #   "status": "ok",
+    #   "command": "check_update",
+    #   "update_available": true,
+    #   "current_version": "2.5.10",
+    #   "target_version": "2.5.11",
+    #   "mandatory": false,
+    #   "manifest": { "version": "...", "size": 2001344, "release_notes": "..." }
+    # }
+    update_available = data.get("update_available", False)
+    current = data.get("current_version", "?")
+    available = data.get("target_version", "?")  # Firmware uses "target_version"
+    mandatory = data.get("mandatory", False)
+
+    # Get firmware size from manifest object
+    manifest = data.get("manifest", {})
+    firmware_size = manifest.get("size", 0)
+    available_build = manifest.get("version", available)  # Use version as build identifier
+    release_notes = manifest.get("release_notes", "")
 
     # Build info display
     info = {
         "Current Version": current,
-        "Available Version": available,
-        "Build Number": available_build,
+        "Target Version": available,
         "Firmware Size": f"{firmware_size:,} bytes" if firmware_size else "Unknown",
         "Mandatory": "Yes" if mandatory else "No"
     }
+
+    # Add release notes if available
+    if release_notes:
+        info["Release Notes"] = release_notes[:50] + "..." if len(release_notes) > 50 else release_notes
 
     if update_available:
         print_success(f"Update available: {current} → {available}")
