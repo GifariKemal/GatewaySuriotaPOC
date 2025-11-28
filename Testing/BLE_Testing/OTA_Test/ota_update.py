@@ -67,8 +67,9 @@ CHUNK_DELAY = 0.1       # Delay between BLE chunks
 COMMAND_DELAY = 3.0     # Delay between OTA commands
 
 # GitHub Token for Private Repository Access
-# This token is automatically set when connecting to the device
-GITHUB_TOKEN = "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"
+# Set this ONLY if repository is PRIVATE. Leave empty for public repos.
+# Note: Token can cause 404 errors on public repos!
+GITHUB_TOKEN = ""  # Empty = public repo, no token needed
 
 # ============================================================================
 # Global Variables
