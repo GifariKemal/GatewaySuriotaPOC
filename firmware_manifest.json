@@ -1,20 +1,21 @@
 {
-  "version": "2.5.2",
-  "build_number": 2502,
-  "release_date": "2025-11-27",
+  "version": "2.5.3",
+  "build_number": 2503,
+  "release_date": "2025-11-28",
   "min_version": "2.3.0",
   "firmware": {
-    "filename": "SRT-MGATE-1210_v2.5.2.bin",
-    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.2/SRT-MGATE-1210_v2.5.2.bin",
-    "size": 1894784,
-    "sha256": "0c8382a371e1868b5e083ad1a6ac27e92a34dfeca5fee7b0591728c19e387348",
-    "signature": "368bfa2b12b837e9deee844cd4af5ecc6f48c7221f1e052458e2b43a6338029a6ba1ae2c0e87b08d54c0f4728a31d303e14735b956ca0a9054c5b047ac438805"
+    "filename": "SRT-MGATE-1210_v2.5.3.bin",
+    "url": "https://github.com/GifariKemal/GatewaySuriotaPOC/releases/download/v2.5.3/SRT-MGATE-1210_v2.5.3.bin",
+    "size": 1977216,
+    "sha256": "092b5d50da4592ce5f39c20a48ae92156b71e2d52895f8b9775e397373bc8e1c",
+    "signature": "2b89a6554bee0651fc20a0b8cb8185d3a3c999fe6e48275967aaa9c904cffc244f20e327ea384717c925c6b95eca251e5ec6bb833361381d0ab1a2409e192fcb"
   },
   "changelog": [
-    "Production mode verbose logging suppression",
-    "BLE/CRUD/PSRAM logs now respect runtime IS_PRODUCTION_MODE()",
-    "Python test scripts updated with batch processing for DRAM recovery",
-    "Fixed verbose logging appearing in production mode"
+    "SSL Root CA update - GitHub switched to USERTrust/Sectigo certificates",
+    "Unified SSLClient (BearSSL) for WiFi and Ethernet OTA",
+    "Lazy initialization for HTTPS transport (saves ~30KB DRAM)",
+    "Fixed WiFi SSL connection failure (error -32512)",
+    "OTA code cleanup and bug fixes"
   ],
   "mandatory": false
 }
