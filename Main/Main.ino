@@ -31,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.5.4" // v2.5.4: Added USERTrust ECC trust anchor for github.com downloads
+#define FIRMWARE_VERSION "2.5.5" // v2.5.5: Added HTTP redirect handling for GitHub releases CDN
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
@@ -609,7 +609,7 @@ void setup()
   if (otaManager)
   {
     // Set current firmware version
-    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2504); // Build number derived from version (2.5.4 = 2504)
+    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2505); // Build number derived from version (2.5.5 = 2505)
 
     // Get BLE server from BLEManager for OTA BLE service
     // Note: BLE server is internal to BLEManager, OTA BLE will create its own service

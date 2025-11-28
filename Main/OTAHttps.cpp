@@ -845,8 +845,74 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
         return false;
     }
 
-    // Perform GET request
-    int httpCode = performRequest("GET");
+    // Perform GET request with redirect handling
+    String currentUrl = url;
+    int redirectCount = 0;
+    int httpCode = 0;
+
+    while (redirectCount < OTA_HTTPS_MAX_REDIRECTS) {
+        httpCode = performRequest("GET");
+
+        // Handle redirects (301, 302, 303, 307, 308)
+        if (httpCode == 301 || httpCode == 302 || httpCode == 303 || httpCode == 307 || httpCode == 308) {
+            // Read headers to find Location
+            String location = "";
+            while (sslClient->connected()) {
+                String line = sslClient->readStringUntil('\n');
+                line.trim();
+                if (line.length() == 0) break;
+
+                if (line.startsWith("Location:") || line.startsWith("location:")) {
+                    location = line.substring(10);
+                    location.trim();
+                }
+            }
+
+            sslClient->stop();
+
+            if (location.length() == 0) {
+                lastError = OTAError::SERVER_ERROR;
+                lastErrorMessage = "Redirect without Location header";
+                LOG_OTA_ERROR("Redirect %d without Location header\n", httpCode);
+                downloading = false;
+                progress.inProgress = false;
+                xSemaphoreGive(httpMutex);
+                return false;
+            }
+
+            LOG_OTA_INFO("Redirect %d -> %s\n", httpCode, location.c_str());
+
+            if (!IS_PRODUCTION_MODE()) {
+                Serial.printf("[OTA DEBUG] Following redirect to: %s\n", location.c_str());
+            }
+
+            // Follow redirect
+            currentUrl = location;
+            if (!setupHttpClient(currentUrl)) {
+                downloading = false;
+                progress.inProgress = false;
+                xSemaphoreGive(httpMutex);
+                return false;
+            }
+
+            redirectCount++;
+            continue;
+        }
+
+        // Got final response
+        break;
+    }
+
+    if (redirectCount >= OTA_HTTPS_MAX_REDIRECTS) {
+        lastError = OTAError::SERVER_ERROR;
+        lastErrorMessage = "Too many redirects";
+        LOG_OTA_ERROR("Too many redirects (max %d)\n", OTA_HTTPS_MAX_REDIRECTS);
+        sslClient->stop();
+        downloading = false;
+        progress.inProgress = false;
+        xSemaphoreGive(httpMutex);
+        return false;
+    }
 
     if (httpCode != 200) {
         lastError = OTAError::SERVER_ERROR;
