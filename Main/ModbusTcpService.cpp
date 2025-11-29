@@ -609,6 +609,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
+  // v2.5.16: Optimized with snprintf to eliminate heap fragmentation
   if (successCount > 0)
   {
     if (!compactLine.isEmpty())
@@ -618,7 +619,10 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       {
         compactLine = compactLine.substring(0, compactLine.length() - 3);
       }
-      outputBuffer += "  L" + String(lineNumber) + ": " + compactLine + "\n";
+      // Use char buffer with snprintf instead of String concatenation
+      char lineBuf[256];
+      snprintf(lineBuf, sizeof(lineBuf), "  L%d: %s\n", lineNumber, compactLine.c_str());
+      outputBuffer += lineBuf;
     }
     // Print all at once (atomic - prevents interruption by other tasks)
     // Use LOG_DATA_DEBUG so it's compiled out in production mode
@@ -668,10 +672,15 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
 // FIXED ISSUE #4: Helper function to eliminate code duplication in register logging
 // Consolidates 80+ lines of duplicated code across FC1/2/3/4 blocks
 // Pattern matches RTU service for consistency
+// v2.5.16: Optimized to use char buffer with snprintf (eliminates heap fragmentation)
 void ModbusTcpService::appendRegisterToLog(const String &registerName, double value, const String &unit,
                                            const String &deviceId, String &outputBuffer,
                                            String &compactLine, int &successCount, int &lineNumber)
 {
+  // v2.5.16: Use fixed-size char buffer instead of String concatenation
+  // This eliminates heap fragmentation from repeated String reallocations
+  char tempBuf[128];  // Sufficient for register:value.unit format
+
   // Process unit - replace degree symbol with "deg" to avoid UTF-8 issues
   String processedUnit = unit;
   processedUnit.replace("°", "deg");
@@ -679,27 +688,32 @@ void ModbusTcpService::appendRegisterToLog(const String &registerName, double va
   // Add header on first success
   if (successCount == 0)
   {
-    // Add timestamp from RTC
+    // Add timestamp from RTC using char buffer
     RTCManager *rtc = RTCManager::getInstance();
-    String timestamp = "";
     if (rtc)
     {
       DateTime now = rtc->getCurrentTime();
-      char timeBuf[12];
-      snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d] ", now.hour(), now.minute(), now.second());
-      timestamp = timeBuf;
+      snprintf(tempBuf, sizeof(tempBuf), "[DATA] [%02d:%02d:%02d] %s:\n",
+               now.hour(), now.minute(), now.second(), deviceId.c_str());
     }
-    outputBuffer += "[DATA] " + timestamp + deviceId + ":\n";
+    else
+    {
+      snprintf(tempBuf, sizeof(tempBuf), "[DATA] %s:\n", deviceId.c_str());
+    }
+    outputBuffer += tempBuf;
   }
 
-  // Build compact line: "RegisterName:value.unit"
-  compactLine += registerName + ":" + String(value, 1) + processedUnit;
+  // Build compact line using snprintf: "RegisterName:value.unit"
+  snprintf(tempBuf, sizeof(tempBuf), "%s:%.1f%s",
+           registerName.c_str(), value, processedUnit.c_str());
+  compactLine += tempBuf;
   successCount++;
 
   // Print line every 6 registers
   if (successCount % 6 == 0)
   {
-    outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
+    snprintf(tempBuf, sizeof(tempBuf), "  L%d: %s\n", lineNumber++, compactLine.c_str());
+    outputBuffer += tempBuf;
     compactLine = "";
   }
   else

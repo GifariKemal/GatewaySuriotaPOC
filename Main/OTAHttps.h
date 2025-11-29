@@ -1,8 +1,8 @@
 /**
  * @file OTAHttps.h
  * @brief HTTPS OTA Transport Layer - GitHub Integration
- * @version 2.0.0
- * @date 2025-11-28
+ * @version 2.5.15
+ * @date 2025-11-29
  *
  * Provides HTTPS firmware download from GitHub:
  * - GitHub Releases download
@@ -12,6 +12,7 @@
  * - TLS 1.2+ security
  * - Manifest parsing
  *
+ * v2.5.15: Resume download support, retry count, progress bar display
  * v2.0.0: Switched to ESP_SSLClient (mobizt) with PSRAM support
  */
 
@@ -140,6 +141,12 @@ private:
     OTAError lastError;
     String lastErrorMessage;
 
+    // v2.5.15: Resume and retry state
+    uint8_t currentRetryCount;
+    size_t resumeFromByte;
+    String lastDownloadUrl;
+    uint8_t lastProgressPercent;  // For progress bar update tracking
+
     // OTA partition
     const esp_partition_t* updatePartition;
     esp_ota_handle_t otaHandle;
@@ -175,13 +182,21 @@ private:
 
     // HTTP helpers
     bool setupHttpClient(const String& url);
-    int performRequest(const char* method = "GET");
+    int performRequest(const char* method = "GET", size_t rangeStart = 0);
 
     // Download helpers
     bool beginOTAPartition(size_t firmwareSize);
     bool writeOTAData(const uint8_t* data, size_t len);
     bool finalizeOTA();
     void abortOTA();
+
+    // v2.5.15: Progress display (dev mode only)
+    void printProgressBar(uint8_t percent, size_t downloaded, size_t total, uint32_t speed);
+
+    // v2.5.15: Internal download with resume support
+    bool downloadWithRetry(const String& url, size_t expectedSize,
+                          const String& expectedHash, const String& signature,
+                          ValidationResult& result);
 
 public:
     /**

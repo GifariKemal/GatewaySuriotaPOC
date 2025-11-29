@@ -1,9 +1,12 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 2.5.12
+ * @version 2.5.15
  * @date 2025-11-29
  *
+ * v2.5.15: Resume download support (HTTP Range header)
+ *          Retry count with automatic retry on failure
+ *          Visual progress bar in development mode
  * v2.5.12: Fixed private repo firmware download (HTTP 404)
  *          Use GitHub API releases/assets endpoint for binary downloads
  *          Correct Accept header for asset downloads vs contents API
@@ -43,6 +46,9 @@ OTAHttps::OTAHttps() :
     downloading(false),
     abortRequested(false),
     lastError(OTAError::NONE),
+    currentRetryCount(0),
+    resumeFromByte(0),
+    lastProgressPercent(0),
     updatePartition(nullptr),
     otaHandle(0),
     otaStarted(false),
@@ -484,8 +490,9 @@ bool OTAHttps::setupHttpClient(const String& url) {
     return true;
 }
 
-int OTAHttps::performRequest(const char* method) {
+int OTAHttps::performRequest(const char* method, size_t rangeStart) {
     // v2.5.9: Manual HTTP request using ESP_SSLClient (mobizt) with PSRAM
+    // v2.5.15: Added Range header support for resume download
     String host, path;
     uint16_t port;
 
@@ -560,6 +567,12 @@ int OTAHttps::performRequest(const char* method) {
     } else {
         // Standard Accept header for public repos
         request += "Accept: application/octet-stream, application/json\r\n";
+    }
+
+    // v2.5.15: Add Range header for resume download
+    if (rangeStart > 0) {
+        request += "Range: bytes=" + String(rangeStart) + "-\r\n";
+        LOG_OTA_INFO("Resume download from byte %u\n", rangeStart);
     }
 
     request += "Connection: close\r\n";
@@ -681,6 +694,64 @@ void OTAHttps::abortOTA() {
         esp_ota_abort(otaHandle);
         otaStarted = false;
         LOG_OTA_WARN("OTA aborted\n");
+    }
+}
+
+// ============================================
+// v2.5.15: PROGRESS BAR DISPLAY (Dev Mode Only)
+// ============================================
+
+void OTAHttps::printProgressBar(uint8_t percent, size_t downloaded, size_t total, uint32_t speed) {
+    // Only show in development mode
+    if (IS_PRODUCTION_MODE()) return;
+
+    // Only update every 5% to reduce serial spam
+    if (percent == lastProgressPercent && percent != 100) return;
+    lastProgressPercent = percent;
+
+    // Build progress bar: [====================] 100% 1.95MB/1.95MB @ 25.3 KB/s
+    const int barWidth = 30;
+    int filledWidth = (percent * barWidth) / 100;
+
+    Serial.print("\r[OTA] [");
+    for (int i = 0; i < barWidth; i++) {
+        if (i < filledWidth) {
+            Serial.print("=");
+        } else if (i == filledWidth) {
+            Serial.print(">");
+        } else {
+            Serial.print(" ");
+        }
+    }
+    Serial.print("] ");
+
+    // Percentage
+    if (percent < 10) Serial.print(" ");
+    if (percent < 100) Serial.print(" ");
+    Serial.print(percent);
+    Serial.print("% ");
+
+    // Downloaded / Total in KB or MB
+    float downloadedMB = downloaded / 1048576.0f;
+    float totalMB = total / 1048576.0f;
+
+    if (total > 1048576) {
+        // Show in MB
+        Serial.printf("%.2fMB/%.2fMB", downloadedMB, totalMB);
+    } else {
+        // Show in KB
+        Serial.printf("%uKB/%uKB", downloaded / 1024, total / 1024);
+    }
+
+    // Speed in KB/s
+    if (speed > 0) {
+        float speedKB = speed / 1024.0f;
+        Serial.printf(" @ %.1f KB/s", speedKB);
+    }
+
+    // Newline at 100%
+    if (percent >= 100) {
+        Serial.println();
     }
 }
 
@@ -857,11 +928,69 @@ bool OTAHttps::parseManifest(const String& json, FirmwareManifest& manifest) {
 
 bool OTAHttps::downloadFirmware(const FirmwareManifest& manifest,
                                 ValidationResult& result) {
-    return downloadFirmwareFromUrl(manifest.firmwareUrl,
-                                   manifest.firmwareSize,
-                                   manifest.sha256Hash,
-                                   manifest.signature,
-                                   result);
+    // v2.5.15: Retry wrapper with automatic retry on failure
+    return downloadWithRetry(manifest.firmwareUrl,
+                            manifest.firmwareSize,
+                            manifest.sha256Hash,
+                            manifest.signature,
+                            result);
+}
+
+// v2.5.15: Download with retry support
+bool OTAHttps::downloadWithRetry(const String& url, size_t expectedSize,
+                                 const String& expectedHash, const String& signature,
+                                 ValidationResult& result) {
+    currentRetryCount = 0;
+    lastProgressPercent = 0;  // Reset progress bar tracking
+
+    while (currentRetryCount <= maxRetries) {
+        if (currentRetryCount > 0) {
+            LOG_OTA_WARN("Retry attempt %d/%d after %lu ms delay...\n",
+                        currentRetryCount, maxRetries, retryDelayMs);
+
+            // Show retry message in dev mode
+            if (IS_DEV_MODE()) {
+                Serial.printf("\n[OTA] Retry %d/%d - waiting %lu seconds...\n",
+                             currentRetryCount, maxRetries, retryDelayMs / 1000);
+            }
+
+            // Wait before retry
+            vTaskDelay(pdMS_TO_TICKS(retryDelayMs));
+
+            // Check if abort requested during wait
+            if (abortRequested) {
+                lastError = OTAError::ABORTED;
+                lastErrorMessage = "Download aborted by user";
+                return false;
+            }
+        }
+
+        // Attempt download
+        bool success = downloadFirmwareFromUrl(url, expectedSize, expectedHash, signature, result);
+
+        if (success) {
+            if (currentRetryCount > 0) {
+                LOG_OTA_INFO("Download succeeded after %d retries\n", currentRetryCount);
+            }
+            return true;
+        }
+
+        // Check if error is retryable
+        bool retryable = (lastError == OTAError::NETWORK_ERROR ||
+                         lastError == OTAError::SERVER_ERROR ||
+                         lastError == OTAError::TIMEOUT);
+
+        if (!retryable) {
+            LOG_OTA_ERROR("Non-retryable error: %s\n", lastErrorMessage.c_str());
+            return false;
+        }
+
+        currentRetryCount++;
+    }
+
+    LOG_OTA_ERROR("Download failed after %d retries\n", maxRetries);
+    lastErrorMessage = "Download failed after " + String(maxRetries) + " retries";
+    return false;
 }
 
 bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
@@ -878,15 +1007,25 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     LOG_OTA_INFO("Expected size: %u, hash: %s\n",
                 expectedSize, expectedHash.substring(0, 16).c_str());
 
+    // v2.5.15: Show download start message in dev mode
+    if (IS_DEV_MODE()) {
+        Serial.println();
+        Serial.println("[OTA] ========================================");
+        Serial.printf("[OTA] Downloading firmware: %.2f MB\n", expectedSize / 1048576.0f);
+        Serial.println("[OTA] ========================================");
+    }
+
     xSemaphoreTake(httpMutex, portMAX_DELAY);
     downloading = true;
     abortRequested = false;
 
-    // Reset progress
+    // Reset progress and error state
     progress.bytesDownloaded = 0;
     progress.totalBytes = expectedSize;
     progress.percent = 0;
     progress.inProgress = true;
+    lastError = OTAError::NONE;
+    lastErrorMessage = "";
 
     // Setup ESP_SSLClient and perform manual HTTP request
     if (!setupHttpClient(url)) {
@@ -1089,29 +1228,27 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                     lastProgressTime = millis();
                 }
 
-                // Log progress every 10%
-                if (progress.percent % 10 == 0) {
-                    static uint8_t lastLoggedPercent = 0;
-                    if (progress.percent != lastLoggedPercent) {
-                        LOG_OTA_DEBUG("Progress: %u%% (%u / %u bytes)\n",
-                                      progress.percent, progress.bytesDownloaded, contentLength);
-                        lastLoggedPercent = progress.percent;
-                    }
-                }
+                // v2.5.15: Visual progress bar (dev mode only, every 5%)
+                printProgressBar(progress.percent, progress.bytesDownloaded,
+                                contentLength, progress.bytesPerSecond);
             }
         } else {
             // No data available - check timeout
             unsigned long noDataDuration = millis() - lastDataTime;
 
-            // If no data for too long, check if connection is still alive
+            // If no data for too long, set timeout error
             if (noDataDuration > readTimeoutMs) {
                 LOG_OTA_ERROR("Download timeout: no data for %lu ms\n", noDataDuration);
+                lastError = OTAError::TIMEOUT;
+                lastErrorMessage = "Download timeout - no data received";
                 break;
             }
 
-            // If disconnected and no data, exit
+            // If disconnected and no data, exit with network error
             if (!sslClient->connected() && noDataDuration > 1000) {
                 LOG_OTA_WARN("Connection closed, no data for %lu ms\n", noDataDuration);
+                lastError = OTAError::NETWORK_ERROR;
+                lastErrorMessage = "Connection closed unexpectedly";
                 break;
             }
         }
@@ -1123,9 +1260,13 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
 
     // Verify download complete
     if (progress.bytesDownloaded != contentLength) {
-        lastError = OTAError::NETWORK_ERROR;
-        lastErrorMessage = "Incomplete download";
-        LOG_OTA_ERROR("Incomplete: %u / %u\n", progress.bytesDownloaded, contentLength);
+        // Don't overwrite specific error if already set
+        if (lastError == OTAError::NONE) {
+            lastError = OTAError::NETWORK_ERROR;
+            lastErrorMessage = "Incomplete download";
+        }
+        LOG_OTA_ERROR("Incomplete: %u / %u (%s)\n", progress.bytesDownloaded, contentLength,
+                     lastErrorMessage.c_str());
         abortOTA();
         downloading = false;
         progress.inProgress = false;
@@ -1201,6 +1342,15 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     lastError = OTAError::NONE;
 
     xSemaphoreGive(httpMutex);
+
+    // v2.5.15: Show success message in dev mode
+    if (IS_DEV_MODE()) {
+        Serial.println();
+        Serial.println("[OTA] ========================================");
+        Serial.println("[OTA] Download complete - verification passed!");
+        Serial.println("[OTA] Firmware ready for reboot");
+        Serial.println("[OTA] ========================================");
+    }
 
     LOG_OTA_INFO("Firmware ready for reboot\n");
     return true;
