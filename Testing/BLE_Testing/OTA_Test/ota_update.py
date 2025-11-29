@@ -928,7 +928,7 @@ Examples:
     parser.add_argument("--auto", action="store_true",
                         help="Auto update without prompts (dangerous!)")
     parser.add_argument("--menu", action="store_true",
-                        help="Interactive menu mode")
+                        help="Interactive menu mode (default)")
 
     return parser.parse_args()
 
@@ -962,9 +962,9 @@ def main():
             sys.exit(0 if result else 1)
 
         else:
-            # Default: Quick check mode (1-click testing)
+            # Default: Interactive menu mode
             # Token is auto-configured from GITHUB_TOKEN constant
-            result = asyncio.run(run_check_only())
+            result = asyncio.run(run_interactive_menu())
             sys.exit(0 if result else 1)
 
     except KeyboardInterrupt:
