@@ -69,7 +69,7 @@ COMMAND_DELAY = 3.0     # Delay between OTA commands
 # GitHub Token for Private Repository Access
 # Set this ONLY if repository is PRIVATE. Leave empty for public repos.
 # Note: Token can cause 404 errors on public repos!
-GITHUB_TOKEN = ""  # Empty = public repo, no token needed
+GITHUB_TOKEN = "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"  # Private repo token
 
 # ============================================================================
 # Global Variables
@@ -927,6 +927,8 @@ Examples:
                         help="Run full OTA update flow")
     parser.add_argument("--auto", action="store_true",
                         help="Auto update without prompts (dangerous!)")
+    parser.add_argument("--menu", action="store_true",
+                        help="Interactive menu mode")
 
     return parser.parse_args()
 
@@ -954,9 +956,15 @@ def main():
             result = asyncio.run(run_ota_update())
             sys.exit(0 if result else 1)
 
-        else:
+        elif args.menu:
             # Interactive menu mode
             result = asyncio.run(run_interactive_menu())
+            sys.exit(0 if result else 1)
+
+        else:
+            # Default: Quick check mode (1-click testing)
+            # Token is auto-configured from GITHUB_TOKEN constant
+            result = asyncio.run(run_check_only())
             sys.exit(0 if result else 1)
 
     except KeyboardInterrupt:

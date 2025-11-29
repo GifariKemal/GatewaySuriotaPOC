@@ -1,11 +1,13 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 2.0.0
- * @date 2025-11-28
+ * @version 2.5.11
+ * @date 2025-11-29
  *
- * v2.0.0: Switched to ESP_SSLClient (mobizt) with PSRAM support
- *         Solves "record too large" error by using PSRAM for SSL buffers
+ * v2.5.11: Private repo OTA support via GitHub API
+ *          Fixed HTTP response header/body parsing
+ * v2.0.0:  Switched to ESP_SSLClient (mobizt) with PSRAM support
+ *          Solves "record too large" error by using PSRAM for SSL buffers
  */
 
 #include "DebugConfig.h"  // MUST BE FIRST
@@ -186,7 +188,7 @@ bool OTAHttps::initSecureClient() {
         wifiSecure->setClient(wifiBase);
         wifiSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB
         wifiSecure->setCACert(GITHUB_ROOT_CA);  // Use PEM format certificate
-        wifiSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
+        wifiSecure->setDebugLevel(0);  // Disable SSL debug in production
         wifiSecure->setTimeout(readTimeoutMs);
 
         LOG_OTA_DEBUG("ESP_SSLClient for WiFi configured, RX buffer: %d bytes (PSRAM)\n",
@@ -222,7 +224,7 @@ bool OTAHttps::initSecureClient() {
         ethSecure->setClient(ethBase);
         ethSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB
         ethSecure->setCACert(GITHUB_ROOT_CA);  // Use PEM format certificate
-        ethSecure->setDebugLevel(ESP_SSLCLIENT_ENABLE_DEBUG);
+        ethSecure->setDebugLevel(0);  // Disable SSL debug in production
         ethSecure->setTimeout(readTimeoutMs);
 
         LOG_OTA_DEBUG("ESP_SSLClient for Ethernet configured, RX buffer: %d bytes (PSRAM)\n",
@@ -332,22 +334,51 @@ void OTAHttps::setProgressCallback(OTAProgressCallback callback) {
 // ============================================
 
 String OTAHttps::buildRawUrl(const String& path) {
-    // https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
-    String url = "https://";
-    url += OTA_GITHUB_RAW_HOST;
-    url += "/";
-    url += githubConfig.owner;
-    url += "/";
-    url += githubConfig.repo;
-    url += "/";
-    url += githubConfig.branch;
-    url += "/";
-    url += path;
-    return url;
+    // v2.5.11: For private repos, use GitHub API instead of raw.githubusercontent.com
+    // raw.githubusercontent.com doesn't accept authentication headers or token-in-URL
+    // GitHub API: https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}
+    // Public repos: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+
+    bool hasToken = githubConfig.token.length() > 0;
+
+    if (hasToken) {
+        // Private repo: Use GitHub API
+        String url = "https://";
+        url += OTA_GITHUB_API_HOST;  // api.github.com
+        url += "/repos/";
+        url += githubConfig.owner;
+        url += "/";
+        url += githubConfig.repo;
+        url += "/contents/";
+        url += path;
+        url += "?ref=";
+        url += githubConfig.branch;
+
+        LOG_OTA_INFO("Private repo: using GitHub API\n");
+        LOG_OTA_INFO("API URL: %s\n", url.c_str());
+        return url;
+    } else {
+        // Public repo: Use raw.githubusercontent.com (no auth needed)
+        String url = "https://";
+        url += OTA_GITHUB_RAW_HOST;
+        url += "/";
+        url += githubConfig.owner;
+        url += "/";
+        url += githubConfig.repo;
+        url += "/";
+        url += githubConfig.branch;
+        url += "/";
+        url += path;
+
+        LOG_OTA_INFO("Public repo: using raw URL\n");
+        LOG_OTA_INFO("Raw URL: %s\n", url.c_str());
+        return url;
+    }
 }
 
 String OTAHttps::buildReleaseUrl(const String& tag, const String& filename) {
-    // https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}
+    // v2.5.11: For private repos, auth is handled via Authorization header in performRequest()
+    // Format: https://github.com/{owner}/{repo}/releases/download/{tag}/{filename}
     String url = "https://";
     url += OTA_GITHUB_RELEASES_HOST;
     url += "/";
@@ -358,6 +389,12 @@ String OTAHttps::buildReleaseUrl(const String& tag, const String& filename) {
     url += tag;
     url += "/";
     url += filename;
+
+    LOG_OTA_INFO("Release URL: %s\n", url.c_str());
+    if (githubConfig.token.length() > 0) {
+        LOG_OTA_INFO("Private repo: auth via header\n");
+    }
+
     return url;
 }
 
@@ -380,7 +417,7 @@ String OTAHttps::buildApiUrl(const String& endpoint) {
 
 // Helper to parse URL into host and path
 bool parseUrl(const String& url, String& host, String& path, uint16_t& port) {
-    // Expected format: https://host/path
+    // Format: https://host/path
     int protoEnd = url.indexOf("://");
     if (protoEnd < 0) return false;
 
@@ -389,12 +426,23 @@ bool parseUrl(const String& url, String& host, String& path, uint16_t& port) {
 
     int hostStart = protoEnd + 3;
     int pathStart = url.indexOf('/', hostStart);
+
+    String hostPart;
     if (pathStart < 0) {
-        host = url.substring(hostStart);
+        hostPart = url.substring(hostStart);
         path = "/";
     } else {
-        host = url.substring(hostStart, pathStart);
+        hostPart = url.substring(hostStart, pathStart);
         path = url.substring(pathStart);
+    }
+
+    // v2.5.11: Check for credentials in URL (token@host format)
+    int atPos = hostPart.indexOf('@');
+    if (atPos > 0) {
+        // URL has credentials, extract just the host part
+        host = hostPart.substring(atPos + 1);
+    } else {
+        host = hostPart;
     }
 
     // Check for port in host
@@ -478,14 +526,32 @@ int OTAHttps::performRequest(const char* method) {
     String request = String(method) + " " + path + " HTTP/1.1\r\n";
     request += "Host: " + host + "\r\n";
     request += "User-Agent: ESP32-OTA/1.0\r\n";
-    request += "Accept: application/octet-stream, application/json\r\n";
-    request += "Connection: close\r\n";
 
-    // Add auth header if token provided
-    if (githubConfig.token.length() > 0) {
-        request += "Authorization: Bearer " + githubConfig.token + "\r\n";
+    // v2.5.11: For GitHub API (private repos), use proper authentication
+    // GitHub API requires: Authorization: token {token} (NOT Bearer!)
+    // Also needs Accept header for raw content
+    bool isGitHubApi = (host == String(OTA_GITHUB_API_HOST));
+    bool isGitHub = (host == String(OTA_GITHUB_RELEASES_HOST));
+
+    if (githubConfig.token.length() > 0 && (isGitHubApi || isGitHub)) {
+        // GitHub API/Release authentication
+        request += "Authorization: token " + githubConfig.token + "\r\n";
+
+        if (isGitHubApi) {
+            // API requests need special Accept header for raw content
+            request += "Accept: application/vnd.github.v3.raw\r\n";
+            LOG_OTA_DEBUG("Using GitHub API auth\n");
+        } else {
+            // Release downloads
+            request += "Accept: application/octet-stream\r\n";
+            LOG_OTA_DEBUG("Using GitHub Release auth\n");
+        }
+    } else {
+        // Standard Accept header for public repos
+        request += "Accept: application/octet-stream, application/json\r\n";
     }
 
+    request += "Connection: close\r\n";
     request += "\r\n";
 
     // Send request
@@ -514,48 +580,6 @@ int OTAHttps::performRequest(const char* method) {
     }
 
     return httpCode;
-}
-
-bool OTAHttps::followRedirects(String& finalUrl) {
-    // v2.5.9: Manual redirect handling with ESP_SSLClient
-    int redirectCount = 0;
-    while (redirectCount < OTA_HTTPS_MAX_REDIRECTS) {
-        int httpCode = performRequest("HEAD");
-
-        if (httpCode == 200 || httpCode == 206) {
-            sslClient->stop();
-            return true;
-        }
-
-        if (httpCode == 301 || httpCode == 302 || httpCode == 303 || httpCode == 307) {
-            // Read headers to find Location
-            String location = "";
-            while (sslClient->connected()) {
-                String line = sslClient->readStringUntil('\n');
-                line.trim();
-                if (line.length() == 0) break;
-
-                if (line.startsWith("Location:") || line.startsWith("location:")) {
-                    location = line.substring(10);
-                    location.trim();
-                }
-            }
-
-            sslClient->stop();
-
-            if (location.length() == 0) {
-                return false;
-            }
-
-            finalUrl = location;
-            setupHttpClient(finalUrl);
-            redirectCount++;
-        } else {
-            sslClient->stop();
-            return false;
-        }
-    }
-    return false;
 }
 
 // ============================================
@@ -689,36 +713,51 @@ bool OTAHttps::fetchManifestFromUrl(const String& url, FirmwareManifest& manifes
         return false;
     }
 
-    // Read headers until empty line
-    size_t contentLength = 0;
-    while (sslClient->connected()) {
-        String line = sslClient->readStringUntil('\n');
-        line.trim();
-        if (line.length() == 0) break;  // Empty line = end of headers
-
-        // Parse Content-Length
-        if (line.startsWith("Content-Length:") || line.startsWith("content-length:")) {
-            contentLength = line.substring(16).toInt();
-        }
-    }
-
-    // Read body
-    String payload = "";
+    // v2.5.11: Read ALL data first (headers + body), then parse
+    // This is more robust than line-by-line reading which can fail with slow connections
+    String rawResponse = "";
     unsigned long timeout = millis() + readTimeoutMs;
-    while (sslClient->connected() && millis() < timeout) {
+
+    while ((sslClient->connected() || sslClient->available()) && millis() < timeout) {
         while (sslClient->available()) {
             char c = sslClient->read();
-            payload += c;
-            if (contentLength > 0 && payload.length() >= contentLength) break;
+            rawResponse += c;
         }
-        if (contentLength > 0 && payload.length() >= contentLength) break;
         delay(1);
+    }
+
+    LOG_OTA_DEBUG("Raw response: %d bytes\n", rawResponse.length());
+
+    // Find header/body separator: \r\n\r\n
+    int bodyStart = rawResponse.indexOf("\r\n\r\n");
+    String payload = "";
+
+    if (bodyStart > 0) {
+        payload = rawResponse.substring(bodyStart + 4);  // Skip \r\n\r\n
+        LOG_OTA_DEBUG("Headers: %d bytes, Body: %d bytes\n", bodyStart, payload.length());
+    } else {
+        // Fallback: try to find JSON start directly
+        int jsonStart = rawResponse.indexOf('{');
+        if (jsonStart >= 0) {
+            payload = rawResponse.substring(jsonStart);
+            LOG_OTA_DEBUG("Found JSON at offset %d\n", jsonStart);
+        } else {
+            payload = rawResponse;  // Use as-is
+        }
     }
 
     sslClient->stop();
     xSemaphoreGive(httpMutex);
 
     LOG_OTA_DEBUG("Received %d bytes\n", payload.length());
+
+    // Debug: show first 100 chars of payload
+    if (payload.length() > 0) {
+        String preview = payload.substring(0, min((size_t)100, payload.length()));
+        LOG_OTA_DEBUG("Payload preview: %s\n", preview.c_str());
+    } else {
+        LOG_OTA_ERROR("Empty payload received\n");
+    }
 
     return parseManifest(payload, manifest);
 }
@@ -727,7 +766,15 @@ bool OTAHttps::parseManifest(const String& json, FirmwareManifest& manifest) {
     // Allocate JSON document in PSRAM
     SpiRamJsonDocument doc;
 
-    DeserializationError error = deserializeJson(doc, json);
+    // v2.5.11: Find JSON start - skip any remaining headers that weren't properly skipped
+    String jsonBody = json;
+    int jsonStart = json.indexOf('{');
+    if (jsonStart > 0) {
+        jsonBody = json.substring(jsonStart);
+        LOG_OTA_DEBUG("Skipped %d bytes before JSON start\n", jsonStart);
+    }
+
+    DeserializationError error = deserializeJson(doc, jsonBody);
     if (error) {
         lastError = OTAError::MANIFEST_ERROR;
         lastErrorMessage = "JSON parse error: " + String(error.c_str());
@@ -1002,9 +1049,13 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                     return false;
                 }
 
+                // Yield after flash write to prevent watchdog timeout
+                vTaskDelay(1);
+
                 // Update hash
                 if (validator) {
                     validator->hashUpdate(downloadBuffer, bytesRead);
+                    vTaskDelay(1);  // Yield after hash computation
                 }
 
                 // Update progress
@@ -1054,7 +1105,7 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
             }
         }
 
-        vTaskDelay(1);  // Feed watchdog
+        vTaskDelay(pdMS_TO_TICKS(10));  // Feed watchdog - increased from 1 to 10ms
     }
 
     sslClient->stop();

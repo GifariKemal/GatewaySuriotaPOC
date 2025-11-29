@@ -322,6 +322,15 @@ lib/
 Tools/OTA_Keys/ota_private_key.pem
 **/ota_private_key.pem
 
-# Note: firmware_manifest.json is tracked for OTA updates
-# Public keys are safe to commit
+# OTA releases and manifests (moved to GatewaySuriotaOTA repo)
+releases/
+ota/
+firmware_manifest.json
+
+# Arduino build output
+Main/build/
+
+# Testing artifacts
+nul
+Testing/**/nul
 

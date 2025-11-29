@@ -8,7 +8,100 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.10 (Current - OTA Signature Bug Fix)
+## 🚀 Version 2.5.11 (Current - Private Repo OTA Support)
+
+**Release Date:** November 28, 2025 (Friday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release fixes OTA update support for PRIVATE GitHub repositories. Previously, OTA would fail with HTTP 404 when the repository was set to private, even with a valid GitHub token configured.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. CRITICAL: Private Repository OTA Fix
+**Severity:** 🔴 CRITICAL (OTA from private repos always failed)
+
+**Issue:** OTA manifest fetch returned HTTP 404 when:
+- Repository was set to PRIVATE
+- GitHub token was configured via BLE `set_github_token` command
+
+**Root Cause:**
+- `raw.githubusercontent.com` does NOT accept `Authorization: Bearer` header for authentication
+- The firmware was sending token in HTTP header, which GitHub CDN didn't recognize
+- Result: 404 error even with valid token
+
+**Fix:** Use GitHub API (`api.github.com`) instead of `raw.githubusercontent.com` for private repos:
+
+```cpp
+// BEFORE (raw.githubusercontent.com - DOESN'T support auth):
+URL: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+Header: Authorization: Bearer {token}  // IGNORED by CDN!
+
+// AFTER (GitHub API - SUPPORTS auth):
+URL: https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}
+Header: Authorization: token {token}  // Works!
+Header: Accept: application/vnd.github.v3.raw  // Get raw content
+```
+
+**Files Modified:**
+- `OTAHttps.cpp` - `buildRawUrl()`, `buildReleaseUrl()`, `performRequest()`
+
+**Technical Details:**
+- Private repos: Use GitHub API for manifest fetch
+- Public repos: Use `raw.githubusercontent.com` (no auth needed)
+- Authorization header: `token` format (NOT `Bearer`!)
+- Accept header: `application/vnd.github.v3.raw` for raw content
+- Release downloads: Use standard URL with `Authorization: token` header
+
+---
+
+#### 2. URL Parser Enhancement
+**Severity:** 🟡 MEDIUM (Required for private repo fix)
+
+**Change:** Updated `parseUrl()` function to handle URL credentials (token@host format).
+
+```cpp
+// Now handles both formats:
+// - https://raw.githubusercontent.com/owner/repo/branch/path (public)
+// - https://ghp_xxx@raw.githubusercontent.com/owner/repo/branch/path (private)
+```
+
+---
+
+#### 3. Security: Token Masking in Logs
+**Severity:** 🟢 LOW (Security best practice)
+
+**Change:** Token is masked in all log outputs to prevent accidental exposure:
+
+```
+[OTA] Raw URL: https://[TOKEN]@raw.githubusercontent.com/owner/repo/main/firmware_manifest.json
+```
+
+---
+
+### 📝 **Summary**
+
+| Change | Impact | Files |
+|--------|--------|-------|
+| Private repo OTA fix | CRITICAL | OTAHttps.cpp |
+| URL parser enhancement | MEDIUM | OTAHttps.cpp |
+| Token masking in logs | LOW | OTAHttps.cpp |
+
+### 🔄 **Migration Notes**
+
+No migration required. This is a backward-compatible fix:
+- **Public repos:** Work as before (no token needed)
+- **Private repos:** Now work with token configured via BLE
+
+---
+
+---
+
+## 🚀 Version 2.5.10 (OTA Signature Bug Fix)
 
 **Release Date:** November 28, 2025 (Friday)
 **Developer:** Kemal (with Claude Code)

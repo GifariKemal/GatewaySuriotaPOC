@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.10 | **Last Updated:** November 28, 2025
+**Version:** 2.5.11 | **Last Updated:** November 28, 2025
 
 ---
 
@@ -31,7 +31,15 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.10 - Nov 28, 2025)
+## 🆕 Latest Updates (v2.5.11 - Nov 28, 2025)
+
+### v2.5.11 - Private Repo OTA Support (Nov 28, 2025)
+- **CRITICAL OTA FIX:** Fixed OTA from PRIVATE GitHub repositories (was returning HTTP 404)
+- **Root Cause:** `raw.githubusercontent.com` is a CDN that doesn't accept any authentication
+- **Fix:** Use GitHub API (`api.github.com`) for private repos with `Authorization: token` header
+- **API Endpoint:** `https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}`
+- **Headers:** `Authorization: token {token}` + `Accept: application/vnd.github.v3.raw`
+- **Backward Compatible:** Public repos still use `raw.githubusercontent.com` (no auth needed)
 
 ### v2.5.10 - OTA Signature Bug Fix (Nov 28, 2025)
 - **CRITICAL OTA FIX:** Fixed double-hash bug in `sign_firmware.py` that caused all OTA signature verifications to fail

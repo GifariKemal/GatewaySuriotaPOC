@@ -176,7 +176,6 @@ private:
     // HTTP helpers
     bool setupHttpClient(const String& url);
     int performRequest(const char* method = "GET");
-    bool followRedirects(String& finalUrl);
 
     // Download helpers
     bool beginOTAPartition(size_t firmwareSize);

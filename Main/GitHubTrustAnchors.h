@@ -1,16 +1,19 @@
 /**
  * @file GitHubTrustAnchors.h
- * @brief Root CA Certificate for GitHub HTTPS connections
- * @version 2.0.0
- * @date 2025-11-28
+ * @brief Root CA Certificates for GitHub HTTPS connections
+ * @version 2.1.0
+ * @date 2025-11-29
  *
- * Contains root CA certificate for:
- * - raw.githubusercontent.com
- * - github.com
+ * Contains root CA certificates for:
+ * - raw.githubusercontent.com (USERTrust RSA)
+ * - github.com (USERTrust RSA)
+ * - api.github.com (USERTrust ECC) - v2.1.0: Added for private repo support
  * - objects.githubusercontent.com
  *
  * GitHub uses Sectigo/USERTrust certificates (as of 2025)
+ * api.github.com uses ECC certificates, others use RSA
  *
+ * v2.1.0: Added USERTrust ECC for api.github.com (private repo OTA)
  * v2.0.0: Simplified for ESP_SSLClient (mobizt) - PEM format only
  */
 
@@ -20,9 +23,9 @@
 #include <Arduino.h>
 
 // ============================================
-// USERTrust RSA Certification Authority
-// GitHub's current root CA (PEM format)
-// For use with ESP_SSLClient setCACert()
+// Combined Root CA Bundle for GitHub
+// Includes both RSA and ECC roots
+// ESP_SSLClient can handle multiple certs
 // ============================================
 
 static const char GITHUB_ROOT_CA[] PROGMEM = R"EOF(
@@ -57,6 +60,22 @@ rvSNb3I8QzvAP+u431yqqcau8vzY7qN7Q/aGNnwU4M309z/+3ri0ivCRlv79Q2R+
 CiIDEOUMsfnNkjcZ7Tvx5Dq2+UUTJnWvu6rvP3t3O9LEApE9GQDTF1w52z97GA1F
 zZOFli9d31kWTz9RvdVFGD/tSo7oBmF0Ixa1DVBzJ0RHfxBdiSprhTEUxOipakyA
 vGp4z7h/jnZymQyd/teRCBaho1+V
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICjzCCAhWgAwIBAgIQXIuZxVqUxdJxVt7NiYDMJjAKBggqhkjOPQQDAzCBiDEL
+MAkGA1UEBhMCVVMxEzARBgNVBAgTCk5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNl
+eSBDaXR5MR4wHAYDVQQKExVUaGUgVVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMT
+JVVTRVJUcnVzdCBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwHhcNMTAwMjAx
+MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBiDELMAkGA1UEBhMCVVMxEzARBgNVBAgT
+Ck5ldyBKZXJzZXkxFDASBgNVBAcTC0plcnNleSBDaXR5MR4wHAYDVQQKExVUaGUg
+VVNFUlRSVVNUIE5ldHdvcmsxLjAsBgNVBAMTJVVTRVJUcnVzdCBFQ0MgQ2VydGlm
+aWNhdGlvbiBBdXRob3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQarFRaqflo
+I+d61SRvU8Za2EurxtW20eZzca7dnNYMYf3boIkDuAUU7FfO7l0/4iGzzvfUinng
+o4N+LZfQYcTxmdwlkWOrfzCjtHDix6EznPO/LlxTsV+zfTJ/ijTjeXmjQjBAMB0G
+A1UdDgQWBBQ64QmG1M8ZwpZ2dEl23OA1xmNjmjAOBgNVHQ8BAf8EBAMCAQYwDwYD
+VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjA2Z6EWCNzklwBBHU6+4WMB
+zzuqQhFkoJ2UOQIReVx7Hfpkue4WQrO/isIJxOzksU0CMQDpKmFHjFJKS04YcPbW
+RNZu9YO6bVi9JNlWSOrvxKJGgYhqOkbRqZtNyWHa0V1Xahg=
 -----END CERTIFICATE-----
 )EOF";
 
