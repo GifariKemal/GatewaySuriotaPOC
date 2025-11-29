@@ -7,7 +7,6 @@
  * Central controller for OTA updates:
  * - State machine (IDLE → CHECKING → DOWNLOADING → VALIDATING → APPLYING → REBOOTING)
  * - HTTPS OTA from GitHub (public/private repos)
- * - BLE OTA from smartphone
  * - MQTT OTA commands
  * - Automatic rollback on boot failure
  * - Version management and anti-rollback protection
@@ -15,7 +14,6 @@
  * Integration:
  * - OTAValidator: Signature/checksum verification
  * - OTAHttps: GitHub download transport
- * - OTABle: BLE transfer transport
  */
 
 #ifndef OTA_MANAGER_H
@@ -25,7 +23,6 @@
 #include "OTAConfig.h"
 #include "OTAValidator.h"
 #include "OTAHttps.h"
-#include "OTABle.h"
 #include <Arduino.h>
 #include <Preferences.h>
 #include <esp_ota_ops.h>
@@ -148,7 +145,6 @@ private:
     // Sub-components
     OTAValidator* validator;
     OTAHttps* httpsTransport;
-    OTABle* bleTransport;
 
     // Configuration
     OTAConfiguration config;

@@ -211,9 +211,6 @@ public:
   bool isStreamingActive() const;
   bool waitForTransmissionsComplete(uint32_t timeoutMs = 2000);
 
-  // v2.5.17: Get BLE server for OTA service
-  // BLEServer* getServer() const { return pServer; }
-
   // BLE callbacks
   void onConnect(BLEServer *pServer) override;
   void onDisconnect(BLEServer *pServer) override;

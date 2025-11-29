@@ -31,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.5.16" // v2.5.16: SSL fallback CA, String fragmentation fix, OTA progress/resume/retry
+#define FIRMWARE_VERSION "2.5.16" // v2.5.16: Stable OTA with GitHub API for private repos
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)

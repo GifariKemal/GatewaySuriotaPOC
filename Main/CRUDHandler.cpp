@@ -10,6 +10,7 @@
 #include "RTCManager.h"     // For RTC timestamp in factory reset
 #include "LEDManager.h"     // For stopping LED task during factory reset
 #include "OTAManager.h"     // For OTA update commands via BLE
+#include <esp_heap_caps.h>  // For PSRAM allocation
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;

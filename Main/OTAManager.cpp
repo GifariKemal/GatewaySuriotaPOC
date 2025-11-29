@@ -28,7 +28,6 @@ static OTAManager* callbackInstance = nullptr;
 OTAManager::OTAManager() :
     validator(nullptr),
     httpsTransport(nullptr),
-    bleTransport(nullptr),
     configLoaded(false),
     currentState(OTAState::IDLE),
     updateMode(OTAUpdateMode::NONE),
@@ -114,17 +113,6 @@ bool OTAManager::begin(BLEServer* server) {
     httpsTransport = nullptr;
     LOG_OTA_INFO("HTTPS transport: lazy initialization enabled\n");
 
-    // Initialize BLE OTA if server provided and enabled
-    if (bleServer && config.bleOtaEnabled) {
-        bleTransport = OTABle::getInstance();
-        if (!bleTransport->begin(bleServer, validator)) {
-            LOG_OTA_WARN("BLE OTA init failed - continuing without BLE OTA\n");
-            bleTransport = nullptr;
-        } else {
-            bleTransport->setProgressCallback(progressCallbackAdapter);
-        }
-    }
-
     // Handle boot validation (rollback protection)
     handleBootValidation();
 
@@ -153,9 +141,6 @@ void OTAManager::stop() {
     // Stop transports
     if (httpsTransport) {
         httpsTransport->stop();
-    }
-    if (bleTransport) {
-        bleTransport->stop();
     }
     if (validator) {
         validator->stop();
@@ -358,10 +343,6 @@ void OTAManager::applyConfiguration() {
         httpsTransport->setGitHubConfig(ghConfig);
         httpsTransport->setReadTimeout(config.timeoutMs);
         httpsTransport->setRetryParams(config.retryCount, config.retryDelayMs);
-    }
-
-    if (bleTransport) {
-        bleTransport->setTotalTimeout(config.bleTimeoutMs);
     }
 
     checkIntervalMs = config.checkIntervalHours * 3600000UL;
@@ -618,9 +599,6 @@ void OTAManager::abortUpdate() {
     if (httpsTransport) {
         httpsTransport->abortDownload();
     }
-    if (bleTransport) {
-        bleTransport->abortTransfer();
-    }
 
     setState(OTAState::IDLE);
     updateMode = OTAUpdateMode::NONE;
@@ -676,25 +654,20 @@ void OTAManager::progressCallbackAdapter(uint8_t prog, size_t current, size_t to
 }
 
 // ============================================
-// BLE OTA
+// BLE OTA (disabled - not implemented)
 // ============================================
 
 void OTAManager::enableBleOta() {
-    if (bleTransport) {
-        LOG_OTA_INFO("BLE OTA enabled\n");
-        updateMode = OTAUpdateMode::BLE;
-    }
+    // BLE OTA not implemented
+    LOG_OTA_WARN("BLE OTA not available\n");
 }
 
 void OTAManager::disableBleOta() {
-    if (bleTransport && updateMode == OTAUpdateMode::BLE) {
-        bleTransport->abortTransfer();
-        updateMode = OTAUpdateMode::NONE;
-    }
+    // BLE OTA not implemented
 }
 
 bool OTAManager::isBleOtaActive() const {
-    return bleTransport && bleTransport->getState() != BLEOTAState::IDLE;
+    return false;  // BLE OTA not implemented
 }
 
 // ============================================
@@ -731,9 +704,6 @@ void OTAManager::setCompletionCallback(OTACompletionCallback callback) {
     completionCallback = callback;
     if (httpsTransport) {
         // Also pass to transport completion
-    }
-    if (bleTransport) {
-        bleTransport->setCompletionCallback(callback);
     }
 }
 
@@ -963,11 +933,6 @@ void OTAManager::checkTaskFunction(void* param) {
 // ============================================
 
 void OTAManager::process() {
-    // Process BLE OTA timeouts
-    if (bleTransport) {
-        bleTransport->process();
-    }
-
     // v2.5.1 FIX: Auto-check for updates using async task (non-blocking)
     // This prevents the OTA check from blocking BLE, MQTT, HTTP and other tasks
     if (config.enabled && checkIntervalMs > 0) {
