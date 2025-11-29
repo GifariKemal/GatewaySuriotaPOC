@@ -1,9 +1,12 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 2.5.11
+ * @version 2.5.12
  * @date 2025-11-29
  *
+ * v2.5.12: Fixed private repo firmware download (HTTP 404)
+ *          Use GitHub API releases/assets endpoint for binary downloads
+ *          Correct Accept header for asset downloads vs contents API
  * v2.5.11: Private repo OTA support via GitHub API
  *          Fixed HTTP response header/body parsing
  * v2.0.0:  Switched to ESP_SSLClient (mobizt) with PSRAM support
@@ -527,22 +530,30 @@ int OTAHttps::performRequest(const char* method) {
     request += "Host: " + host + "\r\n";
     request += "User-Agent: ESP32-OTA/1.0\r\n";
 
-    // v2.5.11: For GitHub API (private repos), use proper authentication
+    // v2.5.12: For GitHub API (private repos), use proper authentication
     // GitHub API requires: Authorization: token {token} (NOT Bearer!)
-    // Also needs Accept header for raw content
+    // Different Accept headers for different API endpoints:
+    // - Contents API: application/vnd.github.v3.raw (for manifest)
+    // - Release Assets API: application/octet-stream (for firmware download)
     bool isGitHubApi = (host == String(OTA_GITHUB_API_HOST));
     bool isGitHub = (host == String(OTA_GITHUB_RELEASES_HOST));
+    bool isAssetDownload = path.indexOf("/releases/assets/") >= 0;
 
     if (githubConfig.token.length() > 0 && (isGitHubApi || isGitHub)) {
         // GitHub API/Release authentication
         request += "Authorization: token " + githubConfig.token + "\r\n";
 
-        if (isGitHubApi) {
-            // API requests need special Accept header for raw content
+        if (isGitHubApi && isAssetDownload) {
+            // Release asset download via API (private repos)
+            // GET /repos/{owner}/{repo}/releases/assets/{asset_id}
+            request += "Accept: application/octet-stream\r\n";
+            LOG_OTA_DEBUG("Using GitHub API asset download\n");
+        } else if (isGitHubApi) {
+            // Contents API for manifest (raw file content)
             request += "Accept: application/vnd.github.v3.raw\r\n";
-            LOG_OTA_DEBUG("Using GitHub API auth\n");
+            LOG_OTA_DEBUG("Using GitHub API contents\n");
         } else {
-            // Release downloads
+            // Direct github.com release downloads (may not work for private repos)
             request += "Accept: application/octet-stream\r\n";
             LOG_OTA_DEBUG("Using GitHub Release auth\n");
         }
