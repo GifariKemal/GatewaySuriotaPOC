@@ -118,29 +118,91 @@ void CRUDHandler::setupCommandHandlers()
   {
     bool minimalFields = command["minimal"] | false; // Support optional "minimal" parameter
 
+    // v2.5.12: Pagination support for large device lists
+    // MOBILE APP SPEC: Uses "page" (0-indexed) and "limit" parameters
+    // Support both "page" and legacy "offset" for flexibility
+    int page = command["page"] | -1;      // Page number (0-indexed), -1 = not specified
+    int limit = command["limit"] | -1;    // Items per page (default: -1 = all)
+
+    // Check if pagination is requested (either page or limit specified)
+    // ArduinoJson 7.x: Use .is<T>() instead of deprecated containsKey()
+    bool hasPageParam = !command["page"].isNull();
+    bool hasLimitParam = !command["limit"].isNull();
+    bool hasPagination = hasPageParam || hasLimitParam;
+    bool usePagination = hasPagination && (limit > 0);
+
+    // Default limit to 10 if page is specified but limit is not
+    if (page >= 0 && limit <= 0)
+    {
+      limit = 10; // Default page size per mobile app spec
+    }
+
+    // Calculate offset from page number
+    int offset = (page >= 0) ? page * limit : 0;
+
     // Start processing timer for performance monitoring
     unsigned long startTime = millis();
 
+    // First, get all devices into a temporary document
+    auto tempDoc = make_psram_unique<JsonDocument>();
+    JsonArray allDevices = (*tempDoc)["all"].to<JsonArray>();
+    configManager->getAllDevicesWithRegisters(allDevices, minimalFields);
+
+    int totalDevices = allDevices.size();
+
+    // Calculate total pages (ceil division)
+    int totalPages = (limit > 0) ? ((totalDevices + limit - 1) / limit) : 1;
+
+    // Prepare response
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
     JsonArray devices = (*response)["devices"].to<JsonArray>();
-    configManager->getAllDevicesWithRegisters(devices, minimalFields);
+
+    // Apply pagination if requested
+    if (usePagination)
+    {
+      int endIndex = min(offset + limit, totalDevices);
+
+      // Copy only the requested range of devices
+      int deviceIndex = 0;
+      for (JsonObject device : allDevices)
+      {
+        if (deviceIndex >= offset && deviceIndex < endIndex)
+        {
+          devices.add(device);
+        }
+        deviceIndex++;
+        if (deviceIndex >= endIndex)
+          break; // Early exit for efficiency
+      }
+
+      // Add pagination metadata (MOBILE APP SPEC FORMAT)
+      (*response)["total_count"] = totalDevices;           // Total devices in database
+      (*response)["page"] = (page >= 0) ? page : 0;        // Current page number (echo)
+      (*response)["limit"] = limit;                        // Items per page (echo)
+      (*response)["total_pages"] = totalPages;             // Total number of pages
+
+      LOG_CRUD_INFO("[CRUD] devices_with_registers PAGINATED: page %d/%d, %d devices (limit=%d)\n",
+                    (page >= 0) ? page : 0, totalPages, devices.size(), limit);
+    }
+    else
+    {
+      // No pagination - return all devices (BACKWARD COMPATIBLE)
+      for (JsonObject device : allDevices)
+      {
+        devices.add(device);
+      }
+
+      // No pagination fields when not requested (backward compatible per mobile app spec)
+      LOG_CRUD_INFO("[CRUD] devices_with_registers returned ALL %d devices (minimal=%s)\n",
+                    totalDevices, minimalFields ? "true" : "false");
+    }
 
     // Calculate processing time
     unsigned long processingTime = millis() - startTime;
 
-    // Calculate total register count
-    int totalRegisters = 0;
-    for (JsonObject device : devices)
-    {
-      totalRegisters += device["registers"].size();
-    }
-
-    LOG_CRUD_INFO("[CRUD] devices_with_registers returned %d devices, %d total registers (minimal=%s) in %lu ms\n",
-                  devices.size(), totalRegisters, minimalFields ? "true" : "false", processingTime);
-
     // Warn if no data returned
-    if (devices.size() == 0)
+    if (totalDevices == 0)
     {
       LOG_CRUD_INFO("[CRUD] WARNING: No devices returned! Check if devices are configured in devices.json");
     }
@@ -148,7 +210,7 @@ void CRUDHandler::setupCommandHandlers()
     // Warn if processing takes too long (>10 seconds)
     if (processingTime > 10000)
     {
-      LOG_CRUD_INFO("[CRUD] WARNING: Processing took %lu ms (>10s). Consider using minimal=true for large datasets.\n", processingTime);
+      LOG_CRUD_INFO("[CRUD] WARNING: Processing took %lu ms (>10s). Consider using pagination or minimal=true.\n", processingTime);
     }
 
     manager->sendResponse(*response);
@@ -394,51 +456,158 @@ void CRUDHandler::setupCommandHandlers()
 
   readHandlers["full_config"] = [this](BLEManager *manager, const JsonDocument &command)
   {
-    LOG_CRUD_INFO("[CRUD] Full config backup requested");
+    // v2.5.12: Section-based pagination for large backups
+    // section: "all" (default), "devices", "server_config", "logging_config", "metadata"
+    String section = command["section"] | "all";
+
+    // Device pagination (only applies when section is "all" or "devices")
+    int deviceOffset = command["device_offset"] | 0;
+    int deviceLimit = command["device_limit"] | -1; // -1 = all devices
+    bool useDevicePagination = (deviceLimit > 0);
+
+    LOG_CRUD_INFO("[CRUD] Full config backup requested (section=%s, device_offset=%d, device_limit=%d)\n",
+                  section.c_str(), deviceOffset, deviceLimit);
     unsigned long startTime = millis();
 
     // Allocate large PSRAM document for complete config
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
+    (*response)["section"] = section;
 
-    // Backup metadata
+    // Backup metadata (always included)
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.3.6"; // v2.3.6: DRAM cleanup optimization
+    backupInfo["firmware_version"] = "2.5.17"; // v2.5.17: BLE Pagination support
     backupInfo["device_name"] = "SURIOTA_GW";
 
-    // Get all configurations
+    // Get all configurations based on section
     JsonObject config = (*response)["config"].to<JsonObject>();
 
-    // 1. Devices + registers (complete structure)
-    JsonArray devices = config["devices"].to<JsonArray>();
-    configManager->getAllDevicesWithRegisters(devices, false); // Full mode, not minimal
-
-    // 2. Server config (MQTT, HTTP, WiFi, Ethernet)
-    JsonObject serverCfg = config["server_config"].to<JsonObject>();
-    if (!serverConfig->getConfig(serverCfg))
-    {
-      LOG_CRUD_INFO("[CRUD] WARNING: Failed to get server config");
-    }
-
-    // 3. Logging config
-    JsonObject loggingCfg = config["logging_config"].to<JsonObject>();
-    if (!loggingConfig->getConfig(loggingCfg))
-    {
-      LOG_CRUD_INFO("[CRUD] WARNING: Failed to get logging config");
-    }
-
-    // Calculate statistics
-    int totalDevices = devices.size();
+    // Track totals for metadata
+    int totalDevices = 0;
     int totalRegisters = 0;
-    for (JsonObject dev : devices)
+    int returnedDevices = 0;
+    int returnedRegisters = 0;
+
+    // === SECTION: devices ===
+    if (section == "all" || section == "devices")
     {
-      if (dev["registers"].is<JsonArray>())
+      // First get all devices to count total
+      auto tempDoc = make_psram_unique<JsonDocument>();
+      JsonArray allDevices = (*tempDoc)["all"].to<JsonArray>();
+      configManager->getAllDevicesWithRegisters(allDevices, false); // Full mode
+
+      totalDevices = allDevices.size();
+
+      // Count total registers across ALL devices
+      for (JsonObject dev : allDevices)
       {
-        totalRegisters += dev["registers"].size();
+        if (dev["registers"].is<JsonArray>())
+        {
+          totalRegisters += dev["registers"].size();
+        }
+      }
+
+      // Apply device pagination if requested
+      JsonArray devices = config["devices"].to<JsonArray>();
+
+      if (useDevicePagination)
+      {
+        int endIndex = min(deviceOffset + deviceLimit, totalDevices);
+        int deviceIndex = 0;
+
+        for (JsonObject dev : allDevices)
+        {
+          if (deviceIndex >= deviceOffset && deviceIndex < endIndex)
+          {
+            devices.add(dev);
+            returnedDevices++;
+            if (dev["registers"].is<JsonArray>())
+            {
+              returnedRegisters += dev["registers"].size();
+            }
+          }
+          deviceIndex++;
+          if (deviceIndex >= endIndex)
+            break;
+        }
+
+        // Add device pagination metadata
+        backupInfo["device_pagination"] = true;
+        backupInfo["device_offset"] = deviceOffset;
+        backupInfo["device_limit"] = deviceLimit;
+        backupInfo["devices_returned"] = returnedDevices;
+        backupInfo["has_more_devices"] = (endIndex < totalDevices);
+
+        LOG_CRUD_INFO("[CRUD] Device pagination: %d/%d devices, %d/%d registers\n",
+                      returnedDevices, totalDevices, returnedRegisters, totalRegisters);
+      }
+      else
+      {
+        // No pagination - return all devices
+        for (JsonObject dev : allDevices)
+        {
+          devices.add(dev);
+        }
+        returnedDevices = totalDevices;
+        returnedRegisters = totalRegisters;
+        backupInfo["device_pagination"] = false;
       }
     }
 
+    // === SECTION: server_config ===
+    if (section == "all" || section == "server_config")
+    {
+      JsonObject serverCfg = config["server_config"].to<JsonObject>();
+      if (!serverConfig->getConfig(serverCfg))
+      {
+        LOG_CRUD_INFO("[CRUD] WARNING: Failed to get server config");
+      }
+    }
+
+    // === SECTION: logging_config ===
+    if (section == "all" || section == "logging_config")
+    {
+      JsonObject loggingCfg = config["logging_config"].to<JsonObject>();
+      if (!loggingConfig->getConfig(loggingCfg))
+      {
+        LOG_CRUD_INFO("[CRUD] WARNING: Failed to get logging config");
+      }
+    }
+
+    // === SECTION: metadata (stats only, no data) ===
+    if (section == "metadata")
+    {
+      // Just return metadata without actual config data
+      auto tempDoc = make_psram_unique<JsonDocument>();
+      JsonArray allDevices = (*tempDoc)["all"].to<JsonArray>();
+      configManager->getAllDevicesWithRegisters(allDevices, true); // Minimal mode for speed
+
+      totalDevices = allDevices.size();
+      for (JsonObject dev : allDevices)
+      {
+        if (dev["registers"].is<JsonArray>())
+        {
+          totalRegisters += dev["registers"].size();
+        }
+      }
+
+      // Add recommended pagination settings
+      JsonObject recommendations = (*response)["recommendations"].to<JsonObject>();
+      if (totalDevices > 5 || totalRegisters > 100)
+      {
+        recommendations["use_pagination"] = true;
+        recommendations["suggested_device_limit"] = 2; // 2 devices per request
+        recommendations["estimated_pages"] = (totalDevices + 1) / 2;
+      }
+      else
+      {
+        recommendations["use_pagination"] = false;
+        recommendations["reason"] = "Data size is manageable without pagination";
+      }
+    }
+
+    // Calculate statistics
     backupInfo["total_devices"] = totalDevices;
     backupInfo["total_registers"] = totalRegisters;
 
@@ -446,12 +615,21 @@ void CRUDHandler::setupCommandHandlers()
     backupInfo["processing_time_ms"] = processingTime;
 
     // Calculate approximate JSON size
-    String testOutput;
-    serializeJson(*response, testOutput);
-    backupInfo["backup_size_bytes"] = testOutput.length();
+    size_t jsonSize = measureJson(*response);
+    backupInfo["backup_size_bytes"] = jsonSize;
 
-    LOG_CRUD_INFO("[CRUD] Full config backup complete: %d devices, %d registers, %d bytes, %lu ms\n",
-                  totalDevices, totalRegisters, testOutput.length(), processingTime);
+    // Add section info for client
+    JsonArray availableSections = backupInfo["available_sections"].to<JsonArray>();
+    availableSections.add("all");
+    availableSections.add("devices");
+    availableSections.add("server_config");
+    availableSections.add("logging_config");
+    availableSections.add("metadata");
+
+    LOG_CRUD_INFO("[CRUD] Full config backup complete: section=%s, %d devices, %d registers, %d bytes, %lu ms\n",
+                  section.c_str(), returnedDevices > 0 ? returnedDevices : totalDevices,
+                  returnedRegisters > 0 ? returnedRegisters : totalRegisters,
+                  jsonSize, processingTime);
 
     manager->sendResponse(*response);
   };

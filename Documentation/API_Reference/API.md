@@ -381,6 +381,73 @@ Get a compact summary of all devices (minimal fields).
 | Field     | Type    | Required | Default | Description                                                                        |
 | --------- | ------- | -------- | ------- | ---------------------------------------------------------------------------------- |
 | `minimal` | boolean | No       | `false` | If `true`, returns only `register_id` and `register_name` (⚡ ~70% smaller payload) |
+| `page`    | integer | No       | -       | Page number (0-indexed). If provided, enables pagination (v2.5.12+)                |
+| `limit`   | integer | No       | `10`    | Items per page (default 10 when `page` is specified) (v2.5.12+)                    |
+
+#### 📄 Pagination Support (v2.5.12+)
+
+For large device configurations (e.g., 70 devices × 70 registers), use pagination to reduce payload size and improve BLE reliability.
+
+**Request (Paginated):**
+```json
+{
+  "op": "read",
+  "type": "devices_with_registers",
+  "page": 0,
+  "limit": 5,
+  "minimal": true
+}
+```
+
+**Response (Paginated):**
+```json
+{
+  "status": "ok",
+  "total_count": 70,
+  "page": 0,
+  "limit": 5,
+  "total_pages": 14,
+  "devices": [
+    {"device_id": "device_1", "device_name": "Device 1", "registers": [...]},
+    {"device_id": "device_2", "device_name": "Device 2", "registers": [...]},
+    {"device_id": "device_3", "device_name": "Device 3", "registers": [...]},
+    {"device_id": "device_4", "device_name": "Device 4", "registers": [...]},
+    {"device_id": "device_5", "device_name": "Device 5", "registers": [...]}
+  ]
+}
+```
+
+**Pagination Response Fields:**
+
+| Field         | Type    | Description                                |
+| ------------- | ------- | ------------------------------------------ |
+| `total_count` | integer | Total devices in database                  |
+| `page`        | integer | Current page number (echo of request)      |
+| `limit`       | integer | Items per page (echo of request)           |
+| `total_pages` | integer | Total number of pages                      |
+| `devices`     | array   | Array of devices for current page ONLY     |
+
+**Pagination Example (70 devices, 5 per page = 14 pages):**
+```
+Page 0:  {"page": 0, "limit": 5}  → devices 0-4
+Page 1:  {"page": 1, "limit": 5}  → devices 5-9
+Page 2:  {"page": 2, "limit": 5}  → devices 10-14
+...
+Page 13: {"page": 13, "limit": 5} → devices 65-69
+Page 14: {"page": 14, "limit": 5} → devices [] (empty, beyond data)
+```
+
+**Edge Cases:**
+
+| Case | Request | Response |
+|------|---------|----------|
+| Page beyond data | `{"page": 100, "limit": 5}` | `{"devices": [], "total_count": 70, ...}` (empty array, not error) |
+| Last page partial | `{"page": 13, "limit": 5}` with 70 devices | Returns 5 devices (65-69) |
+| No pagination | `{"type": "devices_with_registers"}` | Returns ALL devices, no pagination fields |
+
+**Backward Compatibility:**
+- Request WITHOUT `page`/`limit` → Returns ALL devices (no pagination fields)
+- Request WITH `page`/`limit` → Returns paginated response with metadata
 
 **Response (Full Details - `minimal=false`):**
 ```json

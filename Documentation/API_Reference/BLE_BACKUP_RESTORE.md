@@ -1,9 +1,9 @@
 # BLE Backup & Restore API Reference
 
-**Version:** 1.1.0 (BUG #32 FIXED!)
-**Last Updated:** November 26, 2025
+**Version:** 1.2.0 (Pagination Support!)
+**Last Updated:** November 30, 2025
 **Component:** BLE CRUD Handler - Configuration Backup & Restore
-**Firmware Required:** v2.3.1+
+**Firmware Required:** v2.5.12+
 
 ---
 
@@ -39,6 +39,8 @@ The **Backup & Restore** feature provides a complete configuration management sy
 ✅ **Restore Validation**: Validates backup structure before applying
 ✅ **Service Notification**: Automatically notifies Modbus/MQTT/HTTP services after restore
 ✅ **Device ID Preservation**: Device IDs and register IDs preserved during restore (BUG #32 fixed!)
+✅ **Section-Based Pagination**: (v2.5.12+) Fetch config sections separately for better BLE performance
+✅ **Device Pagination**: (v2.5.12+) Paginate device list for large configurations
 
 ---
 
@@ -55,6 +57,7 @@ Export complete gateway configuration including all devices, registers, server s
 
 ### Request Format
 
+**Basic (All Data):**
 ```json
 {
   "op": "read",
@@ -62,12 +65,54 @@ Export complete gateway configuration including all devices, registers, server s
 }
 ```
 
+**Section-Based (v2.5.12+):**
+```json
+{
+  "op": "read",
+  "type": "full_config",
+  "section": "devices"
+}
+```
+
+**With Device Pagination (v2.5.12+):**
+```json
+{
+  "op": "read",
+  "type": "full_config",
+  "section": "devices",
+  "device_offset": 0,
+  "device_limit": 2
+}
+```
+
+**Metadata Only (v2.5.12+):**
+```json
+{
+  "op": "read",
+  "type": "full_config",
+  "section": "metadata"
+}
+```
+
 ### Request Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `op` | string | ✅ Yes | Must be `"read"` |
-| `type` | string | ✅ Yes | Must be `"full_config"` |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `op` | string | ✅ Yes | - | Must be `"read"` |
+| `type` | string | ✅ Yes | - | Must be `"full_config"` |
+| `section` | string | ❌ No | `"all"` | Section to fetch: `"all"`, `"devices"`, `"server_config"`, `"logging_config"`, `"metadata"` |
+| `device_offset` | integer | ❌ No | `0` | Device offset for pagination (only with section `"all"` or `"devices"`) |
+| `device_limit` | integer | ❌ No | `-1` | Max devices to return (-1 = all) |
+
+### Available Sections
+
+| Section | Description | Data Included |
+|---------|-------------|---------------|
+| `all` | Complete backup (default) | devices, server_config, logging_config |
+| `devices` | Devices only | devices array with all registers |
+| `server_config` | Server config only | MQTT, HTTP, WiFi, Ethernet settings |
+| `logging_config` | Logging config only | Retention and interval settings |
+| `metadata` | Stats only (no data) | Totals + pagination recommendations |
 
 ---
 
@@ -140,6 +185,12 @@ Export complete gateway configuration including all devices, registers, server s
 | `total_registers` | number | Total number of registers across all devices |
 | `processing_time_ms` | number | Time taken to generate backup (ms) |
 | `backup_size_bytes` | number | Total JSON size in bytes |
+| `device_pagination` | boolean | (v2.5.12+) Whether pagination was used |
+| `device_offset` | number | (v2.5.12+) Current device offset |
+| `device_limit` | number | (v2.5.12+) Requested device limit |
+| `devices_returned` | number | (v2.5.12+) Devices in current response |
+| `has_more_devices` | boolean | (v2.5.12+) More devices available |
+| `available_sections` | array | (v2.5.12+) List of available sections |
 
 #### Config Object
 
@@ -148,6 +199,91 @@ Export complete gateway configuration including all devices, registers, server s
 | `devices` | array | All Modbus devices with complete register definitions |
 | `server_config` | object | Complete server configuration (MQTT, HTTP, WiFi, Ethernet) |
 | `logging_config` | object | Logging retention and interval settings |
+
+---
+
+### 📄 Pagination Examples (v2.5.12+)
+
+#### Example 1: Get Metadata First (Recommended Workflow)
+
+Check data size before downloading full backup:
+
+```json
+// Request
+{"op": "read", "type": "full_config", "section": "metadata"}
+
+// Response
+{
+  "status": "ok",
+  "section": "metadata",
+  "backup_info": {
+    "total_devices": 10,
+    "total_registers": 250,
+    "available_sections": ["all", "devices", "server_config", "logging_config", "metadata"]
+  },
+  "recommendations": {
+    "use_pagination": true,
+    "suggested_device_limit": 2,
+    "estimated_pages": 5
+  }
+}
+```
+
+#### Example 2: Paginated Device Backup
+
+Backup devices 2 at a time:
+
+```json
+// Request - Page 1
+{"op": "read", "type": "full_config", "section": "devices", "device_offset": 0, "device_limit": 2}
+
+// Response - Page 1
+{
+  "status": "ok",
+  "section": "devices",
+  "backup_info": {
+    "total_devices": 10,
+    "total_registers": 250,
+    "device_pagination": true,
+    "device_offset": 0,
+    "device_limit": 2,
+    "devices_returned": 2,
+    "has_more_devices": true
+  },
+  "config": {
+    "devices": [/* 2 devices with all registers */]
+  }
+}
+
+// Request - Page 2
+{"op": "read", "type": "full_config", "section": "devices", "device_offset": 2, "device_limit": 2}
+// ... continue until has_more_devices = false
+```
+
+#### Example 3: Section-Based Backup (Separate Calls)
+
+Get config sections separately for better BLE reliability:
+
+```javascript
+// Step 1: Get server_config (small, ~2KB)
+await ble.send({op: "read", type: "full_config", section: "server_config"});
+
+// Step 2: Get logging_config (tiny, ~500 bytes)
+await ble.send({op: "read", type: "full_config", section: "logging_config"});
+
+// Step 3: Get devices with pagination (largest section)
+let offset = 0;
+let allDevices = [];
+while (true) {
+  const resp = await ble.send({
+    op: "read", type: "full_config",
+    section: "devices", device_offset: offset, device_limit: 2
+  });
+  allDevices.push(...resp.config.devices);
+  if (!resp.backup_info.has_more_devices) break;
+  offset += 2;
+}
+```
 
 ---
 
