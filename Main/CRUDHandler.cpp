@@ -221,10 +221,25 @@ void CRUDHandler::setupCommandHandlers()
     String deviceId = command["device_id"] | "";
     bool minimal = command["minimal"] | false; // Support optional "minimal" parameter
 
-    // OPTIMIZATION: Pagination support for device registers
-    int regOffset = command["reg_offset"] | -1; // Register offset (default: -1 = no pagination)
-    int regLimit = command["reg_limit"] | -1;   // Register limit (default: -1 = all)
-    bool usePagination = (regOffset >= 0 && regLimit > 0);
+    // v2.5.18: Pagination support for device registers (Mobile App Spec)
+    // MOBILE APP SPEC: Uses "reg_page" (0-indexed) and "reg_limit" parameters
+    int regPage = command["reg_page"] | -1;   // Page number (0-indexed), -1 = not specified
+    int regLimit = command["reg_limit"] | -1; // Items per page (default: -1 = all)
+
+    // Check if pagination is requested
+    bool hasRegPageParam = !command["reg_page"].isNull();
+    bool hasRegLimitParam = !command["reg_limit"].isNull();
+    bool hasPagination = hasRegPageParam || hasRegLimitParam;
+    bool usePagination = hasPagination && (regLimit > 0);
+
+    // Default limit to 10 if page is specified but limit is not
+    if (regPage >= 0 && regLimit <= 0)
+    {
+      regLimit = 10; // Default page size per mobile app spec
+    }
+
+    // Calculate offset from page number
+    int regOffset = (regPage >= 0) ? regPage * regLimit : 0;
 
     // OPTIMIZATION: Check register count for proactive memory cleanup
     // Read device in minimal mode to get register_count field
@@ -287,15 +302,15 @@ void CRUDHandler::setupCommandHandlers()
           paginatedRegs.add(allRegisters[i]);
         }
 
-        // Add pagination metadata
+        // Add pagination metadata (MOBILE APP SPEC FORMAT)
+        int totalRegPages = (regLimit > 0) ? ((totalRegisters + regLimit - 1) / regLimit) : 1;
         data["total_registers"] = totalRegisters;
-        data["reg_offset"] = regOffset;
+        data["reg_page"] = (regPage >= 0) ? regPage : 0;
         data["reg_limit"] = regLimit;
-        data["returned_registers"] = paginatedRegs.size();
-        data["has_more_registers"] = (endIndex < totalRegisters);
+        data["reg_total_pages"] = totalRegPages;
 
-        LOG_CRUD_INFO("[CRUD] Paginated device read: %d/%d registers (offset=%d, limit=%d)\n",
-                      paginatedRegs.size(), totalRegisters, regOffset, regLimit);
+        LOG_CRUD_INFO("[CRUD] Paginated device read: page %d/%d, %d/%d registers (limit=%d)\n",
+                      (regPage >= 0) ? regPage : 0, totalRegPages, paginatedRegs.size(), totalRegisters, regLimit);
       }
 
       // Log payload size for debugging
@@ -316,9 +331,24 @@ void CRUDHandler::setupCommandHandlers()
   {
     String deviceId = command["device_id"] | "";
 
-    // OPTIMIZATION: Pagination support for large register lists
-    int offset = command["offset"] | 0; // Start index (default: 0)
-    int limit = command["limit"] | -1;  // Max registers to return (default: all)
+    // v2.5.18: Pagination support for large register lists (Mobile App Spec)
+    // MOBILE APP SPEC: Uses "page" (0-indexed) and "limit" parameters
+    int page = command["page"] | -1;   // Page number (0-indexed), -1 = not specified
+    int limit = command["limit"] | -1; // Items per page (default: -1 = all)
+
+    // Check if pagination is requested
+    bool hasPageParam = !command["page"].isNull();
+    bool hasLimitParam = !command["limit"].isNull();
+    bool hasPagination = hasPageParam || hasLimitParam;
+
+    // Default limit to 10 if page is specified but limit is not
+    if (page >= 0 && limit <= 0)
+    {
+      limit = 10; // Default page size per mobile app spec
+    }
+
+    // Calculate offset from page number
+    int offset = (page >= 0) ? page * limit : 0;
 
     auto response = make_psram_unique<JsonDocument>();
     (*response)["status"] = "ok";
@@ -332,8 +362,10 @@ void CRUDHandler::setupCommandHandlers()
     {
       int totalRegisters = allRegisters.size();
 
-      // Apply pagination if limit is specified
-      if (limit > 0)
+      // Apply pagination if requested (page or limit specified with limit > 0)
+      bool usePagination = hasPagination && (limit > 0);
+      
+      if (usePagination)
       {
         int endIndex = min(offset + limit, totalRegisters);
 
@@ -343,24 +375,24 @@ void CRUDHandler::setupCommandHandlers()
           registers.add(allRegisters[i]);
         }
 
-        // Add pagination metadata
-        (*response)["total_registers"] = totalRegisters;
-        (*response)["offset"] = offset;
+        // Add pagination metadata (MOBILE APP SPEC FORMAT)
+        int totalPages = (limit > 0) ? ((totalRegisters + limit - 1) / limit) : 1;
+        (*response)["total_count"] = totalRegisters;
+        (*response)["page"] = (page >= 0) ? page : 0;
         (*response)["limit"] = limit;
-        (*response)["returned_count"] = registers.size();
-        (*response)["has_more"] = (endIndex < totalRegisters);
+        (*response)["total_pages"] = totalPages;
 
-        LOG_CRUD_INFO("[CRUD] Paginated registers read: offset=%d, limit=%d, returned=%d/%d\n",
-                      offset, limit, registers.size(), totalRegisters);
+        LOG_CRUD_INFO("[CRUD] Paginated registers read: page %d/%d, %d/%d registers (limit=%d)\n",
+                      (page >= 0) ? page : 0, totalPages, registers.size(), totalRegisters, limit);
       }
       else
       {
-        // No pagination - return all registers
+        // No pagination - return all registers (BACKWARD COMPATIBLE)
         for (JsonVariant reg : allRegisters)
         {
           registers.add(reg);
         }
-
+        // No pagination fields when not requested (backward compatible per mobile app spec)
         LOG_CRUD_INFO("[CRUD] All registers read: %d registers\n", registers.size());
       }
 
@@ -460,13 +492,28 @@ void CRUDHandler::setupCommandHandlers()
     // section: "all" (default), "devices", "server_config", "logging_config", "metadata"
     String section = command["section"] | "all";
 
-    // Device pagination (only applies when section is "all" or "devices")
-    int deviceOffset = command["device_offset"] | 0;
-    int deviceLimit = command["device_limit"] | -1; // -1 = all devices
-    bool useDevicePagination = (deviceLimit > 0);
+    // v2.5.18: Device pagination (Mobile App Spec)
+    // MOBILE APP SPEC: Uses "device_page" (0-indexed) and "device_limit" parameters
+    int devicePage = command["device_page"] | -1;   // Page number (0-indexed), -1 = not specified
+    int deviceLimit = command["device_limit"] | -1; // Items per page (default: -1 = all)
 
-    LOG_CRUD_INFO("[CRUD] Full config backup requested (section=%s, device_offset=%d, device_limit=%d)\n",
-                  section.c_str(), deviceOffset, deviceLimit);
+    // Check if pagination is requested
+    bool hasDevicePageParam = !command["device_page"].isNull();
+    bool hasDeviceLimitParam = !command["device_limit"].isNull();
+    bool hasPagination = hasDevicePageParam || hasDeviceLimitParam;
+    bool useDevicePagination = hasPagination && (deviceLimit > 0);
+
+    // Default limit to 5 if page is specified but limit is not
+    if (devicePage >= 0 && deviceLimit <= 0)
+    {
+      deviceLimit = 5; // Default page size for full_config (larger data)
+    }
+
+    // Calculate offset from page number
+    int deviceOffset = (devicePage >= 0) ? devicePage * deviceLimit : 0;
+
+    LOG_CRUD_INFO("[CRUD] Full config backup requested (section=%s, device_page=%d, device_limit=%d)\n",
+                  section.c_str(), devicePage, deviceLimit);
     unsigned long startTime = millis();
 
     // Allocate large PSRAM document for complete config
@@ -477,7 +524,7 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata (always included)
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.5.17"; // v2.5.17: BLE Pagination support
+    backupInfo["firmware_version"] = "2.5.18"; // v2.5.18: Unified pagination (Mobile App Spec)
     backupInfo["device_name"] = "SURIOTA_GW";
 
     // Get all configurations based on section
@@ -532,15 +579,16 @@ void CRUDHandler::setupCommandHandlers()
             break;
         }
 
-        // Add device pagination metadata
+        // Add device pagination metadata (MOBILE APP SPEC FORMAT)
+        int totalDevicePages = (deviceLimit > 0) ? ((totalDevices + deviceLimit - 1) / deviceLimit) : 1;
         backupInfo["device_pagination"] = true;
-        backupInfo["device_offset"] = deviceOffset;
+        backupInfo["device_total_count"] = totalDevices;
+        backupInfo["device_page"] = (devicePage >= 0) ? devicePage : 0;
         backupInfo["device_limit"] = deviceLimit;
-        backupInfo["devices_returned"] = returnedDevices;
-        backupInfo["has_more_devices"] = (endIndex < totalDevices);
+        backupInfo["device_total_pages"] = totalDevicePages;
 
-        LOG_CRUD_INFO("[CRUD] Device pagination: %d/%d devices, %d/%d registers\n",
-                      returnedDevices, totalDevices, returnedRegisters, totalRegisters);
+        LOG_CRUD_INFO("[CRUD] Device pagination: page %d/%d, %d/%d devices, %d registers\n",
+                      (devicePage >= 0) ? devicePage : 0, totalDevicePages, returnedDevices, totalDevices, returnedRegisters);
       }
       else
       {

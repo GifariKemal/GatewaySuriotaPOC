@@ -8,7 +8,56 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.17 (Current - BLE Pagination Support)
+## 🚀 Version 2.5.18 (Current - Unified Pagination Mobile App Spec)
+
+**Release Date:** November 30, 2025 (Saturday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release **unifies all pagination handlers** to follow the Mobile App Spec format (page-based, 0-indexed) for consistency across all BLE CRUD operations.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. UNIFIED: All Pagination Now Uses Mobile App Spec Format
+**Severity:** 🟡 ENHANCEMENT (API Consistency)
+
+**Before v2.5.18:**
+| Handler | Old Parameters | Old Response |
+|---------|---------------|---------------|
+| \ | \, \ | \, \, \, \ |
+| \ (registers) | \, \ | \, \, \ |
+| \ | \, \ | \, \, \ |
+| \ | \, \ | \, \ |
+
+**After v2.5.18 (UNIFIED):**
+| Handler | New Parameters | New Response |
+|---------|---------------|---------------|
+| \ | \, \ | \, \, \, \ |
+| \ (registers) | \, \ | \, \, \, \ |
+| \ | \, \ | \, \, \, \ |
+| \ | \, \ | \, \, \, \ |
+
+#### 2. Backward Compatible
+- No pagination fields when not requested
+- Default page size: 10 (registers), 5 (full_config devices)
+- Page is 0-indexed
+
+---
+
+### 📝 **Files Modified**
+
+| File | Change |
+|------|--------|
+| \ | Version bump to 2.5.18 |
+| \ | Updated device, registers, full_config handlers |
+
+---
+
+## 🚀 Version 2.5.17 (BLE Pagination Support)
 
 **Release Date:** November 30, 2025 (Saturday)
 **Developer:** Kemal (with Claude Code)
