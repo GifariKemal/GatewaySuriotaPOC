@@ -1,7 +1,7 @@
 # Gateway Config App - User Guide
 
 **App Version:** 1.0.0
-**Document Version:** 2.0
+**Document Version:** 2.1
 **Last Updated:** November 30, 2025
 **Compatible with:** SRT-MGATE-1210 Industrial IoT Gateway
 
@@ -46,15 +46,6 @@
 | **Multi-Protocol Cloud** | MQTT dan HTTP untuk pengiriman data ke cloud |
 | **Backup/Restore** | Export dan import konfigurasi dalam format JSON |
 | **OTA Update** | Update firmware secara wireless |
-
-### 1.3 Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| **Language** | Dart |
-| **Framework** | Flutter >= 3.22 |
-| **State Management** | GetX |
-| **Bluetooth** | flutter_blue_plus >= 1.35 |
 
 ---
 
@@ -628,7 +619,35 @@ Menu ini untuk mengkonfigurasi koneksi jaringan dan protokol cloud.
 Mode sederhana dengan satu topic untuk semua data:
 - Publish Topic (contoh: `v1/devices/me/telemetry/gwsrt`)
 - Subscribe Topic (opsional, untuk kontrol)
-- Publish Interval dengan unit (ms, s, min)
+- Publish Interval dengan unit waktu
+
+#### Publish Interval - Satuan Waktu
+
+| Unit | Singkatan | Deskripsi | Konversi |
+|------|-----------|-----------|----------|
+| **Milliseconds** | ms | Milidetik (1/1000 detik) | 1000 ms = 1 detik |
+| **Seconds** | s | Detik | 60 s = 1 menit |
+| **Minutes** | m | Menit | 1 m = 60 detik = 60000 ms |
+
+**Tabel Konversi Interval:**
+
+| Nilai | Unit | Sama Dengan |
+|-------|------|-------------|
+| 1000 | ms | 1 detik |
+| 5000 | ms | 5 detik |
+| 60000 | ms | 1 menit |
+| 1 | s | 1 detik = 1000 ms |
+| 5 | s | 5 detik = 5000 ms |
+| 60 | s | 1 menit = 60000 ms |
+| 1 | m | 1 menit = 60 detik = 60000 ms |
+| 5 | m | 5 menit = 300 detik = 300000 ms |
+
+**Contoh Penggunaan:**
+- Kirim data setiap **5 detik**: masukkan `5` dengan unit `s`
+- Kirim data setiap **1 menit**: masukkan `1` dengan unit `m` ATAU `60` dengan unit `s`
+- Kirim data setiap **500 milidetik** (0.5 detik): masukkan `500` dengan unit `ms`
+
+> **Tips:** Untuk aplikasi monitoring real-time, gunakan interval 1-5 detik. Untuk aplikasi logging/historis, interval 1-5 menit sudah cukup.
 
 #### Customize Mode
 
@@ -658,14 +677,16 @@ Mode advanced dengan multiple topic dan pemilihan register spesifik:
 
 ## 10. Logging Configurations
 
-### 10.1 Logging Retention
+> **🚧 COMING SOON:** Fitur Logging Configurations sedang dalam tahap pengembangan dan akan tersedia pada versi mendatang.
+
+### 10.1 Logging Retention (Next Feature)
 
 Atur berapa lama log disimpan:
 - **1 Week** - Keep logs for 1 week
 - **1 Month** - Keep logs for 1 month
 - **3 Months** - Keep logs for 3 months
 
-### 10.2 Logging Interval
+### 10.2 Logging Interval (Next Feature)
 
 Atur seberapa sering log ditulis:
 - **5 Minutes** - Log every 5 minutes
@@ -684,7 +705,7 @@ Tap **Update Logging Configuration** untuk menyimpan perubahan.
 
 Menu ini menampilkan:
 - **Firmware** - Versi firmware yang berjalan
-- **SD Card Info** - Informasi storage SD card
+- **SD Card Info** - Informasi storage SD card *(🚧 Next Feature)*
 - **Update Firmware** - Fitur OTA update
 
 ### 11.2 Update Firmware (OTA)
@@ -830,6 +851,42 @@ Jika gateway tidak responsif:
 ### Q: Apa itu Byte Swap pada data type?
 **A:** Byte Swap (BS) menukar urutan byte dalam setiap word. Beberapa perangkat Modbus menggunakan format ini. Coba tanpa BS terlebih dahulu, jika data tidak benar, gunakan versi BS.
 
+### Q: Apa perbedaan Big Endian (BE) dan Little Endian (LE)?
+**A:**
+- **Big Endian (BE):** Byte paling signifikan disimpan di alamat terkecil (MSB first). Contoh: 0x1234 disimpan sebagai [0x12, 0x34]
+- **Little Endian (LE):** Byte paling kecil disimpan di alamat terkecil (LSB first). Contoh: 0x1234 disimpan sebagai [0x34, 0x12]
+- Perangkat Modbus berbeda-beda, coba BE terlebih dahulu, jika data tidak benar, gunakan LE.
+
+### Q: Apa arti ms, s, dan m pada interval publish?
+**A:**
+- **ms (milliseconds):** Milidetik, 1000 ms = 1 detik
+- **s (seconds):** Detik, 60 s = 1 menit
+- **m (minutes):** Menit, 1 m = 60 detik = 60000 ms
+
+Contoh: Interval 5 detik bisa diisi sebagai `5000 ms` atau `5 s`.
+
+### Q: Bagaimana format data yang dikirim ke MQTT broker?
+**A:** Data dikirim dalam format JSON. Lihat bagian "Contoh Payload MQTT" di Section 16 untuk contoh lengkap.
+
+### Q: Apakah gateway bisa mengirim data ke multiple broker MQTT?
+**A:** Saat ini gateway hanya mendukung satu broker MQTT. Untuk multiple destination, gunakan kombinasi MQTT dan HTTP, atau gunakan MQTT bridge di sisi broker.
+
+### Q: Berapa interval publish minimum yang direkomendasikan?
+**A:**
+- **Minimum teknis:** 100 ms (0.1 detik)
+- **Rekomendasi monitoring real-time:** 1-5 detik
+- **Rekomendasi logging/historis:** 30 detik - 5 menit
+- **Hemat bandwidth:** 5-15 menit
+
+### Q: Apa yang terjadi jika koneksi internet terputus saat publish MQTT?
+**A:** Gateway memiliki sistem queue internal. Data akan disimpan sementara dan dikirim ulang setelah koneksi pulih (dengan retain flag).
+
+### Q: Bagaimana cara mengetahui apakah data berhasil terkirim ke broker?
+**A:** Subscribe ke topic yang sama di MQTT client (seperti MQTT Explorer atau HiveMQ Web Client) untuk memverifikasi data yang diterima.
+
+### Q: Apakah ada batasan jumlah register per perangkat?
+**A:** Tidak ada batasan keras dari aplikasi, namun disarankan maksimal 100-200 register per perangkat untuk performa optimal.
+
 ---
 
 ## 16. Informasi Teknis
@@ -846,12 +903,104 @@ Response dari gateway mengikuti format JSON:
 }
 ```
 
-### 16.2 Source Code
+### 16.2 Contoh Payload MQTT (Subscribe Output)
+
+Ketika Anda subscribe ke topic MQTT gateway, berikut contoh payload yang akan diterima:
+
+**Contoh 1: Single Device dengan Multiple Register**
+```json
+{
+  "device_id": "SRT-MGATE-D7227b",
+  "timestamp": "2025-11-30T10:30:45.123Z",
+  "data": {
+    "RTU_Device_45Regs": {
+      "Temp_Zone_1": {
+        "value": 25.5,
+        "unit": "degC",
+        "address": 0,
+        "data_type": "FLOAT32_BE",
+        "timestamp": "2025-11-30T10:30:45.100Z"
+      },
+      "Temp_Zone_2": {
+        "value": 26.2,
+        "unit": "degC",
+        "address": 2,
+        "data_type": "FLOAT32_BE",
+        "timestamp": "2025-11-30T10:30:45.105Z"
+      },
+      "Humidity_Zone_1": {
+        "value": 65,
+        "unit": "%",
+        "address": 4,
+        "data_type": "INT16",
+        "timestamp": "2025-11-30T10:30:45.110Z"
+      },
+      "Pressure_Main": {
+        "value": 1013.25,
+        "unit": "hPa",
+        "address": 6,
+        "data_type": "FLOAT32_BE",
+        "timestamp": "2025-11-30T10:30:45.115Z"
+      }
+    }
+  }
+}
+```
+
+**Contoh 2: Multiple Device**
+```json
+{
+  "device_id": "SRT-MGATE-D7227b",
+  "timestamp": "2025-11-30T10:30:45.123Z",
+  "data": {
+    "Temperature_Sensor_RTU": {
+      "Room_Temp": {"value": 24.5, "unit": "degC"},
+      "Outdoor_Temp": {"value": 32.1, "unit": "degC"}
+    },
+    "Power_Meter_TCP": {
+      "Voltage_L1": {"value": 220.5, "unit": "V"},
+      "Current_L1": {"value": 15.2, "unit": "A"},
+      "Power_Total": {"value": 3351.6, "unit": "W"}
+    }
+  }
+}
+```
+
+**Contoh 3: Format Sederhana (Flat)**
+```json
+{
+  "device_id": "SRT-MGATE-D7227b",
+  "ts": 1732961445123,
+  "Temp_Zone_1": 25.5,
+  "Temp_Zone_2": 26.2,
+  "Humidity_Zone_1": 65,
+  "Pressure_Main": 1013.25
+}
+```
+
+**Cara Subscribe untuk Melihat Data:**
+
+1. **Menggunakan MQTT Explorer (Desktop):**
+   - Download dari https://mqtt-explorer.com/
+   - Connect ke broker (contoh: broker.hivemq.com:1883)
+   - Subscribe ke topic: `v1/devices/me/telemetry/gwsrt`
+
+2. **Menggunakan HiveMQ Web Client (Browser):**
+   - Buka https://www.hivemq.com/demos/websocket-client/
+   - Connect ke broker
+   - Subscribe ke topic gateway Anda
+
+3. **Menggunakan Command Line (mosquitto_sub):**
+   ```bash
+   mosquitto_sub -h broker.hivemq.com -p 1883 -t "v1/devices/me/telemetry/gwsrt"
+   ```
+
+### 16.3 Source Code
 
 Aplikasi ini open source dan tersedia di:
 - **GitHub:** [dickykhusnaedy/suriota_mobile_app](https://github.com/dickykhusnaedy/suriota_mobile_app)
 
-### 16.3 Dependencies Utama
+### 16.4 Dependencies Utama
 
 | Package | Version | Fungsi |
 |---------|---------|--------|
@@ -873,7 +1022,7 @@ Aplikasi ini open source dan tersedia di:
 
 ---
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **App Version:** 1.0.0
 **Last Updated:** November 30, 2025
 **Author:** SURIOTA Documentation Team
