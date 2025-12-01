@@ -136,23 +136,41 @@ void ModbusRtuService::start()
 
 void ModbusRtuService::stop()
 {
+  LOG_RTU_INFO("[RTU] Stopping service...");
   running = false;
 
   // Stop auto-recovery task
   if (autoRecoveryTaskHandle)
   {
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(200));
     vTaskDelete(autoRecoveryTaskHandle);
     autoRecoveryTaskHandle = nullptr;
     LOG_RTU_INFO("[RTU] Auto-recovery task stopped");
   }
 
-  // Stop main RTU task
+  // CRITICAL FIX: Don't force delete main task - let it exit gracefully
+  // Task will self-delete after while(running) loop exits
   if (rtuTaskHandle)
   {
-    vTaskDelay(pdMS_TO_TICKS(100));
-    vTaskDelete(rtuTaskHandle);
-    rtuTaskHandle = nullptr;
+    LOG_RTU_INFO("[RTU] Waiting for main task to exit gracefully...");
+    // Wait up to 2 seconds for task to exit loop and self-delete
+    for (int i = 0; i < 20; i++)
+    {
+      vTaskDelay(pdMS_TO_TICKS(100));
+      if (rtuTaskHandle == nullptr)
+      {
+        LOG_RTU_INFO("[RTU] Main task exited gracefully");
+        break;
+      }
+    }
+    
+    // If still running after 2 seconds, force delete (shouldn't happen)
+    if (rtuTaskHandle != nullptr)
+    {
+      LOG_RTU_INFO("[RTU] WARNING: Force deleting stuck task");
+      vTaskDelete(rtuTaskHandle);
+      rtuTaskHandle = nullptr;
+    }
   }
 
   LOG_RTU_INFO("[RTU] Service stopped");
@@ -288,6 +306,11 @@ void ModbusRtuService::readRtuDevicesLoop()
     // This allows accurate, independent timing for each device without blocking
     vTaskDelay(pdMS_TO_TICKS(100));
   }
+  
+  // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS abort
+  LOG_RTU_INFO("[RTU] Task loop exited, self-deleting...");
+  rtuTaskHandle = nullptr; // Clear handle before deletion
+  vTaskDelete(NULL); // Delete self (NULL = current task)
 }
 
 // ... rest of the functions (readRtuDeviceData, processRegisterValue, etc.) remain the same ...
