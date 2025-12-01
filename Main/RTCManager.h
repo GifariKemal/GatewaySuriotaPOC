@@ -26,7 +26,7 @@ private:
   // NTP settings
   const char *ntpServer = "pool.ntp.org";
   const long gmtOffset_sec = 7 * 3600;             // GMT+7 (WIB - Waktu Indonesia Barat)
-  const unsigned long ntpUpdateInterval = 1800000; // 30 minutes
+  const unsigned long ntpUpdateInterval = 21600000; // 6 hours
   const unsigned long ntpTimeout = 5000;           // 5 seconds timeout for NTP sync
 
   // Separate UDP clients for WiFi and Ethernet

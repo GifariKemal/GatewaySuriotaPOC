@@ -103,27 +103,38 @@ void RTCManager::timeSyncLoop()
   while (syncRunning)
   {
     unsigned long now = millis();
+    DateTime current = rtc.now();
 
-    // Check if it's time to sync (first run or after interval)
-    if (lastNtpSync == 0 || (now - lastNtpSync >= ntpUpdateInterval))
+    // Check conditions for sync:
+    // 1. First run (lastNtpSync == 0)
+    // 2. Interval elapsed (6 hours)
+    // 3. Time invalid (< 2025 or > 2036) - Force sync
+    bool timeInvalid = (current.year() < 2025 || current.year() > 2036);
+    bool intervalElapsed = (now - lastNtpSync >= ntpUpdateInterval);
+    bool firstRun = (lastNtpSync == 0);
+
+    if (firstRun || intervalElapsed || timeInvalid)
     {
+      if (timeInvalid)
+      {
+        LOG_NET_INFO("[RTC] Time invalid (Year: %d), forcing NTP sync...", current.year());
+      }
+
       if (syncWithNTP())
       {
-        lastNtpSync = now;
-        LOG_NET_INFO("[RTC] NTP sync successful");
-        vTaskDelay(pdMS_TO_TICKS(ntpUpdateInterval)); // Wait full interval
+        lastNtpSync = millis(); // Update timestamp
+        LOG_NET_INFO("[RTC] NTP sync successful. Next sync in 6 hours.");
       }
       else
       {
         LOG_NET_INFO("[RTC] NTP sync failed, retrying in 1 minute");
         vTaskDelay(pdMS_TO_TICKS(60000)); // Retry in 1 minute
+        continue; // Skip the short delay below
       }
     }
-    else
-    {
-      // Check every 10 seconds if it's time to sync
-      vTaskDelay(pdMS_TO_TICKS(10000));
-    }
+    
+    // Check every 10 seconds
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
 
