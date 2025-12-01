@@ -751,7 +751,10 @@ bool MqttManager::publishPayload(
   // Payloads exceeding this limit are silently dropped by the broker when retain=true
   // Solution: Only use retain for payloads under the safe threshold
   // For larger payloads, publish without retain (real-time delivery still works)
-  const uint32_t RETAIN_PAYLOAD_THRESHOLD = 1900; // Safe threshold below 2KB broker limit
+  // v2.5.19 UPDATE: Increased to 16KB (maximum buffer size) for full retained message support
+  // Modern brokers (HiveMQ, Mosquitto, EMQX, AWS IoT) support 16KB+ retained messages
+  // Note: broker.emqx.io free tier may still drop >2KB, but most production brokers support this
+  const uint32_t RETAIN_PAYLOAD_THRESHOLD = 16384; // 16KB threshold (maximum buffer size)
   bool useRetain = (payloadLen <= RETAIN_PAYLOAD_THRESHOLD);
 
 #if PRODUCTION_MODE == 0
