@@ -327,6 +327,20 @@ void ModbusTcpService::readTcpDevicesLoop()
       // shouldPollDevice() uses per-device lastRead timestamp for accurate timing
       if (shouldPollDevice(deviceId, deviceRefreshRate))
       {
+        // CRITICAL FIX: Check if device is enabled before polling
+        if (!isDeviceEnabled(deviceId))
+        {
+          // Device is disabled, skip polling
+          static LogThrottle disabledThrottle(30000); // Log every 30s to reduce spam
+          char contextMsg[64];
+          snprintf(contextMsg, sizeof(contextMsg), "TCP Device %s disabled", deviceId.c_str());
+          if (disabledThrottle.shouldLog(contextMsg))
+          {
+            LOG_TCP_INFO("Device %s is disabled, skipping read\n", deviceId.c_str());
+          }
+          continue; // Skip to next device
+        }
+        
         readTcpDeviceData(deviceObj);
         // Device-level timing is updated inside readTcpDeviceData via updateDeviceLastRead()
       }
