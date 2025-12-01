@@ -138,6 +138,11 @@ void HttpManager::httpLoop()
 
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
+  
+  // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS abort
+  LOG_NET_INFO("[HTTP] Task loop exited, self-deleting...");
+  taskHandle = nullptr; // Clear handle before deletion
+  vTaskDelete(NULL); // Delete self (NULL = current task)
 }
 
 bool HttpManager::sendHttpRequest(const JsonObject &data)

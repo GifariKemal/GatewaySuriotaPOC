@@ -366,6 +366,11 @@ void ModbusTcpService::readTcpDevicesLoop()
     // This allows accurate, independent timing for each device without blocking
     vTaskDelay(pdMS_TO_TICKS(100));
   }
+  
+  // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS abort
+  LOG_TCP_INFO("[TCP] Task loop exited, self-deleting...");
+  tcpTaskHandle = nullptr; // Clear handle before deletion
+  vTaskDelete(NULL); // Delete self (NULL = current task)
 }
 
 void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
@@ -2055,7 +2060,10 @@ void ModbusTcpService::autoRecoveryLoop()
     }
   }
 
-  LOG_TCP_INFO("[TCP AutoRecovery] Task stopped");
+  // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS abort
+  LOG_TCP_INFO("[TCP AutoRecovery] Task loop exited, self-deleting...");
+  autoRecoveryTaskHandle = nullptr; // Clear handle before deletion
+  vTaskDelete(NULL); // Delete self (NULL = current task)
 }
 
 ModbusTcpService::~ModbusTcpService()

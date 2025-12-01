@@ -1509,7 +1509,10 @@ void ModbusRtuService::autoRecoveryLoop()
     xSemaphoreGiveRecursive(vectorMutex);
   }
 
-  LOG_RTU_INFO("[RTU AutoRecovery] Task stopped");
+  // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS abort
+  LOG_RTU_INFO("[RTU AutoRecovery] Task loop exited, self-deleting...");
+  autoRecoveryTaskHandle = nullptr; // Clear handle before deletion
+  vTaskDelete(NULL); // Delete self (NULL = current task)
 }
 
 ModbusRtuService::~ModbusRtuService()
