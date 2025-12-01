@@ -79,7 +79,7 @@ except ImportError as e:
 # =============================================================================
 # Configuration (Match with Device_Testing/create_device_50_registers.py)
 # =============================================================================
-SERVER_IP = '10.119.74.9'  # MUST match device config IP
+SERVER_IP = '192.168.1.8'  # MUST match device config IP
 SERVER_PORT = 502          # MUST match device config port
 SLAVE_ID = 1               # MUST match device config slave_id
 NUM_REGISTERS = 50          # 50 Input Registers

@@ -8,7 +8,67 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.18 (Current - Unified Pagination Mobile App Spec)
+## 🚀 Version 2.5.19 (Current - Critical Task Fixes & MQTT Optimization)
+
+**Release Date:** December 01, 2025 (Sunday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release addresses **critical stability issues** in FreeRTOS task management (preventing crashes during factory reset and service shutdown) and **optimizes MQTT** for better handling of large payloads with retained messages.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. CRITICAL: FreeRTOS Task Self-Deletion Fix
+**Severity:** 🔴 CRITICAL (Prevents crashes)
+
+**Issue:** Several long-running tasks (RTU, TCP, HTTP) were not properly self-deleting upon exit, causing `FreeRTOS abort()` crashes during factory reset or service shutdown.
+
+**Fix:** Added explicit `vTaskDelete(NULL)` at the end of task loops and updated `stop()` methods to wait for graceful task termination.
+
+**Affected Tasks:**
+- `MODBUS_RTU_TASK` (Main polling)
+- `RTU_AUTO_RECOVERY` (Auto-recovery)
+- `MODBUS_TCP_TASK` (Main polling)
+- `TCP_AUTO_RECOVERY` (Auto-recovery)
+- `HTTP_TASK` (Main loop)
+
+#### 2. CRITICAL: Device Disable Logic Fix
+**Severity:** 🔴 CRITICAL (Logic Bug)
+
+**Issue:** Disabling a TCP device via BLE/MQTT did not stop it from being polled.
+**Fix:** Added `isDeviceEnabled()` check inside the TCP polling loop.
+
+#### 3. ENHANCEMENT: MQTT Retain Threshold Increase
+**Severity:** 🟡 ENHANCEMENT (Optimization)
+
+**Change:** Increased `RETAIN_PAYLOAD_THRESHOLD` from 1.9KB to **16KB**.
+**Impact:** Payloads up to 16KB (approx. 200 registers) can now be sent with `retain=true`, ensuring mobile apps and dashboards receive the latest data immediately upon connection.
+
+#### 4. CLEANUP: Project Structure
+**Severity:** 🟢 LOW (Maintenance)
+
+**Change:** Removed temporary scripts and organized documentation into `Documentation/Archive`.
+
+---
+
+### 📝 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `Main.ino` | Version bump to 2.5.19 |
+| `ModbusRtuService.cpp` | Added task self-deletion |
+| `ModbusTcpService.cpp` | Added task self-deletion & disable check |
+| `HttpManager.cpp` | Added task self-deletion |
+| `MqttManager.cpp` | Increased retain threshold to 16KB |
+| `CRUDHandler.cpp` | Updated version strings |
+
+---
+
+## 🚀 Version 2.5.18 (Unified Pagination Mobile App Spec)
 
 **Release Date:** November 30, 2025 (Saturday)
 **Developer:** Kemal (with Claude Code)
