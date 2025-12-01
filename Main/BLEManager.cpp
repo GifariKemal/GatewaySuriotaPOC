@@ -596,18 +596,23 @@ void BLEManager::sendResponse(const JsonDocument &data)
   heap_caps_free(psramBuffer);
 }
 
-void BLEManager::sendError(const String &message)
+void BLEManager::sendError(const String &message, const String &type)
 {
   JsonDocument doc;
   doc["status"] = "error";
   doc["message"] = message;
+  doc["type"] = type.isEmpty() ? "unknown" : type;
+  doc["config"] = JsonArray(); // Empty array for mobile app consistency
   sendResponse(doc);
 }
 
-void BLEManager::sendSuccess()
+void BLEManager::sendSuccess(const String &type)
 {
   JsonDocument doc;
   doc["status"] = "ok";
+  doc["message"] = "Success";
+  doc["type"] = type.isEmpty() ? "unknown" : type;
+  doc["config"] = JsonArray(); // Empty array for mobile app consistency
   sendResponse(doc);
 }
 
@@ -1344,3 +1349,4 @@ void BLEManager::setMTUFallback(uint16_t fallbackSize)
 
   xSemaphoreGive(mtuControlMutex);
 }
+

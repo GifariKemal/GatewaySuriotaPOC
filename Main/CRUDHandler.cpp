@@ -323,7 +323,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device not found");
+      manager->sendError("Device not found", "device");
     }
   };
 
@@ -400,7 +400,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("No registers found");
+      manager->sendError("No registers found", "registers");
     }
   };
 
@@ -416,7 +416,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("No registers found");
+      manager->sendError("No registers found", "registers");
     }
   };
 
@@ -431,7 +431,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to get server config");
+      manager->sendError("Failed to get server config", "server_config");
     }
   };
 
@@ -446,7 +446,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to get logging config");
+      manager->sendError("Failed to get logging config", "logging_config");
     }
   };
 
@@ -744,7 +744,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Empty device ID");
+      manager->sendError("Empty device ID", "data");
     }
   };
 
@@ -769,7 +769,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device creation failed");
+      manager->sendError("Device creation failed", "device");
     }
   };
 
@@ -1010,7 +1010,7 @@ void CRUDHandler::setupCommandHandlers()
     JsonObject device = deviceDoc.to<JsonObject>();
     if (!configManager->readDevice(deviceId, device))
     {
-      manager->sendError("Device not found");
+      manager->sendError("Device not found", "device");
       return;
     }
 
@@ -1063,7 +1063,7 @@ void CRUDHandler::setupCommandHandlers()
     JsonObject device = deviceDoc.to<JsonObject>();
     if (!configManager->readDevice(deviceId, device))
     {
-      manager->sendError("Device not found");
+      manager->sendError("Device not found", "device");
       return;
     }
 
@@ -1115,7 +1115,7 @@ void CRUDHandler::setupCommandHandlers()
     JsonObject device = deviceDoc.to<JsonObject>();
     if (!configManager->readDevice(deviceId, device))
     {
-      manager->sendError("Device not found");
+      manager->sendError("Device not found", "device");
       return;
     }
 
@@ -2746,3 +2746,4 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] RESTARTING NOW...");
   ESP.restart();
 }
+

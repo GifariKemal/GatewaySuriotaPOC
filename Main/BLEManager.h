@@ -197,8 +197,8 @@ public:
 
   // Response methods
   void sendResponse(const JsonDocument &data);
-  void sendError(const String &message);
-  void sendSuccess();
+  void sendError(const String &message, const String &type = "unknown");
+  void sendSuccess(const String &type = "unknown");
 
   // Metrics access methods
   MTUMetrics getMTUMetrics() const;
