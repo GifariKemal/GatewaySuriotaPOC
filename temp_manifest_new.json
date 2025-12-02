@@ -1,0 +1,16 @@
+{
+  "version": "2.5.19",
+  "build_number": 2519,
+  "release_date": "2025-12-01",
+  "min_version": "2.3.0",
+  "firmware": {
+    "filename": "Main.ino.bin",
+    "size": 2010064,
+    "sha256": "53affee120d2fda5feb03058d3f3dd27e4ced42fb5c4ef71b53325b05a35b248",
+    "signature": "304502202ee91856492441344cb0defe477fd72b98b811748c62e54de603bcd905bba6ec022100d79a8642e70c03f24fa081169439bd91466c5e6fdf8ed3e4c8ef23944d23514b"
+  },
+  "changelog": [
+    "Version 2.5.19 release"
+  ],
+  "mandatory": false
+}

@@ -470,7 +470,7 @@ void CRUDHandler::setupCommandHandlers()
 
     // Additional info
     (*response)["compile_time_default"] = PRODUCTION_MODE;
-    (*response)["firmware_version"] = "2.5.20";
+    (*response)["firmware_version"] = "2.5.27";
 
     // Current log level (use correct type from DebugConfig.h)
     extern LogLevel currentLogLevel;
@@ -524,7 +524,7 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata (always included)
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.5.20"; // v2.5.20: OTA timeout fixes & SSL buffer optimization
+    backupInfo["firmware_version"] = "2.5.27"; // v2.5.27: Stable Release
     backupInfo["device_name"] = "SURIOTA_GW";
 
     // Get all configurations based on section

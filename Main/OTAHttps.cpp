@@ -1129,6 +1129,9 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
         if (line.startsWith("Content-Length:") || line.startsWith("content-length:")) {
             contentLength = line.substring(16).toInt();
         }
+        
+        // v2.5.27: Feed watchdog during header parsing
+        vTaskDelay(1);
     }
 
     if (contentLength <= 0 && expectedSize > 0) {
@@ -1166,9 +1169,17 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
     unsigned long lastProgressTime = startTime;
     unsigned long lastDataTime = startTime;  // v2.5.6: Track last data received time
 
+    // v2.5.24: Download until we have expected bytes, not Content-Length
+    // Content-Length from GitHub API may include chunked encoding overhead
+    // We should stop when: (1) we have expectedSize bytes, OR (2) timeout
+    size_t targetSize = (expectedSize > 0) ? expectedSize : contentLength;
+    
+    LOG_OTA_INFO("Target download size: %u bytes (Content-Length: %u)\n", 
+                 targetSize, contentLength);
+
     // v2.5.6: Robust download loop - don't exit just because connected() is false
     // Keep reading as long as: (1) data available, OR (2) connected and not timed out
-    while (progress.bytesDownloaded < contentLength) {
+    while (progress.bytesDownloaded < targetSize) {
         // Check abort
         if (abortRequested) {
             lastError = OTAError::ABORTED;
@@ -1184,6 +1195,14 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
         size_t available = sslClient->available();
         if (available > 0) {
             size_t toRead = min(available, bufferSize);
+            
+            // v2.5.26: Prevent over-downloading
+            // Ensure we don't read more than needed
+            size_t remaining = targetSize - progress.bytesDownloaded;
+            if (toRead > remaining) {
+                toRead = remaining;
+            }
+            
             size_t bytesRead = sslClient->readBytes(downloadBuffer, toRead);
 
             if (bytesRead > 0) {
@@ -1210,57 +1229,84 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
 
                 // Update progress
                 progress.bytesDownloaded += bytesRead;
-                progress.percent = (progress.bytesDownloaded * 100) / contentLength;
+                progress.percent = (progress.bytesDownloaded * 100) / targetSize;
 
                 // Calculate speed
                 unsigned long elapsed = millis() - startTime;
                 if (elapsed > 0) {
                     progress.bytesPerSecond = (progress.bytesDownloaded * 1000) / elapsed;
                     if (progress.bytesPerSecond > 0) {
-                        size_t remaining = contentLength - progress.bytesDownloaded;
+                        size_t remaining = targetSize - progress.bytesDownloaded;
                         progress.estimatedSecondsRemaining = remaining / progress.bytesPerSecond;
                     }
                 }
 
                 // Progress callback
                 if (progressCallback && (millis() - lastProgressTime >= OTA_PROGRESS_INTERVAL_MS)) {
-                    progressCallback(progress.percent, progress.bytesDownloaded, contentLength);
+                    progressCallback(progress.percent, progress.bytesDownloaded, targetSize);
                     lastProgressTime = millis();
                 }
 
                 // v2.5.15: Visual progress bar (dev mode only, every 5%)
                 printProgressBar(progress.percent, progress.bytesDownloaded,
-                                contentLength, progress.bytesPerSecond);
+                                targetSize, progress.bytesPerSecond);
             }
         } else {
             // No data available - check timeout
             unsigned long noDataDuration = millis() - lastDataTime;
 
-            // If no data for too long, set timeout error
+            // v2.5.25: RESUME LOGIC - If connection lost, try to resume
+            if (!sslClient->connected()) {
+                if (progress.bytesDownloaded < targetSize) {
+                    LOG_OTA_WARN("Connection lost at %lu/%lu bytes. Attempting resume...\n", 
+                                 progress.bytesDownloaded, targetSize);
+                    
+                    sslClient->stop();
+                    vTaskDelay(pdMS_TO_TICKS(1000)); // Wait before reconnect
+
+                    // Re-initialize connection
+                    if (setupHttpClient(serverUrl)) {
+                        // Request remaining bytes using Range header
+                        int httpCode = performRequest("GET", progress.bytesDownloaded);
+                        
+                        if (httpCode == 206 || httpCode == 200) { // 206 Partial Content is expected
+                            LOG_OTA_INFO("Resume successful! Continuing from %lu\n", progress.bytesDownloaded);
+                            lastDataTime = millis(); // Reset timeout
+                            
+                            // Skip headers again
+                            while (sslClient->connected()) {
+                                String line = sslClient->readStringUntil('\n');
+                                if (line == "\r") break;
+                                vTaskDelay(1); // Feed WDT
+                            }
+                            continue; // Continue download loop
+                        } else {
+                            LOG_OTA_ERROR("Resume failed with HTTP %d\n", httpCode);
+                        }
+                    } else {
+                        LOG_OTA_ERROR("Resume failed: could not reconnect\n");
+                    }
+                    
+                    // If resume failed, we fall through to timeout check
+                }
+            }
+
+            // Timeout check
             if (noDataDuration > readTimeoutMs) {
                 LOG_OTA_ERROR("Download timeout: no data for %lu ms\n", noDataDuration);
                 lastError = OTAError::TIMEOUT;
                 lastErrorMessage = "Download timeout - no data received";
                 break;
             }
-
-            // If disconnected and no data, exit with network error
-            // v2.5.20: Increased timeout to 5s to handle slow final chunks
-            if (!sslClient->connected() && noDataDuration > 5000) {
-                LOG_OTA_WARN("Connection closed, no data for %lu ms\n", noDataDuration);
-                lastError = OTAError::NETWORK_ERROR;
-                lastErrorMessage = "Connection closed unexpectedly";
-                break;
-            }
+            
+            vTaskDelay(pdMS_TO_TICKS(10));
         }
-
-        vTaskDelay(pdMS_TO_TICKS(10));  // Feed watchdog - increased from 1 to 10ms
     }
 
     sslClient->stop();
 
     // Verify download complete
-    if (progress.bytesDownloaded != contentLength) {
+    if (progress.bytesDownloaded != targetSize) {
         // Don't overwrite specific error if already set
         if (lastError == OTAError::NONE) {
             lastError = OTAError::NETWORK_ERROR;
