@@ -948,7 +948,7 @@ void OTAManager::process() {
                 BaseType_t result = xTaskCreatePinnedToCore(
                     checkTaskFunction,
                     "OTA_CHECK",
-                    8192,           // Stack size for HTTPS operations
+                    12288,          // Stack size 12KB for SSL/HTTPS operations (v2.5.30)
                     this,
                     1,              // Low priority - doesn't block critical tasks
                     &checkTaskHandle,
@@ -979,6 +979,15 @@ void OTAManager::setGitHubRepo(const String& owner, const String& repo,
 
 void OTAManager::setGitHubToken(const String& token) {
     config.githubToken = token;
+
+    // v2.5.28 FIX: Also directly update httpsTransport if it exists
+    // This fixes the bug where token set via BLE was not applied
+    // because applyConfiguration() only works when httpsTransport != nullptr
+    if (httpsTransport) {
+        httpsTransport->setGitHubToken(token);
+        LOG_OTA_INFO("Token applied to existing HTTPS transport\n");
+    }
+
     applyConfiguration();
 }
 

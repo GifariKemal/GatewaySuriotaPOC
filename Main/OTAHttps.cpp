@@ -1,9 +1,14 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 2.5.15
- * @date 2025-11-29
+ * @version 2.5.30
+ * @date 2025-12-02
  *
+ * v2.5.30: Increase OTA buffer size to 32KB for faster download
+ * v2.5.29: CRITICAL FIX - OTA resume checksum mismatch
+ *          GitHub API does NOT support HTTP Range requests (always returns 200)
+ *          When resume gets HTTP 200 instead of 206, must restart download from byte 0
+ *          Reset hash computation and OTA partition on restart
  * v2.5.15: Resume download support (HTTP Range header)
  *          Retry count with automatic retry on failure
  *          Visual progress bar in development mode
@@ -195,7 +200,7 @@ bool OTAHttps::initSecureClient() {
 
         // Configure ESP_SSLClient
         wifiSecure->setClient(wifiBase);
-        wifiSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB
+        wifiSecure->setBufferSizes(ESP_SSLCLIENT_BUFFER_SIZE, 1024);  // RX 16KB (PSRAM), TX 1KB - larger buffer = faster download
         wifiSecure->setCACert(GITHUB_ROOT_CA);  // Use PEM format certificate
         wifiSecure->setDebugLevel(0);  // Disable SSL debug in production
         wifiSecure->setTimeout(readTimeoutMs);
@@ -629,8 +634,19 @@ bool OTAHttps::beginOTAPartition(size_t firmwareSize) {
         return false;
     }
 
-    // Begin OTA
-    esp_err_t err = esp_ota_begin(updatePartition, firmwareSize, &otaHandle);
+    // v2.5.29: esp_ota_begin erases flash which can take several seconds
+    // This blocks CPU and can trigger watchdog timeout
+    // We need to yield before and use OTA_SIZE_UNKNOWN to let esp-idf handle erase internally
+    LOG_OTA_INFO("Preparing OTA partition (erasing flash)...\n");
+    vTaskDelay(pdMS_TO_TICKS(100));  // Give IDLE task time to feed WDT
+
+    // Begin OTA with OTA_SIZE_UNKNOWN to avoid blocking flash erase
+    // esp-idf will erase sectors on-demand during writes instead of upfront
+    esp_err_t err = esp_ota_begin(updatePartition, OTA_SIZE_UNKNOWN, &otaHandle);
+
+    // Feed watchdog after esp_ota_begin
+    vTaskDelay(pdMS_TO_TICKS(100));
+
     if (err != ESP_OK) {
         lastError = OTAError::FLASH_ERROR;
         lastErrorMessage = "Failed to begin OTA";
@@ -1255,12 +1271,15 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
             // No data available - check timeout
             unsigned long noDataDuration = millis() - lastDataTime;
 
-            // v2.5.25: RESUME LOGIC - If connection lost, try to resume
+            // v2.5.29: RESUME LOGIC - If connection lost, try to resume
+            // IMPORTANT: GitHub API does NOT support Range requests - always returns HTTP 200
+            // If we get 200 instead of 206, server is sending entire file from start
+            // We must reset hash and progress to avoid checksum mismatch
             if (!sslClient->connected()) {
                 if (progress.bytesDownloaded < targetSize) {
-                    LOG_OTA_WARN("Connection lost at %lu/%lu bytes. Attempting resume...\n", 
+                    LOG_OTA_WARN("Connection lost at %lu/%lu bytes. Attempting resume...\n",
                                  progress.bytesDownloaded, targetSize);
-                    
+
                     sslClient->stop();
                     vTaskDelay(pdMS_TO_TICKS(1000)); // Wait before reconnect
 
@@ -1268,25 +1287,75 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
                     if (setupHttpClient(serverUrl)) {
                         // Request remaining bytes using Range header
                         int httpCode = performRequest("GET", progress.bytesDownloaded);
-                        
-                        if (httpCode == 206 || httpCode == 200) { // 206 Partial Content is expected
-                            LOG_OTA_INFO("Resume successful! Continuing from %lu\n", progress.bytesDownloaded);
-                            lastDataTime = millis(); // Reset timeout
-                            
-                            // Skip headers again
+
+                        if (httpCode == 206) {
+                            // Server supports Range - true resume from current position
+                            LOG_OTA_INFO("Resume successful (206)! Continuing from %lu\n", progress.bytesDownloaded);
+                            lastDataTime = millis();
+
+                            // Skip headers
                             while (sslClient->connected()) {
                                 String line = sslClient->readStringUntil('\n');
-                                if (line == "\r") break;
-                                vTaskDelay(1); // Feed WDT
+                                line.trim();
+                                if (line.length() == 0) break;
+                                vTaskDelay(1);
                             }
                             continue; // Continue download loop
+                        } else if (httpCode == 200) {
+                            // Server does NOT support Range - sending entire file from start
+                            // Must reset everything and start over
+                            LOG_OTA_WARN("Server returned 200 (no Range support). Restarting download from byte 0\n");
+
+                            // Abort current OTA and restart
+                            abortOTA();
+
+                            // Read headers and verify Content-Length before restarting
+                            size_t newContentLength = 0;
+                            while (sslClient->connected() || sslClient->available()) {
+                                String line = sslClient->readStringUntil('\n');
+                                line.trim();
+                                if (line.length() == 0) break;  // Empty line = end of headers
+
+                                // Parse Content-Length
+                                if (line.startsWith("Content-Length:") || line.startsWith("content-length:")) {
+                                    newContentLength = line.substring(16).toInt();
+                                    LOG_OTA_DEBUG("Restart Content-Length: %u\n", newContentLength);
+                                }
+                                vTaskDelay(1);
+                            }
+
+                            // Verify Content-Length matches expected
+                            if (newContentLength > 0 && newContentLength != targetSize) {
+                                LOG_OTA_WARN("Content-Length changed: %u -> %u, using new value\n",
+                                            targetSize, newContentLength);
+                            }
+
+                            // Re-begin OTA partition
+                            if (!beginOTAPartition(targetSize)) {
+                                LOG_OTA_ERROR("Failed to restart OTA partition\n");
+                                break;
+                            }
+
+                            // Reset hash computation
+                            if (validator) {
+                                validator->hashBegin();
+                            }
+
+                            // Reset progress
+                            progress.bytesDownloaded = 0;
+                            progress.percent = 0;
+                            lastProgressPercent = 0;
+                            lastDataTime = millis();
+
+                            LOG_OTA_INFO("Download restarted from byte 0\n");
+                            continue; // Continue download loop from start
                         } else {
                             LOG_OTA_ERROR("Resume failed with HTTP %d\n", httpCode);
                         }
                     } else {
                         LOG_OTA_ERROR("Resume failed: could not reconnect\n");
                     }
-                    
+
                     // If resume failed, we fall through to timeout check
                 }
             }

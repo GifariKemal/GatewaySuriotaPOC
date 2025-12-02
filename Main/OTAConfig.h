@@ -76,7 +76,7 @@
 // ============================================
 #define OTA_HTTPS_TIMEOUT_MS        60000    // 60 seconds for download timeout
 #define OTA_HTTPS_CONNECT_TIMEOUT   10000    // 10 seconds for connection
-#define OTA_HTTPS_BUFFER_SIZE       4096     // Download buffer size (PSRAM)
+#define OTA_HTTPS_BUFFER_SIZE       32768    // Download buffer size (PSRAM) - 32KB for faster download
 #define OTA_HTTPS_MAX_REDIRECTS     3        // Maximum HTTP redirects to follow
 
 // GitHub requires TLS 1.2+
