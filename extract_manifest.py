@@ -23,27 +23,29 @@ print()
 print("=" * 80)
 
 # Also save to a clean file for GitHub
+# Also save to a clean file for GitHub
 github_manifest = {
-    "version": "2.5.20",
-    "build_number": 2520,
+    "version": "2.5.27",
+    "build_number": 2527,
     "release_date": "2025-12-02",
     "min_version": "2.3.0",
     "firmware": {
-        "url": "https://api.github.com/repos/GifariKemal/GatewaySuriotaOTA/contents/releases/v2.5.20/firmware.bin?ref=main",
+        "url": "https://api.github.com/repos/GifariKemal/GatewaySuriotaOTA/contents/releases/v2.5.27/firmware.bin?ref=main",
         "filename": "firmware.bin",
         "size": manifest['firmware']['size'],
         "sha256": manifest['firmware']['sha256'],
         "signature": manifest['firmware']['signature']
     },
     "changelog": [
-        "v2.5.20: OTA timeout fixes & SSL buffer optimization",
-        "- Fixed connection timeout at 97% download completion",
-        "- Reduced SSL buffer for better stability with slow networks"
+        "v2.5.27: Stable - Robust OTA with Resume & WDT Fixes",
+        "- Implemented HTTP Range Resume for slow connections",
+        "- Fixed over-downloading issue during resume",
+        "- Added Watchdog Timeout (WDT) prevention"
     ],
     "mandatory": False
 }
 
-with open('firmware_manifest_v2.5.20.json', 'w') as f:
+with open('firmware_manifest_v2.5.27.json', 'w') as f:
     json.dump(github_manifest, f, indent=2)
 
-print("GitHub manifest saved to: firmware_manifest_v2.5.20.json")
+print("GitHub manifest saved to: firmware_manifest_v2.5.27.json")
