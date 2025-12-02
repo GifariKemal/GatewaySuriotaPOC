@@ -1245,7 +1245,8 @@ bool OTAHttps::downloadFirmwareFromUrl(const String& url, size_t expectedSize,
             }
 
             // If disconnected and no data, exit with network error
-            if (!sslClient->connected() && noDataDuration > 1000) {
+            // v2.5.20: Increased timeout to 5s to handle slow final chunks
+            if (!sslClient->connected() && noDataDuration > 5000) {
                 LOG_OTA_WARN("Connection closed, no data for %lu ms\n", noDataDuration);
                 lastError = OTAError::NETWORK_ERROR;
                 lastErrorMessage = "Connection closed unexpectedly";

@@ -1,8 +1,8 @@
 /**
  * @file OTAHttps.h
  * @brief HTTPS OTA Transport Layer - GitHub Integration
- * @version 2.5.15
- * @date 2025-11-29
+ * @version 2.5.20
+ * @date 2025-12-02
  *
  * Provides HTTPS firmware download from GitHub:
  * - GitHub Releases download
@@ -12,6 +12,7 @@
  * - TLS 1.2+ security
  * - Manifest parsing
  *
+ * v2.5.20: Increased connection timeout (5s), reduced SSL buffer (8KB)
  * v2.5.15: Resume download support, retry count, progress bar display
  * v2.0.0: Switched to ESP_SSLClient (mobizt) with PSRAM support
  */
@@ -33,8 +34,8 @@
 // ESP32-S3 has 8MB PSRAM, plenty for SSL buffers
 #define ENABLE_PSRAM
 
-// Use larger buffers since we have PSRAM (16KB for TLS records from GitHub)
-#define ESP_SSLCLIENT_BUFFER_SIZE 16384
+// Use 8KB buffers for stable connections (reduced from 16KB for slow networks)
+#define ESP_SSLCLIENT_BUFFER_SIZE 8192
 
 // Enable debug for troubleshooting (set to 0 for production)
 #define ESP_SSLCLIENT_ENABLE_DEBUG 0
