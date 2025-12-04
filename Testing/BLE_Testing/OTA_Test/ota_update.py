@@ -28,7 +28,14 @@ import json
 import sys
 import time
 import argparse
+import io
 from datetime import datetime
+
+# Fix Windows console encoding for Unicode characters
+if sys.platform == 'win32':
+    # Set UTF-8 encoding for stdout/stderr
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 try:
     from bleak import BleakClient, BleakScanner
@@ -57,7 +64,10 @@ except ImportError:
 SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
 COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
-SERVICE_NAME = "SURIOTA GW"
+# v2.5.31+: BLE name format is now "SURIOTA-XXXXXX" (based on MAC address)
+# Legacy: "SURIOTA GW"
+SERVICE_NAME_PREFIX = "SURIOTA-"  # New format: SURIOTA-XXXXXX
+SERVICE_NAME_LEGACY = "SURIOTA GW"  # Legacy format for older firmware
 
 # Timing Configuration (in seconds)
 SCAN_TIMEOUT = 10.0
@@ -196,7 +206,7 @@ def notification_handler(sender, data):
 
 
 async def scan_for_device():
-    """Scan for SURIOTA Gateway"""
+    """Scan for SURIOTA Gateway (supports both new and legacy naming)"""
     print(f"\n  {Fore.CYAN}📡 Scanning for BLE devices...{Style.RESET_ALL}")
 
     devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT)
@@ -204,13 +214,36 @@ async def scan_for_device():
     if not devices:
         return None
 
-    # Find SURIOTA GW
+    # Find SURIOTA Gateway - check new format first (SURIOTA-XXXXXX), then legacy (SURIOTA GW)
+    suriota_devices = []
     for device in devices:
-        if device.name == SERVICE_NAME:
-            print(f"  {Fore.GREEN}✓ Found: {device.name} ({device.address}){Style.RESET_ALL}")
-            return device
-
-    return None
+        if device.name:
+            # Check new format: SURIOTA-XXXXXX (v2.5.31+)
+            if device.name.startswith(SERVICE_NAME_PREFIX):
+                suriota_devices.append(device)
+                print(f"  {Fore.GREEN}✓ Found: {device.name} ({device.address}){Style.RESET_ALL}")
+            # Check legacy format: SURIOTA GW (older firmware)
+            elif device.name == SERVICE_NAME_LEGACY:
+                suriota_devices.append(device)
+                print(f"  {Fore.GREEN}✓ Found (legacy): {device.name} ({device.address}){Style.RESET_ALL}")
+    
+    if len(suriota_devices) == 0:
+        return None
+    elif len(suriota_devices) == 1:
+        return suriota_devices[0]
+    else:
+        # Multiple devices found - let user choose
+        print(f"\n  {Fore.YELLOW}Multiple SURIOTA devices found:{Style.RESET_ALL}")
+        for i, dev in enumerate(suriota_devices):
+            print(f"    {i+1}. {dev.name} ({dev.address})")
+        try:
+            choice = input(f"  {Fore.WHITE}Select device (1-{len(suriota_devices)}): {Style.RESET_ALL}").strip()
+            idx = int(choice) - 1
+            if 0 <= idx < len(suriota_devices):
+                return suriota_devices[idx]
+        except (ValueError, KeyboardInterrupt):
+            pass
+        return suriota_devices[0]  # Default to first if invalid input
 
 
 async def connect_device(address):
@@ -597,7 +630,7 @@ async def run_ota_update():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"Device '{SERVICE_NAME}' not found!")
+            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -739,7 +772,7 @@ async def run_interactive_menu():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"Device '{SERVICE_NAME}' not found!")
+            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -841,7 +874,7 @@ async def run_set_token(token):
 
         device = await scan_for_device()
         if not device:
-            print_error(f"Device '{SERVICE_NAME}' not found!")
+            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
             return False
 
         client = await connect_device(device.address)
@@ -875,7 +908,7 @@ async def run_check_only():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"Device '{SERVICE_NAME}' not found!")
+            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
             return False
 
         client = await connect_device(device.address)
