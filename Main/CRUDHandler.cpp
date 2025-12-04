@@ -10,6 +10,7 @@
 #include "RTCManager.h"     // For RTC timestamp in factory reset
 #include "LEDManager.h"     // For stopping LED task during factory reset
 #include "OTAManager.h"     // For OTA update commands via BLE
+#include "GatewayConfig.h"  // For gateway identity (v2.5.31)
 #include <esp_heap_caps.h>  // For PSRAM allocation
 
 // Make service pointers available to the handler
@@ -470,7 +471,7 @@ void CRUDHandler::setupCommandHandlers()
 
     // Additional info
     (*response)["compile_time_default"] = PRODUCTION_MODE;
-    (*response)["firmware_version"] = "2.5.30";
+    (*response)["firmware_version"] = "2.5.31";
 
     // Current log level (use correct type from DebugConfig.h)
     extern LogLevel currentLogLevel;
@@ -524,7 +525,7 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata (always included)
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.5.30"; // v2.5.30: OTA buffer optimization
+    backupInfo["firmware_version"] = "2.5.31"; // v2.5.31: Multi-gateway support
     backupInfo["device_name"] = "SURIOTA_GW";
 
     // Get all configurations based on section
@@ -777,7 +778,8 @@ void CRUDHandler::setupCommandHandlers()
   {
     String deviceId = command["device_id"] | "";
     JsonObjectConst config = command["config"];
-    String registerId = configManager->createRegister(deviceId, config);
+    String errorMsg;  // v2.5.31: Capture specific error message
+    String registerId = configManager->createRegister(deviceId, config, &errorMsg);
     if (!registerId.isEmpty())
     {
       notifyAllServices(); // CRITICAL FIX: Register count affects MQTT timeout
@@ -809,7 +811,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Register creation failed");
+      // v2.5.31: Return specific error message to mobile app
+      manager->sendError(errorMsg.isEmpty() ? "Register creation failed" : errorMsg.c_str());
     }
   };
 
@@ -1223,6 +1226,134 @@ void CRUDHandler::setupCommandHandlers()
     // Wait for BLE response to be sent, then restart
     vTaskDelay(pdMS_TO_TICKS(2000));
     ESP.restart();
+  };
+
+  // === GATEWAY IDENTITY HANDLERS (v2.5.31) ===
+
+  // Get Gateway Info - Return unique gateway identification for mobile app
+  controlHandlers["get_gateway_info"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    GatewayConfig *gwConfig = GatewayConfig::getInstance();
+    if (!gwConfig)
+    {
+      manager->sendError("Gateway config not initialized");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "get_gateway_info";
+
+    // Gateway identity
+    JsonObject data = (*response)["data"].to<JsonObject>();
+    data["ble_name"] = gwConfig->getBLEName();
+    data["mac"] = gwConfig->getMACString();
+    data["short_mac"] = gwConfig->getShortMAC();
+    data["friendly_name"] = gwConfig->getFriendlyName();
+    data["location"] = gwConfig->getLocation();
+
+    // Firmware info
+    extern const char* FIRMWARE_VERSION_STR;
+    extern const char* DEVICE_ID_STR;
+    data["firmware"] = FIRMWARE_VERSION_STR;
+    data["model"] = DEVICE_ID_STR;
+
+    // Memory info
+    data["free_heap"] = ESP.getFreeHeap();
+    data["free_psram"] = ESP.getFreePsram();
+
+    manager->sendResponse(*response);
+    LOG_CRUD_INFO("[CRUD] Gateway info sent: %s", gwConfig->getBLEName());
+  };
+
+  // Set Friendly Name - Allow user to set custom name for this gateway
+  controlHandlers["set_friendly_name"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    GatewayConfig *gwConfig = GatewayConfig::getInstance();
+    if (!gwConfig)
+    {
+      manager->sendError("Gateway config not initialized");
+      return;
+    }
+
+    // Validate name parameter (ArduinoJson 7.x: use is<T>() instead of containsKey)
+    if (!command["name"].is<const char*>())
+    {
+      manager->sendError("name parameter required");
+      return;
+    }
+
+    String newName = command["name"].as<String>();
+    if (newName.length() == 0)
+    {
+      manager->sendError("name cannot be empty");
+      return;
+    }
+
+    if (newName.length() > 32)
+    {
+      manager->sendError("name too long (max 32 chars)");
+      return;
+    }
+
+    // Save friendly name
+    if (!gwConfig->setFriendlyName(newName))
+    {
+      manager->sendError("Failed to save friendly name");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "set_friendly_name";
+    (*response)["friendly_name"] = gwConfig->getFriendlyName();
+    (*response)["ble_name"] = gwConfig->getBLEName();
+    (*response)["message"] = "Friendly name updated successfully";
+
+    manager->sendResponse(*response);
+    LOG_CRUD_INFO("[CRUD] Friendly name set to: %s", newName.c_str());
+  };
+
+  // Set Location - Allow user to set location for this gateway
+  controlHandlers["set_gateway_location"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    GatewayConfig *gwConfig = GatewayConfig::getInstance();
+    if (!gwConfig)
+    {
+      manager->sendError("Gateway config not initialized");
+      return;
+    }
+
+    // Validate location parameter (ArduinoJson 7.x: use is<T>() instead of containsKey)
+    if (!command["location"].is<const char*>())
+    {
+      manager->sendError("location parameter required");
+      return;
+    }
+
+    String newLocation = command["location"].as<String>();
+    if (newLocation.length() > 64)
+    {
+      manager->sendError("location too long (max 64 chars)");
+      return;
+    }
+
+    // Save location (empty string allowed to clear)
+    if (!gwConfig->setLocation(newLocation))
+    {
+      manager->sendError("Failed to save location");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "set_gateway_location";
+    (*response)["location"] = gwConfig->getLocation();
+    (*response)["ble_name"] = gwConfig->getBLEName();
+    (*response)["message"] = "Location updated successfully";
+
+    manager->sendResponse(*response);
+    LOG_CRUD_INFO("[CRUD] Location set to: %s", newLocation.c_str());
   };
 
   // === SYSTEM HANDLERS ===

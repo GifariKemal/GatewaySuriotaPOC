@@ -5,42 +5,24 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.3.11 (November 26, 2025)
+**Version:** 2.5.31 (December 04, 2025)
 **Developer:** Kemal
-**Last Updated:** November 26, 2025
+**Last Updated:** December 04, 2025
 
-> **What's New in v2.3.11:**
-> - ✅ **CRITICAL BLE Fix** - Command corruption fix (timeout protection, marker handling)
-> - ✅ **ModbusTCP Optimization** - Vector caching (100% file access elimination), connection pooling (50% handshake reduction)
-> - ✅ **Thread Safety** - Mutex protection for device vectors
-> - ✅ **Dynamic Polling** - Respects device refresh_rate_ms
-> - ✅ **ErrorHandler Fix** - Array overflow prevention
+> **What's New in v2.5.31:**
+> - ✅ **Multi-Gateway Support** - Unique BLE name per device (MAC-based)
+> - ✅ **Gateway Identity API** - get_gateway_info, set_friendly_name, set_gateway_location
+> - ✅ **Mobile App Integration** - Complete guide for Android/iOS developers
+> - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full documentation
 >
-> **Previous (v2.3.10):**
-> - ✅ **TCP Pool Optimization** - 180x reduction in connection recreations, 99% connection reuse
+> **Previous Highlights:**
+> - v2.5.30: OTA buffer optimization (32KB for faster downloads)
+> - v2.5.11: Private GitHub repo OTA support
+> - v2.5.10: OTA signature bug fix
+> - v2.5.1: DRAM exhaustion fix, MQTT loop fix
+> - v2.3.x: BLE fixes, ModbusTCP optimization, Backup/Restore, Factory Reset
 >
-> **Previous (v2.3.3):**
-> - ✅ **BUG #32 Fix** - Fixed restore config failure for large JSON payloads
-> - ✅ **Register Index Fix** - Fixed register_index stuck at 0 during device creation
->
-> **Previous (v2.3.0):**
-> - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
-> - ✅ **Factory Reset Command** - One-command device reset to factory defaults
-> - ✅ **Device Control API** - Enable/disable devices with health metrics
-> - ✅ **BLE Response Size** - Increased from 10KB to 200KB
-> - See specialized documentation: [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md), [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md), [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md)
->
-> **Previous (v2.2.0):**
-> - Clean API Structure - HTTP interval moved to `http_config` (breaking change)
-> - Breaking Change: `data_interval` removed from root level
-> - New Documentation: Complete Network Configuration guide
->
-> **Previous (v2.1.1):**
-> - 28x faster BLE transmission (21KB in 2.1s vs 58s)
-> - Enhanced CRUD responses with actual data
-> - New endpoint: `devices_with_registers` (solves N+1 query problem)
->
-> See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for migration guide.
+> See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for complete changelog.
 
 ---
 
@@ -100,11 +82,14 @@ For detailed documentation on advanced BLE features, see:
 
 | Feature | Documentation | Description |
 |---------|---------------|-------------|
+| **Gateway Identity** | [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) | Multi-gateway support, unique BLE names, mobile app integration |
 | **Backup & Restore** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Complete configuration backup/restore system via BLE |
 | **Factory Reset** | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md) | One-command device reset to factory defaults |
 | **Device Control** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics tracking |
+| **OTA Update** | [BLE_OTA_API.md](BLE_OTA_API.md) | Over-the-air firmware update via BLE |
+| **Production Mode** | [BLE_PRODUCTION_MODE.md](BLE_PRODUCTION_MODE.md) | Switch between development and production mode |
 
-> **💡 New in Latest Firmware:** These features provide advanced configuration management and device control capabilities.
+> **💡 New in v2.5.31:** Multi-Gateway Support - Each gateway now has a unique BLE name based on its MAC address. See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration guide.
 
 ---
 

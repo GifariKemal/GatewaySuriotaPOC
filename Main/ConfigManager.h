@@ -86,7 +86,7 @@ public:
   void removeCorruptKeys();
 
   // Register operations
-  String createRegister(const String &deviceId, JsonObjectConst config);
+  String createRegister(const String &deviceId, JsonObjectConst config, String *errorMsg = nullptr);
   bool listRegisters(const String &deviceId, JsonArray &registers);
   bool getRegistersSummary(const String &deviceId, JsonArray &summary);
   bool updateRegister(const String &deviceId, const String &registerId, JsonObjectConst config);

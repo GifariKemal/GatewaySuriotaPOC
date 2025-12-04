@@ -777,8 +777,13 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
   LOG_CONFIG_INFO("[GET_ALL_DEVICES_WITH_REGISTERS] Total devices: %d\n", result.size());
 }
 
-String ConfigManager::createRegister(const String &deviceId, JsonObjectConst config)
+String ConfigManager::createRegister(const String &deviceId, JsonObjectConst config, String *errorMsg)
 {
+  // Helper lambda to set error message
+  auto setError = [&errorMsg](const String &msg) {
+    if (errorMsg) *errorMsg = msg;
+  };
+
   // v2.5.2: Concise logging only in development mode
   int address = config["address"].is<String>() ? config["address"].as<String>().toInt() : config["address"].as<int>();
   if (!IS_PRODUCTION_MODE())
@@ -795,6 +800,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     {
       Serial.println("[CREATE_REGISTER] Failed to load devices cache");
     }
+    setError("Failed to load devices cache");
     return "";
   }
 
@@ -804,6 +810,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     {
       Serial.printf("[CREATE_REGISTER] Device %s not found in cache\n", deviceId.c_str());
     }
+    setError("Device '" + deviceId + "' not found");
     return "";
   }
 
@@ -814,6 +821,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     {
       Serial.println("[CREATE_REGISTER] Missing required register fields: address or register_name");
     }
+    setError("Missing required fields: address or register_name");
     return "";
   }
 
@@ -840,6 +848,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     {
       Serial.printf("[CREATE_REG] Invalid address: %d\n", address);
     }
+    setError("Invalid address: " + String(address));
     return "";
   }
 
@@ -855,6 +864,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
       {
         Serial.printf("Register address %d already exists in device %s\n", address, deviceId.c_str());
       }
+      setError("Register address " + String(address) + " already exists in device " + deviceId);
       return "";
     }
   }
@@ -925,6 +935,7 @@ String ConfigManager::createRegister(const String &deviceId, JsonObjectConst con
     {
       Serial.println("[CREATE_REG] FAIL: Save error");
     }
+    setError("Failed to save register to storage");
     invalidateDevicesCache();
   }
   return "";

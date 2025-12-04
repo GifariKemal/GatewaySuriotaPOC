@@ -31,7 +31,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "ProductionLogger.h"  // Production mode minimal logging
 
 // Firmware version and device identification
-#define FIRMWARE_VERSION "2.5.30" // v2.5.30: Increase OTA buffer size to 32KB for faster download
+#define FIRMWARE_VERSION "2.5.31" // v2.5.31: Multi-gateway support - unique BLE name from MAC address
 #define DEVICE_ID "SRT-MGATE-1210"
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
@@ -55,6 +55,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "LEDManager.h"
 #include "ButtonManager.h"
 #include "OTAManager.h"
+#include "GatewayConfig.h"    // v2.5.31: Multi-gateway support
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_heap_caps.h>
@@ -81,6 +82,11 @@ LEDManager *ledManager = nullptr;
 ButtonManager *buttonManager = nullptr;
 ProductionLogger *productionLogger = nullptr;
 OTAManager *otaManager = nullptr;
+GatewayConfig *gatewayConfig = nullptr;  // v2.5.31: Multi-gateway identity
+
+// v2.5.31: Export firmware version and device ID as const char* for GatewayConfig
+const char* FIRMWARE_VERSION_STR = FIRMWARE_VERSION;
+const char* DEVICE_ID_STR = DEVICE_ID;
 
 // v2.5.1 FIX: Track allocation method for safe cleanup (PSRAM placement new vs standard new)
 // If true: allocated with heap_caps_malloc + placement new (use ~destructor + heap_caps_free)
@@ -545,16 +551,30 @@ void setup()
 
   // CRUDHandler already initialized above
 
+  // v2.5.31: Initialize Gateway Config (unique BLE name from MAC)
+  gatewayConfig = GatewayConfig::getInstance();
+  if (!gatewayConfig || !gatewayConfig->begin())
+  {
+    DEV_SERIAL_PRINTLN("[MAIN] WARNING: Failed to initialize Gateway Config, using default BLE name");
+  }
+  else
+  {
+    DEV_SERIAL_PRINTF("[MAIN] Gateway BLE Name: %s\n", gatewayConfig->getBLEName());
+  }
+
+  // Get BLE name from GatewayConfig (unique per device) or fallback to default
+  const char* bleName = (gatewayConfig) ? gatewayConfig->getBLEName() : "SURIOTA-DEFAULT";
+
   // Initialize BLE manager in PSRAM (but don't start yet if production mode)
   bleManager = (BLEManager *)heap_caps_malloc(sizeof(BLEManager), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
   if (bleManager)
   {
-    new (bleManager) BLEManager("SURIOTA GW", crudHandler);
+    new (bleManager) BLEManager(bleName, crudHandler);  // v2.5.31: Use unique BLE name
     bleManagerInPsram = true;  // v2.5.1 FIX: Track allocation method
   }
   else
   {
-    bleManager = new BLEManager("SURIOTA GW", crudHandler); // Fallback to internal RAM
+    bleManager = new BLEManager(bleName, crudHandler);  // v2.5.31: Use unique BLE name
     bleManagerInPsram = false;  // v2.5.1 FIX: Track allocation method
     if (!bleManager)
     {
@@ -609,7 +629,7 @@ void setup()
   if (otaManager)
   {
     // Set current firmware version
-    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2530); // Build number derived from version (2.5.30 = 2530)
+    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2531); // Build number derived from version (2.5.31 = 2531)
 
     // Get BLE server from BLEManager for OTA BLE service
     // Note: BLE server is internal to BLEManager, OTA BLE will create its own service

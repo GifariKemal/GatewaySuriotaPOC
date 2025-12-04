@@ -8,7 +8,119 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.19 (Current - Critical Task Fixes & MQTT Optimization)
+## 🚀 Version 2.5.31 (Current - Multi-Gateway Support)
+
+**Release Date:** December 04, 2025 (Wednesday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release adds **Multi-Gateway Support** enabling deployment of multiple gateways with unique Bluetooth identities. Each gateway now automatically generates a unique BLE name from its MAC address, allowing mobile apps to distinguish between multiple devices during BLE scanning.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. FEATURE: Unique BLE Name from MAC Address
+**Severity:** 🟢 FEATURE (Multi-device support)
+
+**Change:** BLE advertising name is now auto-generated from device MAC address.
+**Format:** `SURIOTA-XXXXXX` where XXXXXX = last 3 bytes of BT MAC (hex)
+**Example:** `SURIOTA-A3B2C1`, `SURIOTA-D4E5F6`
+
+**Impact:** Multiple gateways can now be deployed and each will appear with a unique name during BLE scanning.
+
+#### 2. FEATURE: Gateway Identity Management
+**Severity:** 🟢 FEATURE (User experience)
+
+**New Files:**
+- `GatewayConfig.h` - Gateway identity configuration header
+- `GatewayConfig.cpp` - Implementation with LittleFS persistence
+
+**Config File:** `/gateway_config.json`
+```json
+{
+  "friendly_name": "Panel Listrik Gedung A",
+  "location": "Lt.1 Ruang Panel"
+}
+```
+
+#### 3. FEATURE: New BLE Commands for Gateway Identity
+**Severity:** 🟢 FEATURE (API Enhancement)
+
+| Command | Description |
+|---------|-------------|
+| `get_gateway_info` | Returns BLE name, MAC, friendly name, location, firmware version |
+| `set_friendly_name` | Set custom name for this gateway (max 32 chars) |
+| `set_gateway_location` | Set location info (max 64 chars) |
+
+**Example Usage:**
+```json
+// Get gateway info
+{"op": "control", "type": "get_gateway_info"}
+
+// Response
+{
+  "status": "ok",
+  "command": "get_gateway_info",
+  "data": {
+    "ble_name": "SURIOTA-A3B2C1",
+    "mac": "AA:BB:CC:A3:B2:C1",
+    "short_mac": "A3B2C1",
+    "friendly_name": "Panel Listrik Gedung A",
+    "location": "Lt.1 Ruang Panel",
+    "firmware": "2.5.31",
+    "model": "SRT-MGATE-1210",
+    "free_heap": 150000,
+    "free_psram": 7500000
+  }
+}
+
+// Set friendly name
+{"op": "control", "type": "set_friendly_name", "name": "Chiller Gedung B"}
+
+// Set location
+{"op": "control", "type": "set_gateway_location", "location": "Basement Ruang Mesin"}
+```
+
+---
+
+### 📝 **Files Modified/Added**
+
+| File | Change |
+|------|--------|
+| `Main.ino` | Version bump to 2.5.31, GatewayConfig integration |
+| `GatewayConfig.h` | **NEW** - Gateway identity header |
+| `GatewayConfig.cpp` | **NEW** - Gateway identity implementation |
+| `CRUDHandler.cpp` | Added 3 new BLE commands for gateway identity |
+
+---
+
+### 🔧 **Mobile App Integration**
+
+For mobile app developers, here's the recommended flow:
+
+1. **BLE Scan:** Look for devices with name pattern `SURIOTA-*`
+2. **Connect:** Connect to selected gateway
+3. **Get Info:** Send `get_gateway_info` command
+4. **Register:** Store MAC → friendly_name mapping in local database
+5. **Display:** Show friendly_name in UI instead of BLE name
+
+**Gateway Registry (SQLite Example):**
+```sql
+CREATE TABLE gateways (
+  mac TEXT PRIMARY KEY,
+  ble_name TEXT,
+  friendly_name TEXT,
+  location TEXT,
+  last_seen TIMESTAMP
+);
+```
+
+---
+
+## 🚀 Version 2.5.19 (Critical Task Fixes & MQTT Optimization)
 
 **Release Date:** December 01, 2025 (Sunday)
 **Developer:** Kemal (with Claude Code)
