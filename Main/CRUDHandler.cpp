@@ -1253,11 +1253,9 @@ void CRUDHandler::setupCommandHandlers()
     data["friendly_name"] = gwConfig->getFriendlyName();
     data["location"] = gwConfig->getLocation();
 
-    // Firmware info
-    extern const char* FIRMWARE_VERSION_STR;
-    extern const char* DEVICE_ID_STR;
-    data["firmware"] = FIRMWARE_VERSION_STR;
-    data["model"] = DEVICE_ID_STR;
+    // Firmware info from ProductConfig.h
+    data["firmware"] = FIRMWARE_VERSION;
+    data["model"] = PRODUCT_FULL_MODEL;
 
     // Memory info
     data["free_heap"] = ESP.getFreeHeap();
