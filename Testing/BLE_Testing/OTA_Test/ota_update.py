@@ -414,7 +414,7 @@ async def step_start_update(client):
     # Track download start time
     download_start = time.time()
 
-    response = await send_ota_command(client, "start_update", wait_time=180)  # 3 minutes timeout
+    response = await send_ota_command(client, "start_update", wait_time=360)  # 6 minutes timeout (allows retry on connection loss)
 
     download_time = time.time() - download_start
 
