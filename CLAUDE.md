@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.11 | **Last Updated:** November 28, 2025
+**Version:** 2.5.32 | **Last Updated:** December 5, 2025
 
 ---
 
@@ -31,7 +31,26 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.11 - Nov 28, 2025)
+## 🆕 Latest Updates (v2.5.32 - Dec 5, 2025)
+
+### v2.5.32 - Centralized Product Configuration (Dec 5, 2025)
+- **NEW FILE:** `ProductConfig.h` - Single source of truth for all product identity settings
+- **Product Model:** SRT-MGATE-1210 with POE variant support (MGate-1210(P) / MGate-1210)
+- **BLE Name Format Changed:** `SURIOTA-XXXXXX` → `MGate-1210(P)-XXXX` (4 hex chars from MAC)
+  - POE variant: `MGate-1210(P)-A716`
+  - Non-POE variant: `MGate-1210-C726`
+- **Serial Number Format:** `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)
+- **Centralized Settings:** Firmware version, model, variant, BLE format, serial format, hardware pins, manufacturer info
+- **GatewayConfig Updated:** Uses ProductConfig for BLE name and serial number generation
+- **Easy Variant Switch:** Edit `ProductConfig.h` to switch between POE and Non-POE builds
+
+### v2.5.31 - Multi-Gateway Support (Dec 4, 2025)
+- **Multi-Gateway BLE:** Unique BLE names from MAC address (SURIOTA-XXXXXX format)
+- **GatewayConfig:** New gateway identity management system
+- **BLE Commands:** `get_gateway_info`, `set_friendly_name`, `set_location`
+
+### v2.5.30 - OTA Buffer Optimization (Dec 4, 2025)
+- **OTA Speed Boost:** Increased OTA buffer size to 32KB for faster download
 
 ### v2.5.11 - Private Repo OTA Support (Nov 28, 2025)
 - **CRITICAL OTA FIX:** Fixed OTA from PRIVATE GitHub repositories (was returning HTTP 404)
@@ -127,7 +146,9 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 ```
 Main/                    # Production firmware (PRIMARY)
   ├── Main.ino          # Entry point
+  ├── ProductConfig.h   # 🆕 Centralized product identity (v2.5.32)
   ├── DebugConfig.h     # ⚠️ MUST BE FIRST INCLUDE
+  ├── GatewayConfig.*   # Gateway identity (BLE name, serial number)
   ├── ConfigManager.*   # JSON config with atomic writes
   ├── BLEManager.*      # BLE interface + fragmentation
   ├── CRUDHandler.*     # Command processor (priority queue)
@@ -393,6 +414,8 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 
 ### Common File Locations
 - Entry: `/Main/Main.ino`
+- Product Config: `/Main/ProductConfig.h` 🆕 (firmware version, model, variant, BLE format)
+- Gateway Identity: `/Main/GatewayConfig.h` (BLE name generation, serial number)
 - Configs: `/*.json` (devices, server_config, network_config, logging_config)
 - Logging: `/Main/DebugConfig.h`, `/Main/LoggingConfig.h`
 - Errors: `/Main/UnifiedErrorCodes.h`

@@ -5,8 +5,8 @@ Multi-Gateway Support & Device Identification
 
 [Home](../../README.md) > [Documentation](../README.md) > [API Reference](API.md) > Gateway Identity
 
-**Version:** 2.5.31
-**Release Date:** December 04, 2025
+**Version:** 2.5.32
+**Release Date:** December 05, 2025
 **Developer:** Kemal
 
 ---
@@ -33,17 +33,19 @@ Multi-Gateway Support & Device Identification
 
 ## Overview
 
-Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-Gateway deployment**. Each gateway automatically generates a **unique BLE name** from its MAC address, allowing mobile apps to distinguish between multiple devices during Bluetooth scanning.
+Starting from firmware **v2.5.32**, the SRT-MGATE-1210 gateway uses a **product-based BLE naming convention**. Each gateway automatically generates a **unique BLE name** with product model and variant information, plus a unique identifier from its MAC address.
 
 ### Key Features
 
-| Feature                | Description                                        |
-| ---------------------- | -------------------------------------------------- |
-| **Unique BLE Name**    | Auto-generated from MAC address: `SURIOTA-XXXXXX`  |
-| **Friendly Name**      | User-configurable custom name (max 32 chars)       |
-| **Location**           | Optional location info (max 64 chars)              |
-| **Persistent Storage** | Config saved to `/gateway_config.json` on LittleFS |
-| **Zero Configuration** | Works out-of-box, no manual setup required         |
+| Feature                | Description                                                              |
+| ---------------------- | ------------------------------------------------------------------------ |
+| **Product BLE Name**   | Auto-generated: `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)|
+| **Serial Number**      | Auto-generated: `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)            |
+| **Friendly Name**      | User-configurable custom name (max 32 chars)                             |
+| **Location**           | Optional location info (max 64 chars)                                    |
+| **Persistent Storage** | Config saved to `/gateway_config.json` on LittleFS                       |
+| **Zero Configuration** | Works out-of-box, no manual setup required                               |
+| **Variant Support**    | POE (P) and Non-POE variants configurable in `ProductConfig.h`           |
 
 ---
 
@@ -55,15 +57,15 @@ Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
 │   ┌─────────────────┐                                               │
-│   │   BLE SCANNER   │  ← Scans for "SURIOTA-*" devices              │
+│   │   BLE SCANNER   │  ← Scans for "MGate-1210*" devices            │
 │   └────────┬────────┘                                               │
 │            │                                                         │
 │            ▼                                                         │
 │   ┌─────────────────────────────────────────────────────────────┐   │
 │   │                    SCAN RESULTS                              │   │
 │   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │   │
-│   │  │ SURIOTA-    │  │ SURIOTA-    │  │ SURIOTA-    │          │   │
-│   │  │ A3B2C1      │  │ D4E5F6      │  │ 7890AB      │          │   │
+│   │  │ MGate-1210  │  │ MGate-1210  │  │ MGate-1210  │          │   │
+│   │  │ (P)-A716    │  │ (P)-B213    │  │ (P)-C726    │          │   │
 │   │  │ RSSI: -45   │  │ RSSI: -62   │  │ RSSI: -78   │          │   │
 │   │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │   │
 │   └─────────┼────────────────┼────────────────┼─────────────────┘   │
@@ -72,9 +74,9 @@ Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-
 │   ┌─────────────────────────────────────────────────────────────┐   │
 │   │              GATEWAY REGISTRY (Local SQLite)                 │   │
 │   │  ┌────────────────────────────────────────────────────────┐ │   │
-│   │  │ MAC: A3B2C1 → "Panel Listrik Gedung A" (Lt.1 R.Panel)  │ │   │
-│   │  │ MAC: D4E5F6 → "Chiller Gedung B" (Basement R.Mesin)    │ │   │
-│   │  │ MAC: 7890AB → "(New Device)" ← Not registered yet      │ │   │
+│   │  │ UID: A716 → "Panel Listrik Gedung A" (Lt.1 R.Panel)    │ │   │
+│   │  │ UID: B213 → "Chiller Gedung B" (Basement R.Mesin)      │ │   │
+│   │  │ UID: C726 → "(New Device)" ← Not registered yet        │ │   │
 │   │  └────────────────────────────────────────────────────────┘ │   │
 │   └─────────────────────────────────────────────────────────────┘   │
 │                                                                      │
@@ -87,7 +89,7 @@ Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-
 │   │  │ 🟢 Chiller Gedung B                                 │    │   │
 │   │  │    Basement Ruang Mesin | Signal: Good              │    │   │
 │   │  ├─────────────────────────────────────────────────────┤    │   │
-│   │  │ 🔵 New Gateway (SURIOTA-7890AB)                     │    │   │
+│   │  │ 🔵 New Gateway (MGate-1210(P)-C726)                 │    │   │
 │   │  │    Tap to configure | Signal: Fair                  │    │   │
 │   │  └─────────────────────────────────────────────────────┘    │   │
 │   └─────────────────────────────────────────────────────────────┘   │
@@ -101,10 +103,10 @@ Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
 │  │  SRT-MGATE-1210  │  │  SRT-MGATE-1210  │  │  SRT-MGATE-1210  │   │
 │  │  ════════════════│  │  ════════════════│  │  ════════════════│   │
-│  │  BLE: SURIOTA-   │  │  BLE: SURIOTA-   │  │  BLE: SURIOTA-   │   │
-│  │       A3B2C1     │  │       D4E5F6     │  │       7890AB     │   │
+│  │  BLE: MGate-1210 │  │  BLE: MGate-1210 │  │  BLE: MGate-1210 │   │
+│  │       (P)-A716   │  │       (P)-B213   │  │       (P)-C726   │   │
 │  │  MAC: AA:BB:CC:  │  │  MAC: DD:EE:FF:  │  │  MAC: 11:22:33:  │   │
-│  │       A3:B2:C1   │  │       D4:E5:F6   │  │       78:90:AB   │   │
+│  │       DD:A7:16   │  │       44:B2:13   │  │       CC:C7:26   │   │
 │  │  ────────────────│  │  ────────────────│  │  ────────────────│   │
 │  │  Modbus RTU x2   │  │  Modbus RTU x2   │  │  Modbus RTU x2   │   │
 │  │  Modbus TCP      │  │  Modbus TCP      │  │  Modbus TCP      │   │
@@ -124,26 +126,41 @@ Starting from firmware **v2.5.31**, the SRT-MGATE-1210 gateway supports **Multi-
 
 ## BLE Name Format
 
-Each gateway automatically generates a unique BLE advertising name:
+Each gateway automatically generates a unique BLE advertising name based on product model and variant:
+
+### v2.5.32+ Format (Current)
+
+```
+MGate-1210(P)-XXXX    ← POE Variant
+MGate-1210-XXXX       ← Non-POE Variant
+           └───────── Last 2 bytes of Bluetooth MAC address (4 hex chars)
+```
+
+### Examples (v2.5.32+)
+
+| Variant  | Full MAC Address    | BLE Name              |
+| -------- | ------------------- | --------------------- |
+| POE      | `AA:BB:CC:DD:A7:16` | `MGate-1210(P)-A716`  |
+| POE      | `11:22:33:44:B2:13` | `MGate-1210(P)-B213`  |
+| Non-POE  | `FF:EE:DD:CC:C7:26` | `MGate-1210-C726`     |
+
+### Legacy Format (v2.5.31)
 
 ```
 SURIOTA-XXXXXX
-        └─────── Last 3 bytes of Bluetooth MAC address (hex uppercase)
+        └─────── Last 3 bytes of Bluetooth MAC address (6 hex chars)
 ```
 
-### Examples
+| Full MAC Address    | BLE Name (Legacy) |
+| ------------------- | ----------------- |
+| `AA:BB:CC:A3:B2:C1` | `SURIOTA-A3B2C1`  |
 
-| Full MAC Address    | BLE Name         |
-| ------------------- | ---------------- |
-| `AA:BB:CC:A3:B2:C1` | `SURIOTA-A3B2C1` |
-| `11:22:33:D4:E5:F6` | `SURIOTA-D4E5F6` |
-| `FF:EE:DD:78:90:AB` | `SURIOTA-7890AB` |
+### Why 4 Hex Chars (2 Bytes)?
 
-### Why Last 3 Bytes?
-
-- **Uniqueness**: 16.7 million combinations (2^24)
-- **Readability**: 6 characters is easy to read and remember
-- **BLE Limit**: BLE device names have ~29 byte limit
+- **Uniqueness**: 65,536 combinations (2^16) - sufficient for most deployments
+- **Readability**: 4 characters is very easy to read and remember
+- **BLE Limit**: Shorter name allows more space for product model info
+- **Product Branding**: Includes "MGate-1210" product name + variant indicator
 
 ---
 
@@ -171,32 +188,40 @@ Retrieve complete gateway identification information.
   "status": "ok",
   "command": "get_gateway_info",
   "data": {
-    "ble_name": "SURIOTA-A3B2C1",
-    "mac": "AA:BB:CC:A3:B2:C1",
-    "short_mac": "A3B2C1",
+    "ble_name": "MGate-1210(P)-A716",
+    "mac": "AA:BB:CC:DD:A7:16",
+    "uid": "A716",
+    "short_mac": "DDA716",
+    "serial_number": "SRT-MGATE1210P-20251205-DDA716",
     "friendly_name": "Panel Listrik Gedung A",
     "location": "Lt.1 Ruang Panel",
-    "firmware": "2.5.31",
-    "model": "SRT-MGATE-1210",
-    "free_heap": 150000,
-    "free_psram": 7500000
+    "firmware": "2.5.32",
+    "build_number": 2532,
+    "model": "MGate-1210(P)",
+    "variant": "P",
+    "is_poe": true,
+    "manufacturer": "SURIOTA"
   }
 }
 ```
 
 #### Response Fields
 
-| Field           | Type   | Description                             |
-| --------------- | ------ | --------------------------------------- |
-| `ble_name`      | string | Auto-generated BLE advertising name     |
-| `mac`           | string | Full Bluetooth MAC address              |
-| `short_mac`     | string | Last 6 hex chars (for quick reference)  |
-| `friendly_name` | string | User-set custom name (empty if not set) |
-| `location`      | string | User-set location (empty if not set)    |
-| `firmware`      | string | Current firmware version                |
-| `model`         | string | Device model identifier                 |
-| `free_heap`     | number | Free DRAM in bytes                      |
-| `free_psram`    | number | Free PSRAM in bytes                     |
+| Field            | Type    | Description                                    |
+| ---------------- | ------- | ---------------------------------------------- |
+| `ble_name`       | string  | Auto-generated BLE advertising name            |
+| `mac`            | string  | Full Bluetooth MAC address                     |
+| `uid`            | string  | Unique ID (last 4 hex chars of MAC)            |
+| `short_mac`      | string  | Last 6 hex chars (for compatibility)           |
+| `serial_number`  | string  | Full serial number                             |
+| `friendly_name`  | string  | User-set custom name (empty if not set)        |
+| `location`       | string  | User-set location (empty if not set)           |
+| `firmware`       | string  | Current firmware version                       |
+| `build_number`   | number  | Firmware build number for OTA comparison       |
+| `model`          | string  | Full product model (e.g., "MGate-1210(P)")     |
+| `variant`        | string  | Product variant ("P" for POE, "" for Non-POE)  |
+| `is_poe`         | boolean | Whether this is POE variant                    |
+| `manufacturer`   | string  | Manufacturer name                              |
 
 ---
 
@@ -227,7 +252,7 @@ Set a user-friendly name for this gateway.
   "status": "ok",
   "command": "set_friendly_name",
   "friendly_name": "Panel Listrik Gedung A",
-  "ble_name": "SURIOTA-A3B2C1",
+  "ble_name": "MGate-1210(P)-A716",
   "message": "Friendly name updated successfully"
 }
 ```
@@ -270,7 +295,7 @@ Set location information for this gateway.
   "status": "ok",
   "command": "set_gateway_location",
   "location": "Lt.1 Ruang Panel",
-  "ble_name": "SURIOTA-A3B2C1",
+  "ble_name": "MGate-1210(P)-A716",
   "message": "Location updated successfully"
 }
 ```
@@ -293,7 +318,7 @@ Set location information for this gateway.
                     ▼                               ▼                ▼
             ┌───────────────┐            ┌───────────────┐   ┌───────────────┐
             │ Filter by     │            │ Parse JSON    │   │ Save to       │
-            │ "SURIOTA-*"   │            │ response      │   │ local DB      │
+            │ "MGate-1210*" │            │ response      │   │ local DB      │
             └───────────────┘            └───────────────┘   └───────────────┘
 ```
 
@@ -304,14 +329,14 @@ Set location information for this gateway.
 │ STEP 1: BLE SCAN                                                          │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  // Start BLE scan with name filter                                      │
-│  scanFilter = "SURIOTA-"                                                 │
+│  // Start BLE scan with name filter (supports both formats)              │
+│  scanFilters = ["MGate-1210", "SURIOTA-"]  // v2.5.32+ and legacy       │
 │                                                                          │
 │  // Results:                                                             │
 │  [                                                                       │
-│    { name: "SURIOTA-A3B2C1", rssi: -45, address: "AA:BB:CC:A3:B2:C1" }, │
-│    { name: "SURIOTA-D4E5F6", rssi: -62, address: "DD:EE:FF:D4:E5:F6" }, │
-│    { name: "SURIOTA-7890AB", rssi: -78, address: "11:22:33:78:90:AB" }  │
+│    { name: "MGate-1210(P)-A716", rssi: -45, address: "AA:BB:CC:DD:A7:16"},│
+│    { name: "MGate-1210(P)-B213", rssi: -62, address: "DD:EE:FF:44:B2:13"},│
+│    { name: "MGate-1210(P)-C726", rssi: -78, address: "11:22:33:CC:C7:26"} │
 │  ]                                                                       │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -323,8 +348,8 @@ Set location information for this gateway.
 │                                                                          │
 │  // For each scanned device, check if we have a friendly name            │
 │  for (device in scanResults) {                                           │
-│    shortMac = device.name.replace("SURIOTA-", "")  // "A3B2C1"          │
-│    cachedInfo = database.getGateway(shortMac)                            │
+│    uid = extractUID(device.name)  // "A716" from "MGate-1210(P)-A716"   │
+│    cachedInfo = database.getGateway(uid)                                 │
 │                                                                          │
 │    if (cachedInfo != null) {                                             │
 │      device.friendlyName = cachedInfo.friendly_name                      │
@@ -371,13 +396,13 @@ Set location information for this gateway.
 │  // Parse response                                                       │
 │  gatewayInfo = JSON.parse(response).data                                 │
 │  // {                                                                    │
-│  //   ble_name: "SURIOTA-A3B2C1",                                       │
-│  //   mac: "AA:BB:CC:A3:B2:C1",                                         │
-│  //   short_mac: "A3B2C1",                                              │
+│  //   ble_name: "MGate-1210(P)-A716",                                   │
+│  //   mac: "AA:BB:CC:DD:A7:16",                                         │
+│  //   uid: "A716",                                                      │
 │  //   friendly_name: "Panel Listrik Gedung A",                          │
 │  //   location: "Lt.1 Ruang Panel",                                     │
-│  //   firmware: "2.5.31",                                               │
-│  //   model: "SRT-MGATE-1210"                                           │
+│  //   firmware: "2.5.32",                                               │
+│  //   model: "MGate-1210(P)"                                            │
 │  // }                                                                    │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -389,7 +414,7 @@ Set location information for this gateway.
 │                                                                          │
 │  // Save or update gateway info in local database                        │
 │  database.upsertGateway({                                                │
-│    short_mac: gatewayInfo.short_mac,      // Primary key                │
+│    uid: gatewayInfo.uid,                // Primary key (e.g., "A716")   │
 │    ble_name: gatewayInfo.ble_name,                                       │
 │    mac: gatewayInfo.mac,                                                 │
 │    friendly_name: gatewayInfo.friendly_name,                             │
@@ -431,7 +456,7 @@ Set location information for this gateway.
 │    }))                                                                   │
 │                                                                          │
 │    // Update local database                                              │
-│    database.updateGateway(shortMac, userInput)                           │
+│    database.updateGateway(uid, userInput)                                │
 │  }                                                                       │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -444,15 +469,15 @@ Set location information for this gateway.
 #### SQLite Schema (Recommended)
 
 ```sql
--- Gateway registry table
+-- Gateway registry table (v2.5.32+)
 CREATE TABLE gateways (
-    short_mac TEXT PRIMARY KEY,        -- "A3B2C1" (unique identifier)
-    ble_name TEXT NOT NULL,            -- "SURIOTA-A3B2C1"
-    mac TEXT NOT NULL,                 -- "AA:BB:CC:A3:B2:C1"
+    uid TEXT PRIMARY KEY,              -- "A716" (unique identifier, 4 hex chars)
+    ble_name TEXT NOT NULL,            -- "MGate-1210(P)-A716"
+    mac TEXT NOT NULL,                 -- "AA:BB:CC:DD:A7:16"
     friendly_name TEXT DEFAULT '',     -- "Panel Listrik Gedung A"
     location TEXT DEFAULT '',          -- "Lt.1 Ruang Panel"
-    firmware TEXT DEFAULT '',          -- "2.5.31"
-    model TEXT DEFAULT '',             -- "SRT-MGATE-1210"
+    firmware TEXT DEFAULT '',          -- "2.5.32"
+    model TEXT DEFAULT '',             -- "MGate-1210(P)"
     last_connected TIMESTAMP,          -- Last connection time
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -462,17 +487,17 @@ CREATE TABLE gateways (
 CREATE INDEX idx_gateways_ble_name ON gateways(ble_name);
 
 -- Example queries
--- Get gateway by short_mac
-SELECT * FROM gateways WHERE short_mac = 'A3B2C1';
+-- Get gateway by uid
+SELECT * FROM gateways WHERE uid = 'A716';
 
 -- Get all registered gateways
 SELECT * FROM gateways ORDER BY last_connected DESC;
 
 -- Update last connected time
-UPDATE gateways SET last_connected = CURRENT_TIMESTAMP WHERE short_mac = 'A3B2C1';
+UPDATE gateways SET last_connected = CURRENT_TIMESTAMP WHERE uid = 'A716';
 
 -- Check if gateway exists
-SELECT COUNT(*) FROM gateways WHERE short_mac = 'A3B2C1';
+SELECT COUNT(*) FROM gateways WHERE uid = 'A716';
 ```
 
 #### Room Entity (Android)
@@ -481,14 +506,14 @@ SELECT COUNT(*) FROM gateways WHERE short_mac = 'A3B2C1';
 @Entity(tableName = "gateways")
 data class Gateway(
     @PrimaryKey
-    @ColumnInfo(name = "short_mac")
-    val shortMac: String,              // "A3B2C1"
+    @ColumnInfo(name = "uid")
+    val uid: String,                   // "A716" (4 hex chars)
 
     @ColumnInfo(name = "ble_name")
-    val bleName: String,               // "SURIOTA-A3B2C1"
+    val bleName: String,               // "MGate-1210(P)-A716"
 
     @ColumnInfo(name = "mac")
-    val mac: String,                   // "AA:BB:CC:A3:B2:C1"
+    val mac: String,                   // "AA:BB:CC:DD:A7:16"
 
     @ColumnInfo(name = "friendly_name")
     val friendlyName: String = "",     // "Panel Listrik Gedung A"
@@ -497,10 +522,10 @@ data class Gateway(
     val location: String = "",         // "Lt.1 Ruang Panel"
 
     @ColumnInfo(name = "firmware")
-    val firmware: String = "",         // "2.5.31"
+    val firmware: String = "",         // "2.5.32"
 
     @ColumnInfo(name = "model")
-    val model: String = "",            // "SRT-MGATE-1210"
+    val model: String = "",            // "MGate-1210(P)"
 
     @ColumnInfo(name = "last_connected")
     val lastConnected: Long? = null,
@@ -511,8 +536,8 @@ data class Gateway(
 
 @Dao
 interface GatewayDao {
-    @Query("SELECT * FROM gateways WHERE short_mac = :shortMac")
-    suspend fun getByShortMac(shortMac: String): Gateway?
+    @Query("SELECT * FROM gateways WHERE uid = :uid")
+    suspend fun getByUID(uid: String): Gateway?
 
     @Query("SELECT * FROM gateways ORDER BY last_connected DESC")
     fun getAllGateways(): Flow<List<Gateway>>
@@ -520,8 +545,8 @@ interface GatewayDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(gateway: Gateway)
 
-    @Query("UPDATE gateways SET last_connected = :timestamp WHERE short_mac = :shortMac")
-    suspend fun updateLastConnected(shortMac: String, timestamp: Long)
+    @Query("UPDATE gateways SET last_connected = :timestamp WHERE uid = :uid")
+    suspend fun updateLastConnected(uid: String, timestamp: Long)
 }
 ```
 
@@ -540,19 +565,19 @@ interface GatewayDao {
 │  │ 🟢 Panel Listrik Gedung A       │   │
 │  │    📍 Lt.1 Ruang Panel          │   │
 │  │    📶 Excellent (-45 dBm)       │   │
-│  │    v2.5.31 • Connected 2m ago   │   │
+│  │    v2.5.32 • Connected 2m ago   │   │
 │  └─────────────────────────────────┘   │
 │                                         │
 │  ┌─────────────────────────────────┐   │
 │  │ 🟢 Chiller Gedung B             │   │
 │  │    📍 Basement Ruang Mesin      │   │
 │  │    📶 Good (-62 dBm)            │   │
-│  │    v2.5.31 • Connected 5m ago   │   │
+│  │    v2.5.32 • Connected 5m ago   │   │
 │  └─────────────────────────────────┘   │
 │                                         │
 │  ┌─────────────────────────────────┐   │
 │  │ 🔵 New Gateway                  │   │
-│  │    SURIOTA-7890AB               │   │
+│  │    MGate-1210(P)-C726           │   │
 │  │    📶 Fair (-78 dBm)            │   │
 │  │    Tap to configure             │   │
 │  └─────────────────────────────────┘   │
@@ -569,9 +594,9 @@ interface GatewayDao {
 │           Configure Gateway              │
 ├─────────────────────────────────────────┤
 │                                         │
-│  Device: SURIOTA-7890AB                 │
-│  MAC: 11:22:33:78:90:AB                 │
-│  Firmware: v2.5.31                      │
+│  Device: MGate-1210(P)-C726             │
+│  MAC: 11:22:33:CC:C7:26                 │
+│  Firmware: v2.5.32                      │
 │                                         │
 │  ┌─────────────────────────────────┐   │
 │  │ Name *                          │   │
@@ -605,21 +630,39 @@ class GatewayScannerViewModel : ViewModel() {
     private val bluetoothAdapter: BluetoothAdapter? =
         BluetoothAdapter.getDefaultAdapter()
 
+    // Support both v2.5.32+ and legacy formats
+    companion object {
+        const val NAME_PREFIX_NEW = "MGate-1210"      // v2.5.32+
+        const val NAME_PREFIX_LEGACY = "SURIOTA-"    // v2.5.31 and older
+    }
+
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val deviceName = result.device.name ?: return
 
-            // Filter for SURIOTA gateways only
-            if (deviceName.startsWith("SURIOTA-")) {
-                val shortMac = deviceName.removePrefix("SURIOTA-")
-                val gateway = ScannedGateway(
-                    bleName = deviceName,
-                    shortMac = shortMac,
-                    address = result.device.address,
-                    rssi = result.rssi
-                )
-                _scannedGateways.value += gateway
+            // Filter for MGate gateways (v2.5.32+) or legacy SURIOTA gateways
+            when {
+                deviceName.startsWith(NAME_PREFIX_NEW) -> {
+                    // v2.5.32+: "MGate-1210(P)-A716" or "MGate-1210-A716"
+                    val uid = deviceName.takeLast(4)  // Last 4 chars = UID
+                    addGateway(deviceName, uid, result)
+                }
+                deviceName.startsWith(NAME_PREFIX_LEGACY) -> {
+                    // Legacy: "SURIOTA-A3B2C1"
+                    val shortMac = deviceName.removePrefix(NAME_PREFIX_LEGACY)
+                    addGateway(deviceName, shortMac, result)
+                }
             }
+        }
+
+        private fun addGateway(name: String, uid: String, result: ScanResult) {
+            val gateway = ScannedGateway(
+                bleName = name,
+                uid = uid,
+                address = result.device.address,
+                rssi = result.rssi
+            )
+            _scannedGateways.value += gateway
         }
     }
 
@@ -629,12 +672,8 @@ class GatewayScannerViewModel : ViewModel() {
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
-        // Optional: Filter by name prefix
-        val filter = ScanFilter.Builder()
-            .setDeviceName("SURIOTA-") // Note: Partial match may not work on all devices
-            .build()
-
-        scanner?.startScan(listOf(filter), settings, scanCallback)
+        // Scan without filter - we'll filter in callback
+        scanner?.startScan(null, settings, scanCallback)
 
         // Stop scan after 10 seconds
         viewModelScope.launch {
@@ -651,13 +690,17 @@ class GatewayScannerViewModel : ViewModel() {
 data class GatewayInfo(
     val bleName: String,
     val mac: String,
+    val uid: String,
     val shortMac: String,
+    val serialNumber: String,
     val friendlyName: String,
     val location: String,
     val firmware: String,
+    val buildNumber: Int,
     val model: String,
-    val freeHeap: Long,
-    val freePsram: Long
+    val variant: String,
+    val isPoe: Boolean,
+    val manufacturer: String
 )
 
 fun parseGatewayInfo(jsonString: String): GatewayInfo? {
@@ -669,13 +712,17 @@ fun parseGatewayInfo(jsonString: String): GatewayInfo? {
         GatewayInfo(
             bleName = data.getString("ble_name"),
             mac = data.getString("mac"),
-            shortMac = data.getString("short_mac"),
+            uid = data.optString("uid", data.optString("short_mac", "")),
+            shortMac = data.optString("short_mac", ""),
+            serialNumber = data.optString("serial_number", ""),
             friendlyName = data.optString("friendly_name", ""),
             location = data.optString("location", ""),
             firmware = data.getString("firmware"),
+            buildNumber = data.optInt("build_number", 0),
             model = data.getString("model"),
-            freeHeap = data.getLong("free_heap"),
-            freePsram = data.getLong("free_psram")
+            variant = data.optString("variant", ""),
+            isPoe = data.optBoolean("is_poe", false),
+            manufacturer = data.optString("manufacturer", "SURIOTA")
         )
     } catch (e: Exception) {
         null
@@ -739,10 +786,14 @@ class GatewayScannerManager: NSObject, CBCentralManagerDelegate {
     private var centralManager: CBCentralManager!
     @Published var scannedGateways: [ScannedGateway] = []
 
+    // Support both v2.5.32+ and legacy formats
+    static let namePrefixNew = "MGate-1210"      // v2.5.32+
+    static let namePrefixLegacy = "SURIOTA-"     // v2.5.31 and older
+
     struct ScannedGateway: Identifiable {
         let id = UUID()
         let bleName: String
-        let shortMac: String
+        let uid: String
         let peripheral: CBPeripheral
         let rssi: Int
     }
@@ -769,17 +820,28 @@ class GatewayScannerManager: NSObject, CBCentralManagerDelegate {
                        advertisementData: [String : Any],
                        rssi RSSI: NSNumber) {
 
-        guard let name = peripheral.name, name.hasPrefix("SURIOTA-") else { return }
+        guard let name = peripheral.name else { return }
 
-        let shortMac = String(name.dropFirst("SURIOTA-".count))
+        var uid: String?
+
+        if name.hasPrefix(Self.namePrefixNew) {
+            // v2.5.32+: "MGate-1210(P)-A716" or "MGate-1210-A716"
+            uid = String(name.suffix(4))  // Last 4 chars = UID
+        } else if name.hasPrefix(Self.namePrefixLegacy) {
+            // Legacy: "SURIOTA-A3B2C1"
+            uid = String(name.dropFirst(Self.namePrefixLegacy.count))
+        }
+
+        guard let extractedUID = uid else { return }
+
         let gateway = ScannedGateway(
             bleName: name,
-            shortMac: shortMac,
+            uid: extractedUID,
             peripheral: peripheral,
             rssi: RSSI.intValue
         )
 
-        if !scannedGateways.contains(where: { $0.shortMac == shortMac }) {
+        if !scannedGateways.contains(where: { $0.uid == extractedUID }) {
             scannedGateways.append(gateway)
         }
     }
@@ -792,24 +854,32 @@ class GatewayScannerManager: NSObject, CBCentralManagerDelegate {
 struct GatewayInfo: Codable {
     let bleName: String
     let mac: String
+    let uid: String
     let shortMac: String
+    let serialNumber: String
     let friendlyName: String
     let location: String
     let firmware: String
+    let buildNumber: Int
     let model: String
-    let freeHeap: Int
-    let freePsram: Int
+    let variant: String
+    let isPoe: Bool
+    let manufacturer: String
 
     enum CodingKeys: String, CodingKey {
         case bleName = "ble_name"
         case mac
+        case uid
         case shortMac = "short_mac"
+        case serialNumber = "serial_number"
         case friendlyName = "friendly_name"
         case location
         case firmware
+        case buildNumber = "build_number"
         case model
-        case freeHeap = "free_heap"
-        case freePsram = "free_psram"
+        case variant
+        case isPoe = "is_poe"
+        case manufacturer
     }
 }
 
@@ -858,13 +928,17 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 ## FAQ
 
-### Q: Can I change the BLE name prefix from "SURIOTA-"?
+### Q: Can I change the BLE name prefix from "MGate-1210"?
 
-**A:** Currently, the prefix is hardcoded. To change it, modify `GatewayConfig::generateBLEName()` in the firmware and recompile.
+**A:** Starting from v2.5.32, the BLE name format is defined in `ProductConfig.h`. To change it, modify `BLE_NAME_PREFIX` and recompile the firmware.
 
-### Q: What happens if two gateways have the same last 3 MAC bytes?
+### Q: What happens if two gateways have the same last 2 MAC bytes?
 
-**A:** This is extremely unlikely (1 in 16.7 million). If it happens, both devices will have the same BLE name but different full MAC addresses. Use the full MAC for identification.
+**A:** This is unlikely (1 in 65,536). If it happens, both devices will have the same BLE name suffix but different full MAC addresses. Use the full MAC for identification.
+
+### Q: How do I support both old and new BLE name formats?
+
+**A:** Scan for devices starting with "MGate-1210" (v2.5.32+) or "SURIOTA-" (legacy). The Python test scripts and mobile app examples in this document show how to handle both formats.
 
 ### Q: Is the friendly_name synced to the cloud?
 
@@ -878,6 +952,10 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 **A:** Factory reset clears `/gateway_config.json`, so friendly_name and location will be empty. The BLE name (MAC-based) remains unchanged.
 
+### Q: What's the difference between `uid` and `short_mac`?
+
+**A:** In v2.5.32+, `uid` is the last 4 hex chars of MAC (2 bytes), used in the BLE name. `short_mac` is the last 6 hex chars (3 bytes), kept for backward compatibility with legacy systems.
+
 ---
 
 ## See Also
@@ -889,6 +967,6 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** December 04, 2025
+**Document Version:** 2.0
+**Last Updated:** December 05, 2025
 **Author:** Kemal (with Claude Code)

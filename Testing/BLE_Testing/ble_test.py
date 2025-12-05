@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
-BLE CRUD Testing Tool for SRT-MGATE-1210
-=========================================
+BLE CRUD Testing Tool for SRT-MGATE-1210 (MGate-1210)
+=====================================================
 
 Interactive BLE testing tool to send JSON commands and receive responses.
 Supports all CRUD operations: Create, Read, Update, Delete
+
+BLE Device Names (v2.5.32+):
+    - MGate-1210(P)-XXXX  (POE variant, XXXX = last 2 bytes of MAC)
+    - MGate-1210-XXXX     (Non-POE variant)
+    - SURIOTA-XXXXXX      (Legacy v2.5.31)
+    - SURIOTA GW          (Legacy older firmware)
 
 Dependencies:
     pip install bleak
@@ -13,7 +19,7 @@ Usage:
     python ble_test.py
 
 Author: Claude Code
-Version: 1.0.3
+Version: 1.1.0
 """
 
 import asyncio
@@ -28,7 +34,13 @@ from bleak import BleakClient, BleakScanner
 SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
 COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
-SERVICE_NAME = "SURIOTA GW"
+
+# v2.5.32+: BLE name format is now "MGate-1210(P)-XXXX" or "MGate-1210-XXXX"
+# Where (P) = POE variant, XXXX = last 2 bytes of MAC (4 hex chars)
+# Legacy: "SURIOTA-XXXXXX" (v2.5.31), "SURIOTA GW" (older)
+SERVICE_NAME_PREFIX = "MGate-1210"  # New format: MGate-1210(P)-XXXX or MGate-1210-XXXX
+SERVICE_NAME_LEGACY_PREFIX = "SURIOTA-"  # v2.5.31 format: SURIOTA-XXXXXX
+SERVICE_NAME_LEGACY = "SURIOTA GW"  # Older firmware format
 
 # ============================================================================
 # Global Variables
@@ -62,8 +74,8 @@ def notification_handler(sender, data):
 # BLE Connection Functions
 # ============================================================================
 async def scan_devices():
-    """Scan for BLE devices and auto-select first SURIOTA GW"""
-    print(f"\n[SCAN] Scanning for '{SERVICE_NAME}'...")
+    """Scan for BLE devices and auto-select first MGate/SURIOTA device"""
+    print(f"\n[SCAN] Scanning for MGate/SURIOTA devices...")
     print("=" * 70)
 
     devices = await BleakScanner.discover(timeout=10.0)
@@ -72,18 +84,47 @@ async def scan_devices():
         print("No BLE devices found!")
         return None
 
-    # Filter for SURIOTA GW devices
-    suriota_devices = [d for d in devices if d.name == SERVICE_NAME]
+    # Find MGate/SURIOTA Gateway - check formats in order:
+    # 1. v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
+    # 2. v2.5.31:  SURIOTA-XXXXXX
+    # 3. Older:    SURIOTA GW
+    gateway_devices = []
+    for device in devices:
+        if device.name:
+            # Check new format: MGate-1210(P)-XXXX or MGate-1210-XXXX (v2.5.32+)
+            if device.name.startswith(SERVICE_NAME_PREFIX):
+                gateway_devices.append(device)
+                print(f"✓ Found: {device.name} ({device.address})")
+            # Check v2.5.31 format: SURIOTA-XXXXXX
+            elif device.name.startswith(SERVICE_NAME_LEGACY_PREFIX):
+                gateway_devices.append(device)
+                print(f"✓ Found (v2.5.31): {device.name} ({device.address})")
+            # Check legacy format: SURIOTA GW (older firmware)
+            elif device.name == SERVICE_NAME_LEGACY:
+                gateway_devices.append(device)
+                print(f"✓ Found (legacy): {device.name} ({device.address})")
 
-    if suriota_devices:
-        device = suriota_devices[0]  # Auto-select first device
-        print(f"✓ Found SURIOTA Gateway")
-        print(f"  Name: {device.name}")
-        print(f"  Address: {device.address}\n")
+    if len(gateway_devices) == 0:
+        print(f"✗ No MGate device found!")
+        print(f"  Looking for: '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}'")
+        return None
+    elif len(gateway_devices) == 1:
+        device = gateway_devices[0]
+        print(f"\n✓ Auto-selected: {device.name}")
         return device
     else:
-        print(f"✗ No '{SERVICE_NAME}' device found!")
-        return None
+        # Multiple devices found - let user choose
+        print(f"\nMultiple MGate devices found:")
+        for i, dev in enumerate(gateway_devices):
+            print(f"  {i+1}. {dev.name} ({dev.address})")
+        try:
+            choice = input(f"Select device (1-{len(gateway_devices)}): ").strip()
+            idx = int(choice) - 1
+            if 0 <= idx < len(gateway_devices):
+                return gateway_devices[idx]
+        except (ValueError, KeyboardInterrupt):
+            pass
+        return gateway_devices[0]  # Default to first if invalid input
 
 
 async def connect_to_device(address):

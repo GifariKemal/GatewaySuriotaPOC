@@ -5,17 +5,19 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.5.31 (December 04, 2025)
+**Version:** 2.5.32 (December 05, 2025)
 **Developer:** Kemal
-**Last Updated:** December 04, 2025
+**Last Updated:** December 05, 2025
 
-> **What's New in v2.5.31:**
-> - ✅ **Multi-Gateway Support** - Unique BLE name per device (MAC-based)
-> - ✅ **Gateway Identity API** - get_gateway_info, set_friendly_name, set_gateway_location
-> - ✅ **Mobile App Integration** - Complete guide for Android/iOS developers
+> **What's New in v2.5.32:**
+> - ✅ **Centralized Product Configuration** - All identity settings in `ProductConfig.h`
+> - ✅ **New BLE Name Format** - `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)
+> - ✅ **Serial Number Format** - `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)
+> - ✅ **Easy Variant Switching** - POE/Non-POE configurable in single file
 > - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full documentation
 >
 > **Previous Highlights:**
+> - v2.5.31: Multi-gateway support, unique BLE names (SURIOTA-XXXXXX)
 > - v2.5.30: OTA buffer optimization (32KB for faster downloads)
 > - v2.5.11: Private GitHub repo OTA support
 > - v2.5.10: OTA signature bug fix
@@ -89,7 +91,7 @@ For detailed documentation on advanced BLE features, see:
 | **OTA Update** | [BLE_OTA_API.md](BLE_OTA_API.md) | Over-the-air firmware update via BLE |
 | **Production Mode** | [BLE_PRODUCTION_MODE.md](BLE_PRODUCTION_MODE.md) | Switch between development and production mode |
 
-> **💡 New in v2.5.31:** Multi-Gateway Support - Each gateway now has a unique BLE name based on its MAC address. See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration guide.
+> **💡 New in v2.5.32:** BLE Name Format Changed to `MGate-1210(P)-XXXX` (POE variant) or `MGate-1210-XXXX` (Non-POE variant). Each gateway has a unique 4-character UID from MAC address. See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration guide.
 
 ---
 
