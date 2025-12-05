@@ -64,10 +64,12 @@ except ImportError:
 SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
 COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
-# v2.5.31+: BLE name format is now "SURIOTA-XXXXXX" (based on MAC address)
-# Legacy: "SURIOTA GW"
-SERVICE_NAME_PREFIX = "SURIOTA-"  # New format: SURIOTA-XXXXXX
-SERVICE_NAME_LEGACY = "SURIOTA GW"  # Legacy format for older firmware
+# v2.5.32+: BLE name format is now "MGate-1210(P)-XXXX" or "MGate-1210-XXXX"
+# Where (P) = POE variant, XXXX = last 2 bytes of MAC (4 hex chars)
+# Legacy: "SURIOTA-XXXXXX" (v2.5.31), "SURIOTA GW" (older)
+SERVICE_NAME_PREFIX = "MGate-1210"  # New format: MGate-1210(P)-XXXX or MGate-1210-XXXX
+SERVICE_NAME_LEGACY_PREFIX = "SURIOTA-"  # v2.5.31 format: SURIOTA-XXXXXX
+SERVICE_NAME_LEGACY = "SURIOTA GW"  # Older firmware format
 
 # Timing Configuration (in seconds)
 SCAN_TIMEOUT = 10.0
@@ -206,7 +208,7 @@ def notification_handler(sender, data):
 
 
 async def scan_for_device():
-    """Scan for SURIOTA Gateway (supports both new and legacy naming)"""
+    """Scan for MGate/SURIOTA Gateway (supports current and legacy naming)"""
     print(f"\n  {Fore.CYAN}📡 Scanning for BLE devices...{Style.RESET_ALL}")
 
     devices = await BleakScanner.discover(timeout=SCAN_TIMEOUT)
@@ -214,14 +216,21 @@ async def scan_for_device():
     if not devices:
         return None
 
-    # Find SURIOTA Gateway - check new format first (SURIOTA-XXXXXX), then legacy (SURIOTA GW)
+    # Find MGate/SURIOTA Gateway - check formats in order:
+    # 1. v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
+    # 2. v2.5.31:  SURIOTA-XXXXXX
+    # 3. Older:    SURIOTA GW
     suriota_devices = []
     for device in devices:
         if device.name:
-            # Check new format: SURIOTA-XXXXXX (v2.5.31+)
+            # Check new format: MGate-1210(P)-XXXX or MGate-1210-XXXX (v2.5.32+)
             if device.name.startswith(SERVICE_NAME_PREFIX):
                 suriota_devices.append(device)
                 print(f"  {Fore.GREEN}✓ Found: {device.name} ({device.address}){Style.RESET_ALL}")
+            # Check v2.5.31 format: SURIOTA-XXXXXX
+            elif device.name.startswith(SERVICE_NAME_LEGACY_PREFIX):
+                suriota_devices.append(device)
+                print(f"  {Fore.GREEN}✓ Found (v2.5.31): {device.name} ({device.address}){Style.RESET_ALL}")
             # Check legacy format: SURIOTA GW (older firmware)
             elif device.name == SERVICE_NAME_LEGACY:
                 suriota_devices.append(device)
@@ -233,7 +242,7 @@ async def scan_for_device():
         return suriota_devices[0]
     else:
         # Multiple devices found - let user choose
-        print(f"\n  {Fore.YELLOW}Multiple SURIOTA devices found:{Style.RESET_ALL}")
+        print(f"\n  {Fore.YELLOW}Multiple MGate devices found:{Style.RESET_ALL}")
         for i, dev in enumerate(suriota_devices):
             print(f"    {i+1}. {dev.name} ({dev.address})")
         try:
@@ -626,11 +635,11 @@ async def run_ota_update():
         # ═══════════════════════════════════════════════════════════════════
         # STEP 0: Connect to device
         # ═══════════════════════════════════════════════════════════════════
-        print_step(0, 4, "Connecting to SURIOTA Gateway", "running")
+        print_step(0, 4, "Connecting to MGate Gateway", "running")
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
+            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -639,7 +648,7 @@ async def run_ota_update():
             print_error("Failed to connect to device")
             return False
 
-        print_success("Connected to SURIOTA Gateway!")
+        print_success("Connected to MGate Gateway!")
 
         # Brief delay for connection stabilization
         await asyncio.sleep(1)
@@ -768,11 +777,11 @@ async def run_interactive_menu():
 
     try:
         # Connect first
-        print_step(0, 0, "Connecting to SURIOTA Gateway", "running")
+        print_step(0, 0, "Connecting to MGate Gateway", "running")
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
+            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -781,7 +790,7 @@ async def run_interactive_menu():
             print_error("Failed to connect to device")
             return False
 
-        print_success("Connected to SURIOTA Gateway!")
+        print_success("Connected to MGate Gateway!")
         await asyncio.sleep(1)
 
         # Auto-set GitHub token
@@ -874,7 +883,7 @@ async def run_set_token(token):
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
+            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
             return False
 
         client = await connect_device(device.address)
@@ -908,7 +917,7 @@ async def run_check_only():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No SURIOTA device found (looking for '{SERVICE_NAME_PREFIX}*' or '{SERVICE_NAME_LEGACY}')")
+            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
             return False
 
         client = await connect_device(device.address)

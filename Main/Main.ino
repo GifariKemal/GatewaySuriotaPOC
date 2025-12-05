@@ -30,9 +30,12 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "JsonDocumentPSRAM.h" // BUG #31: Global PSRAM allocator for ALL JsonDocument instances
 #include "ProductionLogger.h"  // Production mode minimal logging
 
-// Firmware version and device identification
-#define FIRMWARE_VERSION "2.5.31" // v2.5.31: Multi-gateway support - unique BLE name from MAC address
-#define DEVICE_ID "SRT-MGATE-1210"
+// v2.5.32: Product configuration moved to ProductConfig.h
+// All firmware version, model, variant settings are now centralized
+#include "ProductConfig.h"
+
+// Legacy defines for backward compatibility (redirect to ProductConfig)
+#define DEVICE_ID PRODUCT_MODEL
 
 // Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
 // These macros now check g_productionMode at runtime instead of compile-time
@@ -84,9 +87,8 @@ ProductionLogger *productionLogger = nullptr;
 OTAManager *otaManager = nullptr;
 GatewayConfig *gatewayConfig = nullptr;  // v2.5.31: Multi-gateway identity
 
-// v2.5.31: Export firmware version and device ID as const char* for GatewayConfig
-const char* FIRMWARE_VERSION_STR = FIRMWARE_VERSION;
-const char* DEVICE_ID_STR = DEVICE_ID;
+// v2.5.32: Firmware version and device ID now from ProductConfig.h
+// Use FIRMWARE_VERSION, PRODUCT_MODEL, PRODUCT_FULL_MODEL macros directly
 
 // v2.5.1 FIX: Track allocation method for safe cleanup (PSRAM placement new vs standard new)
 // If true: allocated with heap_caps_malloc + placement new (use ~destructor + heap_caps_free)
@@ -629,7 +631,7 @@ void setup()
   if (otaManager)
   {
     // Set current firmware version
-    otaManager->setCurrentVersion(FIRMWARE_VERSION, 2531); // Build number derived from version (2.5.31 = 2531)
+    otaManager->setCurrentVersion(FIRMWARE_VERSION, FIRMWARE_BUILD_NUMBER); // From ProductConfig.h
 
     // Get BLE server from BLEManager for OTA BLE service
     // Note: BLE server is internal to BLEManager, OTA BLE will create its own service

@@ -1,7 +1,9 @@
 /**
  * GatewayConfig.cpp - Gateway Identity Configuration Implementation
  *
- * v2.5.31: Multi-Gateway Support
+ * v2.5.32: Centralized Product Configuration
+ * - Uses ProductConfig.h for BLE name generation
+ * - BLE name format: MGate-1210(P)-XXXX
  */
 
 #include "GatewayConfig.h"
@@ -12,9 +14,10 @@ GatewayConfig* GatewayConfig::instance = nullptr;
 const char* GatewayConfig::CONFIG_FILE = "/gateway_config.json";
 
 GatewayConfig::GatewayConfig()
-    : bleName("SURIOTA-000000"),
+    : bleName(""),
       friendlyName(""),
       location(""),
+      serialNumber(""),
       macString("00:00:00:00:00:00")
 {
     memset(macAddress, 0, sizeof(macAddress));
@@ -46,14 +49,18 @@ bool GatewayConfig::begin() {
              macAddress[3], macAddress[4], macAddress[5]);
     macString = String(macBuf);
 
-    // Generate unique BLE name from MAC
+    // Generate unique BLE name from MAC using ProductConfig
     generateBLEName();
+
+    // Generate serial number
+    generateSerialNumber();
 
     // Load saved config (friendly_name, location)
     load();
 
     LOG_CONFIG_INFO("[GW] Gateway initialized - BLE: %s, MAC: %s",
                     bleName.c_str(), macString.c_str());
+    LOG_CONFIG_INFO("[GW] Serial: %s", serialNumber.c_str());
 
     if (friendlyName.length() > 0) {
         LOG_CONFIG_INFO("[GW] Friendly name: %s", friendlyName.c_str());
@@ -63,14 +70,30 @@ bool GatewayConfig::begin() {
 }
 
 void GatewayConfig::generateBLEName() {
-    // Format: "SURIOTA-XXXXXX" where XXXXXX = last 3 bytes of MAC (6 hex chars)
-    char nameBuf[20];
-    snprintf(nameBuf, sizeof(nameBuf), "SURIOTA-%02X%02X%02X",
-             macAddress[3], macAddress[4], macAddress[5]);
+    // Use ProductConfig to generate BLE name
+    // Format: "MGate-1210(P)-XXXX" where XXXX = last 2 bytes of MAC (4 hex chars)
+    char nameBuf[BLE_NAME_MAX_LENGTH];
+    ProductInfo::generateBLEName(macAddress, nameBuf);
     bleName = String(nameBuf);
 }
 
+void GatewayConfig::generateSerialNumber() {
+    // Use ProductConfig to generate serial number
+    // Format: "SRT-MGATE1210P-YYYYMMDD-XXXXXX"
+    char serialBuf[32];
+    ProductInfo::generateSerialNumber(macAddress, nullptr, serialBuf);
+    serialNumber = String(serialBuf);
+}
+
+String GatewayConfig::getUID() const {
+    // Get UID part of BLE name (last 4 hex chars from MAC)
+    char uid[5];
+    snprintf(uid, sizeof(uid), "%02X%02X", macAddress[4], macAddress[5]);
+    return String(uid);
+}
+
 String GatewayConfig::getShortMAC() const {
+    // Get last 6 hex chars of MAC (for compatibility)
     char shortMac[7];
     snprintf(shortMac, sizeof(shortMac), "%02X%02X%02X",
              macAddress[3], macAddress[4], macAddress[5]);
@@ -169,14 +192,17 @@ bool GatewayConfig::setLocation(const String& loc) {
 void GatewayConfig::getGatewayInfo(JsonDocument& doc) const {
     doc["ble_name"] = bleName;
     doc["mac"] = macString;
+    doc["uid"] = getUID();
     doc["short_mac"] = getShortMAC();
+    doc["serial_number"] = serialNumber;
     doc["friendly_name"] = friendlyName;
     doc["location"] = location;
 
-    // Add firmware info (extern from Main.ino)
-    extern const char* FIRMWARE_VERSION_STR;
-    extern const char* DEVICE_ID_STR;
-
-    doc["firmware"] = FIRMWARE_VERSION_STR;
-    doc["model"] = DEVICE_ID_STR;
+    // Add product info from ProductConfig
+    doc["firmware"] = FIRMWARE_VERSION;
+    doc["build_number"] = FIRMWARE_BUILD_NUMBER;
+    doc["model"] = PRODUCT_FULL_MODEL;
+    doc["variant"] = PRODUCT_VARIANT;
+    doc["is_poe"] = PRODUCT_IS_POE;
+    doc["manufacturer"] = MANUFACTURER_NAME;
 }

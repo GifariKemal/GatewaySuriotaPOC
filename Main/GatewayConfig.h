@@ -1,9 +1,10 @@
 /**
  * GatewayConfig.h - Gateway Identity Configuration
  *
- * v2.5.31: Multi-Gateway Support
- * - Unique BLE name generation from MAC address
- * - User-configurable friendly name
+ * v2.5.32: Centralized Product Configuration
+ * - Uses ProductConfig.h for all identity settings
+ * - BLE name format: MGate-1210(P)-XXXX or MGate-1210-XXXX
+ * - User-configurable friendly name and location
  * - Gateway identification for mobile apps
  *
  * Config file: /gateway_config.json
@@ -16,6 +17,7 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include "DebugConfig.h"
+#include "ProductConfig.h"
 #include <esp_mac.h>
 
 class GatewayConfig {
@@ -23,9 +25,10 @@ private:
     static GatewayConfig* instance;
 
     // Gateway identification
-    String bleName;           // Auto-generated: "SURIOTA-XXXXXX" (from MAC)
+    String bleName;           // Auto-generated from ProductConfig: "MGate-1210(P)-A716"
     String friendlyName;      // User-configurable: "Panel Listrik Gedung A"
     String location;          // Optional: "Lt.1 Ruang Panel"
+    String serialNumber;      // Auto-generated: "SRT-MGATE1210P-20251205-3AC9A7"
     uint8_t macAddress[6];    // BT MAC address
     String macString;         // MAC as string "AA:BB:CC:DD:EE:FF"
 
@@ -33,8 +36,11 @@ private:
 
     GatewayConfig();
 
-    // Generate BLE name from MAC address
+    // Generate BLE name from MAC address using ProductConfig
     void generateBLEName();
+
+    // Generate serial number from MAC address
+    void generateSerialNumber();
 
 public:
     static GatewayConfig* getInstance();
@@ -50,10 +56,14 @@ public:
     const char* getBLEName() const { return bleName.c_str(); }
     const char* getFriendlyName() const { return friendlyName.c_str(); }
     const char* getLocation() const { return location.c_str(); }
+    const char* getSerialNumber() const { return serialNumber.c_str(); }
     const char* getMACString() const { return macString.c_str(); }
     const uint8_t* getMACAddress() const { return macAddress; }
 
-    // Get last 6 hex chars of MAC (for unique ID)
+    // Get UID part of BLE name (last 4 hex chars from MAC)
+    String getUID() const;
+
+    // Get last 6 hex chars of MAC (for compatibility)
     String getShortMAC() const;
 
     // Setters (save to config file)

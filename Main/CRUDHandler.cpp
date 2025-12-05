@@ -11,6 +11,7 @@
 #include "LEDManager.h"     // For stopping LED task during factory reset
 #include "OTAManager.h"     // For OTA update commands via BLE
 #include "GatewayConfig.h"  // For gateway identity (v2.5.31)
+#include "ProductConfig.h"  // For firmware version, model (v2.5.32)
 #include <esp_heap_caps.h>  // For PSRAM allocation
 
 // Make service pointers available to the handler
@@ -471,7 +472,7 @@ void CRUDHandler::setupCommandHandlers()
 
     // Additional info
     (*response)["compile_time_default"] = PRODUCTION_MODE;
-    (*response)["firmware_version"] = "2.5.31";
+    (*response)["firmware_version"] = FIRMWARE_VERSION;  // From ProductConfig.h
 
     // Current log level (use correct type from DebugConfig.h)
     extern LogLevel currentLogLevel;
@@ -525,8 +526,8 @@ void CRUDHandler::setupCommandHandlers()
     // Backup metadata (always included)
     JsonObject backupInfo = (*response)["backup_info"].to<JsonObject>();
     backupInfo["timestamp"] = millis();
-    backupInfo["firmware_version"] = "2.5.31"; // v2.5.31: Multi-gateway support
-    backupInfo["device_name"] = "SURIOTA_GW";
+    backupInfo["firmware_version"] = FIRMWARE_VERSION;  // From ProductConfig.h
+    backupInfo["device_name"] = PRODUCT_FULL_MODEL;  // From ProductConfig.h
 
     // Get all configurations based on section
     JsonObject config = (*response)["config"].to<JsonObject>();
