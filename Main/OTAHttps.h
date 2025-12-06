@@ -1,8 +1,8 @@
 /**
  * @file OTAHttps.h
  * @brief HTTPS OTA Transport Layer - GitHub Integration
- * @version 2.5.30
- * @date 2025-12-02
+ * @version 2.5.34
+ * @date 2025-12-06
  *
  * Provides HTTPS firmware download from GitHub:
  * - GitHub Releases download
@@ -12,6 +12,7 @@
  * - TLS 1.2+ security
  * - Manifest parsing
  *
+ * v2.5.34: Fix memory allocator mismatch (PSRAM/DRAM) - use correct free()
  * v2.5.30: Increase OTA buffer size to 32KB for faster download
  * v2.5.29: Fix OTA resume checksum mismatch when server doesn't support Range
  * v2.5.20: Increased connection timeout (5s), reduced SSL buffer (8KB)
@@ -164,9 +165,10 @@ private:
     // Thread safety
     SemaphoreHandle_t httpMutex;
 
-    // Buffer (allocated in PSRAM)
+    // Buffer (allocated in PSRAM with DRAM fallback)
     uint8_t* downloadBuffer;
     size_t bufferSize;
+    bool bufferFromPsram;  // v2.5.34 FIX: Track allocation source for correct deallocation
 
     // Private constructor (singleton)
     OTAHttps();

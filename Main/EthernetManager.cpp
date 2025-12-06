@@ -3,7 +3,8 @@
 EthernetManager *EthernetManager::instance = nullptr;
 
 EthernetManager::EthernetManager()
-    : initialized(false), referenceCount(0), refCountMutex(nullptr)
+    : initialized(false), configStored(false), referenceCount(0), refCountMutex(nullptr),
+      storedUseDhcp(true), lastReconnectAttempt(0), reconnectCount(0)
 {
   generateMacAddress();
   // Create mutex for reference counting protection
@@ -44,6 +45,13 @@ bool EthernetManager::init(bool useDhcp, IPAddress staticIp, IPAddress gateway, 
     }
     return true;
   }
+
+  // v2.5.33: Store config for reconnect
+  storedUseDhcp = useDhcp;
+  storedStaticIp = staticIp;
+  storedGateway = gateway;
+  storedSubnet = subnet;
+  configStored = true;
 
   // Configure SPI pins for W5500
   SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CS_PIN);
@@ -168,6 +176,74 @@ void EthernetManager::getStatus(JsonObject &status)
     status["link_status"] = (Ethernet.linkStatus() == LinkON) ? "connected" : "disconnected";
     status["hardware_status"] = (Ethernet.hardwareStatus() == EthernetW5500) ? "W5500" : "unknown";
   }
+}
+
+// v2.5.33: Check if config is stored for reconnect
+bool EthernetManager::hasStoredConfig() const
+{
+  return configStored;
+}
+
+// v2.5.33: Attempt to reconnect using stored config
+bool EthernetManager::tryReconnect()
+{
+  if (!configStored)
+  {
+    return false; // No config stored
+  }
+
+  if (initialized && Ethernet.linkStatus() == LinkON)
+  {
+    return true; // Already connected
+  }
+
+  reconnectCount++;
+  lastReconnectAttempt = millis();
+
+  Serial.printf("[ETHERNET] Reconnect attempt #%lu\n", reconnectCount);
+
+  // Check hardware first
+  if (Ethernet.hardwareStatus() == EthernetNoHardware)
+  {
+    Serial.println("[ETHERNET] Reconnect failed: Shield not found");
+    return false;
+  }
+
+  // Check link status
+  if (Ethernet.linkStatus() == LinkOFF)
+  {
+    Serial.printf("[ETHERNET] Reconnect failed: Cable not connected (attempt #%lu)\n", reconnectCount);
+    return false;
+  }
+
+  // Link is ON, try to get IP
+  if (storedUseDhcp)
+  {
+    Serial.println("[ETHERNET] Reconnecting with DHCP...");
+    if (Ethernet.begin(mac) == 0)
+    {
+      Serial.printf("[ETHERNET] DHCP failed (attempt #%lu), will retry later\n", reconnectCount);
+      return false;
+    }
+  }
+  else
+  {
+    Serial.printf("[ETHERNET] Reconnecting with static IP: %s\n", storedStaticIp.toString().c_str());
+    Ethernet.begin(mac, storedStaticIp, storedGateway, storedSubnet);
+  }
+
+  // Verify we got an IP
+  if (Ethernet.localIP() == IPAddress(0, 0, 0, 0))
+  {
+    Serial.printf("[ETHERNET] Reconnect failed: No IP assigned (attempt #%lu)\n", reconnectCount);
+    return false;
+  }
+
+  initialized = true;
+  referenceCount = 1;
+  Serial.printf("[ETHERNET] Reconnected successfully | IP: %s (attempt #%lu)\n",
+                Ethernet.localIP().toString().c_str(), reconnectCount);
+  return true;
 }
 
 EthernetManager::~EthernetManager()

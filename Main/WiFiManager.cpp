@@ -4,7 +4,8 @@
 WiFiManager *WiFiManager::instance = nullptr;
 
 WiFiManager::WiFiManager()
-    : initialized(false), referenceCount(0), refCountMutex(nullptr)
+    : initialized(false), configStored(false), referenceCount(0), refCountMutex(nullptr),
+      lastReconnectAttempt(0), reconnectCount(0)
 {
   // FIXED: Create mutex for thread-safe referenceCount operations
   refCountMutex = xSemaphoreCreateMutex();
@@ -39,6 +40,7 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
 
   ssid = ssidParam;
   password = passwordParam;
+  configStored = true;  // v2.5.33: Mark credentials as stored for reconnect
 
   // Check if already connected to same network
   if (WiFi.status() == WL_CONNECTED && WiFi.SSID() == ssid)
@@ -179,6 +181,63 @@ void WiFiManager::getStatus(JsonObject &status)
       break;
     }
     status["connection_status"] = statusStr;
+  }
+}
+
+// v2.5.33: Check if credentials are stored for reconnect
+bool WiFiManager::hasStoredConfig() const
+{
+  return configStored && ssid.length() > 0;
+}
+
+// v2.5.33: Attempt to reconnect using stored credentials
+bool WiFiManager::tryReconnect()
+{
+  if (!configStored || ssid.isEmpty())
+  {
+    return false; // No credentials stored
+  }
+
+  if (initialized && WiFi.status() == WL_CONNECTED)
+  {
+    return true; // Already connected
+  }
+
+  reconnectCount++;
+  lastReconnectAttempt = millis();
+
+  LOG_NET_INFO("[WiFi] Reconnect attempt #%lu to: %s\n", reconnectCount, ssid.c_str());
+
+  // Disconnect if in bad state
+  if (WiFi.status() != WL_DISCONNECTED && WiFi.status() != WL_IDLE_STATUS)
+  {
+    WiFi.disconnect();
+    delay(100);
+  }
+
+  // Attempt connection
+  WiFi.begin(ssid.c_str(), password.c_str());
+
+  // Wait for connection with shorter timeout (5 seconds for reconnect)
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 10)
+  {
+    delay(500);
+    attempts++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    initialized = true;
+    referenceCount = 1;
+    LOG_NET_INFO("[WiFi] Reconnected successfully | IP: %s (attempt #%lu)\n",
+                 WiFi.localIP().toString().c_str(), reconnectCount);
+    return true;
+  }
+  else
+  {
+    LOG_NET_INFO("[WiFi] Reconnect failed (attempt #%lu), will retry later\n", reconnectCount);
+    return false;
   }
 }
 

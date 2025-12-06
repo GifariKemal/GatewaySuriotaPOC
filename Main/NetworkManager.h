@@ -34,6 +34,10 @@ private:
   uint32_t failoverSwitchDelay = 1000;         // Delay before switching modes (1 second)
   uint32_t signalStrengthCheckInterval = 2000; // Check WiFi signal every 2 seconds
 
+  // v2.5.33: Network reconnect settings
+  uint32_t reconnectInterval = 30000;          // How often to try reconnect (30 seconds)
+  unsigned long lastReconnectAttempt = 0;      // Last reconnect attempt timestamp
+
   // Signal strength monitoring
   struct SignalStrengthMetrics
   {
@@ -86,9 +90,11 @@ public:
   void setFailoverCheckInterval(uint32_t intervalMs);
   void setFailoverSwitchDelay(uint32_t delayMs);
   void setSignalStrengthCheckInterval(uint32_t intervalMs);
+  void setReconnectInterval(uint32_t intervalMs);  // v2.5.33
   uint32_t getFailoverCheckInterval() const;
   uint32_t getFailoverSwitchDelay() const;
   uint32_t getSignalStrengthCheckInterval() const;
+  uint32_t getReconnectInterval() const;  // v2.5.33
 
   // Signal strength query methods
   int32_t getWiFiSignalStrength() const;

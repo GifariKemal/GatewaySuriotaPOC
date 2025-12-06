@@ -60,7 +60,8 @@ OTAHttps::OTAHttps() :
     validator(nullptr),
     progressCallback(nullptr),
     downloadBuffer(nullptr),
-    bufferSize(OTA_HTTPS_BUFFER_SIZE)
+    bufferSize(OTA_HTTPS_BUFFER_SIZE),
+    bufferFromPsram(false)  // v2.5.34 FIX: Initialize to false
 {
     httpMutex = xSemaphoreCreateMutex();
 
@@ -284,12 +285,16 @@ void OTAHttps::cleanupSecureClient() {
 bool OTAHttps::allocateBuffer() {
     freeBuffer();
 
+    // v2.5.34 FIX: Track allocation source to use correct free()
     // Try PSRAM first
     downloadBuffer = (uint8_t*)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!downloadBuffer) {
+    if (downloadBuffer) {
+        bufferFromPsram = true;
+    } else {
         // Fallback to DRAM with smaller buffer
         bufferSize = 1024;
         downloadBuffer = (uint8_t*)malloc(bufferSize);
+        bufferFromPsram = false;
     }
 
     return downloadBuffer != nullptr;
@@ -297,8 +302,14 @@ bool OTAHttps::allocateBuffer() {
 
 void OTAHttps::freeBuffer() {
     if (downloadBuffer) {
-        free(downloadBuffer);
+        // v2.5.34 FIX: Use correct deallocator based on allocation source
+        if (bufferFromPsram) {
+            heap_caps_free(downloadBuffer);
+        } else {
+            free(downloadBuffer);
+        }
         downloadBuffer = nullptr;
+        bufferFromPsram = false;
     }
     bufferSize = OTA_HTTPS_BUFFER_SIZE;
 }

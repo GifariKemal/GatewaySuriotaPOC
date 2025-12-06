@@ -6,9 +6,9 @@ BLE CRUD Testing Tool for SRT-MGATE-1210 (MGate-1210)
 Interactive BLE testing tool to send JSON commands and receive responses.
 Supports all CRUD operations: Create, Read, Update, Delete
 
-BLE Device Names (v2.5.32+):
-    - MGate-1210(P)-XXXX  (POE variant, XXXX = last 2 bytes of MAC)
-    - MGate-1210-XXXX     (Non-POE variant)
+BLE Device Names (v2.5.33+):
+    - MGate-1210(P)XXXX   (POE variant, XXXX = last 2 bytes of MAC)
+    - MGate-1210XXXX      (Non-POE variant)
     - SURIOTA-XXXXXX      (Legacy v2.5.31)
     - SURIOTA GW          (Legacy older firmware)
 
@@ -35,10 +35,10 @@ SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
 COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
 
-# v2.5.32+: BLE name format is now "MGate-1210(P)-XXXX" or "MGate-1210-XXXX"
+# v2.5.33+: BLE name format is now "MGate-1210(P)XXXX" or "MGate-1210XXXX"
 # Where (P) = POE variant, XXXX = last 2 bytes of MAC (4 hex chars)
 # Legacy: "SURIOTA-XXXXXX" (v2.5.31), "SURIOTA GW" (older)
-SERVICE_NAME_PREFIX = "MGate-1210"  # New format: MGate-1210(P)-XXXX or MGate-1210-XXXX
+SERVICE_NAME_PREFIX = "MGate-1210"  # New format: MGate-1210(P)XXXX or MGate-1210XXXX
 SERVICE_NAME_LEGACY_PREFIX = "SURIOTA-"  # v2.5.31 format: SURIOTA-XXXXXX
 SERVICE_NAME_LEGACY = "SURIOTA GW"  # Older firmware format
 
@@ -85,13 +85,13 @@ async def scan_devices():
         return None
 
     # Find MGate/SURIOTA Gateway - check formats in order:
-    # 1. v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
+    # 1. v2.5.33+: MGate-1210(P)XXXX or MGate-1210XXXX
     # 2. v2.5.31:  SURIOTA-XXXXXX
     # 3. Older:    SURIOTA GW
     gateway_devices = []
     for device in devices:
         if device.name:
-            # Check new format: MGate-1210(P)-XXXX or MGate-1210-XXXX (v2.5.32+)
+            # Check new format: MGate-1210(P)XXXX or MGate-1210XXXX (v2.5.33+)
             if device.name.startswith(SERVICE_NAME_PREFIX):
                 gateway_devices.append(device)
                 print(f"✓ Found: {device.name} ({device.address})")

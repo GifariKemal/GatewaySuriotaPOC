@@ -221,10 +221,30 @@ void NetworkMgr::failoverLoop()
 {
   unsigned long lastCheck = 0;
   unsigned long lastSignalCheck = 0;
+  unsigned long lastReconnectCheck = 0;  // v2.5.33: Track reconnect attempts
 
   while (true)
   {
     unsigned long now = millis();
+
+    // v2.5.33: Try to reconnect uninitialized networks periodically
+    // This handles the case where network source was down at startup
+    if (now - lastReconnectCheck >= reconnectInterval)
+    {
+      lastReconnectCheck = now;
+
+      // Try to reconnect WiFi if it has stored config but is not initialized
+      if (wifiManager && wifiManager->hasStoredConfig() && !wifiManager->isInitialized())
+      {
+        wifiManager->tryReconnect();
+      }
+
+      // Try to reconnect Ethernet if it has stored config but is not initialized
+      if (ethernetManager && ethernetManager->hasStoredConfig() && !ethernetManager->isInitialized())
+      {
+        ethernetManager->tryReconnect();
+      }
+    }
 
     // Use configurable check interval instead of hardcoded 5000
     if (now - lastCheck >= failoverCheckInterval)
@@ -553,6 +573,18 @@ uint32_t NetworkMgr::getFailoverSwitchDelay() const
 uint32_t NetworkMgr::getSignalStrengthCheckInterval() const
 {
   return signalStrengthCheckInterval;
+}
+
+// v2.5.33: Reconnect interval setter/getter
+void NetworkMgr::setReconnectInterval(uint32_t intervalMs)
+{
+  reconnectInterval = intervalMs;
+  LOG_NET_INFO("[NetworkMgr] Reconnect interval set to %lu ms\n", intervalMs);
+}
+
+uint32_t NetworkMgr::getReconnectInterval() const
+{
+  return reconnectInterval;
 }
 
 // Signal strength monitoring implementation

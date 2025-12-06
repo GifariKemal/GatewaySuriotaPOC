@@ -23,9 +23,19 @@ ConfigManager::ConfigManager()
   cacheMutex = xSemaphoreCreateMutex();
   fileMutex = xSemaphoreCreateMutex();
 
+  // v2.5.34 FIX: Critical error - must have mutexes for thread safety
   if (!cacheMutex || !fileMutex)
   {
-    LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to create synchronization mutexes");
+    LOG_CONFIG_INFO("[CONFIG] CRITICAL: Failed to create synchronization mutexes - system unstable!");
+    // Try to create missing mutexes one more time
+    if (!cacheMutex) cacheMutex = xSemaphoreCreateMutex();
+    if (!fileMutex) fileMutex = xSemaphoreCreateMutex();
+
+    // If still failed, log fatal error (system will likely crash on first mutex use)
+    if (!cacheMutex || !fileMutex)
+    {
+      LOG_CONFIG_INFO("[CONFIG] FATAL: Mutex creation failed after retry - expect crashes!");
+    }
   }
 
   // Initialize atomic file operations
@@ -204,9 +214,14 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
 
   // Step 2: Allocate buffer in PSRAM (with 10% margin for safety)
   size_t bufferSize = jsonSize + (jsonSize / 10) + 16;
+  bool usedPsram = false;  // v2.5.34 FIX: Track allocation source to use correct free()
   char *psramBuffer = (char *)heap_caps_malloc(bufferSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-  if (!psramBuffer)
+  if (psramBuffer)
+  {
+    usedPsram = true;
+  }
+  else
   {
     // Fallback to DRAM only if PSRAM fails (shouldn't happen with 8MB PSRAM)
     LOG_CONFIG_INFO("[CONFIG] WARNING: PSRAM alloc failed for %u bytes, using DRAM\n", bufferSize);
@@ -222,7 +237,8 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
   size_t written = serializeJson(doc, psramBuffer, bufferSize);
   if (written == 0)
   {
-    heap_caps_free(psramBuffer);
+    // v2.5.34 FIX: Use correct free based on allocation source
+    if (usedPsram) heap_caps_free(psramBuffer); else free(psramBuffer);
     LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to serialize JSON for %s\n", filename.c_str());
     return false;
   }
@@ -230,7 +246,8 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
   // Step 4: Acquire mutex with REDUCED timeout (2s instead of 5s)
   if (xSemaphoreTake(fileMutex, pdMS_TO_TICKS(2000)) != pdTRUE)
   {
-    heap_caps_free(psramBuffer);
+    // v2.5.34 FIX: Use correct free based on allocation source
+    if (usedPsram) heap_caps_free(psramBuffer); else free(psramBuffer);
     LOG_CONFIG_INFO("[CONFIG] ERROR: saveJson(%s) - mutex timeout (2s)\n", filename.c_str());
     return false;
   }
@@ -256,7 +273,8 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
     if (!file)
     {
       xSemaphoreGive(fileMutex);
-      heap_caps_free(psramBuffer);
+      // v2.5.34 FIX: Use correct free based on allocation source
+      if (usedPsram) heap_caps_free(psramBuffer); else free(psramBuffer);
       return false;
     }
 
@@ -268,8 +286,9 @@ bool ConfigManager::saveJson(const String &filename, const JsonDocument &doc)
     xSemaphoreGive(fileMutex);
   }
 
-  // Step 6: Free PSRAM buffer
-  heap_caps_free(psramBuffer);
+  // Step 6: Free buffer using correct deallocator
+  // v2.5.34 FIX: Use correct free based on allocation source
+  if (usedPsram) heap_caps_free(psramBuffer); else free(psramBuffer);
 
   return success;
 }

@@ -172,8 +172,12 @@ int OTAValidator::loadPublicKeyFromFile(const char* filePath) {
     }
 
     // Allocate buffer (PSRAM preferred)
+    // v2.5.34 FIX: Track allocation source to use correct free()
+    bool usedPsram = false;
     char* buffer = (char*)heap_caps_malloc(fileSize + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!buffer) {
+    if (buffer) {
+        usedPsram = true;
+    } else {
         buffer = (char*)malloc(fileSize + 1);
     }
     if (!buffer) {
@@ -186,7 +190,13 @@ int OTAValidator::loadPublicKeyFromFile(const char* filePath) {
     buffer[bytesRead] = '\0';
 
     int ret = loadPublicKeyFromPEM(buffer, bytesRead);
-    free(buffer);
+
+    // v2.5.34 FIX: Use correct deallocator based on allocation source
+    if (usedPsram) {
+        heap_caps_free(buffer);
+    } else {
+        free(buffer);
+    }
 
     return ret;
 }

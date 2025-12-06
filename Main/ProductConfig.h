@@ -1,8 +1,8 @@
 /**
  * @file ProductConfig.h
  * @brief Centralized Product Identity Configuration
- * @version 2.5.32
- * @date 2025-12-05
+ * @version 2.5.34
+ * @date 2025-12-06
  *
  * ============================================================================
  * PRODUCT CONFIGURATION - EDIT HERE FOR ALL IDENTITY SETTINGS
@@ -35,14 +35,14 @@
 // Format: MAJOR.MINOR.PATCH
 // Update this for every release
 
-#define FIRMWARE_VERSION        "2.5.32"
+#define FIRMWARE_VERSION        "2.5.34"
 #define FIRMWARE_VERSION_MAJOR  2
 #define FIRMWARE_VERSION_MINOR  5
-#define FIRMWARE_VERSION_PATCH  32
+#define FIRMWARE_VERSION_PATCH  34
 
-// Build number: Derived from version (2.5.32 = 2532)
+// Build number: Derived from version (2.5.34 = 2534)
 // Used for OTA version comparison
-#define FIRMWARE_BUILD_NUMBER   2532
+#define FIRMWARE_BUILD_NUMBER   2534
 
 // ============================================================================
 // PRODUCT MODEL & VARIANT
@@ -68,12 +68,12 @@
 // ============================================================================
 // BLE NAME FORMAT
 // ============================================================================
-// Format: MGate-1210(P)-XXXX or MGate-1210-XXXX
+// Format: MGate-1210(P)XXXX or MGate-1210XXXX
 // Where XXXX is derived from MAC address (last 2 bytes = 4 hex chars)
 //
 // Examples:
-//   POE:     MGate-1210(P)-A716
-//   Non-POE: MGate-1210-C726
+//   POE:     MGate-1210(P)A716
+//   Non-POE: MGate-1210C726
 
 #define BLE_NAME_PREFIX         "MGate-1210"
 
@@ -171,8 +171,8 @@ public:
      * @return Pointer to buffer
      *
      * Output format:
-     *   POE:     "MGate-1210(P)-A716"
-     *   Non-POE: "MGate-1210-C726"
+     *   POE:     "MGate-1210(P)A716"
+     *   Non-POE: "MGate-1210C726"
      */
     static const char* generateBLEName(const uint8_t* mac, char* buffer) {
         // Generate UID from last 2 bytes of MAC (4 hex chars)
@@ -180,9 +180,9 @@ public:
         snprintf(uid, sizeof(uid), "%02X%02X", mac[4], mac[5]);
 
         #if PRODUCT_IS_POE
-            snprintf(buffer, BLE_NAME_MAX_LENGTH, "%s(P)-%s", BLE_NAME_PREFIX, uid);
+            snprintf(buffer, BLE_NAME_MAX_LENGTH, "%s(P)%s", BLE_NAME_PREFIX, uid);
         #else
-            snprintf(buffer, BLE_NAME_MAX_LENGTH, "%s-%s", BLE_NAME_PREFIX, uid);
+            snprintf(buffer, BLE_NAME_MAX_LENGTH, "%s%s", BLE_NAME_PREFIX, uid);
         #endif
 
         return buffer;
