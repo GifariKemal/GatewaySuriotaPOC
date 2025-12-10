@@ -5,8 +5,8 @@ Multi-Gateway Support & Device Identification
 
 [Home](../../README.md) > [Documentation](../README.md) > [API Reference](API.md) > Gateway Identity
 
-**Version:** 2.5.32
-**Release Date:** December 05, 2025
+**Version:** 2.5.34
+**Release Date:** December 10, 2025
 **Developer:** Kemal
 
 ---
@@ -967,6 +967,6 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** December 05, 2025
+**Document Version:** 2.1
+**Last Updated:** December 10, 2025
 **Author:** Kemal (with Claude Code)

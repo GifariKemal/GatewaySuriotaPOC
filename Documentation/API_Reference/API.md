@@ -1961,9 +1961,9 @@ class SuriotaGateway {
 
 ---
 
-**Document Version:** 1.3 (Updated)
-**Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.11
+**Document Version:** 1.4 (Updated)
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)

@@ -1,7 +1,7 @@
 # 📊 SRT-MGATE-1210 Configuration Calculator & Optimization Guide
 
-**Version:** 2.3.6
-**Last Updated:** November 23, 2025
+**Version:** 2.5.34
+**Last Updated:** December 10, 2025
 **Author:** Kemal (SURIOTA R&D Team)
 **AI Assistant:** Claude Code (Anthropic)
 **Document Status:** ✅ Production Ready

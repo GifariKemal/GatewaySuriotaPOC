@@ -574,7 +574,7 @@ Response includes:
 
 ### Q: What's new in v2.3.x (v2.3.0 - v2.3.11)?
 
-**A:** Latest v2.3.11 (November 26, 2025):
+**A:** Latest v2.5.34 (December 10, 2025):
 - ✅ **CRITICAL BLE Fix** - Command corruption with timeout protection
 - ✅ **ModbusTCP Optimization** - Vector caching, connection pooling, thread safety
 - ✅ **Dynamic Polling** - Respects device refresh_rate_ms
@@ -629,8 +629,8 @@ Response includes:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.11
+**Document Version:** 1.1
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 
 [← Back to Documentation Index](README.md) | [↑ Top](#frequently-asked-questions-faq)

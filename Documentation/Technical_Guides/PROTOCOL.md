@@ -30,7 +30,7 @@ The gateway uses **Bluetooth Low Energy (BLE) 5.0** for configuration and real-t
 | Property                 | Value                                            |
 | ------------------------ | ------------------------------------------------ |
 | **Service UUID**         | `12345678-1234-1234-1234-123456789abc`           |
-| **Service Name**         | `SURIOTA GW`                                     |
+| **Service Name**         | `MGate-1210(P)-XXXX` or `MGate-1210-XXXX` (4 hex chars from MAC) |
 | **MTU Size**             | 23 bytes (minimum), up to 512 bytes (negotiable) |
 | **Connection Interval**  | 7.5ms - 4000ms                                   |
 | **Advertising Interval** | 100ms                                            |
@@ -978,9 +978,9 @@ while (retryCount < 3) {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Document Version:** 1.1
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-protocol-specifications)
 

@@ -1,8 +1,8 @@
 # OTA Deployment Guide - Step by Step
 
-**Document Version:** 1.1
-**Date:** November 28, 2025
-**Firmware Version:** 2.5.10
+**Document Version:** 1.2
+**Date:** December 10, 2025
+**Firmware Version:** 2.5.34
 
 Panduan lengkap untuk deploy OTA firmware update pada SRT-MGATE-1210 Gateway.
 

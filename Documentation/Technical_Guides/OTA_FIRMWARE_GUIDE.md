@@ -1,7 +1,7 @@
 # OTA Firmware Preparation & Deployment Guide
 
-**Version:** 2.5.10
-**Last Updated:** November 28, 2025
+**Version:** 2.5.34
+**Last Updated:** December 10, 2025
 
 Panduan lengkap untuk menyiapkan firmware .bin, upload ke GitHub, dan deployment OTA update ke device.
 

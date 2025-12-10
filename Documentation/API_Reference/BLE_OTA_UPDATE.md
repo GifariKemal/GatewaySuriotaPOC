@@ -1,7 +1,7 @@
 # BLE OTA Update API Reference
 
-**Version:** 2.5.10
-**Last Updated:** November 28, 2025
+**Version:** 2.5.34
+**Last Updated:** December 10, 2025
 
 ---
 

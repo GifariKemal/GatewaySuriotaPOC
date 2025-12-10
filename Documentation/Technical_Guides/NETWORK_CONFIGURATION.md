@@ -5,9 +5,9 @@ Dual Network Interface Configuration & Failover
 
 [Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Network Configuration
 
-**Current Version:** v2.3.11
+**Current Version:** v2.5.34
 **Developer:** Kemal
-**Last Updated:** November 21, 2025
+**Last Updated:** December 10, 2025
 
 ---
 

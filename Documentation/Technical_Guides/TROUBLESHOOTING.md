@@ -1161,8 +1161,8 @@ When requesting support, include:
 ---
 
 **Document Version:** 1.0
-**Last Updated:** November 21, 2025
-**Firmware Version:** 2.3.0
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-troubleshooting-guide)
 

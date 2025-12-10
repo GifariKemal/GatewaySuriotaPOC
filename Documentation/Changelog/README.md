@@ -26,7 +26,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## Version History
 
-### Current Version: 2.3.11 (November 26, 2025)
+### Current Version: 2.5.34 (December 10, 2025)
 
 **Latest Fixes & Optimizations (v2.3.8-v2.3.11):**
 - v2.3.11: CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread safety)
@@ -275,8 +275,8 @@ Found a bug or have a feature request?
 
 ---
 
-**Last Updated:** November 26, 2025
-**Current Version:** 2.3.11
+**Last Updated:** December 10, 2025
+**Current Version:** 2.5.34
 **Next Release:** TBA
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#changelog)

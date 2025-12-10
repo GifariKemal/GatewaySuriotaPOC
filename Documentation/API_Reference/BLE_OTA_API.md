@@ -1,6 +1,6 @@
 # BLE OTA API Reference
 
-**Version:** 1.0.0 | **Updated:** November 29, 2025 | **Device:** SRT-MGATE-1210
+**Version:** 1.1.0 | **Updated:** December 10, 2025 | **Device:** SRT-MGATE-1210
 
 ---
 

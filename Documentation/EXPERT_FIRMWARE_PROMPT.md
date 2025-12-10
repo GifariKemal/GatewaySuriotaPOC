@@ -506,9 +506,9 @@ USB CDC On Boot: Enabled
 
 ## Version Information
 
-- **Current Firmware Version:** v2.3.6
-- **CLAUDE.md Version:** 2.3.3
-- **Last Updated:** November 22, 2025
+- **Current Firmware Version:** v2.5.34
+- **CLAUDE.md Version:** 2.5.34
+- **Last Updated:** December 10, 2025
 - **Platform:** ESP32-S3 (Arduino Framework)
 - **License:** MIT
 
@@ -536,6 +536,6 @@ USB CDC On Boot: Enabled
 
 ---
 
-_Generated: 2025-11-24_
-_Firmware Version: v2.3.6_
+_Generated: 2025-12-10_
+_Firmware Version: v2.5.34_
 _Made with ❤️ by SURIOTA R&D Team_

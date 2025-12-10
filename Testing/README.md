@@ -2,7 +2,7 @@
 
 **SRT-MGATE-1210 Gateway Firmware Testing Suite**
 
-**Last Updated:** November 26, 2025 (v2.3.11)
+**Last Updated:** December 10, 2025 (v2.5.34)
 
 ---
 
@@ -486,9 +486,9 @@ When reporting test failures, include:
 
 ---
 
-**Testing Documentation Version:** 1.0
-**Last Updated:** November 22, 2025
-**Firmware Version:** 2.3.11
+**Testing Documentation Version:** 1.1
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 **Maintainer:** Kemal
 
 [← Back to Main README](../README.md) | [↑ Top](#-testing-documentation)

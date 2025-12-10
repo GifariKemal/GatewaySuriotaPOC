@@ -1,7 +1,7 @@
 # BLE API: Production Mode Control
 
-**Version:** 2.3.5
-**Last Updated:** November 26, 2025
+**Version:** 2.5.34
+**Last Updated:** December 10, 2025
 **Feature:** Runtime Production Mode Switching via BLE
 
 ---

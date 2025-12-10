@@ -740,9 +740,9 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 22, 2025
-**Firmware Version:** 2.3.11
+**Document Version:** 1.1
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md) | [↑ Top](#best-practices-guide)

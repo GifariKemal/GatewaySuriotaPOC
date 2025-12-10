@@ -1,6 +1,6 @@
 # OTA Update System - SRT-MGATE-1210
 
-**Version:** 1.1.0 | **Updated:** November 28, 2025 | **Author:** Suriota R&D Team
+**Version:** 1.2.0 | **Updated:** December 10, 2025 | **Author:** Suriota R&D Team
 
 ---
 

@@ -254,8 +254,8 @@ If you're updating from an older firmware version with basic Serial.println() lo
 
 ---
 
-**Last Updated:** November 26, 2025
-**Current Version:** 2.3.11
-**Optimization Status:** Ongoing (Latest: v2.3.11 - BLE fixes, ModbusTCP vector caching, thread safety, dynamic polling)
+**Last Updated:** December 10, 2025
+**Current Version:** 2.5.34
+**Optimization Status:** Ongoing (Latest: v2.5.34 - Memory allocator fixes, Network failover task, Multi-gateway BLE support)
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#optimization-documentation)

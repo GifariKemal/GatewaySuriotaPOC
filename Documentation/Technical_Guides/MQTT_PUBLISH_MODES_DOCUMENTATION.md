@@ -4,15 +4,15 @@
 
 [Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > MQTT Publish Modes
 
-**Current Version:** v2.1.1
+**Current Version:** v2.5.34
 **Developer:** Kemal
-**Last Updated:** November 21, 2025
+**Last Updated:** December 10, 2025
 
 ---
 
 ## Overview
 
-SRT-MGATE-1210 Firmware v2.1.1 supports 2 configurable MQTT publishing modes:
+SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 - **Default Mode**: Batch publishing - all data in 1 payload
 - **Customize Mode**: Multi-topic publishing - data grouped per topic with different intervals
 
@@ -1193,9 +1193,9 @@ client.on('message', (topic, message) => {
 
 ---
 
-**Document Version:** 2.0 (Translated)
-**Last Updated:** November 21, 2025
-**Firmware Version:** v2.1.1
+**Document Version:** 2.1 (Updated)
+**Last Updated:** December 10, 2025
+**Firmware Version:** v2.5.34
 **Developer:** Kemal
 
 [← Back to Technical Guides](README.md) | [↑ Top](#mqtt-publish-modes---documentation)

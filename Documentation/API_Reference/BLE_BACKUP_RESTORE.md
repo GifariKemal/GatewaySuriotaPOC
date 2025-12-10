@@ -1,7 +1,7 @@
 # BLE Backup & Restore API Reference
 
-**Version:** 1.2.0 (Pagination Support!)
-**Last Updated:** November 30, 2025
+**Version:** 1.3.0 (Pagination Support!)
+**Last Updated:** December 10, 2025
 **Component:** BLE CRUD Handler - Configuration Backup & Restore
 **Firmware Required:** v2.5.12+
 

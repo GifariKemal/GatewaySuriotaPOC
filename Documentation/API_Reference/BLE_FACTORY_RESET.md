@@ -1,7 +1,7 @@
 # BLE Factory Reset API Reference
 
-**Version:** 1.0.0
-**Last Updated:** November 26, 2025
+**Version:** 1.1.0
+**Last Updated:** December 10, 2025
 **Component:** BLE CRUD Handler - System Operations
 
 ---

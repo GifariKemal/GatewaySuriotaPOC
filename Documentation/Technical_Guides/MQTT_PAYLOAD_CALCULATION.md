@@ -1,7 +1,7 @@
 # MQTT Payload Size Calculation Guide
 
-**Version:** 1.0
-**Date:** 2025-11-22
+**Version:** 1.1
+**Date:** 2025-12-10
 **Project:** SRT-MGATE-1210 Gateway
 
 ---
