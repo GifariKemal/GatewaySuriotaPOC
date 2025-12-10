@@ -131,7 +131,7 @@ The **Production Mode Control** feature allows applications to switch the gatewa
   "saved_mode_name": "Development",
   "is_synced": true,
   "compile_time_default": 0,
-  "firmware_version": "2.3.5",
+  "firmware_version": "2.5.34",
   "log_level": 3,
   "log_level_name": "INFO",
   "uptime_ms": 45230
@@ -421,7 +421,7 @@ When in **Production Mode (1)**, the serial output is minimal JSON format:
 
 ### Boot Message
 ```json
-{"ts":"2025-11-26T09:30:47","t":"SYS","e":"BOOT","v":"2.3.4","id":"SRT-MGATE-1210","mem":{"d":112352,"p":8248068}}
+{"ts":"2025-12-10T09:30:47","t":"SYS","e":"BOOT","v":"2.5.34","id":"SRT-MGATE-1210","mem":{"d":112352,"p":8248068}}
 ```
 
 ### Heartbeat (every 60 seconds)

@@ -15,7 +15,7 @@ This directory contains version history, release notes, bug analysis, and capaci
 ## Quick Navigation
 
 ### Current Documentation
-- **[Version History](VERSION_HISTORY.md)** - Complete release notes (v2.0 - v2.3.0)
+- **[Version History](VERSION_HISTORY.md)** - Complete release notes (v2.0 - v2.5.34)
 - **[Capacity Analysis](CAPACITY_ANALYSIS.md)** - Performance limits and scalability
 - **[Use Cases & Failure Recovery](USE_CASES_FAILURE_RECOVERY.md)** - Real-world scenarios
 
@@ -28,24 +28,25 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ### Current Version: 2.5.34 (December 10, 2025)
 
-**Latest Fixes & Optimizations (v2.3.8-v2.3.11):**
-- v2.3.11: CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread safety)
-- v2.3.10: TCP connection pool optimization (180x reduction in recreations, 99% reuse)
-- v2.3.9: CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
-- v2.3.8: Performance optimization (shadow copy, stack optimization, DRAM defragmentation)
-- v2.3.4-v2.3.7: BLE transmission timeout fixes, MQTT interval corrections, log enhancements
+**Latest Fixes & Features (v2.5.x):**
+- v2.5.34: CRITICAL memory allocator mismatch fix (new/delete vs malloc/free)
+- v2.5.33: Network failover task (NET_FAILOVER_TASK) for auto-reconnection
+- v2.5.32: Centralized ProductConfig.h, new BLE name format (MGate-1210(P)-XXXX)
+- v2.5.31: Multi-gateway BLE support with unique names from MAC address
+- v2.5.30: OTA buffer optimization (32KB for faster downloads)
+- v2.5.11: Private GitHub repo OTA support via GitHub API
+- v2.5.10: OTA signature bug fix (double-hash issue)
 
-**Previous Bug Fixes (v2.3.3):**
-- Fixed BUG #32: Restore config failure for large JSON payloads (3420+ bytes)
-- Fixed register_index stuck at 0 during device creation with registers
-- Fixed device ID not preserved during restore operations
+**Previous Critical Fixes (v2.5.1):**
+- DRAM exhaustion fix: saveJson() uses PSRAM buffer instead of Arduino String
+- MQTT loop fix: Interval timestamp updated BEFORE queue check
+- Memory thresholds adjusted for realistic BLE operation
+- SSL compatibility: setCACert() with DigiCert for ESP32 Arduino 3.x
 
-**Key Improvements (v2.3.0-v2.3.2):**
-- Clean API structure with dedicated config sections
-- Enhanced network configuration documentation
-- Improved error handling and recovery
-- MQTT partial publish bug fix (all devices complete before publish)
-- Memory leak fixes (device deletion cache clearing)
+**Key Features (v2.3.x series):**
+- BLE command corruption fix + ModbusTCP optimization
+- TCP connection pool (99% connection reuse)
+- Backup/restore system, factory reset, device control
 
 **See:** [VERSION_HISTORY.md](VERSION_HISTORY.md) for complete details
 
@@ -53,12 +54,15 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 | Version | Release Date | Key Features |
 |---------|--------------|--------------|
-| **v2.3.3** | Nov 22, 2025 | BUG #32 fix (restore config), register index fix |
-| **v2.3.2** | Nov 21, 2025 | MQTT partial publish bug fix |
-| **v2.3.1** | Nov 21, 2025 | Memory leak & device deletion bug fixes |
-| **v2.3.0** | Nov 21, 2025 | Backup/restore system, factory reset, device control |
-| **v2.1.1** | Nov 2025 | 28x faster BLE transmission, enhanced CRUD |
-| **v2.1.0** | Oct 2025 | Priority queue, batch operations |
+| **v2.5.34** | Dec 10, 2025 | Memory allocator fix (new/delete vs malloc/free) |
+| **v2.5.33** | Dec 09, 2025 | Network failover task (NET_FAILOVER_TASK) |
+| **v2.5.32** | Dec 05, 2025 | ProductConfig.h, BLE name MGate-1210(P)-XXXX |
+| **v2.5.31** | Dec 04, 2025 | Multi-gateway BLE support |
+| **v2.5.11** | Nov 28, 2025 | Private GitHub repo OTA support |
+| **v2.5.1** | Nov 27, 2025 | DRAM exhaustion fix, MQTT loop fix |
+| **v2.3.15** | Nov 26, 2025 | CRITICAL MQTT retain flag fix |
+| **v2.3.11** | Nov 26, 2025 | BLE corruption fix, ModbusTCP optimization |
+| **v2.3.0** | Nov 21, 2025 | Backup/restore, factory reset, device control |
 | **v2.0** | Oct 2024 | Initial stable release |
 
 ---
@@ -76,42 +80,57 @@ This directory contains version history, release notes, bug analysis, and capaci
 
 ## What's New
 
-### v2.3.3 Highlights (Current)
+### v2.5.34 Highlights (Current)
 
-**Bug Fixes:**
-- Fixed BUG #32: Restore config failure for large JSON payloads
-- Fixed register_index stuck at 0 during device creation
-- Fixed device ID not preserved during restore operations
-- All backup/restore operations now fully stable (100% success rate)
+**Critical Bug Fixes:**
+- Fixed memory allocator mismatch (new/delete vs malloc/free)
+- Prevents heap corruption and random crashes
+- Improved stability for long-term deployment
 
-**See:** [VERSION_HISTORY.md](VERSION_HISTORY.md#v233) for details
+**See:** [VERSION_HISTORY.md](VERSION_HISTORY.md#v2534) for details
 
-### v2.3.0-2.3.2 Highlights
-
-**Breaking Changes:**
-- API structure reorganization
-- HTTP configuration moved to `http_config` object
-- `data_interval` field removed from root level
+### v2.5.32 Highlights
 
 **New Features:**
-- Improved network configuration documentation
-- Enhanced API structure
-- Better error recovery
+- **ProductConfig.h** - Single source of truth for product identity
+- **New BLE Name Format** - `MGate-1210(P)-XXXX` (4 hex chars from MAC)
+- **POE Variant Support** - Easy switch between POE and Non-POE builds
+- **Serial Number Format** - `SRT-MGATE1210P-YYYYMMDD-XXXXXX`
 
-**Migration Guide:** See [VERSION_HISTORY.md](VERSION_HISTORY.md#v220-migration-guide)
+**Breaking Changes:**
+- BLE name changed from `SURIOTA-XXXXXX` to `MGate-1210(P)-XXXX`
+- Mobile apps need to update BLE scan filter
 
-### v2.1.1 Highlights
+### v2.5.1 Highlights
 
-**Performance:**
-- 28x faster BLE transmission (21KB in 2.1s vs 58s)
-- Enhanced CRUD response format
-- New `devices_with_registers` endpoint
+**Critical Fixes:**
+- DRAM exhaustion fix in saveJson() - now uses PSRAM buffer
+- MQTT loop spam fix - interval checked BEFORE queue empty check
+- Memory thresholds adjusted (CRITICAL: 20KB→12KB, EMERGENCY: 10KB→8KB)
+- SSL compatibility for ESP32 Arduino 3.x
 
-**See:** [VERSION_HISTORY.md](VERSION_HISTORY.md#v211) for details
+**See:** [VERSION_HISTORY.md](VERSION_HISTORY.md#v251) for details
 
 ---
 
 ## Migration Guides
+
+### Upgrading from v2.3.x to v2.5.x
+
+**BLE Name Change (v2.5.32+):**
+```
+// OLD (v2.3.x - v2.5.31)
+BLE Name: "SURIOTA-XXXXXX"  (6 hex chars)
+
+// NEW (v2.5.32+)
+BLE Name: "MGate-1210(P)-XXXX"  (4 hex chars)
+```
+
+**Mobile App Update Required:**
+- Update BLE scan filter from `"SURIOTA-"` to `"MGate-1210"`
+- Both formats supported in transition period
+
+**Full Guide:** [VERSION_HISTORY.md - v2.5.32](VERSION_HISTORY.md#v2532)
 
 ### Upgrading from v2.1.1 to v2.3.0
 

@@ -1672,7 +1672,7 @@ const RESPONSE_CHAR_UUID = '12345678-1234-1234-1234-123456789abe';
 // Connect to gateway
 async function connectToGateway() {
   const device = await navigator.bluetooth.requestDevice({
-    filters: [{ name: 'SURIOTA GW' }],
+    filters: [{ namePrefix: 'MGate-1210' }],  // v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
     optionalServices: [SERVICE_UUID]
   });
 
@@ -1789,7 +1789,7 @@ async def send_command(client, command):
 async def main():
     # Scan for gateway
     devices = await BleakScanner.discover()
-    gateway = next((d for d in devices if d.name == "SURIOTA GW"), None)
+    gateway = next((d for d in devices if d.name and d.name.startswith("MGate-1210")), None)  # v2.5.32+
 
     if not gateway:
         print("Gateway not found")
@@ -1856,7 +1856,7 @@ class SuriotaGateway {
 
     var subscription = FlutterBluePlus.scanResults.listen((results) {
       for (ScanResult r in results) {
-        if (r.device.name == "SURIOTA GW") {
+        if (r.device.name.startsWith("MGate-1210")) {  // v2.5.32+: MGate-1210(P)-XXXX
           device = r.device;
           FlutterBluePlus.stopScan();
         }

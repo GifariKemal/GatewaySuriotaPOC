@@ -74,7 +74,7 @@ View serial output:
 ### Issue: Gateway not discoverable
 
 **Symptoms:**
-- BLE device "SURIOTA GW" not appearing in scan
+- BLE device "MGate-1210(P)-XXXX" (v2.5.32+) or "SURIOTA-XXXXXX" (legacy) not appearing in scan
 - Mobile app can't find gateway
 
 **Diagnosis:**

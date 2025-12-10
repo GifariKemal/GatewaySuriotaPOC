@@ -1187,7 +1187,7 @@ Weekly review of:
 
 1. **Check BLE Status**
    ```
-   Expected log: [BLE] Advertising started with name: SURIOTA GW
+   Expected log: [BLE] Advertising started with name: MGate-1210(P)-A716
 
    If missing:
    ├─ BLE not initialized
@@ -1196,7 +1196,7 @@ Weekly review of:
 
 2. **Check BLE Name**
    ```
-   App should see: "SURIOTA GW"
+   App should see: "MGate-1210(P)-XXXX" (v2.5.32+) or "SURIOTA-XXXXXX" (v2.5.31-)
 
    If different name or not visible:
    ├─ Wrong device (check MAC address)

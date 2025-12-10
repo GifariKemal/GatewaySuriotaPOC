@@ -123,8 +123,8 @@ Export complete gateway configuration including all devices, registers, server s
   "status": "ok",
   "backup_info": {
     "timestamp": 1732123456,
-    "firmware_version": "2.3.1",
-    "device_name": "SURIOTA_GW",
+    "firmware_version": "2.5.34",
+    "device_name": "MGate-1210(P)-A716",
     "total_devices": 5,
     "total_registers": 50,
     "processing_time_ms": 350,
