@@ -8,7 +8,82 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.31 (Current - Multi-Gateway Support)
+## 🚀 Version 2.5.34 (Current - Memory Safety Fix)
+
+**Release Date:** December 10, 2025 (Tuesday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release fixes critical memory allocator mismatch bugs where objects allocated with placement new in PSRAM were incorrectly freed with standard delete, causing potential memory corruption.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. FIX: Memory Allocator Mismatch
+**Severity:** 🔴 CRITICAL (Memory safety)
+
+**Change:** Fixed PSRAM allocation/deallocation pattern for singleton managers.
+**Impact:** Prevents potential memory corruption and crashes.
+
+#### 2. DOC: Bug Status Report Update
+**Severity:** 🟢 DOCUMENTATION
+
+**Change:** Updated BUG_STATUS_REPORT.md to reflect:
+- BUG #17 (Network Failover): Marked as **FIXED** (failover task implemented in v2.5.33)
+- BUG #18 (BLE MTU): Changed to **ACCEPTABLE** (workaround sufficient)
+- BUG #20 (Modbus RTU Timeout): Confirmed **FIXED** (v2.2.0)
+
+---
+
+### 📝 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `Documentation/Changelog/BUG_STATUS_REPORT.md` | Updated bug status, marked #17 as fixed |
+
+---
+
+## 🚀 Version 2.5.33 (Network Failover Task)
+
+**Release Date:** December 06, 2025 (Friday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release implements the Network Failover Task to automatically reconnect and switch between WiFi and Ethernet when network issues occur.
+
+### ✨ **Key Changes**
+
+- ✅ **Failover Task** - `NET_FAILOVER_TASK` running on Core 0
+- ✅ **Auto-Reconnect** - Networks down at startup will retry periodically
+- ✅ **Thread-Safe Switching** - Mutex protection for mode switching
+
+---
+
+## 🚀 Version 2.5.32 (Centralized Product Configuration)
+
+**Release Date:** December 05, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release centralizes all product identity settings in a single file (`ProductConfig.h`).
+
+### ✨ **Key Changes**
+
+- ✅ **ProductConfig.h** - Single source of truth for all identity settings
+- ✅ **BLE Name Format** - Changed from `SURIOTA-XXXXXX` to `MGate-1210(P)-XXXX`
+- ✅ **Serial Number Format** - `SRT-MGATE1210P-YYYYMMDD-XXXXXX`
+- ✅ **Easy Variant Switch** - POE/Non-POE configurable in single file
+
+---
+
+## 🚀 Version 2.5.31 (Multi-Gateway Support)
 
 **Release Date:** December 04, 2025 (Wednesday)
 **Developer:** Kemal (with Claude Code)

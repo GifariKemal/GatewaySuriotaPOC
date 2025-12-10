@@ -39,12 +39,9 @@ Get your gateway configured and running in 5 minutes
 1. **Open nRF Connect** on your mobile device
 2. **Scan for devices** - Look for device named:
    ```
-   SRT-MGATE-1210
+   MGate-1210(P)XXXX
    ```
-   or
-   ```
-   Modbus-Gateway-XXXX
-   ```
+   Where XXXX is derived from the device's MAC address (e.g., `MGate-1210(P)A716`)
 
 3. **Connect** to the device
 4. **Find the UART service:**
@@ -530,9 +527,9 @@ Now that your gateway is running, explore these topics:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 26, 2025
-**Firmware Version:** 2.3.11
+**Document Version:** 2.0
+**Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34
 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md)

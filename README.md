@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-2.3.11-blue.svg)
+![Version](https://img.shields.io/badge/version-2.5.34-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
@@ -9,7 +9,7 @@
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
 Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Developer:** Kemal | **Last Updated:** November 26, 2025
+**Developer:** Kemal | **Last Updated:** December 10, 2025
 
 ---
 
@@ -219,7 +219,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 7. **Connect via BLE**
    - Development mode: BLE always ON
    - Production mode: Long-press button to enable BLE
-   - Scan for: **"SURIOTA GW"**
+   - Scan for: **"MGate-1210(P)XXXX"** (where XXXX is derived from MAC address)
 
 ### First Device Configuration
 
@@ -392,7 +392,7 @@ graph LR
 
 Comprehensive documentation is available in the `Documentation/` directory:
 
-> **Latest Update:** November 20, 2025 by Kemal
+> **Latest Update:** December 10, 2025 by Kemal
 > - 📚 **Complete documentation overhaul** - 100% English with consistent navigation
 > - 🗂️ **New documentation hub** - Central README with role-based navigation
 > - ⚡ **Quick Start Guide** - Get configured in 5 minutes
@@ -656,41 +656,40 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ## 📈 Changelog
 
-### Version 2.3.11 (2025-11-26) - Current ⭐
+### Version 2.5.34 (2025-12-10) - Current ⭐
+
+**Memory Safety & Bug Fixes Release**
+
+**Developer:** Kemal | **Release Date:** December 10, 2025
+
+#### 🔴 CRITICAL BUG FIXES
+- ✅ **Memory Allocator Mismatch** - Fixed critical bugs where objects allocated with placement new in PSRAM were incorrectly freed with standard delete
+- ✅ **MQTT Retain Flag** - Added `retain=true` to MQTT publish for message persistence
+- ✅ **OTA Signature Verification** - Fixed double-hash bug in firmware signing
+
+#### ✨ NEW FEATURES
+- ✅ **Multi-Gateway Support (v2.5.31)** - Unique BLE names from MAC address
+- ✅ **Centralized Product Config (v2.5.32)** - Single source of truth for product identity
+- ✅ **BLE Name Format** - Changed from `SURIOTA-XXXXXX` to `MGate-1210(P)-XXXX`
+- ✅ **Network Failover Task** - Automatic network reconnection and failover
+
+#### ⚡ PERFORMANCE OPTIMIZATIONS
+- ✅ **OTA Buffer** - Increased to 32KB for faster downloads
+- ✅ **Memory Thresholds** - Adjusted for realistic BLE operation
+
+**Migration:** No breaking changes. All improvements are backward compatible.
+
+**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+
+---
+
+### Version 2.3.11 (2025-11-26)
 
 **Critical Fixes & Optimization Release**
 
-**Developer:** Kemal | **Release Date:** November 26, 2025
-
-#### 🔴 CRITICAL BUG FIXES
-- ✅ **BUG #38: BLE Command Corruption** - Fixed incomplete command processing
-  - Timeout protection (5-second timeout)
-  - `<START>` marker handling for buffer clearing
-  - Buffer validation before processing `<END>`
-  - Prevents partial command execution
-
-- ✅ **BUG #37: ErrorHandler Array Overflow** - Fixed hardcoded array bounds
-  - DOMAIN_COUNT constant to prevent array overflows
-  - Dynamic error tracking per domain
-
-#### ⚡ MAJOR PERFORMANCE OPTIMIZATIONS
-- ✅ **ModbusTCP Dramatic Optimization**
-  - **Vector Caching**: Eliminates 100% of file system access during polling
-  - **Connection Pooling**: 50% reduction in TCP handshakes (per-device vs per-register)
-  - **Thread Safety**: Recursive mutex protection for device vectors
-  - **Dynamic Polling**: Loop delay respects device-specific `refresh_rate_ms`
-
-- ✅ **TCP Connection Pool** (v2.3.10) - 180x reduction in connection recreations
-  - 99% connection reuse rate
-  - Dramatic performance improvement
-
-#### 🛠️ Additional Improvements
-- ✅ **Timestamp Support** - Added to Modbus polling for better diagnostics
-- ✅ **Thread Safety** - Mutex protection for ModbusRTU and ModbusTCP device vectors
-
-**Migration:** No breaking changes. Performance improvements are automatic.
-
-**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete details
+- ✅ **BLE Command Corruption Fix** - Timeout protection and marker handling
+- ✅ **ModbusTCP Optimization** - Vector caching, connection pooling
+- ✅ **Thread Safety** - Mutex protection for device vectors
 
 ---
 
@@ -836,23 +835,21 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ## 🚦 Roadmap
 
-### Completed (v2.2.0 - Current)
+### Completed (v2.5.34 - Current)
 
+- [x] **Multi-Gateway Support**: Unique BLE names from MAC address (v2.5.31 - Kemal)
+- [x] **Centralized Product Config**: Single source of truth for identity (v2.5.32 - Kemal)
+- [x] **Memory Safety Fixes**: PSRAM allocation/deallocation fixes (v2.5.34 - Kemal)
+- [x] **Network Failover**: Automatic failover task implementation (v2.5.33 - Kemal)
+- [x] **OTA Updates**: Over-the-air firmware updates with signature verification (v2.5.10+ - Kemal)
 - [x] **Documentation Excellence**: Complete English docs with navigation (v2.2.0 - Kemal)
-- [x] **Documentation Hub**: Central README with role-based navigation (v2.2.0 - Kemal)
-- [x] **Quick Start Guide**: 5-minute setup guide (v2.2.0 - Kemal)
-- [x] **FAQ & Glossary**: 60+ Q&A and A-Z terminology (v2.2.0 - Kemal)
 - [x] **BLE Optimization**: 28x faster transmission (v2.1.1 - Kemal)
 - [x] **Enhanced CRUD API**: Full data responses (v2.1.1 - Kemal)
-- [x] **Hierarchical Data API**: devices_with_registers endpoint (v2.1.1 - Kemal)
 - [x] **Complete Documentation**: 16+ technical documents with guides (v2.0.0)
 - [x] **Open Source**: MIT License with contribution guidelines (v2.0.0)
 - [x] **Data Type Reference**: 40+ Modbus types with manufacturer configs (v2.0.0)
-- [x] **Library Guide**: Complete Arduino IDE setup instructions (v2.0.0)
 
 ### Planned Features
-
-- [ ] **OTA Updates**: Over-the-air firmware updates via MQTT
 - [ ] **Modbus Write Operations**: Support for actuator control (FC 05, 06, 15, 16)
 - [ ] **Local Dashboard**: Web interface for real-time monitoring
 - [ ] **SD Card Logging**: Historical data storage with CSV export

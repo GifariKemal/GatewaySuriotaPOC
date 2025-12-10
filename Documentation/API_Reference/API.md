@@ -5,23 +5,22 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.5.32 (December 05, 2025)
+**Version:** 2.5.34 (December 10, 2025)
 **Developer:** Kemal
-**Last Updated:** December 05, 2025
+**Last Updated:** December 10, 2025
 
-> **What's New in v2.5.32:**
-> - ✅ **Centralized Product Configuration** - All identity settings in `ProductConfig.h`
-> - ✅ **New BLE Name Format** - `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)
-> - ✅ **Serial Number Format** - `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)
-> - ✅ **Easy Variant Switching** - POE/Non-POE configurable in single file
+> **What's New in v2.5.34:**
+> - ✅ **Memory Safety Fix** - Fixed critical PSRAM allocator mismatch bugs
+> - ✅ **Network Failover Task** - Automatic reconnection and failover (v2.5.33)
+> - ✅ **Centralized Product Config** - All identity settings in `ProductConfig.h` (v2.5.32)
+> - ✅ **BLE Name Format** - `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)
 > - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full documentation
 >
 > **Previous Highlights:**
-> - v2.5.31: Multi-gateway support, unique BLE names (SURIOTA-XXXXXX)
+> - v2.5.31: Multi-gateway support, unique BLE names from MAC address
 > - v2.5.30: OTA buffer optimization (32KB for faster downloads)
 > - v2.5.11: Private GitHub repo OTA support
 > - v2.5.10: OTA signature bug fix
-> - v2.5.1: DRAM exhaustion fix, MQTT loop fix
 > - v2.3.x: BLE fixes, ModbusTCP optimization, Backup/Restore, Factory Reset
 >
 > See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for complete changelog.

@@ -1,8 +1,8 @@
 # SRT-MGATE-1210 Documentation
 
 **Modbus IIoT Gateway Documentation Hub**
-**Current Version:** 2.3.11
-**Last Updated:** November 26, 2025
+**Current Version:** 2.5.34
+**Last Updated:** December 10, 2025
 
 ---
 
@@ -107,11 +107,11 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 ## 📖 Quick Reference
 
 ### Product Specifications
-- **Model:** SRT-MGATE-1210
+- **Model:** SRT-MGATE-1210 (MGate-1210(P) for POE variant)
 - **MCU:** ESP32-S3-WROOM-1-N16R8 (16MB Flash, 8MB PSRAM)
 - **Protocols:** Modbus RTU, Modbus TCP, MQTT, HTTP, BLE 5.0
-- **Network:** WiFi 802.11 b/g/n, Ethernet (optional)
-- **Firmware:** v2.3.11 (November 2025)
+- **Network:** WiFi 802.11 b/g/n, Ethernet (W5500)
+- **Firmware:** v2.5.34 (December 2025)
 
 ### Key Features
 - ✅ **Multi-Protocol:** Bridge Modbus devices to MQTT/HTTP/BLE
@@ -135,33 +135,34 @@ This is the complete documentation for the **SRT-MGATE-1210 Modbus IIoT Gateway*
 
 ## 🔄 Version Information
 
-### Current Version: 2.3.11 (November 26, 2025)
+### Current Version: 2.5.34 (December 10, 2025)
 
 **Latest Updates:**
-- ✅ **CRITICAL BLE Fix (v2.3.11)** - Fixed command corruption with timeout protection and marker handling
-- ✅ **ModbusTCP Optimization (v2.3.11)** - Vector caching (100% file access elimination), connection pooling
-- ✅ **Thread Safety (v2.3.11)** - Mutex protection for device vectors in Modbus services
-- ✅ **BUG #32 Fix (v2.3.3)** - Fixed restore config failure for large JSON payloads
+- ✅ **Memory Safety Fix (v2.5.34)** - Fixed critical PSRAM allocator mismatch bugs
+- ✅ **Multi-Gateway Support (v2.5.31)** - Unique BLE names from MAC address
+- ✅ **Centralized Product Config (v2.5.32)** - Single source of truth for product identity
+- ✅ **BLE Name Format** - Changed to `MGate-1210(P)-XXXX` format
+- ✅ **Network Failover Task (v2.5.33)** - Automatic network reconnection and failover
+- ✅ **OTA Updates (v2.5.10+)** - Over-the-air firmware updates with signature verification
 
-**Recent Features (v2.3.0-2.3.2):**
+**Key Features:**
 - ✅ **Backup & Restore System** - Complete configuration backup/restore via BLE (up to 200KB)
 - ✅ **Factory Reset Command** - One-command device reset to factory defaults
 - ✅ **Device Control API** - Enable/disable devices with health metrics and auto-recovery
-- ✅ **BLE Response Size** - Increased from 10KB to 200KB for large configurations
-- ✅ **MQTT Partial Publish Fix** - All devices now complete before MQTT publish
+- ✅ **Gateway Identity** - Custom friendly names and location settings
 
-**Migration:** No breaking changes. All fixes are backward compatible.
+**Migration:** No breaking changes. All updates are backward compatible.
 
-**Full Details:** See [Version History](Changelog/VERSION_HISTORY.md) for complete migration guide.
+**Full Details:** See [Version History](Changelog/VERSION_HISTORY.md) for complete changelog.
 
 ### Previous Versions
-- **v2.3.2** - MQTT partial publish bug fix (November 21, 2025)
-- **v2.3.1** - Memory leak & device deletion bug fixes (November 21, 2025)
-- **v2.3.0** - Backup/restore system, factory reset, device control (November 21, 2025)
-- **v2.2.0** - Documentation excellence (100% English, comprehensive navigation)
-- **v2.1.1** - 28x faster BLE transmission, enhanced CRUD responses
-- **v2.1.0** - Priority queue, batch operations
-- **v2.0** - Initial stable release
+- **v2.5.33** - Network failover task implementation (December 2025)
+- **v2.5.32** - Centralized ProductConfig.h (December 2025)
+- **v2.5.31** - Multi-gateway BLE support (December 2025)
+- **v2.5.10-v2.5.11** - OTA from private repos, signature verification fix
+- **v2.3.11** - BLE command corruption fix, ModbusTCP optimization
+- **v2.3.0** - Backup/restore system, factory reset, device control
+- **v2.2.0** - Documentation excellence (100% English)
 
 ---
 
@@ -248,14 +249,14 @@ Documentation/
 
 | Status | Description |
 |--------|-------------|
-| ✅ Current | Up-to-date documentation for v2.2.0 |
+| ✅ Current | Up-to-date documentation for v2.5.34 |
 | 🔄 Active | Under active development/maintenance |
 | 📦 Archived | Historical reference, may be outdated |
 | ⚠️ Deprecated | Replaced by newer documentation |
 
 ---
 
-**Documentation Version:** 1.0
-**Last Review:** November 20, 2025
+**Documentation Version:** 2.0
+**Last Review:** December 10, 2025
 **Maintainer:** Kemal
-**License:** Proprietary - SRT-MGATE-1210 Project
+**License:** MIT - SRT-MGATE-1210 Project
