@@ -1,12 +1,15 @@
 /**
  * @file OTAManager.cpp
  * @brief OTA Update Manager Implementation
- * @version 1.0.0
- * @date 2025-11-26
+ * @version 2.5.35
+ * @date 2025-12-12
+ *
+ * v2.5.35: Include OTAHttps.h here instead of in OTAManager.h to avoid ESP_SSLClient linker errors
  */
 
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTAManager.h"
+#include "OTAHttps.h"     // v2.5.35: Include here instead of in header (ESP_SSLClient fix)
 #include "JsonDocumentPSRAM.h"
 #include <LittleFS.h>
 #include <esp_heap_caps.h>

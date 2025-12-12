@@ -254,6 +254,9 @@ public:
   bool getDeviceStatusInfo(const String &deviceId, JsonObject &statusInfo);
   bool getAllDevicesStatus(JsonObject &allStatus);
 
+  // v2.5.35: Get aggregated Modbus stats for ProductionLogger
+  void getAggregatedStats(uint32_t &totalSuccess, uint32_t &totalFailed);
+
   ~ModbusTcpService();
 };
 

@@ -1,8 +1,10 @@
 /**
  * @file OTAConfig.h
  * @brief OTA Update System Configuration
- * @version 1.0.0
- * @date 2025-11-26
+ * @version 2.5.35
+ * @date 2025-12-12
+ *
+ * v2.5.35: Added FirmwareManifest struct (moved from OTAHttps.h to fix linker errors)
  *
  * Configuration constants, partition layout, and GitHub integration settings
  * for the SRT-MGATE-1210 OTA Update System.
@@ -299,6 +301,32 @@ struct OTAPackageHeader {
 #define OTA_FLAG_ENCRYPTED      0x0002  // Firmware is encrypted (future)
 #define OTA_FLAG_COMPRESSED     0x0004  // Firmware is compressed (future)
 #define OTA_FLAG_DELTA          0x0008  // Delta update (future)
+
+// ============================================
+// FIRMWARE MANIFEST STRUCT (v2.5.35: Moved from OTAHttps.h)
+// ============================================
+/**
+ * @brief Firmware manifest from GitHub
+ * Used by OTAManager, OTAHttps, and OTACrudBridge
+ */
+struct FirmwareManifest {
+    String version;
+    uint32_t buildNumber;
+    String releaseDate;
+    String minVersion;
+    String changelog;
+
+    String firmwareUrl;
+    uint32_t firmwareSize;
+    String sha256Hash;
+    String signature;  // Base64 encoded
+
+    bool mandatory;
+    bool valid;
+
+    FirmwareManifest() : buildNumber(0), firmwareSize(0),
+                         mandatory(false), valid(false) {}
+};
 
 // ============================================
 // CALLBACK TYPES

@@ -1,8 +1,8 @@
 /**
  * @file OTAHttps.h
  * @brief HTTPS OTA Transport Layer - GitHub Integration
- * @version 2.5.34
- * @date 2025-12-06
+ * @version 2.5.35
+ * @date 2025-12-12
  *
  * Provides HTTPS firmware download from GitHub:
  * - GitHub Releases download
@@ -12,6 +12,7 @@
  * - TLS 1.2+ security
  * - Manifest parsing
  *
+ * v2.5.35: Fix ESP_SSLClient v3.x linker error - moved #include to OTAHttps.cpp only
  * v2.5.34: Fix memory allocator mismatch (PSRAM/DRAM) - use correct free()
  * v2.5.30: Increase OTA buffer size to 32KB for faster download
  * v2.5.29: Fix OTA resume checksum mismatch when server doesn't support Range
@@ -31,7 +32,9 @@
 #include <WiFi.h>              // v2.5.3: For WiFiClient base transport
 
 // ============================================
-// v2.5.9: ESP_SSLClient Configuration (MUST BE BEFORE #include)
+// v2.5.35: ESP_SSLClient Configuration
+// NOTE: ESP_SSLClient.h is included ONLY in OTAHttps.cpp to avoid
+// "multiple definition" linker errors from ESP_SSLClient v3.x Helper.h
 // ============================================
 // Enable PSRAM for SSL buffers - this is the KEY fix for "record too large" error
 // ESP32-S3 has 8MB PSRAM, plenty for SSL buffers
@@ -43,7 +46,9 @@
 // Enable debug for troubleshooting (set to 0 for production)
 #define ESP_SSLCLIENT_ENABLE_DEBUG 0
 
-#include <ESP_SSLClient.h>      // v2.5.9: mobizt ESP_SSLClient with PSRAM support
+// v2.5.35: Forward declare ESP_SSLClient instead of including header
+// The actual #include <ESP_SSLClient.h> is in OTAHttps.cpp ONLY
+class ESP_SSLClient;
 
 #include "GitHubTrustAnchors.h" // GitHub root CA certificates
 #include <Update.h>
@@ -56,27 +61,7 @@
 class OTAHttps;
 class OTAValidator;
 
-/**
- * @brief Firmware manifest from GitHub
- */
-struct FirmwareManifest {
-    String version;
-    uint32_t buildNumber;
-    String releaseDate;
-    String minVersion;
-    String changelog;
-
-    String firmwareUrl;
-    uint32_t firmwareSize;
-    String sha256Hash;
-    String signature;  // Base64 encoded
-
-    bool mandatory;
-    bool valid;
-
-    FirmwareManifest() : buildNumber(0), firmwareSize(0),
-                         mandatory(false), valid(false) {}
-};
+// v2.5.35: FirmwareManifest struct moved to OTAConfig.h (included above via OTAValidator.h)
 
 /**
  * @brief GitHub repository configuration

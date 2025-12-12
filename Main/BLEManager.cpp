@@ -465,7 +465,8 @@ void BLEManager::handleCompleteCommand(const char *command)
   // Restore commands can be 3-4KB, backup responses can be 10-20KB
   if (cmdLen > COMMAND_BUFFER_SIZE)
   {
-    Serial.printf("[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n",
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINTF("[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n",
                   cmdLen, COMMAND_BUFFER_SIZE);
     sendError("Command exceeds buffer size");
     return;
@@ -659,14 +660,20 @@ void BLEManager::sendFragmented(const char *data, size_t length)
     return; // Abort large transmission
   }
 
-  // Log low DRAM warning (non-critical)
+  // Log low DRAM warning (non-critical) with throttling
   // Threshold lowered to 25KB based on empirical testing:
   // - BLE connected with no devices: stable at 28-29KB DRAM
   // - 30KB threshold caused excessive warnings during normal operation
   // - 25KB threshold provides safety margin while reducing log noise
+  // v2.5.35: Added 30-second throttling to prevent log spam during streaming
   if (freeDRAM < 25000)
   { // <25KB free DRAM
-    LOG_BLE_INFO("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
+    static unsigned long lastLowDramWarning = 0;
+    unsigned long now = millis();
+    if (now - lastLowDramWarning > 30000) { // Throttle: 1 warning per 30 seconds
+      LOG_BLE_INFO("[BLE] WARNING: Low DRAM (%zu bytes). Proceeding with caution.\n", freeDRAM);
+      lastLowDramWarning = now;
+    }
   }
 
   // Track active transmission (atomic increment)

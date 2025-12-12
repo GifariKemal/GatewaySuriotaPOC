@@ -1,7 +1,7 @@
+#include "DebugConfig.h"  // MUST BE FIRST for DEV_SERIAL_* macros
 #include "MqttManager.h"
 #include "LEDManager.h"
 #include "RTCManager.h"
-#include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <set> // For std::set to track cleared devices
 
@@ -625,8 +625,9 @@ bool MqttManager::serializeAndValidatePayload(
       else
       {
         LOG_MQTT_INFO("[MQTT] Invalid payload too large (%u bytes)\n", payload.length());
-        Serial.printf("  First 200 chars: %s\n", payload.substring(0, 200).c_str());
-        Serial.printf("  Last 200 chars: %s\n", payload.substring(max(0, (int)payload.length() - 200)).c_str());
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("  First 200 chars: %s\n", payload.substring(0, 200).c_str());
+        DEV_SERIAL_PRINTF("  Last 200 chars: %s\n", payload.substring(max(0, (int)payload.length() - 200)).c_str());
       }
       return false;
     }

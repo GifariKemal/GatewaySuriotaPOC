@@ -1,9 +1,12 @@
 /**
  * @file OTAHttps.cpp
  * @brief HTTPS OTA Transport Implementation
- * @version 2.5.30
- * @date 2025-12-02
+ * @version 2.5.35
+ * @date 2025-12-12
  *
+ * v2.5.35: Fix ESP_SSLClient v3.x "multiple definition" linker error
+ *          ESP_SSLClient.h now included ONLY here (not in OTAHttps.h)
+ *          Helper.h has non-inline functions that cause linker errors
  * v2.5.30: Increase OTA buffer size to 32KB for faster download
  * v2.5.29: CRITICAL FIX - OTA resume checksum mismatch
  *          GitHub API does NOT support HTTP Range requests (always returns 200)
@@ -24,10 +27,15 @@
 #include "DebugConfig.h"  // MUST BE FIRST
 
 #include "OTAHttps.h"
+
+// v2.5.35: Include ESP_SSLClient.h ONLY here to avoid linker errors
+// ESP_SSLClient v3.x has non-inline functions in Helper.h that cause
+// "multiple definition" errors if included by multiple .cpp files
+#include <ESP_SSLClient.h>
+
 #include "JsonDocumentPSRAM.h"  // For SpiRamJsonDocument
 #include <esp_heap_caps.h>
 #include <mbedtls/base64.h>
-// v2.5.9: ESP_SSLClient (mobizt) with PSRAM support for large SSL buffers
 
 // Singleton instance
 OTAHttps* OTAHttps::instance = nullptr;

@@ -1,8 +1,8 @@
 /**
  * @file OTAManager.h
  * @brief OTA Update Manager - Main State Machine Controller
- * @version 1.0.0
- * @date 2025-11-26
+ * @version 2.5.35
+ * @date 2025-12-12
  *
  * Central controller for OTA updates:
  * - State machine (IDLE → CHECKING → DOWNLOADING → VALIDATING → APPLYING → REBOOTING)
@@ -14,15 +14,20 @@
  * Integration:
  * - OTAValidator: Signature/checksum verification
  * - OTAHttps: GitHub download transport
+ *
+ * v2.5.35: ESP_SSLClient linker fix - forward declare OTAHttps, add ArduinoJson include
  */
 
 #ifndef OTA_MANAGER_H
 #define OTA_MANAGER_H
 
 #include "DebugConfig.h"  // MUST BE FIRST
-#include "OTAConfig.h"
+#include "OTAConfig.h"    // Contains FirmwareManifest struct (v2.5.35)
 #include "OTAValidator.h"
-#include "OTAHttps.h"
+#include "JsonDocumentPSRAM.h"  // v2.5.35: Required for JsonObject in handleCrudCommand()
+// v2.5.35: Forward declare OTAHttps instead of including OTAHttps.h
+// This prevents ESP_SSLClient from being included in every file that includes OTAManager.h
+// OTAHttps.h is only included in OTAManager.cpp
 #include <Arduino.h>
 #include <Preferences.h>
 #include <esp_ota_ops.h>
@@ -32,6 +37,7 @@
 
 // Forward declarations
 class OTAManager;
+class OTAHttps;  // v2.5.35: Forward declare to avoid ESP_SSLClient linker issues
 class BLEServer;
 
 /**

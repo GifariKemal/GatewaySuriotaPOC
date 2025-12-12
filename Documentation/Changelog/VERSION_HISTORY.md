@@ -8,7 +8,170 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.34 (Current - Memory Safety Fix)
+## 🚀 Version 2.5.35 (Current - Log Spam & Network Status Fix)
+
+**Release Date:** December 12, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release fixes two issues: excessive "Low DRAM" warning spam during BLE streaming, and incorrect hardcoded ETH network status in production mode logs.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. FIX: BLE Low DRAM Warning Spam
+**Severity:** 🟡 MEDIUM (Log quality)
+
+**Problem:** During BLE streaming, "Low DRAM" warning was logged every ~100-200ms, flooding serial output with hundreds of identical messages.
+
+**Solution:** Added 30-second throttling to the warning. Now logs maximum 1 warning per 30 seconds instead of every transmission.
+
+**File:** `BLEManager.cpp:668-676`
+
+#### 2. FIX: Hardcoded ETH Network Status
+**Severity:** 🟡 MEDIUM (Incorrect logging)
+
+**Problem:** Production logger always reported `"net":"ETH"` regardless of actual active network. WiFi connections incorrectly shown as Ethernet.
+
+**Solution:** Now checks `networkManager->getCurrentMode()` to determine actual active network (WIFI/ETH/NONE).
+
+**File:** `Main.ino:677-694`
+
+#### 3. FIX: Modbus Error Logs Leaking to Production
+**Severity:** 🟡 MEDIUM (Log leakage)
+
+**Problem:** Modbus register read errors (`D7227b: Temperature_5 = ERROR`) were printed using raw `Serial.printf()` which bypasses production mode checks. These debug messages appeared in production logs.
+
+**Solution:** Replaced all `Serial.printf("%s: %s = ERROR\n", ...)` with `DEV_SERIAL_PRINTF()` macro which respects `PRODUCTION_MODE`.
+
+**Files:** `ModbusRtuService.cpp` (3 locations), `ModbusTcpService.cpp` (2 locations)
+
+#### 4. FIX: WiFi Connection Dots Leaking to Production
+**Severity:** 🟢 LOW (Cosmetic)
+
+**Problem:** WiFi connection progress dots (`........`) were printed using raw `Serial.print(".")` which bypasses production mode checks.
+
+**Solution:** Replaced with `DEV_SERIAL_PRINT()` macro.
+
+**File:** `WiFiManager.cpp:69-84`
+
+#### 5. FIX: Comprehensive Production Log Leak Audit
+**Severity:** 🟡 MEDIUM (Log quality)
+
+**Problem:** Multiple files had raw `Serial.print*()` calls that bypass production mode checks, causing debug messages to appear in production logs.
+
+**Solution:** Replaced all inappropriate `Serial.print*()` with `DEV_SERIAL_*()` macros in:
+- `CRUDHandler.cpp` - Streaming start/stop logs
+- `BLEManager.cpp` - Command buffer overflow error
+- `MqttManager.cpp` - Invalid payload debug info
+- `EthernetManager.cpp` - All initialization/reconnect logs (23 instances)
+
+**Note:** Some logs are INTENTIONALLY kept for audit (factory reset, production mode change).
+
+#### 6. NEW: DEV_SERIAL_* Macros Added
+**Severity:** 🟢 ENHANCEMENT
+
+Added new convenience macros in `DebugConfig.h` for development-only Serial output:
+- `DEV_SERIAL_PRINT(msg)` - Wrapper for `Serial.print()`
+- `DEV_SERIAL_PRINTLN(msg)` - Wrapper for `Serial.println()`
+- `DEV_SERIAL_PRINTF(...)` - Wrapper for `Serial.printf()`
+
+These macros only execute when `IS_DEV_MODE()` returns true.
+
+#### 7. FIX: ESP_SSLClient Linker Error
+**Severity:** 🔴 CRITICAL (Build failure)
+
+**Problem:** After ESP_SSLClient library update (v3.x), linker error "multiple definition of key_bssl::*" occurred. The new library version has non-inline functions in `Helper.h` within `namespace key_bssl` that cause multiple definitions when header is included by multiple .cpp files.
+
+**Root Cause:** Multiple .cpp files (`OTAHttps.cpp`, `OTAManager.cpp`) were including `OTAHttps.h` which included `<ESP_SSLClient.h>` → `Helper.h`. The functions in Helper.h are not marked `inline`, causing duplicate symbol definitions.
+
+**Solution (Multi-layered):**
+
+1. **OTACrudBridge Pattern:** Created bridge layer to isolate OTAManager includes:
+   - `CRUDHandler.cpp` → `OTACrudBridge.h` (no ESP_SSLClient chain)
+   - `Main.ino` → `OTACrudBridge.h` (no ESP_SSLClient chain)
+   - `OTACrudBridge.cpp` → `OTAManager.h` → `OTAHttps.h` (forward declare only)
+
+2. **ESP_SSLClient Include Consolidation:**
+   - Moved `#include <ESP_SSLClient.h>` from `OTAHttps.h` to `OTAHttps.cpp`
+   - `OTAHttps.h` now uses forward declaration: `class ESP_SSLClient;`
+   - Only `OTAHttps.cpp` includes the actual ESP_SSLClient header
+
+**Files Added:**
+- `Main/OTACrudBridge.h` - Function declarations for OTA CRUD operations
+- `Main/OTACrudBridge.cpp` - Implementation that includes OTAManager.h
+
+**Files Modified:**
+- `Main/OTAHttps.h` - Removed `#include <ESP_SSLClient.h>`, added `class ESP_SSLClient;`
+- `Main/OTAHttps.cpp` - Added `#include <ESP_SSLClient.h>` (ONLY file with this include)
+- `Main/OTAManager.h` - Forward declare `OTAHttps` instead of include
+
+**Impact:** Build succeeds with ESP_SSLClient v3.x library. No functional changes to OTA commands.
+
+#### 8. FIX: Production Heartbeat Network Status Always NONE
+**Severity:** 🟡 MEDIUM (Incorrect logging)
+
+**Problem:** Production heartbeat JSON always showed `"net":"NONE"` even when WiFi or Ethernet was connected. Network status was only set once at boot, not updated when network connected later.
+
+**Solution:** Update network status dynamically in the heartbeat loop by checking `networkManager->getCurrentMode()` before each heartbeat.
+
+**File:** `Main.ino:731-748`
+
+#### 9. NEW: Modbus Stats in Production Heartbeat
+**Severity:** 🟢 ENHANCEMENT
+
+**Problem:** Production heartbeat showed `"mb":{"ok":0,"er":0}` because Modbus stats were never reported to ProductionLogger.
+
+**Solution:**
+- Added `getAggregatedStats()` method to both `ModbusRtuService` and `ModbusTcpService`
+- Main loop now aggregates stats from both RTU and TCP services
+- Stats are passed to `ProductionLogger::logModbusStats()` before each heartbeat
+
+**Files Modified:**
+- `Main/ModbusRtuService.h` - Added `getAggregatedStats()` declaration
+- `Main/ModbusRtuService.cpp` - Added `getAggregatedStats()` implementation
+- `Main/ModbusTcpService.h` - Added `getAggregatedStats()` declaration
+- `Main/ModbusTcpService.cpp` - Added `getAggregatedStats()` implementation
+- `Main/Main.ino` - Added Modbus stats collection in heartbeat loop
+
+**Result:** Production log now shows accurate Modbus polling statistics:
+```json
+{"ts":"...","t":"HB","up":60,"mem":{...},"net":"WIFI","proto":"mqtt","st":"OK","err":0,"mb":{"ok":150,"er":3}}
+```
+
+---
+
+### 📝 **Files Modified**
+
+| File | Change |
+|------|--------|
+| `Main/DebugConfig.h` | Added DEV_SERIAL_PRINT/PRINTLN/PRINTF macros |
+| `Main/BLEManager.cpp` | Added 30-second throttling + DEV_SERIAL for buffer error |
+| `Main/Main.ino` | Fixed network status detection in ProductionLogger |
+| `Main/ModbusRtuService.cpp` | Moved DebugConfig.h to first + 3x DEV_SERIAL_PRINTF |
+| `Main/ModbusTcpService.cpp` | Moved DebugConfig.h to first + 2x DEV_SERIAL_PRINTF |
+| `Main/WiFiManager.cpp` | Changed WiFi progress dots to DEV_SERIAL_* |
+| `Main/CRUDHandler.cpp` | Use OTACrudBridge instead of OTAManager.h direct include |
+| `Main/MqttManager.cpp` | Moved DebugConfig.h to first + payload debug to DEV_SERIAL_* |
+| `Main/EthernetManager.cpp` | Added DebugConfig.h + all 23 Serial.print* → DEV_SERIAL_* |
+| `Main/ConfigManager.cpp` | Changed 3x startup logs to DEV_SERIAL_* |
+| `Main/OTACrudBridge.h` | **NEW** - OTA CRUD bridge header |
+| `Main/OTACrudBridge.cpp` | **NEW** - OTA CRUD bridge implementation |
+| `Main/OTAHttps.h` | Moved ESP_SSLClient include to .cpp, use forward declaration |
+| `Main/OTAHttps.cpp` | Added ESP_SSLClient include (ONLY file with this include) |
+| `Main/OTAManager.h` | Forward declare OTAHttps instead of include |
+| `Main/OTAConfig.h` | Added FirmwareManifest struct (moved from OTAHttps.h) |
+| `Main/ModbusRtuService.h` | Added `getAggregatedStats()` for ProductionLogger |
+| `Main/ModbusRtuService.cpp` | Implemented `getAggregatedStats()` |
+| `Main/ModbusTcpService.h` | Added `getAggregatedStats()` for ProductionLogger |
+| `Main/ModbusTcpService.cpp` | Implemented `getAggregatedStats()` |
+
+---
+
+## 🚀 Version 2.5.34 (Memory Safety Fix)
 
 **Release Date:** December 10, 2025 (Tuesday)
 **Developer:** Kemal (with Claude Code)

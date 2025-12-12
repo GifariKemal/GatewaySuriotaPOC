@@ -37,11 +37,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 // Legacy defines for backward compatibility (redirect to ProductConfig)
 #define DEVICE_ID PRODUCT_MODEL
 
-// Smart Serial wrapper - runtime mode checking (supports mode switching via BLE)
-// These macros now check g_productionMode at runtime instead of compile-time
-#define DEV_SERIAL_PRINT(...) do { if (IS_DEV_MODE()) Serial.print(__VA_ARGS__); } while(0)
-#define DEV_SERIAL_PRINTF(...) do { if (IS_DEV_MODE()) Serial.printf(__VA_ARGS__); } while(0)
-#define DEV_SERIAL_PRINTLN(...) do { if (IS_DEV_MODE()) Serial.println(__VA_ARGS__); } while(0)
+// v2.5.35: DEV_SERIAL_* macros moved to DebugConfig.h for global use
 
 #include "BLEManager.h"
 #include "CRUDHandler.h"
@@ -57,7 +53,7 @@ uint8_t g_productionMode = PRODUCTION_MODE;
 #include "HttpManager.h"
 #include "LEDManager.h"
 #include "ButtonManager.h"
-#include "OTAManager.h"
+#include "OTACrudBridge.h"    // v2.5.35: Bridge to OTA (avoids ESP_SSLClient linker error)
 #include "GatewayConfig.h"    // v2.5.31: Multi-gateway support
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -626,16 +622,16 @@ void setup()
 
   // ============================================
   // OTA MANAGER INITIALIZATION
+  // v2.5.35: Use OTACrudBridge to avoid ESP_SSLClient linker error
   // ============================================
-  otaManager = OTAManager::getInstance();
+  otaManager = OTACrudBridge::getInstance();
   if (otaManager)
   {
     // Set current firmware version
-    otaManager->setCurrentVersion(FIRMWARE_VERSION, FIRMWARE_BUILD_NUMBER); // From ProductConfig.h
+    OTACrudBridge::setCurrentVersion(otaManager, FIRMWARE_VERSION, FIRMWARE_BUILD_NUMBER);
 
-    // Get BLE server from BLEManager for OTA BLE service
-    // Note: BLE server is internal to BLEManager, OTA BLE will create its own service
-    if (otaManager->begin(nullptr))  // Pass BLE server if needed for BLE OTA
+    // Initialize OTA Manager
+    if (OTACrudBridge::begin(otaManager))
     {
       DEV_SERIAL_PRINTLN("[MAIN] OTA Manager initialized");
 
@@ -647,8 +643,7 @@ void setup()
       }
 
       // Mark firmware as valid after successful boot (rollback protection)
-      // This should be called after all critical services are running
-      otaManager->markFirmwareValid();
+      OTACrudBridge::markFirmwareValid(otaManager);
       DEV_SERIAL_PRINTLN("[MAIN] Firmware marked as valid (rollback protection)");
     }
     else
@@ -674,11 +669,23 @@ void setup()
     productionLogger->setActiveProtocol(serverConfig->getProtocol());
     productionLogger->setEnabled(IS_PRODUCTION_MODE()); // Enable only in production mode
 
-    // Set initial network status
-    if (networkInitialized)
+    // Set initial network status based on actual active network
+    // v2.5.35: Fixed hardcoded ETH - now checks actual network mode
+    if (networkInitialized && networkManager)
     {
-      // Check which network is active (simplified check)
-      productionLogger->setNetworkStatus(NetStatus::ETHERNET); // Default to ETH
+      String activeMode = networkManager->getCurrentMode();
+      if (activeMode == "WIFI")
+      {
+        productionLogger->setNetworkStatus(NetStatus::WIFI);
+      }
+      else if (activeMode == "ETH")
+      {
+        productionLogger->setNetworkStatus(NetStatus::ETHERNET);
+      }
+      else
+      {
+        productionLogger->setNetworkStatus(NetStatus::NONE);
+      }
     }
 
     // Set protocol status
@@ -711,15 +718,54 @@ void loop()
   vTaskDelay(pdMS_TO_TICKS(100));
 
   // OTA Manager process - handles auto-check intervals and update state machine
+  // v2.5.35: Use OTACrudBridge to avoid ESP_SSLClient linker issues
   if (otaManager)
   {
-    otaManager->process();
+    OTACrudBridge::process(otaManager);
   }
 
   // Production mode: Periodic heartbeat logging (runtime check)
   // This is automatically throttled by ProductionLogger (default: every 60s)
   if (IS_PRODUCTION_MODE() && productionLogger)
   {
+    // v2.5.35: Update network status before heartbeat (fixes "net":"NONE" bug)
+    // Network can change after boot, so check current mode each heartbeat
+    if (networkManager)
+    {
+      String activeMode = networkManager->getCurrentMode();
+      if (activeMode == "WIFI")
+      {
+        productionLogger->setNetworkStatus(NetStatus::WIFI);
+      }
+      else if (activeMode == "ETH")
+      {
+        productionLogger->setNetworkStatus(NetStatus::ETHERNET);
+      }
+      else
+      {
+        productionLogger->setNetworkStatus(NetStatus::NONE);
+      }
+    }
+
+    // v2.5.35: Update Modbus stats from RTU and TCP services
+    uint32_t totalSuccess = 0, totalFailed = 0;
+    uint32_t rtuSuccess = 0, rtuFailed = 0;
+    uint32_t tcpSuccess = 0, tcpFailed = 0;
+
+    if (modbusRtuService)
+    {
+      modbusRtuService->getAggregatedStats(rtuSuccess, rtuFailed);
+      totalSuccess += rtuSuccess;
+      totalFailed += rtuFailed;
+    }
+    if (modbusTcpService)
+    {
+      modbusTcpService->getAggregatedStats(tcpSuccess, tcpFailed);
+      totalSuccess += tcpSuccess;
+      totalFailed += tcpFailed;
+    }
+    productionLogger->logModbusStats(totalSuccess, totalFailed);
+
     productionLogger->heartbeat();
   }
 

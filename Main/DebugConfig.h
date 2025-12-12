@@ -471,6 +471,13 @@ public:
 #define DEBUG_CODE(code) do { if (IS_DEV_MODE()) { code; } } while(0)
 #define PRODUCTION_CODE(code) do { if (IS_PRODUCTION_MODE()) { code; } } while(0)
 
+// v2.5.35: Development-only Serial.print macros
+// These macros wrap Serial.print* calls to only execute in development mode
+// Usage: DEV_SERIAL_PRINTLN("message") instead of Serial.println("message")
+#define DEV_SERIAL_PRINT(msg) do { if (IS_DEV_MODE()) { Serial.print(msg); } } while(0)
+#define DEV_SERIAL_PRINTLN(msg) do { if (IS_DEV_MODE()) { Serial.println(msg); } } while(0)
+#define DEV_SERIAL_PRINTF(...) do { if (IS_DEV_MODE()) { Serial.printf(__VA_ARGS__); } } while(0)
+
 // ============================================
 // MODE INDICATOR FUNCTION
 // ============================================

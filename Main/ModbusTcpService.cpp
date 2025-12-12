@@ -1,10 +1,10 @@
+#include "DebugConfig.h"  // MUST BE FIRST for DEV_SERIAL_* macros
 #include "ModbusTcpService.h"
 #include "QueueManager.h"
 #include "CRUDHandler.h"
 #include "RTCManager.h"
 #include "NetworkManager.h"
 #include "TCPClient.h"
-#include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <byteswap.h>
 #include <WiFi.h>
@@ -511,8 +511,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
-        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName);
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId.c_str(), registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -606,8 +606,8 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        // STRING OPTIMIZATION (v2.3.8): registerName already const char*, no .c_str() needed
-        Serial.printf("%s: %s = ERROR\n", deviceId.c_str(), registerName);
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId.c_str(), registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -2064,6 +2064,23 @@ void ModbusTcpService::autoRecoveryLoop()
   LOG_TCP_INFO("[TCP AutoRecovery] Task loop exited, self-deleting...");
   autoRecoveryTaskHandle = nullptr; // Clear handle before deletion
   vTaskDelete(NULL); // Delete self (NULL = current task)
+}
+
+// v2.5.35: Get aggregated Modbus stats for ProductionLogger
+void ModbusTcpService::getAggregatedStats(uint32_t &totalSuccess, uint32_t &totalFailed)
+{
+  totalSuccess = 0;
+  totalFailed = 0;
+
+  if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(100)) == pdTRUE)
+  {
+    for (const auto &metrics : deviceMetrics)
+    {
+      totalSuccess += metrics.successfulReads;
+      totalFailed += metrics.failedReads;
+    }
+    xSemaphoreGive(vectorMutex);
+  }
 }
 
 ModbusTcpService::~ModbusTcpService()

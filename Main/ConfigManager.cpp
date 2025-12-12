@@ -146,7 +146,8 @@ bool ConfigManager::begin()
 {
   if (!LittleFS.begin(true))
   {
-    Serial.println("LittleFS Mount Failed");
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINTLN("LittleFS Mount Failed");
     return false;
   }
 
@@ -170,14 +171,16 @@ bool ConfigManager::begin()
     JsonDocument doc;
     doc.to<JsonObject>();
     saveJson(DEVICES_FILE, doc);
-    Serial.println("Created empty devices file");
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINTLN("Created empty devices file");
   }
   if (!LittleFS.exists(REGISTERS_FILE))
   {
     JsonDocument doc;
     doc.to<JsonObject>();
     saveJson(REGISTERS_FILE, doc);
-    Serial.println("Created empty registers file");
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINTLN("Created empty registers file");
   }
 
   // Initialize cache as invalid - will be loaded on first access

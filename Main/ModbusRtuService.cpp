@@ -1,8 +1,8 @@
+#include "DebugConfig.h"  // MUST BE FIRST for DEV_SERIAL_* macros
 #include "ModbusRtuService.h"
 #include "QueueManager.h"
 #include "CRUDHandler.h"
 #include "RTCManager.h"
-#include "DebugConfig.h"
 #include "MemoryRecovery.h"
 #include <byteswap.h>
 
@@ -476,7 +476,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
       }
     }
@@ -520,7 +521,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
       }
     }
@@ -607,7 +609,8 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
       }
       else
       {
-        Serial.printf("%s: %s = ERROR\n", deviceId, registerName);
+        // v2.5.35: Use DEV_MODE check to prevent log leak in production
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
       }
     }
@@ -1513,6 +1516,23 @@ void ModbusRtuService::autoRecoveryLoop()
   LOG_RTU_INFO("[RTU AutoRecovery] Task loop exited, self-deleting...");
   autoRecoveryTaskHandle = nullptr; // Clear handle before deletion
   vTaskDelete(NULL); // Delete self (NULL = current task)
+}
+
+// v2.5.35: Get aggregated Modbus stats for ProductionLogger
+void ModbusRtuService::getAggregatedStats(uint32_t &totalSuccess, uint32_t &totalFailed)
+{
+  totalSuccess = 0;
+  totalFailed = 0;
+
+  if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(100)) == pdTRUE)
+  {
+    for (const auto &metrics : deviceMetrics)
+    {
+      totalSuccess += metrics.successfulReads;
+      totalFailed += metrics.failedReads;
+    }
+    xSemaphoreGive(vectorMutex);
+  }
 }
 
 ModbusRtuService::~ModbusRtuService()

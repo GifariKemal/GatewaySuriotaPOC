@@ -66,7 +66,8 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   while (WiFi.status() != WL_CONNECTED && attempts < 20)
   {
     delay(500);
-    Serial.print(".");
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINT(".");
     attempts++;
   }
 
@@ -79,7 +80,8 @@ bool WiFiManager::init(const String &ssidParam, const String &passwordParam)
   }
   else
   {
-    Serial.println("\n[WiFi] ERROR: Connection failed");
+    // v2.5.35: Use DEV_MODE check to prevent log leak in production
+    DEV_SERIAL_PRINTLN("\n[WiFi] ERROR: Connection failed");
     return false;
   }
 }
