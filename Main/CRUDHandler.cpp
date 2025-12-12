@@ -2533,17 +2533,17 @@ void CRUDHandler::performFactoryReset()
 
     // Communication config (mobile app structure)
     JsonObject comm = root["communication"].to<JsonObject>();
-    comm["mode"] = "ETH"; // Mobile app expects this field
+    comm["mode"] = "WIFI"; // v2.5.35: Default to WiFi mode (not ETH)
 
     // WiFi at root level (mobile app structure)
     JsonObject wifi = root["wifi"].to<JsonObject>();
-    wifi["enabled"] = true;
+    wifi["enabled"] = false; // v2.5.35: Disabled by default, user must configure
     wifi["ssid"] = "";
     wifi["password"] = "";
 
     // Ethernet at root level (mobile app structure)
     JsonObject ethernet = root["ethernet"].to<JsonObject>();
-    ethernet["enabled"] = true;
+    ethernet["enabled"] = false; // v2.5.35: Disabled by default
     ethernet["use_dhcp"] = true;
     ethernet["static_ip"] = "";
     ethernet["gateway"] = "";
@@ -2554,10 +2554,19 @@ void CRUDHandler::performFactoryReset()
 
     // MQTT config with publish modes
     JsonObject mqtt = root["mqtt_config"].to<JsonObject>();
-    mqtt["enabled"] = true;
+    mqtt["enabled"] = false; // v2.5.35: Disabled by default, user must configure
     mqtt["broker_address"] = "broker.hivemq.com";
     mqtt["broker_port"] = 1883;
-    mqtt["client_id"] = "";
+
+    // v2.5.35: Generate unique client_id using MAC address
+    String uniqueClientId = "SRT_MGate1210_";
+    GatewayConfig *gwConfig = GatewayConfig::getInstance();
+    if (gwConfig) {
+      uniqueClientId += gwConfig->getShortMAC();
+    } else {
+      uniqueClientId += String(random(1000, 9999));
+    }
+    mqtt["client_id"] = uniqueClientId;
     mqtt["username"] = "";
     mqtt["password"] = "";
     mqtt["topic_publish"] = "v1/devices/me/telemetry"; // Top level for mobile app compatibility
