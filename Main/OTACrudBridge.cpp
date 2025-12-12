@@ -186,22 +186,30 @@ void confirmUpdate(OTAManager* otaManager, JsonDocument& response) {
     }
 
     response["status"] = "ok";
-    response["command"] = "confirm_update";
+    response["command"] = "apply_update";
 
     OTAState state = otaManager->getState();
     OTAStatus status = otaManager->getStatus();
 
-    if (state == OTAState::IDLE && status.updateAvailable) {
-        response["message"] = "Starting OTA update...";
-        LOG_OTA_INFO("[OTA] User confirmed update, starting...");
-        otaManager->startUpdate();
-    } else if (state == OTAState::IDLE) {
-        response["message"] = "Applying pending firmware update and rebooting...";
-        LOG_OTA_INFO("[OTA] User confirmed, applying update and rebooting...");
+    // v2.5.35: Handle VALIDATING state (download complete, ready for reboot)
+    // Valid states for apply: VALIDATING (just finished download) or IDLE with pending update
+    if (state == OTAState::VALIDATING ||
+        (state == OTAState::IDLE && status.updateAvailable)) {
+        response["message"] = "Applying firmware update and rebooting...";
+        LOG_OTA_INFO("[OTA] Applying update and rebooting...");
+
+        // Send response before reboot
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        // Apply and reboot
         otaManager->applyUpdate();
+    } else if (state == OTAState::IDLE) {
+        response["status"] = "error";
+        response["error_message"] = "No firmware ready to apply. Run check_update and start_update first.";
+        response["current_state"] = "IDLE";
     } else {
         response["status"] = "error";
-        response["error_message"] = "Cannot confirm update in current state";
+        response["error_message"] = "Cannot apply update in current state";
         response["current_state"] = (uint8_t)state;
     }
 }
