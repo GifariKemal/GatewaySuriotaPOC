@@ -509,11 +509,21 @@ Add toggle to device list or detail screen:
 
 ---
 
-## 7. P3: Production Mode Toggle
+## 7. P3: Production Mode Toggle (Developer Only)
 
 ### Problem
 
 Firmware supports production/development mode toggle via BLE, but no UI exists.
+
+### IMPORTANT: Password Protection Required
+
+This feature should be **hidden from regular users** and only accessible by developers/technicians.
+
+**Implementation Requirement:**
+- This menu should be placed in a **hidden/developer section**
+- Access requires a **developer password** before showing the toggle
+- Suggested password: Use a fixed developer PIN or company-specific code
+- Do NOT expose this to end users - it's for factory/service use only
 
 ### Firmware Commands
 
@@ -536,21 +546,103 @@ Firmware supports production/development mode toggle via BLE, but no UI exists.
 | Serial Output | Verbose | Minimal JSON |
 | Memory Usage | Higher | Optimized |
 
-### Suggested UI
+### Suggested UI Flow
 
-Add to Settings screen:
+**Step 1: Hidden Access Point**
+- Add hidden tap gesture (e.g., tap version number 5 times in About screen)
+- Or add hidden menu item only visible in debug builds
 
+**Step 2: Password Dialog**
 ```
 ┌─────────────────────────────────────┐
-│ Device Mode                         │
+│         Developer Access            │
+├─────────────────────────────────────┤
+│                                     │
+│ Enter developer password:           │
+│ ┌─────────────────────────────────┐ │
+│ │ ••••••••                        │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ [Cancel]              [Authenticate]│
+└─────────────────────────────────────┘
+```
+
+**Step 3: Developer Menu (after authentication)**
+```
+┌─────────────────────────────────────┐
+│      Developer Settings             │
 ├─────────────────────────────────────┤
 │ Production Mode: [ON ══════ OFF]    │
 │                                     │
-│ ⚠️ Production mode:                 │
+│ ⚠️ Warning:                         │
+│ • Changes device behavior           │
 │ • Reduces logging to errors only    │
 │ • BLE requires button press         │
 │ • Device will restart after change  │
+│                                     │
+│ Current: Development Mode           │
+│ Log Level: INFO                     │
 └─────────────────────────────────────┘
+```
+
+### Implementation Example
+
+```dart
+// Password check before showing developer menu
+class DeveloperAccessDialog extends StatelessWidget {
+  static const String developerPassword = 'SURIOTA2025';  // Or from secure storage
+
+  final TextEditingController _passwordController = TextEditingController();
+
+  Future<bool> authenticate(BuildContext context) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Developer Access'),
+        content: TextField(
+          controller: _passwordController,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: 'Enter developer password',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final isValid = _passwordController.text == developerPassword;
+              Navigator.pop(context, isValid);
+              if (!isValid) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Invalid password')),
+                );
+              }
+            },
+            child: Text('Authenticate'),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+}
+
+// Hidden access: Tap version 5 times
+int _tapCount = 0;
+Timer? _tapResetTimer;
+
+void _onVersionTap(BuildContext context) {
+  _tapCount++;
+  _tapResetTimer?.cancel();
+  _tapResetTimer = Timer(Duration(seconds: 2), () => _tapCount = 0);
+
+  if (_tapCount >= 5) {
+    _tapCount = 0;
+    _showDeveloperAccess(context);
+  }
+}
 ```
 
 ---
