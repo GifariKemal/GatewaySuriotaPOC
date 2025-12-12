@@ -21,12 +21,13 @@ This document outlines all optimization points for the Suriota Mobile App to ens
 1. [P0: MTU Negotiation (25x Speed Boost)](#1-p0-mtu-negotiation-25x-speed-boost)
 2. [P1: BLE Device Name Filter Update](#2-p1-ble-device-name-filter-update)
 3. [P1: Factory Reset Default Values Sync](#3-p1-factory-reset-default-values-sync)
-4. [P2: OTA Firmware Update UI](#4-p2-ota-firmware-update-ui)
-5. [P2: Gateway Info UI](#5-p2-gateway-info-ui)
-6. [P3: Device Enable/Disable UI](#6-p3-device-enabledisable-ui)
-7. [P3: Production Mode Toggle](#7-p3-production-mode-toggle)
-8. [P3: Timeout Optimization](#8-p3-timeout-optimization)
-9. [P3: Streaming Delay Optimization](#9-p3-streaming-delay-optimization)
+4. [P1: Loading Progress Percentage](#4-p1-loading-progress-percentage)
+5. [P2: OTA Firmware Update UI](#5-p2-ota-firmware-update-ui)
+6. [P2: Gateway Info UI](#6-p2-gateway-info-ui)
+7. [P3: Device Enable/Disable UI](#7-p3-device-enabledisable-ui)
+8. [P3: Production Mode Toggle](#8-p3-production-mode-toggle)
+9. [P3: Timeout Optimization](#9-p3-timeout-optimization)
+10. [P3: Streaming Delay Optimization](#10-p3-streaming-delay-optimization)
 
 ---
 
@@ -155,7 +156,440 @@ String isEnabledHttp = 'false';           // Unchanged
 
 ---
 
-## 4. P2: OTA Firmware Update UI
+## 4. P1: Loading Progress Percentage
+
+### Problem
+
+Currently, loading operations show generic "Loading..." text without progress indication. Users don't know:
+- How much data has been transferred
+- How long to wait
+- If the app is frozen or working
+
+### Why This Matters
+
+| Without Progress | With Progress |
+|------------------|---------------|
+| "Loading..." (user waits blindly) | "Loading... 45%" (user knows status) |
+| User thinks app is frozen | User sees active progress |
+| No idea how long to wait | Can estimate remaining time |
+| Frustrating UX | Professional UX |
+
+### Progress Calculation Formula
+
+BLE transfer progress can be calculated from:
+
+```dart
+// Send Progress (App → Device)
+sendProgress = bytesSent / totalBytesToSend * 100
+
+// Receive Progress (Device → App)
+receiveProgress = bytesReceived / expectedTotalBytes * 100
+
+// Combined Progress (50% send, 50% receive)
+overallProgress = (sendProgress * 0.3) + (receiveProgress * 0.7)
+```
+
+### Implementation: Progress Stages
+
+```dart
+enum CommandStage {
+  preparing,      // 0-10%
+  sending,        // 10-30%
+  waiting,        // 30-40%
+  receiving,      // 40-90%
+  processing,     // 90-100%
+}
+
+class CommandProgress {
+  double progress = 0.0;
+  String stage = '';
+
+  void updateStage(CommandStage stage, {double? customProgress}) {
+    switch (stage) {
+      case CommandStage.preparing:
+        progress = customProgress ?? 5.0;
+        this.stage = 'Preparing...';
+        break;
+      case CommandStage.sending:
+        progress = customProgress ?? 20.0;
+        this.stage = 'Sending command...';
+        break;
+      case CommandStage.waiting:
+        progress = customProgress ?? 35.0;
+        this.stage = 'Waiting for response...';
+        break;
+      case CommandStage.receiving:
+        progress = customProgress ?? 70.0;
+        this.stage = 'Receiving data...';
+        break;
+      case CommandStage.processing:
+        progress = customProgress ?? 95.0;
+        this.stage = 'Processing...';
+        break;
+    }
+  }
+}
+```
+
+### Implementation: Chunked Send Progress
+
+```dart
+Future<void> sendCommandWithProgress({
+  required Map<String, dynamic> command,
+  required Function(double progress, String status) onProgress,
+}) async {
+  final jsonStr = jsonEncode(command);
+  final totalBytes = jsonStr.length;
+  final chunkSize = _currentChunkSize;  // From MTU negotiation
+  final totalChunks = (totalBytes / chunkSize).ceil();
+
+  onProgress(5.0, 'Preparing command...');
+
+  int sentBytes = 0;
+  int currentChunk = 0;
+
+  for (int i = 0; i < totalBytes; i += chunkSize) {
+    final chunk = jsonStr.substring(
+      i,
+      (i + chunkSize > totalBytes) ? totalBytes : i + chunkSize
+    );
+
+    await commandChar!.write(utf8.encode(chunk));
+
+    sentBytes += chunk.length;
+    currentChunk++;
+
+    // Calculate send progress (10% - 40% of total)
+    final sendProgress = 10 + (sentBytes / totalBytes * 30);
+    onProgress(
+      sendProgress,
+      'Sending... ${currentChunk}/${totalChunks} chunks (${sentBytes}/${totalBytes} bytes)'
+    );
+
+    await Future.delayed(_currentChunkDelay);
+  }
+
+  // Send END marker
+  await commandChar!.write(utf8.encode('<END>'));
+  onProgress(40.0, 'Command sent, waiting for response...');
+}
+```
+
+### Implementation: Chunked Receive Progress
+
+```dart
+void setupReceiveProgressTracking({
+  required int? expectedSize,
+  required Function(double progress, String status) onProgress,
+}) {
+  int receivedBytes = 0;
+  final List<String> chunks = [];
+
+  responseSubscription = responseChar!.lastValueStream.listen((data) {
+    final chunk = utf8.decode(data, allowMalformed: true);
+
+    if (chunk == '<END>') {
+      onProgress(95.0, 'Processing response...');
+      final fullResponse = chunks.join('');
+      onProgress(100.0, 'Complete!');
+    } else {
+      chunks.add(chunk);
+      receivedBytes += chunk.length;
+
+      // Calculate receive progress (40% - 90% of total)
+      double receiveProgress;
+      if (expectedSize != null && expectedSize > 0) {
+        receiveProgress = 40 + (receivedBytes / expectedSize * 50);
+        receiveProgress = receiveProgress.clamp(40.0, 90.0);
+      } else {
+        // Unknown size: logarithmic estimate
+        receiveProgress = 40 + (50 * (1 - 1 / (1 + receivedBytes / 1000)));
+        receiveProgress = receiveProgress.clamp(40.0, 85.0);
+      }
+
+      onProgress(
+        receiveProgress,
+        'Receiving... ${_formatBytes(receivedBytes)}${expectedSize != null ? ' / ${_formatBytes(expectedSize)}' : ''}'
+      );
+    }
+  });
+}
+
+String _formatBytes(int bytes) {
+  if (bytes < 1024) return '${bytes} B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  return '${(bytes / 1024 / 1024).toStringAsFixed(2)} MB';
+}
+```
+
+### Implementation: Multi-Step Operations
+
+```dart
+Future<void> fetchAllDevicesWithProgress({
+  required Function(double progress, String status) onProgress,
+}) async {
+  // Step 1: Get summary (0-20%)
+  onProgress(5.0, 'Fetching device summary...');
+  final summary = await sendCommand({'op': 'read', 'type': 'devices_summary'});
+  onProgress(20.0, 'Got ${summary.devices.length} devices');
+
+  final totalDevices = summary.devices.length;
+  final List<Map<String, dynamic>> allDevices = [];
+
+  // Step 2: Fetch each device (20-90%)
+  for (int i = 0; i < totalDevices; i++) {
+    final deviceId = summary.devices[i]['device_id'];
+    final deviceName = summary.devices[i]['device_name'] ?? deviceId;
+
+    final baseProgress = 20 + (70 * i / totalDevices);
+    onProgress(baseProgress, 'Loading device ${i + 1}/$totalDevices: $deviceName');
+
+    final deviceDetail = await sendCommand({
+      'op': 'read',
+      'type': 'device',
+      'device_id': deviceId,
+    });
+
+    allDevices.add(deviceDetail.config);
+  }
+
+  // Step 3: Process (90-100%)
+  onProgress(92.0, 'Processing data...');
+  onProgress(100.0, 'Complete! Loaded $totalDevices devices');
+}
+```
+
+### UI Components
+
+#### Linear Progress Bar with Percentage
+
+```dart
+class ProgressIndicatorWithPercent extends StatelessWidget {
+  final double progress;  // 0.0 to 100.0
+  final String? statusText;
+
+  const ProgressIndicatorWithPercent({
+    required this.progress,
+    this.statusText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: LinearProgressIndicator(
+                value: progress / 100,
+                backgroundColor: Colors.grey[300],
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress >= 100 ? Colors.green : Theme.of(context).primaryColor,
+                ),
+                minHeight: 8,
+              ),
+            ),
+            SizedBox(width: 12),
+            Text(
+              '${progress.toStringAsFixed(0)}%',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        if (statusText != null) ...[
+          SizedBox(height: 8),
+          Text(statusText!, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
+        ],
+      ],
+    );
+  }
+}
+```
+
+#### Circular Progress with Percentage (for dialogs)
+
+```dart
+class CircularProgressWithPercent extends StatelessWidget {
+  final double progress;
+  final String? statusText;
+  final double size;
+
+  const CircularProgressWithPercent({
+    required this.progress,
+    this.statusText,
+    this.size = 100,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: progress / 100,
+                strokeWidth: 8,
+                backgroundColor: Colors.grey[300],
+              ),
+              Text(
+                '${progress.toStringAsFixed(0)}%',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: size / 4),
+              ),
+            ],
+          ),
+        ),
+        if (statusText != null) ...[
+          SizedBox(height: 16),
+          Text(statusText!, textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+        ],
+      ],
+    );
+  }
+}
+```
+
+#### Full Screen Loading Overlay
+
+```dart
+class LoadingOverlayWithProgress extends StatelessWidget {
+  final double progress;
+  final String title;
+  final String? statusText;
+  final VoidCallback? onCancel;
+
+  const LoadingOverlayWithProgress({
+    required this.progress,
+    required this.title,
+    this.statusText,
+    this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Card(
+          margin: EdgeInsets.all(32),
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                SizedBox(height: 24),
+                CircularProgressWithPercent(progress: progress, statusText: statusText),
+                if (onCancel != null) ...[
+                  SizedBox(height: 24),
+                  TextButton(onPressed: onCancel, child: Text('Cancel')),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Progress for Each Screen/Operation
+
+| Screen | Operation | Progress Stages |
+|--------|-----------|-----------------|
+| **Server Config** | Read config | Preparing (5%) → Sending (20%) → Receiving (70%) → Processing (95%) → Done (100%) |
+| **Server Config** | Save config | Preparing (5%) → Sending (50%) → Confirming (80%) → Done (100%) |
+| **Modbus Devices** | Load list | Preparing (5%) → Fetching (60%) → Processing (90%) → Done (100%) |
+| **Device Detail** | Load device | Preparing (5%) → Fetching (70%) → Processing (95%) → Done (100%) |
+| **Device Detail** | Save device | Preparing (5%) → Validating (15%) → Sending (60%) → Confirming (90%) → Done (100%) |
+| **Backup** | Create backup | Preparing (5%) → Fetching configs (50%) → Packaging (80%) → Saving (95%) → Done (100%) |
+| **Restore** | Restore backup | Preparing (5%) → Validating (15%) → Sending (70%) → Applying (90%) → Done (100%) |
+| **OTA Update** | Check update | Checking (50%) → Done (100%) |
+| **OTA Update** | Download | Preparing (5%) → Downloading (5-90%) → Validating (95%) → Done (100%) |
+| **OTA Update** | Apply | Applying (50%) → Rebooting (100%) |
+| **Factory Reset** | Reset | Confirming (10%) → Clearing (50%) → Resetting (80%) → Restarting (100%) |
+
+### UI Display Examples
+
+**Simple Command:**
+```
+┌─────────────────────────────────────┐
+│       Loading Server Config         │
+├─────────────────────────────────────┤
+│                                     │
+│  ████████████░░░░░░░░░░░░░░  45%   │
+│                                     │
+│  Receiving data...                  │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Multi-Device Loading:**
+```
+┌─────────────────────────────────────┐
+│       Loading Modbus Devices        │
+├─────────────────────────────────────┤
+│                                     │
+│  ██████████████████░░░░░░░░  67%   │
+│                                     │
+│  Loading device 8/12: Power Meter   │
+│                                     │
+│  [Cancel]                           │
+└─────────────────────────────────────┘
+```
+
+**OTA Download:**
+```
+┌─────────────────────────────────────┐
+│        Firmware Update              │
+├─────────────────────────────────────┤
+│                                     │
+│  ████████████████████░░░░░░  78%   │
+│                                     │
+│  Downloading... 1.52 MB / 1.94 MB   │
+│                                     │
+│  Estimated time: ~30 seconds        │
+│                                     │
+│  [Cancel Update]                    │
+└─────────────────────────────────────┘
+```
+
+### Best Practices
+
+**DO:**
+- Always show percentage for operations > 1 second
+- Update progress smoothly (not jumping)
+- Show meaningful status text alongside percentage
+- Allow cancel for long operations
+- Show estimated time remaining for known-size operations
+
+**DON'T:**
+- Don't show indeterminate spinner for operations with known progress
+- Don't update progress too frequently (max 10-20 updates/second)
+- Don't show fake progress that doesn't reflect actual state
+- Don't hide progress when user can't see if app is working
+
+### Testing Checklist
+
+- [ ] Server Config read shows progress 0-100%
+- [ ] Server Config save shows progress 0-100%
+- [ ] Device list loading shows progress with device count
+- [ ] Large config (50+ registers) shows smooth progress
+- [ ] OTA download shows bytes downloaded / total bytes
+- [ ] Backup/restore shows progress for each step
+- [ ] Cancel button works during long operations
+- [ ] Progress bar doesn't jump backwards
+- [ ] Status text updates meaningfully
+
+---
+
+## 5. P2: OTA Firmware Update UI
 
 ### Problem
 
@@ -393,7 +827,7 @@ class _UpdateFirmwareScreenState extends State<UpdateFirmwareScreen> {
 
 ---
 
-## 5. P2: Gateway Info UI
+## 6. P2: Gateway Info UI
 
 ### Problem
 
@@ -455,7 +889,7 @@ Add to **Settings Device Screen** or create new **Gateway Info Screen**:
 
 ---
 
-## 6. P3: Device Enable/Disable UI
+## 7. P3: Device Enable/Disable UI
 
 ### Problem
 
@@ -509,7 +943,7 @@ Add toggle to device list or detail screen:
 
 ---
 
-## 7. P3: Production Mode Toggle (Developer Only)
+## 8. P3: Production Mode Toggle (Developer Only)
 
 ### Problem
 
@@ -647,7 +1081,7 @@ void _onVersionTap(BuildContext context) {
 
 ---
 
-## 8. P3: Timeout Optimization
+## 9. P3: Timeout Optimization
 
 ### Problem
 
@@ -686,7 +1120,7 @@ static const Duration timeoutLargeDataFull = Duration(seconds: 180);       // Re
 
 ---
 
-## 9. P3: Streaming Delay Optimization
+## 10. P3: Streaming Delay Optimization
 
 ### Problem
 
