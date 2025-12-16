@@ -37,7 +37,8 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
 
   // Create command processor task
   // FIXED BUG #30: Increased stack size for large device operations
-  xTaskCreatePinnedToCore(
+  // v2.5.36 FIX: Check return value to detect task creation failure
+  BaseType_t taskResult = xTaskCreatePinnedToCore(
       commandProcessorTask,
       "CRUD_PROCESSOR_TASK",
       CRUDConfig::CRUD_TASK_STACK_SIZE, // 24KB stack (was 8KB)
@@ -46,7 +47,15 @@ CRUDHandler::CRUDHandler(ConfigManager *config, ServerConfig *serverCfg, Logging
       &commandProcessorTaskHandle,
       1); // Pin to Core 1
 
-  LOG_CRUD_INFO("[CRUD] Batch operations and priority queue initialized");
+  if (taskResult != pdPASS)
+  {
+    LOG_CRUD_INFO("[CRUD] CRITICAL ERROR: Failed to create command processor task!");
+    commandProcessorTaskHandle = nullptr;
+  }
+  else
+  {
+    LOG_CRUD_INFO("[CRUD] Batch operations and priority queue initialized");
+  }
 }
 
 // Destructor
@@ -816,7 +825,7 @@ void CRUDHandler::setupCommandHandlers()
     else
     {
       // v2.5.31: Return specific error message to mobile app
-      manager->sendError(errorMsg.isEmpty() ? "Register creation failed" : errorMsg.c_str());
+      manager->sendError(errorMsg.isEmpty() ? "Register creation failed" : errorMsg.c_str(), "registers");
     }
   };
 
@@ -842,7 +851,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device update failed");
+      manager->sendError("Device update failed", "device");
     }
   };
 
@@ -883,7 +892,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Register update failed");
+      manager->sendError("Register update failed", "registers");
     }
   };
 
@@ -907,7 +916,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Server configuration update failed");
+      manager->sendError("Server configuration update failed", "server_config");
     }
   };
 
@@ -923,7 +932,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Logging configuration update failed");
+      manager->sendError("Logging configuration update failed", "logging_config");
     }
   };
 
@@ -950,7 +959,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device deletion failed");
+      manager->sendError("Device deletion failed", "device");
     }
   };
 
@@ -993,7 +1002,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Register deletion failed");
+      manager->sendError("Register deletion failed", "registers");
     }
   };
 
@@ -1008,7 +1017,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (deviceId.isEmpty())
     {
-      manager->sendError("device_id is required");
+      manager->sendError("device_id is required", "device");
       return;
     }
 
@@ -1034,7 +1043,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Invalid protocol or service not available");
+      manager->sendError("Invalid protocol or service not available", "device");
       return;
     }
 
@@ -1048,7 +1057,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to enable device");
+      manager->sendError("Failed to enable device", "device");
     }
   };
 
@@ -1061,7 +1070,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (deviceId.isEmpty())
     {
-      manager->sendError("device_id is required");
+      manager->sendError("device_id is required", "device");
       return;
     }
 
@@ -1087,7 +1096,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Invalid protocol or service not available");
+      manager->sendError("Invalid protocol or service not available", "device");
       return;
     }
 
@@ -1101,7 +1110,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to disable device");
+      manager->sendError("Failed to disable device", "device");
     }
   };
 
@@ -1113,7 +1122,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (deviceId.isEmpty())
     {
-      manager->sendError("device_id is required");
+      manager->sendError("device_id is required", "device");
       return;
     }
 
@@ -1142,7 +1151,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Invalid protocol or service not available");
+      manager->sendError("Invalid protocol or service not available", "device");
       return;
     }
 
@@ -1152,7 +1161,7 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to get device status");
+      manager->sendError("Failed to get device status", "device");
     }
   };
 
@@ -1184,7 +1193,7 @@ void CRUDHandler::setupCommandHandlers()
     // Get requested mode (0 = Development, 1 = Production)
     if (command["mode"].isNull())
     {
-      manager->sendError("mode parameter required (0 = Development, 1 = Production)");
+      manager->sendError("mode parameter required (0 = Development, 1 = Production)", "control");
       return;
     }
 
@@ -1192,7 +1201,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (requestedMode > 1)
     {
-      manager->sendError("Invalid mode value. Use 0 (Development) or 1 (Production)");
+      manager->sendError("Invalid mode value. Use 0 (Development) or 1 (Production)", "control");
       return;
     }
 
@@ -1236,12 +1245,13 @@ void CRUDHandler::setupCommandHandlers()
   // === GATEWAY IDENTITY HANDLERS (v2.5.31) ===
 
   // Get Gateway Info - Return unique gateway identification for mobile app
+  // v2.5.36: Complete response with all gateway identity fields
   controlHandlers["get_gateway_info"] = [this](BLEManager *manager, const JsonDocument &command)
   {
     GatewayConfig *gwConfig = GatewayConfig::getInstance();
     if (!gwConfig)
     {
-      manager->sendError("Gateway config not initialized");
+      manager->sendError("Gateway config not initialized", "control");
       return;
     }
 
@@ -1249,24 +1259,29 @@ void CRUDHandler::setupCommandHandlers()
     (*response)["status"] = "ok";
     (*response)["command"] = "get_gateway_info";
 
-    // Gateway identity
+    // v2.5.36: Complete gateway identity in "data" object
     JsonObject data = (*response)["data"].to<JsonObject>();
+
+    // Gateway identification
     data["ble_name"] = gwConfig->getBLEName();
     data["mac"] = gwConfig->getMACString();
+    data["uid"] = gwConfig->getUID();
     data["short_mac"] = gwConfig->getShortMAC();
+    data["serial_number"] = gwConfig->getSerialNumber();
     data["friendly_name"] = gwConfig->getFriendlyName();
     data["location"] = gwConfig->getLocation();
 
-    // Firmware info from ProductConfig.h
+    // Product info from ProductConfig.h
     data["firmware"] = FIRMWARE_VERSION;
+    data["build_number"] = FIRMWARE_BUILD_NUMBER;
     data["model"] = PRODUCT_FULL_MODEL;
-
-    // Memory info
-    data["free_heap"] = ESP.getFreeHeap();
-    data["free_psram"] = ESP.getFreePsram();
+    data["variant"] = PRODUCT_VARIANT;
+    data["is_poe"] = (bool)PRODUCT_IS_POE;
+    data["manufacturer"] = MANUFACTURER_NAME;
 
     manager->sendResponse(*response);
-    LOG_CRUD_INFO("[CRUD] Gateway info sent: %s", gwConfig->getBLEName());
+    LOG_CRUD_INFO("[CRUD] Gateway info sent: %s (SN: %s)",
+                  gwConfig->getBLEName(), gwConfig->getSerialNumber());
   };
 
   // Set Friendly Name - Allow user to set custom name for this gateway
@@ -1275,34 +1290,34 @@ void CRUDHandler::setupCommandHandlers()
     GatewayConfig *gwConfig = GatewayConfig::getInstance();
     if (!gwConfig)
     {
-      manager->sendError("Gateway config not initialized");
+      manager->sendError("Gateway config not initialized", "control");
       return;
     }
 
     // Validate name parameter (ArduinoJson 7.x: use is<T>() instead of containsKey)
     if (!command["name"].is<const char*>())
     {
-      manager->sendError("name parameter required");
+      manager->sendError("name parameter required", "control");
       return;
     }
 
     String newName = command["name"].as<String>();
     if (newName.length() == 0)
     {
-      manager->sendError("name cannot be empty");
+      manager->sendError("name cannot be empty", "control");
       return;
     }
 
     if (newName.length() > 32)
     {
-      manager->sendError("name too long (max 32 chars)");
+      manager->sendError("name too long (max 32 chars)", "control");
       return;
     }
 
     // Save friendly name
     if (!gwConfig->setFriendlyName(newName))
     {
-      manager->sendError("Failed to save friendly name");
+      manager->sendError("Failed to save friendly name", "control");
       return;
     }
 
@@ -1323,28 +1338,28 @@ void CRUDHandler::setupCommandHandlers()
     GatewayConfig *gwConfig = GatewayConfig::getInstance();
     if (!gwConfig)
     {
-      manager->sendError("Gateway config not initialized");
+      manager->sendError("Gateway config not initialized", "control");
       return;
     }
 
     // Validate location parameter (ArduinoJson 7.x: use is<T>() instead of containsKey)
     if (!command["location"].is<const char*>())
     {
-      manager->sendError("location parameter required");
+      manager->sendError("location parameter required", "control");
       return;
     }
 
     String newLocation = command["location"].as<String>();
     if (newLocation.length() > 64)
     {
-      manager->sendError("location too long (max 64 chars)");
+      manager->sendError("location too long (max 64 chars)", "control");
       return;
     }
 
     // Save location (empty string allowed to clear)
     if (!gwConfig->setLocation(newLocation))
     {
-      manager->sendError("Failed to save location");
+      manager->sendError("Failed to save location", "control");
       return;
     }
 
@@ -1502,7 +1517,7 @@ void CRUDHandler::setupCommandHandlers()
     if (configVariant.isNull())
     {
       Serial.println("[CONFIG RESTORE] ERROR: 'config' key is null or missing");
-      manager->sendError("Missing 'config' object in restore payload");
+      manager->sendError("Missing 'config' object in restore payload", "full_config");
       return;
     }
 
@@ -1512,7 +1527,7 @@ void CRUDHandler::setupCommandHandlers()
     if (restoreConfig.isNull())
     {
       Serial.println("[CONFIG RESTORE] ERROR: Cannot cast 'config' to JsonObject");
-      manager->sendError("Invalid 'config' object in restore payload");
+      manager->sendError("Invalid 'config' object in restore payload", "full_config");
       return;
     }
 
@@ -1813,7 +1828,7 @@ void CRUDHandler::setupCommandHandlers()
 
     if (owner.isEmpty() || repo.isEmpty())
     {
-      manager->sendError("Missing required fields: owner, repo");
+      manager->sendError("Missing required fields: owner, repo", "ota");
       return;
     }
 
@@ -1828,7 +1843,7 @@ void CRUDHandler::setupCommandHandlers()
     String token = command["token"] | "";
     if (token.isEmpty())
     {
-      manager->sendError("Missing required field: token");
+      manager->sendError("Missing required field: token", "ota");
       return;
     }
 
@@ -1846,7 +1861,7 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
 {
   if (xSemaphoreTake(queueMutex, pdMS_TO_TICKS(100)) != pdTRUE)
   {
-    manager->sendError("Failed to enqueue command (mutex timeout)");
+    manager->sendError("Failed to enqueue command (mutex timeout)", "system");
     return;
   }
 
@@ -1878,7 +1893,7 @@ void CRUDHandler::enqueueCommand(BLEManager *manager, const JsonDocument &comman
       Serial.println("[CRUD QUEUE] ERROR: Failed to serialize command payload!");
     }
     xSemaphoreGive(queueMutex);
-    manager->sendError("Failed to serialize command payload");
+    manager->sendError("Failed to serialize command payload", "system");
     return;
   }
 
@@ -1970,7 +1985,7 @@ void CRUDHandler::processPriorityQueue()
 
     if (cmd.manager)
     {
-      cmd.manager->sendError("Failed to deserialize command: " + String(error.c_str()));
+      cmd.manager->sendError("Failed to deserialize command: " + String(error.c_str()), "system");
     }
     return;
   }
@@ -2052,7 +2067,7 @@ void CRUDHandler::processPriorityQueue()
     {
       Serial.printf("[CRUD EXEC] ERROR: No handler found for op='%s', type='%s'\n", op.c_str(), type.c_str());
     }
-    cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type);
+    cmd.manager->sendError("Unknown operation or type: op=" + op + ", type=" + type, "system");
   }
 
   // CRITICAL FIX (v2.3.5): NOW safe to free payload String after handlers complete
@@ -2090,7 +2105,7 @@ void CRUDHandler::handleBatchOperation(BLEManager *manager, const JsonDocument &
 
   if (commands.isNull() || commands.size() == 0)
   {
-    manager->sendError("Batch operation requires 'commands' array");
+    manager->sendError("Batch operation requires 'commands' array", "batch");
     return;
   }
 
@@ -2363,7 +2378,7 @@ void CRUDHandler::executeBatchAtomic(BLEManager *manager, const String &batchId,
   }
   else
   {
-    manager->sendError("ATOMIC batch failed validation");
+    manager->sendError("ATOMIC batch failed validation", "batch");
   }
 
   // Update batch stats
@@ -2631,7 +2646,9 @@ void CRUDHandler::performFactoryReset()
   Serial.println("[FACTORY RESET] [6/6] All configurations cleared successfully");
   Serial.println("[FACTORY RESET] Device will restart in 3 seconds...\n");
 
-  delay(3000);
+  // v2.5.36 FIX: Use vTaskDelay instead of delay() to properly yield to RTOS scheduler
+  // This ensures other tasks can run and watchdog timer is fed
+  vTaskDelay(pdMS_TO_TICKS(3000));
 
   Serial.println("[FACTORY RESET] RESTARTING NOW...");
   ESP.restart();

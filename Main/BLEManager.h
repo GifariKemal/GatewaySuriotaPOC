@@ -10,6 +10,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <atomic> // v2.5.36: Thread-safe atomic operations
 
 // BLE UUIDs
 #define SERVICE_UUID "00001830-0000-1000-8000-00805f9b34fb"
@@ -137,7 +138,7 @@ private:
   // Command processing
   char commandBuffer[COMMAND_BUFFER_SIZE];
   size_t commandBufferIndex;
-  bool processing;
+  std::atomic<bool> processing; // v2.5.36 FIX: Atomic for thread-safe access from BLE callbacks
   unsigned long lastFragmentTime; // CRITICAL FIX: Track last fragment reception time for timeout detection
   QueueHandle_t commandQueue;
   TaskHandle_t commandTaskHandle;

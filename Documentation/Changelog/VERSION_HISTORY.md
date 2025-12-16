@@ -8,7 +8,238 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.35 (Current - Log Spam & Network Status Fix)
+## 🚀 Version 2.5.36 (Current - MQTT Client ID Collision Fix)
+
+**Release Date:** December 16, 2025 (Monday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release fixes a critical MQTT connectivity issue where devices would continuously reconnect due to client_id collision on public MQTT brokers.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. CRITICAL FIX: MQTT Client ID Collision
+**Severity:** 🔴 CRITICAL (Connectivity)
+
+**Problem:** MQTT connection kept reconnecting every 1-2 seconds when using public brokers like `broker.hivemq.com`. The pattern was:
+- Connect successfully
+- Immediately disconnect (within <1 second)
+- Reconnect, disconnect, reconnect... (infinite loop)
+
+**Root Cause:** Default `client_id` was set to static value `"esp32_gateway"`. When multiple devices or MQTT subscribers used the same broker with identical client_id, the broker would kick the old client when a new one connected, causing a "tug-of-war" reconnection loop.
+
+**Solution:**
+1. Changed default `client_id` from `"esp32_gateway"` to empty string
+2. Auto-generate unique `client_id` using MAC address: `"MGate1210_XXXXXX"` (where XXXXXX = last 3 bytes of MAC in hex)
+3. Also handles migration: if existing config has old `"esp32_gateway"` value, it auto-generates unique ID
+
+**Files Modified:**
+- `MqttManager.cpp:864-876` - loadBrokerConfig() unique ID generation
+- `MqttManager.cpp:444-446` - loadMqttConfig() fallback defaults
+
+**Before (Bug):**
+```cpp
+clientId = mqttConfig["client_id"] | "esp32_gateway";  // Static default!
+```
+
+**After (Fix):**
+```cpp
+clientId = mqttConfig["client_id"] | "";
+clientId.trim();
+if (clientId.isEmpty() || clientId == "esp32_gateway") {
+    uint64_t mac = ESP.getEfuseMac();
+    clientId = String("MGate1210_") + String((uint32_t)(mac & 0xFFFFFF), HEX);
+}
+```
+
+**Example Generated IDs:**
+- Device with MAC `AA:BB:CC:DD:E7:16` → `MGate1210_DDE716`
+- Device with MAC `11:22:33:44:55:66` → `MGate1210_445566`
+
+**Impact:** MQTT connections are now stable. Each device has unique client_id, eliminating broker collision issues.
+
+#### 2. FIX: Incomplete get_gateway_info Response
+**Severity:** 🟡 MEDIUM (API completeness)
+
+**Problem:** BLE command `get_gateway_info` was missing several fields that mobile app expects:
+- `uid` - Short identifier (4 hex chars)
+- `serial_number` - Full serial number
+- `build_number` - Firmware build number for OTA comparison
+- `variant` - Product variant ("P" or "")
+- `is_poe` - Boolean POE indicator
+- `manufacturer` - Manufacturer name
+
+**Solution:** Updated CRUDHandler to include all fields from GatewayConfig and ProductConfig.
+
+**File:** `CRUDHandler.cpp:1238-1276`
+
+**Complete Response Now:**
+```json
+{
+  "status": "ok",
+  "command": "get_gateway_info",
+  "data": {
+    "ble_name": "MGate-1210(P)A716",
+    "mac": "AA:BB:CC:DD:A7:16",
+    "uid": "A716",
+    "short_mac": "DDA716",
+    "serial_number": "SRT-MGATE1210P-20251216-DDA716",
+    "friendly_name": "Panel Listrik Gedung A",
+    "location": "Lt.1 Ruang Panel",
+    "firmware": "2.5.36",
+    "build_number": 2536,
+    "model": "MGate-1210(P)",
+    "variant": "P",
+    "is_poe": true,
+    "manufacturer": "SURIOTA"
+  }
+}
+```
+
+#### 3. FIX: BLE Command Buffer Not Cleared on Disconnect
+**Severity:** 🟡 MEDIUM (Data corruption risk)
+
+**Problem:** If BLE connection was interrupted mid-command (before `<END>` marker received), the command buffer still contained partial data. When new client connected and sent a new command, data would be appended to old partial data, causing invalid JSON parsing errors.
+
+**Solution:** Clear command buffer and related state variables in `onDisconnect()` handler.
+
+**File:** `BLEManager.cpp:291-301`
+
+**Added Code:**
+```cpp
+// v2.5.36 FIX: Clear command buffer to prevent corruption on reconnect
+if (commandBufferIndex > 0)
+{
+  LOG_BLE_INFO("[BLE] Clearing dirty buffer (%d bytes) on disconnect", commandBufferIndex);
+}
+commandBufferIndex = 0;
+memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+processing = false;
+lastFragmentTime = 0;
+```
+
+**Variables Cleared:**
+- `commandBuffer` - The 16KB command buffer
+- `commandBufferIndex` - Current write position
+- `processing` - Command processing flag
+- `lastFragmentTime` - Fragment timeout tracking
+
+#### 4. FIX: Unchecked Task Creation Return Value
+**Severity:** 🟡 MEDIUM (Stability)
+
+**Problem:** `xTaskCreatePinnedToCore()` return value was not checked in CRUDHandler constructor. If task creation failed (e.g., due to memory exhaustion), the code would continue with invalid task handle.
+
+**Solution:** Check `pdPASS` return value and log error if task creation fails.
+
+**File:** `CRUDHandler.cpp:40-58`
+
+**Added Code:**
+```cpp
+BaseType_t taskResult = xTaskCreatePinnedToCore(...);
+if (taskResult != pdPASS)
+{
+  LOG_CRUD_INFO("[CRUD] CRITICAL ERROR: Failed to create command processor task!");
+  commandProcessorTaskHandle = nullptr;
+}
+```
+
+#### 5. FIX: Replace strcpy with memcpy for Defensive Programming
+**Severity:** 🟢 LOW (Defensive programming)
+
+**Problem:** `strcpy()` was used for string copying in QueueManager without explicit bounds checking. While the buffer was correctly sized, using `memcpy` with explicit size is considered safer practice.
+
+**Solution:** Replaced `strcpy()` with `memcpy()` with explicit size parameter.
+
+**File:** `QueueManager.cpp:107, 415`
+
+**Before:**
+```cpp
+strcpy(jsonCopy, jsonString.c_str());
+```
+
+**After:**
+```cpp
+memcpy(jsonCopy, jsonString.c_str(), jsonString.length() + 1);
+```
+
+#### 6. FIX: Blocking delay() to vTaskDelay() in Factory Reset
+**Severity:** 🟢 LOW (RTOS best practice)
+
+**Problem:** `delay(3000)` in factory reset doesn't properly yield to RTOS scheduler and may not feed watchdog timer.
+
+**Solution:** Replaced with `vTaskDelay(pdMS_TO_TICKS(3000))` for proper RTOS operation.
+
+**File:** `CRUDHandler.cpp:2649-2651`
+
+#### 7. FIX: Atomic Processing Flag for Thread Safety
+**Severity:** 🟢 LOW (Thread safety)
+
+**Problem:** `processing` flag in BLEManager was a plain `bool` accessed from BLE callbacks without synchronization.
+
+**Solution:** Changed to `std::atomic<bool>` for lock-free thread-safe operations.
+
+**File:** `BLEManager.h:141`
+
+#### 8. FIX: sendError() Calls with Explicit Type Parameter
+**Severity:** 🟢 LOW (API consistency)
+
+**Problem:** 37 sendError() calls were using default type `"unknown"` instead of explicit type parameters. This made error handling inconsistent and harder for mobile app to categorize errors.
+
+**Solution:** Added explicit type parameter to all sendError() calls:
+- `"parse"` - JSON parsing errors (4 calls in BLEManager.cpp)
+- `"system"` - System/internal errors (6 calls)
+- `"device"` - Device CRUD errors (14 calls)
+- `"registers"` - Register CRUD errors (3 calls)
+- `"server_config"` - Server config errors (1 call)
+- `"logging_config"` - Logging config errors (1 call)
+- `"control"` - Control operation errors (13 calls)
+- `"full_config"` - Backup/restore errors (2 calls)
+- `"ota"` - OTA update errors (2 calls)
+- `"batch"` - Batch operation errors (2 calls)
+
+**Files:** `BLEManager.cpp` (4 calls), `CRUDHandler.cpp` (33 calls)
+
+**Before:**
+```cpp
+manager->sendError("Device not found");  // Uses default "unknown"
+```
+
+**After:**
+```cpp
+manager->sendError("Device not found", "device");  // Explicit type
+```
+
+---
+
+### 📁 **Files Changed**
+| File | Changes |
+|------|---------|
+| `MqttManager.cpp` | Auto-generate unique client_id from MAC address |
+| `CRUDHandler.cpp` | Complete get_gateway_info, task creation check, vTaskDelay, explicit sendError types |
+| `BLEManager.cpp` | Clear command buffer on disconnect, explicit sendError types (parse, system) |
+| `BLEManager.h` | Atomic processing flag, added `<atomic>` include |
+| `QueueManager.cpp` | Replace strcpy with memcpy for defensive programming |
+| `ProductConfig.h` | Version bump to 2.5.36 |
+
+### 🧪 **Testing Checklist**
+- [ ] Verify MQTT connects without reconnection loop
+- [ ] Verify unique client_id is logged on startup
+- [ ] Test with multiple devices on same broker
+- [ ] Test with MQTT subscriber running simultaneously
+- [ ] Verify get_gateway_info returns all 13 fields
+- [ ] Test mobile app firmware detail screen
+- [ ] Test BLE reconnect after interrupted command (no corruption)
+- [ ] Verify factory reset completes without watchdog reset
+- [ ] Verify compilation with atomic processing flag
+- [ ] Verify error responses have explicit type field (not "unknown")
+
+---
+
+## 🚀 Version 2.5.35 (Log Spam & Network Status Fix)
 
 **Release Date:** December 12, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)

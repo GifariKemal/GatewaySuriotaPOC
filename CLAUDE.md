@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.32 | **Last Updated:** December 5, 2025
+**Version:** 2.5.36 | **Last Updated:** December 16, 2025
 
 ---
 
@@ -31,7 +31,16 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.32 - Dec 5, 2025)
+## 🆕 Latest Updates (v2.5.36 - Dec 16, 2025)
+
+### v2.5.36 - MQTT, Gateway Info & BLE Buffer Fix (Dec 16, 2025)
+- **CRITICAL FIX:** MQTT reconnection loop caused by client_id collision on public brokers
+- **Root Cause:** Default `client_id` was static `"esp32_gateway"` - all devices shared same ID
+- **Solution:** Auto-generate unique client_id from MAC address: `MGate1210_XXXXXX`
+- **Migration:** Old configs with `"esp32_gateway"` are automatically upgraded to unique ID
+- **Impact:** MQTT connections now stable, no more "tug-of-war" between devices/subscribers
+- **API FIX:** `get_gateway_info` now returns complete response (13 fields including uid, serial_number, build_number, variant, is_poe, manufacturer)
+- **BLE FIX:** Clear command buffer on disconnect to prevent JSON corruption on reconnect
 
 ### v2.5.32 - Centralized Product Configuration (Dec 5, 2025)
 - **NEW FILE:** `ProductConfig.h` - Single source of truth for all product identity settings

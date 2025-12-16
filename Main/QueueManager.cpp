@@ -104,7 +104,8 @@ bool QueueManager::enqueue(const JsonObject &dataPoint)
     }
   }
 
-  strcpy(jsonCopy, jsonString.c_str());
+  // v2.5.36 FIX: Use memcpy instead of strcpy for defensive programming (explicit bounds)
+  memcpy(jsonCopy, jsonString.c_str(), jsonString.length() + 1);
 
   // Add to queue
   bool success = xQueueSend(dataQueue, &jsonCopy, 0) == pdTRUE;
@@ -410,7 +411,8 @@ bool QueueManager::enqueueStream(const JsonObject &dataPoint)
     return false;
   }
 
-  strcpy(jsonCopy, jsonString.c_str());
+  // v2.5.36 FIX: Use memcpy instead of strcpy for defensive programming (explicit bounds)
+  memcpy(jsonCopy, jsonString.c_str(), jsonString.length() + 1);
   bool success = xQueueSend(streamQueue, &jsonCopy, 0) == pdTRUE;
 
   if (success)

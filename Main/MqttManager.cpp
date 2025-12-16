@@ -441,7 +441,9 @@ void MqttManager::loadMqttConfig()
     LOG_MQTT_INFO("[MQTT] Failed to load config, using defaults");
     brokerAddress = "broker.hivemq.com";
     brokerPort = 1883;
-    clientId = "esp32_gateway_" + String(random(1000, 9999));
+    // v2.5.36 FIX: Use MAC-based unique ID instead of random() which may not be seeded
+    uint64_t mac = ESP.getEfuseMac();
+    clientId = String("MGate1210_") + String((uint32_t)(mac & 0xFFFFFF), HEX);
     publishMode = "default";
     defaultModeEnabled = true;
     defaultTopicPublish = "device/data";
@@ -861,14 +863,18 @@ void MqttManager::loadBrokerConfig(JsonObject &mqttConfig)
 
   brokerPort = mqttConfig["broker_port"] | 1883;
 
-  // v2.3.17 FIX: Handle empty client_id from config (ArduinoJson doesn't treat "" as missing)
-  clientId = mqttConfig["client_id"] | "esp32_gateway";
+  // v2.5.36 FIX: Always generate unique client_id to prevent broker collision
+  // Previous bug: Default "esp32_gateway" caused all devices to fight for same client_id
+  // Fix: Default to empty string, then auto-generate unique ID based on MAC address
+  clientId = mqttConfig["client_id"] | "";
   clientId.trim();
-  if (clientId.isEmpty()) {
+
+  // Auto-generate unique client_id if empty OR if using old static default
+  if (clientId.isEmpty() || clientId == "esp32_gateway") {
     // Generate unique ID based on ESP32 MAC address (last 6 hex digits)
     uint64_t mac = ESP.getEfuseMac();
-    clientId = String("GATEWAY-") + String((uint32_t)(mac & 0xFFFFFF), HEX);
-    LOG_MQTT_INFO("[MQTT] Empty client_id in config, auto-generated: %s\n", clientId.c_str());
+    clientId = String("MGate1210_") + String((uint32_t)(mac & 0xFFFFFF), HEX);
+    LOG_MQTT_INFO("[MQTT] Auto-generated unique client_id: %s\n", clientId.c_str());
   }
 
   username = mqttConfig["username"] | "";

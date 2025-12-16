@@ -288,6 +288,18 @@ void BLEManager::onDisconnect(BLEServer *pServer)
     LOG_BLE_INFO("[BLE] Cleared streaming on disconnect");
   }
 
+  // v2.5.36 FIX: Clear command buffer to prevent corruption on reconnect
+  // If previous connection was interrupted mid-command (no <END> received),
+  // buffer would contain partial data. New commands would append to old data → Invalid JSON
+  if (commandBufferIndex > 0)
+  {
+    LOG_BLE_INFO("[BLE] Clearing dirty buffer (%d bytes) on disconnect", commandBufferIndex);
+  }
+  commandBufferIndex = 0;
+  memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+  processing = false;
+  lastFragmentTime = 0;
+
   BLEDevice::startAdvertising(); // Restart advertising
 }
 
@@ -416,7 +428,7 @@ void BLEManager::receiveFragment(const String &fragment)
                     commandBufferIndex, fragmentLen, commandBufferIndex + fragmentLen);
       commandBufferIndex = 0;
       memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
-      sendError("Command too long, buffer overflow.");
+      sendError("Command too long, buffer overflow.", "parse");
     }
   }
 }
@@ -468,7 +480,7 @@ void BLEManager::handleCompleteCommand(const char *command)
     // v2.5.35: Use DEV_MODE check to prevent log leak in production
     DEV_SERIAL_PRINTF("[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n",
                   cmdLen, COMMAND_BUFFER_SIZE);
-    sendError("Command exceeds buffer size");
+    sendError("Command exceeds buffer size", "parse");
     return;
   }
 
@@ -502,7 +514,7 @@ void BLEManager::handleCompleteCommand(const char *command)
       }
     }
 
-    sendError("Invalid JSON: " + String(error.c_str()));
+    sendError("Invalid JSON: " + String(error.c_str()), "parse");
     return;
   }
 
@@ -518,7 +530,7 @@ void BLEManager::handleCompleteCommand(const char *command)
   }
   else
   {
-    sendError("No handler configured");
+    sendError("No handler configured", "system");
   }
 }
 

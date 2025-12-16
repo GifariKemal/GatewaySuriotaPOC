@@ -1,8 +1,8 @@
 /**
  * @file ProductConfig.h
  * @brief Centralized Product Identity Configuration
- * @version 2.5.34
- * @date 2025-12-06
+ * @version 2.5.36
+ * @date 2025-12-16
  *
  * ============================================================================
  * PRODUCT CONFIGURATION - EDIT HERE FOR ALL IDENTITY SETTINGS
@@ -35,14 +35,14 @@
 // Format: MAJOR.MINOR.PATCH
 // Update this for every release
 
-#define FIRMWARE_VERSION        "2.5.35"
+#define FIRMWARE_VERSION        "2.5.36"
 #define FIRMWARE_VERSION_MAJOR  2
 #define FIRMWARE_VERSION_MINOR  5
-#define FIRMWARE_VERSION_PATCH  35
+#define FIRMWARE_VERSION_PATCH  36
 
-// Build number: Derived from version (2.5.35 = 2535)
+// Build number: Derived from version (2.5.36 = 2536)
 // Used for OTA version comparison
-#define FIRMWARE_BUILD_NUMBER   2535
+#define FIRMWARE_BUILD_NUMBER   2536
 
 // ============================================================================
 // PRODUCT MODEL & VARIANT
