@@ -11,7 +11,7 @@ Automated OTA update process via BLE:
 
 Features (v2.0.0):
   - Real-time progress notifications (push from device)
-  - Download speed and ETA display
+  - Download speed and ETA display`
   - Network mode indicator (WiFi/Ethernet)
   - Retry count monitoring
   - Interactive progress bar
@@ -89,7 +89,7 @@ COMMAND_DELAY = 3.0     # Delay between OTA commands
 # GitHub Token for Private Repository Access
 # Set this ONLY if repository is PRIVATE. Leave empty for public repos.
 # Note: Token can cause 404 errors on public repos!
-GITHUB_TOKEN = "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"  # Fine-grained PAT for OTA repo
+GITHUB_TOKEN = "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"  # Fine-grained PAT for OTA repo
 
 # ============================================================================
 # Global Variables

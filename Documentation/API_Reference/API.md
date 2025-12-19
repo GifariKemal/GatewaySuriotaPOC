@@ -357,11 +357,11 @@ Get a compact summary of all devices (minimal fields).
 
 **Request (Minimal - Optimized for large datasets):**
 ```json
-{
-  "op": "read",
-  "type": "devices_with_registers",
-  "minimal": true
-}
+    {
+      "op": "read",
+      "type": "devices_with_registers",
+      "minimal": true
+    }
 ```
 
 **Parameters:**
