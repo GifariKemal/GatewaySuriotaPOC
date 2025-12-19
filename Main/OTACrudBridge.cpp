@@ -14,6 +14,7 @@
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTACrudBridge.h"
 #include "OTAManager.h"   // ONLY include here - causes ESP_SSLClient to be pulled in
+#include "NetworkManager.h" // v2.5.38: For network pre-check before OTA download
 
 namespace OTACrudBridge {
 
@@ -103,6 +104,32 @@ bool startUpdate(OTAManager* otaManager, const String& customUrl, JsonDocument& 
         return false;
     }
 
+    // v2.5.38: Network pre-check before OTA download
+    NetworkMgr* netMgr = NetworkMgr::getInstance();
+    if (!netMgr || !netMgr->isAvailable()) {
+        response["status"] = "error";
+        response["command"] = "start_update";
+        response["error_message"] = "No network connection. Connect to WiFi or Ethernet before OTA.";
+        response["network_available"] = false;
+        LOG_OTA_INFO("[OTA] Cannot start update: No network connection");
+        return false;
+    }
+
+    // Report network status in response
+    String networkMode = netMgr->getCurrentMode();
+    response["network_mode"] = networkMode;
+    response["ip_address"] = netMgr->getLocalIP().toString();
+
+    // Warn if WiFi signal is weak (but still allow OTA)
+    if (networkMode == "WIFI") {
+        uint8_t quality = netMgr->getWiFiSignalQuality();
+        response["wifi_signal_quality"] = quality;
+        if (quality < 30) {
+            LOG_OTA_INFO("[OTA] Warning: WiFi signal weak (%d%%). OTA may be slow or fail.", quality);
+            response["warning"] = "WiFi signal weak. Consider using Ethernet for reliable OTA.";
+        }
+    }
+
     response["status"] = "ok";
     response["command"] = "start_update";
 
@@ -111,7 +138,7 @@ bool startUpdate(OTAManager* otaManager, const String& customUrl, JsonDocument& 
         LOG_OTA_INFO("[OTA] Starting update from custom URL: %s", customUrl.c_str());
         started = otaManager->startUpdateFromUrl(customUrl);
     } else {
-        LOG_OTA_INFO("[OTA] Starting update from GitHub...");
+        LOG_OTA_INFO("[OTA] Starting update from GitHub (network: %s)...", networkMode.c_str());
         started = otaManager->startUpdate();
     }
 

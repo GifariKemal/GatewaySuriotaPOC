@@ -13,6 +13,7 @@
 #include "OTACrudBridge.h"  // v2.5.35: Bridge to OTA (avoids ESP_SSLClient linker error)
 #include "GatewayConfig.h"  // For gateway identity (v2.5.31)
 #include "ProductConfig.h"  // For firmware version, model (v2.5.32)
+#include "NetworkManager.h" // For network status API (v2.5.38)
 #include <esp_heap_caps.h>  // For PSRAM allocation
 
 // Make service pointers available to the handler
@@ -1282,6 +1283,107 @@ void CRUDHandler::setupCommandHandlers()
     manager->sendResponse(*response);
     LOG_CRUD_INFO("[CRUD] Gateway info sent: %s (SN: %s)",
                   gwConfig->getBLEName(), gwConfig->getSerialNumber());
+  };
+
+  // === NETWORK STATUS API (v2.5.38) ===
+  // Get Network Status - Network connectivity check for Mobile Apps (OTA pre-check)
+  controlHandlers["get_network_status"] = [this](BLEManager *manager, const JsonDocument &command)
+  {
+    NetworkMgr *netMgr = NetworkMgr::getInstance();
+    if (!netMgr)
+    {
+      manager->sendError("Network manager not initialized", "control");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "get_network_status";
+
+    JsonObject data = (*response)["data"].to<JsonObject>();
+
+    // Network availability
+    bool networkAvailable = netMgr->isAvailable();
+    data["network_available"] = networkAvailable;
+    data["active_mode"] = netMgr->getCurrentMode();
+    data["ip_address"] = netMgr->getLocalIP().toString();
+
+    // WiFi status
+    JsonObject wifiStatus = data["wifi"].to<JsonObject>();
+    WiFiManager *wifiMgr = WiFiManager::getInstance();
+    if (wifiMgr && wifiMgr->isInitialized())
+    {
+      wifiMgr->getStatus(wifiStatus);
+      // Add signal quality for OTA recommendation
+      wifiStatus["signal_quality"] = netMgr->getWiFiSignalQuality();
+    }
+    else
+    {
+      wifiStatus["initialized"] = false;
+      wifiStatus["available"] = false;
+    }
+
+    // Ethernet status
+    JsonObject ethStatus = data["ethernet"].to<JsonObject>();
+    EthernetManager *ethMgr = EthernetManager::getInstance();
+    if (ethMgr && ethMgr->isInitialized())
+    {
+      ethMgr->getStatus(ethStatus);
+    }
+    else
+    {
+      ethStatus["initialized"] = false;
+      ethStatus["available"] = false;
+    }
+
+    // OTA readiness assessment
+    bool otaReady = false;
+    String otaRecommendation;
+
+    if (!networkAvailable)
+    {
+      otaRecommendation = "No network connection. Connect to WiFi or Ethernet before OTA.";
+    }
+    else
+    {
+      String mode = netMgr->getCurrentMode();
+      if (mode == "ETH")
+      {
+        // Ethernet is always good for OTA
+        otaReady = true;
+        otaRecommendation = "Ethernet connected. Recommended for OTA update.";
+      }
+      else if (mode == "WIFI")
+      {
+        uint8_t quality = netMgr->getWiFiSignalQuality();
+        if (quality >= 50)
+        {
+          otaReady = true;
+          otaRecommendation = "WiFi signal good (" + String(quality) + "%). OK for OTA update.";
+        }
+        else if (quality >= 30)
+        {
+          otaReady = true;
+          otaRecommendation = "WiFi signal fair (" + String(quality) + "%). OTA may be slow, consider moving closer to router.";
+        }
+        else
+        {
+          otaReady = false;
+          otaRecommendation = "WiFi signal weak (" + String(quality) + "%). Not recommended for OTA. Move closer to router or use Ethernet.";
+        }
+      }
+      else
+      {
+        otaRecommendation = "Unknown network mode. Check network configuration.";
+      }
+    }
+
+    data["ota_ready"] = otaReady;
+    data["ota_recommendation"] = otaRecommendation;
+
+    manager->sendResponse(*response);
+    LOG_CRUD_INFO("[CRUD] Network status sent: %s, OTA ready: %s",
+                  netMgr->getCurrentMode().c_str(), otaReady ? "yes" : "no");
   };
 
   // Set Friendly Name - Allow user to set custom name for this gateway

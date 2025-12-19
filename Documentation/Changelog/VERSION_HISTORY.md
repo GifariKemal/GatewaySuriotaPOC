@@ -8,7 +8,135 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.36 (Current - MQTT Client ID Collision Fix)
+## 🚀 Version 2.5.38 (Current - Network Status API & OTA Pre-Check)
+
+**Release Date:** December 19, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release adds network status API for Mobile Apps and network pre-check before OTA download to prevent failed updates due to network issues.
+
+---
+
+### ✨ **Changes Overview**
+
+#### 1. NEW: `get_network_status` BLE API
+**Category:** 🟢 NEW FEATURE (Mobile App Integration)
+
+**Purpose:** Allow Mobile Apps to check network connectivity and OTA readiness before initiating firmware update.
+
+**Command:**
+```json
+{
+  "op": "control",
+  "type": "get_network_status"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "command": "get_network_status",
+  "data": {
+    "network_available": true,
+    "active_mode": "WiFi",
+    "ip_address": "192.168.1.100",
+    "wifi": { "initialized": true, "available": true, "ssid": "MyNetwork", "rssi": -65, "signal_quality": 75 },
+    "ethernet": { "initialized": false, "available": false },
+    "ota_ready": true,
+    "ota_recommendation": "WiFi signal good (75%). OK for OTA update."
+  }
+}
+```
+
+**OTA Readiness Logic:**
+| Condition | `ota_ready` | Recommendation |
+|-----------|-------------|----------------|
+| No network | `false` | Connect to WiFi or Ethernet |
+| Ethernet connected | `true` | Recommended for OTA |
+| WiFi signal ≥ 50% | `true` | OK for OTA |
+| WiFi signal 30-49% | `true` | OTA may be slow |
+| WiFi signal < 30% | `false` | Not recommended, use Ethernet |
+
+**Files Modified:**
+- `CRUDHandler.cpp:1288-1387` - New `get_network_status` handler
+
+#### 2. ENHANCEMENT: OTA start_update Network Pre-Check
+**Category:** 🟡 ENHANCEMENT (OTA Reliability)
+
+**Problem:** OTA update could fail mid-download if network is unavailable or weak, causing user frustration.
+
+**Solution:** `start_update` now checks network connectivity before starting download:
+- Fails immediately with clear error if no network connection
+- Warns if WiFi signal is weak (< 30%)
+- Includes `network_mode`, `ip_address`, `wifi_signal_quality` in response
+
+**New Error Response (No Network):**
+```json
+{
+  "status": "error",
+  "command": "start_update",
+  "error_message": "No network connection. Connect to WiFi or Ethernet before OTA.",
+  "network_available": false
+}
+```
+
+**New Success Response (With Network Info):**
+```json
+{
+  "status": "ok",
+  "command": "start_update",
+  "message": "OTA update started...",
+  "network_mode": "WiFi",
+  "ip_address": "192.168.1.100",
+  "wifi_signal_quality": 75
+}
+```
+
+**Files Modified:**
+- `OTACrudBridge.cpp:100-143` - Added network pre-check in startUpdate()
+
+#### 3. Version Update
+- Updated `ProductConfig.h` to v2.5.38
+- Updated `BLE_OTA_UPDATE.md` documentation
+
+---
+
+### 📚 **Documentation**
+
+- `Documentation/API_Reference/BLE_OTA_UPDATE.md` - Added Section 0: Pre-OTA Network Check, updated start_update responses
+
+---
+
+## 🚀 Version 2.5.37 (OTA Interactive Progress)
+
+**Release Date:** December 19, 2025 (Thursday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+This release adds interactive OTA progress with real-time push notifications via BLE for Mobile App integration.
+
+### ✨ **Changes Overview**
+
+#### 1. Real-time OTA Progress Push Notifications
+- Push notifications sent every 5% progress during download
+- Includes: `bytes_per_second`, `eta_seconds`, `network_mode`, `retry_count`
+- Notification type: `"type": "ota_progress"`
+
+#### 2. Enhanced ota_status Response
+- Added: `bytes_per_second`, `eta_seconds`, `network_mode`, `retry_count`, `max_retries`
+
+#### 3. devices_summary Now Includes slave_id
+- Added `slave_id` to each device in summary response
+
+---
+
+## 🚀 Version 2.5.36 (MQTT Client ID Collision Fix)
 
 **Release Date:** December 16, 2025 (Monday)
 **Developer:** Kemal (with Claude Code)

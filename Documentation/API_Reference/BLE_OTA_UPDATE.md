@@ -1,6 +1,6 @@
 # BLE OTA Update API Reference
 
-**Version:** 2.5.37
+**Version:** 2.5.38
 **Last Updated:** December 19, 2025
 
 ---
@@ -18,19 +18,136 @@ All OTA commands use the operation type `"op": "ota"`.
 
 ## Quick Reference
 
-| Command          | Type               | Description                           |
-| ---------------- | ------------------ | ------------------------------------- |
-| Check Update     | `check_update`     | Query GitHub for new firmware version |
-| Start Update     | `start_update`     | Begin HTTPS firmware download         |
-| Get Status       | `ota_status`       | Get current OTA state and progress    |
-| Abort Update     | `abort_update`     | Cancel ongoing update                 |
-| Apply Update     | `apply_update`     | Install firmware and reboot           |
-| Enable BLE OTA   | `enable_ble_ota`   | Activate BLE transfer mode            |
-| Disable BLE OTA  | `disable_ble_ota`  | Deactivate BLE transfer mode          |
-| Rollback         | `rollback`         | Revert to previous/factory firmware   |
-| Get Config       | `get_config`       | View OTA configuration                |
-| Set GitHub Repo  | `set_github_repo`  | Configure firmware source             |
-| Set GitHub Token | `set_github_token` | Set token for private repos           |
+| Command            | Type               | Operation | Description                           |
+| ------------------ | ------------------ | --------- | ------------------------------------- |
+| Get Network Status | `get_network_status` | `control` | Check network before OTA (v2.5.38)   |
+| Check Update       | `check_update`     | `ota`     | Query GitHub for new firmware version |
+| Start Update       | `start_update`     | `ota`     | Begin HTTPS firmware download         |
+| Get Status         | `ota_status`       | `ota`     | Get current OTA state and progress    |
+| Abort Update       | `abort_update`     | `ota`     | Cancel ongoing update                 |
+| Apply Update       | `apply_update`     | `ota`     | Install firmware and reboot           |
+| Enable BLE OTA     | `enable_ble_ota`   | `ota`     | Activate BLE transfer mode            |
+| Disable BLE OTA    | `disable_ble_ota`  | `ota`     | Deactivate BLE transfer mode          |
+| Rollback           | `rollback`         | `ota`     | Revert to previous/factory firmware   |
+| Get Config         | `get_config`       | `ota`     | View OTA configuration                |
+| Set GitHub Repo    | `set_github_repo`  | `ota`     | Configure firmware source             |
+| Set GitHub Token   | `set_github_token` | `ota`     | Set token for private repos           |
+
+---
+
+## 0. Pre-OTA Network Check (v2.5.38)
+
+Check network connectivity before starting OTA update. **Recommended to call before `start_update`.**
+
+> **Note:** This uses `"op": "control"` (not `"op": "ota"`) because it's a general network status command.
+
+### Request
+
+```json
+{
+  "op": "control",
+  "type": "get_network_status"
+}
+```
+
+### Response (Network Available)
+
+```json
+{
+  "status": "ok",
+  "command": "get_network_status",
+  "data": {
+    "network_available": true,
+    "active_mode": "WiFi",
+    "ip_address": "192.168.1.100",
+    "wifi": {
+      "initialized": true,
+      "available": true,
+      "ssid": "MyNetwork",
+      "ip_address": "192.168.1.100",
+      "rssi": -65,
+      "signal_quality": 75,
+      "status": "connected"
+    },
+    "ethernet": {
+      "initialized": false,
+      "available": false
+    },
+    "ota_ready": true,
+    "ota_recommendation": "WiFi signal good (75%). OK for OTA update."
+  }
+}
+```
+
+### Response (Ethernet Connected)
+
+```json
+{
+  "status": "ok",
+  "command": "get_network_status",
+  "data": {
+    "network_available": true,
+    "active_mode": "ETH",
+    "ip_address": "192.168.1.50",
+    "wifi": {
+      "initialized": false,
+      "available": false
+    },
+    "ethernet": {
+      "initialized": true,
+      "available": true,
+      "ip_address": "192.168.1.50",
+      "link_status": "connected",
+      "hardware_status": "W5500"
+    },
+    "ota_ready": true,
+    "ota_recommendation": "Ethernet connected. Recommended for OTA update."
+  }
+}
+```
+
+### Response (No Network)
+
+```json
+{
+  "status": "ok",
+  "command": "get_network_status",
+  "data": {
+    "network_available": false,
+    "active_mode": "NONE",
+    "ip_address": "0.0.0.0",
+    "wifi": {
+      "initialized": true,
+      "available": false,
+      "ssid": "MyNetwork",
+      "status": "disconnected"
+    },
+    "ethernet": {
+      "initialized": false,
+      "available": false
+    },
+    "ota_ready": false,
+    "ota_recommendation": "No network connection. Connect to WiFi or Ethernet before OTA."
+  }
+}
+```
+
+### OTA Readiness Logic
+
+| Condition | `ota_ready` | Recommendation |
+|-----------|-------------|----------------|
+| No network | `false` | Connect to WiFi or Ethernet |
+| Ethernet connected | `true` | Recommended for OTA |
+| WiFi signal ≥ 50% | `true` | OK for OTA |
+| WiFi signal 30-49% | `true` | OTA may be slow |
+| WiFi signal < 30% | `false` | Not recommended, use Ethernet |
+
+### Mobile App Integration
+
+Use this API to:
+1. **Pre-check before OTA** - Show network status before user initiates update
+2. **Display warnings** - Alert user if WiFi signal is weak
+3. **Recommend Ethernet** - Suggest Ethernet for more reliable OTA
 
 ---
 
@@ -107,34 +224,70 @@ Begin downloading firmware from GitHub or custom URL.
 }
 ```
 
-### Response (Success)
+### Response (Success - v2.5.38)
 
 ```json
 {
   "status": "ok",
   "command": "start_update",
   "message": "OTA update started. Monitor progress with ota_status command.",
-  "update_mode": "https"
+  "update_mode": "https",
+  "network_mode": "WiFi",
+  "ip_address": "192.168.1.100",
+  "wifi_signal_quality": 75
 }
 ```
 
-### Response (Error)
+> **v2.5.38:** Response now includes `network_mode`, `ip_address`, and `wifi_signal_quality` (for WiFi).
+
+### Response (No Network - v2.5.38)
+
+```json
+{
+  "status": "error",
+  "command": "start_update",
+  "error_message": "No network connection. Connect to WiFi or Ethernet before OTA.",
+  "network_available": false
+}
+```
+
+> **v2.5.38:** `start_update` now performs automatic network pre-check and fails immediately if no network is available.
+
+### Response (Weak WiFi Warning)
+
+```json
+{
+  "status": "ok",
+  "command": "start_update",
+  "message": "OTA update started. Monitor progress with ota_status command.",
+  "update_mode": "https",
+  "network_mode": "WiFi",
+  "ip_address": "192.168.1.100",
+  "wifi_signal_quality": 25,
+  "warning": "WiFi signal weak. Consider using Ethernet for reliable OTA."
+}
+```
+
+### Response (Other Errors)
 
 ```json
 {
   "status": "error",
   "command": "start_update",
   "error_code": 3,
-  "error_message": "Network not available"
+  "error_message": "Failed to download firmware"
 }
 ```
 
 ### Notes
 
+- **v2.5.38:** Automatic network pre-check before download starts
 - First call `check_update` to verify update exists
+- Use `get_network_status` to check network quality before OTA
 - Download runs in background FreeRTOS task
 - Use `ota_status` to monitor progress
 - Download can be cancelled with `abort_update`
+- Ethernet is recommended for reliable OTA; weak WiFi may cause failures
 
 ---
 
