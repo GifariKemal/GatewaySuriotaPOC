@@ -629,6 +629,56 @@ void BLEManager::sendSuccess(const String &type)
   sendResponse(doc);
 }
 
+/**
+ * @brief Send OTA progress notification (v2.5.37)
+ *
+ * Sends a push notification to mobile app during OTA download.
+ * This allows the app to show real-time progress without polling.
+ *
+ * @param progress Download progress percentage (0-100)
+ * @param bytesDownloaded Bytes downloaded so far
+ * @param totalBytes Total bytes to download
+ * @param bytesPerSecond Current download speed
+ * @param etaSeconds Estimated time remaining
+ * @param state Current OTA state name
+ * @param networkMode Network mode (WiFi/Ethernet)
+ */
+void BLEManager::sendOtaProgressNotification(uint8_t progress, size_t bytesDownloaded,
+                                              size_t totalBytes, uint32_t bytesPerSecond,
+                                              uint32_t etaSeconds, const String& state,
+                                              const String& networkMode)
+{
+  if (!pResponseChar || !connectionMetrics.isConnected) {
+    return; // No BLE connection, skip notification
+  }
+
+  // Build compact JSON notification
+  JsonDocument doc;
+  doc["type"] = "ota_progress";  // Notification type for app to identify
+  doc["state"] = state;
+  doc["progress"] = progress;
+  doc["bytes_downloaded"] = bytesDownloaded;
+  doc["total_bytes"] = totalBytes;
+  doc["bytes_per_second"] = bytesPerSecond;
+  doc["eta_seconds"] = etaSeconds;
+  doc["network_mode"] = networkMode;
+
+  // Serialize and send (no fragmentation needed for this small payload)
+  String payload;
+  serializeJson(doc, payload);
+
+  LOG_BLE_DEBUG("[BLE] OTA Progress notification: %d%% (%s)\n", progress, state.c_str());
+
+  // Send directly without fragmentation (small payload ~150 bytes)
+  if (payload.length() < 200) {
+    pResponseChar->setValue(payload.c_str());
+    pResponseChar->notify();
+  } else {
+    // Fallback to fragmented send if somehow payload is large
+    sendResponse(doc);
+  }
+}
+
 void BLEManager::sendFragmented(const char *data, size_t length)
 {
   if (!pResponseChar || !data)

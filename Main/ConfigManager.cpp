@@ -690,6 +690,7 @@ void ConfigManager::getDevicesSummary(JsonArray &summary)
     deviceSummary["device_id"] = kv.key();
     deviceSummary["device_name"] = device["device_name"];
     deviceSummary["protocol"] = device["protocol"];
+    deviceSummary["slave_id"] = device["slave_id"];
     deviceSummary["register_count"] = device["registers"].size();
   }
 }

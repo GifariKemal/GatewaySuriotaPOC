@@ -39,6 +39,7 @@
 class OTAManager;
 class OTAHttps;  // v2.5.35: Forward declare to avoid ESP_SSLClient linker issues
 class BLEServer;
+class BLEManager;  // v2.5.37: For OTA progress notifications
 
 /**
  * @brief OTA Update Mode
@@ -113,6 +114,7 @@ struct OTAConfiguration {
 
 /**
  * @brief OTA Status for external queries
+ * @version 2.5.37: Added bytesPerSecond, etaSeconds, networkMode, retryCount for interactive UI
  */
 struct OTAStatus {
     OTAState state;
@@ -124,6 +126,13 @@ struct OTAStatus {
     size_t bytesDownloaded;
     size_t totalBytes;
 
+    // v2.5.37: Enhanced progress info for interactive mobile app UI
+    uint32_t bytesPerSecond;        // Download speed in bytes/sec
+    uint32_t etaSeconds;            // Estimated time remaining in seconds
+    String networkMode;             // "WiFi" or "Ethernet"
+    uint8_t retryCount;             // Current retry attempt (0 = first attempt)
+    uint8_t maxRetries;             // Maximum retry attempts configured
+
     String currentVersion;
     String targetVersion;
 
@@ -132,6 +141,14 @@ struct OTAStatus {
 
     unsigned long lastCheckTime;
     unsigned long lastUpdateTime;
+
+    // Constructor with defaults
+    OTAStatus() : state(OTAState::IDLE), mode(OTAUpdateMode::NONE),
+                  lastError(OTAError::NONE), progress(0), bytesDownloaded(0),
+                  totalBytes(0), bytesPerSecond(0), etaSeconds(0),
+                  networkMode("Unknown"), retryCount(0), maxRetries(3),
+                  updateAvailable(false), updateMandatory(false),
+                  lastCheckTime(0), lastUpdateTime(0) {}
 };
 
 /**
@@ -201,6 +218,9 @@ private:
     // BLE server reference
     BLEServer* bleServer;
 
+    // v2.5.37: BLE CRUD Manager for OTA progress notifications
+    BLEManager* bleNotificationManager;
+
     // Private constructor (singleton)
     OTAManager();
     ~OTAManager();
@@ -255,6 +275,12 @@ public:
      * @brief Stop OTA Manager
      */
     void stop();
+
+    /**
+     * @brief Set BLE Manager for OTA progress notifications (v2.5.37)
+     * @param manager Pointer to BLEManager instance
+     */
+    void setBLENotificationManager(BLEManager* manager);
 
     // ============================================
     // CONFIGURATION

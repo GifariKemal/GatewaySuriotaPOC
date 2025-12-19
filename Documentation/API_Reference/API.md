@@ -325,12 +325,14 @@ Get a compact summary of all devices (minimal fields).
       "device_id": "D7A3F2",
       "device_name": "Temperature Sensor",
       "protocol": "RTU",
+      "slave_id": 1,
       "register_count": 5
     },
     {
       "device_id": "D8B4C1",
       "device_name": "Pressure Transmitter",
       "protocol": "TCP",
+      "slave_id": 2,
       "register_count": 12
     }
   ]

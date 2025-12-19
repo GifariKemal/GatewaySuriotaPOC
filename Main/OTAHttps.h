@@ -336,6 +336,27 @@ public:
      */
     String getLastErrorMessage() const { return lastErrorMessage; }
 
+    /**
+     * @brief Get current retry count (v2.5.37)
+     */
+    uint8_t getRetryCount() const { return currentRetryCount; }
+
+    /**
+     * @brief Get max retries configured (v2.5.37)
+     */
+    uint8_t getMaxRetries() const { return maxRetries; }
+
+    /**
+     * @brief Check if using WiFi (v2.5.37)
+     * @return true if WiFi, false if Ethernet
+     */
+    bool isUsingWiFi() const { return usingWiFi; }
+
+    /**
+     * @brief Get network mode string (v2.5.37)
+     */
+    String getNetworkMode() const { return usingWiFi ? "WiFi" : "Ethernet"; }
+
     // ============================================
     // VERSION CHECK
     // ============================================

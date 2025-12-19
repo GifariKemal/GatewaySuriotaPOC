@@ -201,6 +201,11 @@ public:
   void sendError(const String &message, const String &type = "unknown");
   void sendSuccess(const String &type = "unknown");
 
+  // v2.5.37: OTA Progress notification (push notifications during download)
+  void sendOtaProgressNotification(uint8_t progress, size_t bytesDownloaded, size_t totalBytes,
+                                   uint32_t bytesPerSecond, uint32_t etaSeconds,
+                                   const String& state, const String& networkMode);
+
   // Metrics access methods
   MTUMetrics getMTUMetrics() const;
   QueueMetrics getQueueMetrics() const;

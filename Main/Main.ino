@@ -642,6 +642,13 @@ void setup()
         DEV_SERIAL_PRINTLN("[MAIN] OTA Manager linked to CRUD Handler");
       }
 
+      // v2.5.37: Link BLE Manager for OTA progress notifications
+      if (bleManager)
+      {
+        OTACrudBridge::setBLENotificationManager(otaManager, bleManager);
+        DEV_SERIAL_PRINTLN("[MAIN] OTA Manager linked to BLE Manager for progress notifications");
+      }
+
       // Mark firmware as valid after successful boot (rollback protection)
       OTACrudBridge::markFirmwareValid(otaManager);
       DEV_SERIAL_PRINTLN("[MAIN] Firmware marked as valid (rollback protection)");

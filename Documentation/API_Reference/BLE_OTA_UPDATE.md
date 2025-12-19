@@ -1,7 +1,7 @@
 # BLE OTA Update API Reference
 
-**Version:** 2.5.34
-**Last Updated:** December 10, 2025
+**Version:** 2.5.37
+**Last Updated:** December 19, 2025
 
 ---
 
@@ -151,49 +151,164 @@ Get current OTA state, progress, and version information.
 }
 ```
 
-### Response
+### Response (v2.5.37 Enhanced)
 
 ```json
 {
   "status": "ok",
   "command": "ota_status",
-  "state": "downloading",
+  "state": 2,
+  "state_name": "DOWNLOADING",
   "progress": 45,
   "bytes_downloaded": 707788,
   "total_bytes": 1572864,
+  "bytes_per_second": 28500,
+  "eta_seconds": 35,
+  "network_mode": "WiFi",
+  "retry_count": 0,
+  "max_retries": 3,
   "current_version": "2.4.0",
   "target_version": "2.5.0",
   "update_available": true
 }
 ```
 
+### Response Fields (v2.5.37)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `state` | int | State enum value (0-6) |
+| `state_name` | string | Human-readable state name |
+| `progress` | int | Download progress (0-100%) |
+| `bytes_downloaded` | int | Bytes downloaded so far |
+| `total_bytes` | int | Total firmware size in bytes |
+| `bytes_per_second` | int | Current download speed (bytes/sec) |
+| `eta_seconds` | int | Estimated time remaining (seconds) |
+| `network_mode` | string | Network interface ("WiFi" or "Ethernet") |
+| `retry_count` | int | Current retry attempt (0 = first attempt) |
+| `max_retries` | int | Maximum retry attempts configured |
+| `current_version` | string | Current firmware version |
+| `target_version` | string | Target firmware version |
+| `update_available` | bool | Whether an update is available |
+
 ### State Values
 
-| State         | Description                            |
-| ------------- | -------------------------------------- |
-| `idle`        | No OTA in progress, ready for commands |
-| `checking`    | Checking GitHub for updates            |
-| `downloading` | Downloading firmware via HTTPS         |
-| `validating`  | Verifying signature and checksum       |
-| `applying`    | Writing firmware to flash              |
-| `rebooting`   | About to reboot with new firmware      |
-| `error`       | Error occurred (check error_code)      |
+| Value | State Name | Description |
+| ----- | ---------- | -------------------------------------- |
+| 0 | `IDLE` | No OTA in progress, ready for commands |
+| 1 | `CHECKING` | Checking GitHub for updates |
+| 2 | `DOWNLOADING` | Downloading firmware via HTTPS |
+| 3 | `VALIDATING` | Verifying signature and checksum |
+| 4 | `APPLYING` | Writing firmware to flash |
+| 5 | `REBOOTING` | About to reboot with new firmware |
+| 6 | `ERROR` | Error occurred (check error_code) |
 
-### Error Response (when state = error)
+### Error Response (when state = ERROR)
 
 ```json
 {
   "status": "ok",
   "command": "ota_status",
-  "state": "error",
+  "state": 6,
+  "state_name": "ERROR",
   "progress": 0,
   "bytes_downloaded": 0,
   "total_bytes": 0,
+  "bytes_per_second": 0,
+  "eta_seconds": 0,
+  "network_mode": "WiFi",
+  "retry_count": 2,
+  "max_retries": 3,
   "current_version": "2.4.0",
   "target_version": "",
   "update_available": false,
-  "error_code": 5,
-  "error_message": "Signature verification failed"
+  "last_error": 5,
+  "last_error_message": "Signature verification failed"
+}
+```
+
+---
+
+## 3.1 OTA Progress Notifications (v2.5.37 - Push)
+
+**NEW:** The gateway automatically sends progress notifications during HTTPS OTA download.
+This allows the mobile app to show real-time progress without polling.
+
+### How It Works
+
+1. Subscribe to BLE Response characteristic notifications
+2. Send `start_update` command
+3. Receive automatic `ota_progress` notifications every 5% progress
+4. No need to poll `ota_status` during download
+
+### Notification Format
+
+```json
+{
+  "type": "ota_progress",
+  "state": "DOWNLOADING",
+  "progress": 45,
+  "bytes_downloaded": 707788,
+  "total_bytes": 1572864,
+  "bytes_per_second": 28500,
+  "eta_seconds": 35,
+  "network_mode": "WiFi"
+}
+```
+
+### Notification Frequency
+
+- Sent every **5%** progress (0%, 5%, 10%, ..., 95%, 100%)
+- Also sent at **0%** (start) and **100%** (complete)
+- Approximately 21 notifications for a full download
+
+### Mobile App Integration (Android)
+
+```kotlin
+// Subscribe to notifications
+gatt.setCharacteristicNotification(responseChar, true)
+
+// Handle notifications
+override fun onCharacteristicChanged(
+    gatt: BluetoothGatt,
+    characteristic: BluetoothGattCharacteristic
+) {
+    val json = JSONObject(String(characteristic.value))
+
+    when (json.optString("type")) {
+        "ota_progress" -> {
+            val progress = json.getInt("progress")
+            val speed = json.getInt("bytes_per_second") / 1024f
+            val eta = json.getInt("eta_seconds")
+
+            // Update UI
+            progressBar.progress = progress
+            speedText.text = String.format("%.1f KB/s", speed)
+            etaText.text = "${eta}s remaining"
+        }
+    }
+}
+```
+
+### Mobile App Integration (iOS/Swift)
+
+```swift
+func peripheral(_ peripheral: CBPeripheral,
+                didUpdateValueFor characteristic: CBCharacteristic,
+                error: Error?) {
+    guard let data = characteristic.value,
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          json["type"] as? String == "ota_progress" else { return }
+
+    let progress = json["progress"] as? Int ?? 0
+    let speed = (json["bytes_per_second"] as? Double ?? 0) / 1024.0
+    let eta = json["eta_seconds"] as? Int ?? 0
+
+    DispatchQueue.main.async {
+        self.progressView.progress = Float(progress) / 100.0
+        self.speedLabel.text = String(format: "%.1f KB/s", speed)
+        self.etaLabel.text = "\(eta)s remaining"
+    }
 }
 ```
 
@@ -671,21 +786,34 @@ asyncio.run(check_ota_update())
 
 ## Testing Tools
 
-### Python BLE OTA Testing Tool
+### Python BLE OTA Testing Tool (v2.0.0)
 
 A comprehensive Python testing tool is available at `Testing/BLE_Testing/OTA_Test/ota_update.py`:
 
 ```bash
 cd Testing/BLE_Testing/OTA_Test
-python ota_update.py
+python ota_update.py                    # Interactive menu
+python ota_update.py --check            # Check for updates only
+python ota_update.py --status           # Get enhanced OTA status
+python ota_update.py --monitor          # Monitor progress real-time
+python ota_update.py --update           # Full update flow
 ```
 
-**Features:**
+**Features (v2.0.0):**
 - Automatic BLE device scanning
 - Step-by-step OTA flow (Check → Download → Apply)
-- Progress visualization with emoji indicators
+- **Real-time progress notifications** from device (push)
+- **Download speed and ETA display**
+- **Network mode indicator** (WiFi/Ethernet)
+- **Retry count monitoring**
+- Interactive progress bar with color coding
 - Re-flash same version support for testing
 - Beautiful terminal UI
+
+**Sample Progress Display:**
+```
+  [██████████████░░░░░░░░░░░░░░░░]  45% | 707.8 KB/1.5 MB | ⚡28.5 KB/s | ⏱️ 35s | 📡WiFi
+```
 
 ### MockupUI Reference
 

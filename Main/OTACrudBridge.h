@@ -21,6 +21,7 @@
 
 // Forward declaration - DO NOT include OTAManager.h here!
 class OTAManager;
+class BLEManager;  // v2.5.37: For OTA progress notifications
 
 namespace OTACrudBridge {
 
@@ -61,6 +62,13 @@ bool markFirmwareValid(OTAManager* otaManager);
  * @param otaManager Pointer to OTAManager instance
  */
 void process(OTAManager* otaManager);
+
+/**
+ * @brief Set BLE Manager for OTA progress notifications (v2.5.37)
+ * @param otaManager Pointer to OTAManager instance
+ * @param bleManager Pointer to BLEManager instance
+ */
+void setBLENotificationManager(OTAManager* otaManager, BLEManager* bleManager);
 
 // ============================================
 // CRUD HANDLER FUNCTIONS

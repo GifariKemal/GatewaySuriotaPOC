@@ -10,6 +10,7 @@
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTAManager.h"
 #include "OTAHttps.h"     // v2.5.35: Include here instead of in header (ESP_SSLClient fix)
+#include "BLEManager.h"   // v2.5.37: For OTA progress notifications
 #include "JsonDocumentPSRAM.h"
 #include <LittleFS.h>
 #include <esp_heap_caps.h>
@@ -53,7 +54,8 @@ OTAManager::OTAManager() :
     otaTaskHandle(nullptr),
     checkTaskHandle(nullptr),
     checkTaskRunning(false),  // v2.5.1 FIX: Initialize async check flag
-    bleServer(nullptr)
+    bleServer(nullptr),
+    bleNotificationManager(nullptr)  // v2.5.37: BLE notifications
 {
     managerMutex = xSemaphoreCreateMutex();
 }
@@ -150,6 +152,15 @@ void OTAManager::stop() {
     }
 
     callbackInstance = nullptr;
+}
+
+/**
+ * @brief Set BLE Manager for OTA progress notifications (v2.5.37)
+ * @param manager Pointer to BLEManager instance
+ */
+void OTAManager::setBLENotificationManager(BLEManager* manager) {
+    bleNotificationManager = manager;
+    LOG_OTA_INFO("BLE notification manager %s\n", manager ? "set" : "cleared");
 }
 
 // ============================================
@@ -653,6 +664,33 @@ void OTAManager::progressCallbackAdapter(uint8_t prog, size_t current, size_t to
         if (callbackInstance->progressCallback) {
             callbackInstance->progressCallback(prog, current, total);
         }
+
+        // v2.5.37: Send BLE notification for interactive mobile app UI
+        // Only send every 5% to avoid flooding BLE channel
+        static uint8_t lastNotifiedProgress = 255;  // Initialize to invalid value
+        if (callbackInstance->bleNotificationManager &&
+            (prog != lastNotifiedProgress) &&
+            (prog % 5 == 0 || prog == 100 || prog == 0)) {
+
+            lastNotifiedProgress = prog;
+
+            // Get enhanced info from HTTPS transport
+            uint32_t speed = 0;
+            uint32_t eta = 0;
+            String networkMode = "Unknown";
+
+            if (callbackInstance->httpsTransport) {
+                DownloadProgress dlProgress = callbackInstance->httpsTransport->getProgress();
+                speed = dlProgress.bytesPerSecond;
+                eta = dlProgress.estimatedSecondsRemaining;
+                networkMode = callbackInstance->httpsTransport->getNetworkMode();
+            }
+
+            // Send notification
+            callbackInstance->bleNotificationManager->sendOtaProgressNotification(
+                prog, current, total, speed, eta, "DOWNLOADING", networkMode
+            );
+        }
     }
 }
 
@@ -692,6 +730,23 @@ OTAStatus OTAManager::getStatus() const {
     status.updateMandatory = updateMandatory;
     status.lastCheckTime = lastCheckTime;
     status.lastUpdateTime = lastUpdateTime;
+
+    // v2.5.37: Enhanced progress info from HTTPS transport
+    if (httpsTransport) {
+        DownloadProgress dlProgress = httpsTransport->getProgress();
+        status.bytesPerSecond = dlProgress.bytesPerSecond;
+        status.etaSeconds = dlProgress.estimatedSecondsRemaining;
+        status.networkMode = httpsTransport->getNetworkMode();
+        status.retryCount = httpsTransport->getRetryCount();
+        status.maxRetries = httpsTransport->getMaxRetries();
+    } else {
+        status.bytesPerSecond = 0;
+        status.etaSeconds = 0;
+        status.networkMode = "Unknown";
+        status.retryCount = 0;
+        status.maxRetries = config.retryCount;
+    }
+
     return status;
 }
 

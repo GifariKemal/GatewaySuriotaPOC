@@ -47,6 +47,12 @@ void process(OTAManager* otaManager) {
     }
 }
 
+void setBLENotificationManager(OTAManager* otaManager, BLEManager* bleManager) {
+    if (otaManager) {
+        otaManager->setBLENotificationManager(bleManager);
+    }
+}
+
 // ============================================
 // CRUD HANDLER FUNCTIONS
 // ============================================
@@ -154,6 +160,14 @@ void getStatus(OTAManager* otaManager, JsonDocument& response) {
     response["progress"] = otaStatus.progress;
     response["bytes_downloaded"] = otaStatus.bytesDownloaded;
     response["total_bytes"] = otaStatus.totalBytes;
+
+    // v2.5.37: Enhanced progress info for interactive mobile app UI
+    response["bytes_per_second"] = otaStatus.bytesPerSecond;
+    response["eta_seconds"] = otaStatus.etaSeconds;
+    response["network_mode"] = otaStatus.networkMode;
+    response["retry_count"] = otaStatus.retryCount;
+    response["max_retries"] = otaStatus.maxRetries;
+
     response["current_version"] = otaStatus.currentVersion;
     response["target_version"] = otaStatus.targetVersion;
     response["update_available"] = otaStatus.updateAvailable;

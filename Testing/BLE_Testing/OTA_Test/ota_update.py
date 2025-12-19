@@ -6,8 +6,15 @@
 Automated OTA update process via BLE:
   1. Set GitHub token (for private repos)
   2. Check for updates
-  3. Download & verify firmware
+  3. Download & verify firmware (with real-time progress)
   4. Apply update and reboot
+
+Features (v2.0.0):
+  - Real-time progress notifications (push from device)
+  - Download speed and ETA display
+  - Network mode indicator (WiFi/Ethernet)
+  - Retry count monitoring
+  - Interactive progress bar
 
 Dependencies:
     pip install bleak colorama
@@ -17,10 +24,11 @@ Usage:
     python ota_update.py --set-token TOKEN  # Set GitHub token
     python ota_update.py --check            # Check for updates only
     python ota_update.py --update           # Full update flow
+    python ota_update.py --status           # Monitor OTA status
     python ota_update.py --auto             # Auto update (no prompts)
 
 Author: Claude Code
-Version: 1.1.0
+Version: 2.0.0
 """
 
 import asyncio
@@ -89,6 +97,21 @@ GITHUB_TOKEN = "github_pat_11BS4MB4Y0RsHnehdpGhqr_Ltkpom3jdXw9lTtY38YtwIPwbVcCQR
 response_buffer = []
 response_complete = False
 start_time = None
+
+# v2.0.0: OTA Progress Tracking (for push notifications)
+ota_progress_data = {
+    "progress": 0,
+    "bytes_downloaded": 0,
+    "total_bytes": 0,
+    "bytes_per_second": 0,
+    "eta_seconds": 0,
+    "network_mode": "Unknown",
+    "state": "IDLE",
+    "retry_count": 0,
+    "max_retries": 3,
+    "last_update": 0
+}
+ota_progress_callback = None  # Optional callback for progress updates
 
 # ============================================================================
 # Terminal UI Helpers
@@ -191,8 +214,8 @@ async def countdown(seconds, message="Starting in"):
 # BLE Functions
 # ============================================================================
 def notification_handler(sender, data):
-    """Handle incoming BLE notifications"""
-    global response_buffer, response_complete
+    """Handle incoming BLE notifications including OTA progress push"""
+    global response_buffer, response_complete, ota_progress_data, ota_progress_callback
 
     try:
         chunk = data.decode('utf-8')
@@ -200,11 +223,116 @@ def notification_handler(sender, data):
         if chunk == "<END>":
             response_complete = True
         else:
+            # v2.0.0: Check if this is an OTA progress push notification
+            # These come as complete JSON objects, not fragments
+            if chunk.startswith('{"type":"ota_progress"'):
+                try:
+                    progress_json = json.loads(chunk)
+                    handle_ota_progress_notification(progress_json)
+                    return  # Don't add to response buffer
+                except json.JSONDecodeError:
+                    pass  # Not a complete JSON, treat as fragment
+
             response_buffer.append(chunk)
-            # Show progress dots
-            print(f"{Fore.CYAN}.", end="", flush=True)
+            # Show progress dots (only for non-progress notifications)
+            if not ota_progress_data.get("downloading", False):
+                print(f"{Fore.CYAN}.", end="", flush=True)
     except Exception as e:
         print(f"\n  {Fore.RED}⚠️  Error decoding: {e}{Style.RESET_ALL}")
+
+
+def handle_ota_progress_notification(data):
+    """Handle OTA progress push notification from device (v2.0.0)"""
+    global ota_progress_data, ota_progress_callback
+
+    # Update global progress data
+    ota_progress_data["progress"] = data.get("progress", 0)
+    ota_progress_data["bytes_downloaded"] = data.get("bytes_downloaded", 0)
+    ota_progress_data["total_bytes"] = data.get("total_bytes", 0)
+    ota_progress_data["bytes_per_second"] = data.get("bytes_per_second", 0)
+    ota_progress_data["eta_seconds"] = data.get("eta_seconds", 0)
+    ota_progress_data["network_mode"] = data.get("network_mode", "Unknown")
+    ota_progress_data["state"] = data.get("state", "DOWNLOADING")
+    ota_progress_data["retry_count"] = data.get("retry_count", 0)
+    ota_progress_data["max_retries"] = data.get("max_retries", 3)
+    ota_progress_data["last_update"] = time.time()
+    ota_progress_data["downloading"] = True
+
+    # Display progress
+    display_ota_progress(ota_progress_data)
+
+    # Call optional callback
+    if ota_progress_callback:
+        ota_progress_callback(ota_progress_data)
+
+
+def display_ota_progress(data):
+    """Display OTA progress with speed and ETA (v2.0.0)"""
+    progress = data.get("progress", 0)
+    downloaded = data.get("bytes_downloaded", 0)
+    total = data.get("total_bytes", 0)
+    speed = data.get("bytes_per_second", 0)
+    eta = data.get("eta_seconds", 0)
+    network = data.get("network_mode", "Unknown")
+    retry = data.get("retry_count", 0)
+    max_retry = data.get("max_retries", 3)
+
+    # Format size
+    def format_size(bytes_val):
+        if bytes_val >= 1024 * 1024:
+            return f"{bytes_val / (1024 * 1024):.1f} MB"
+        elif bytes_val >= 1024:
+            return f"{bytes_val / 1024:.1f} KB"
+        return f"{bytes_val} B"
+
+    # Format speed
+    def format_speed(bps):
+        if bps >= 1024 * 1024:
+            return f"{bps / (1024 * 1024):.1f} MB/s"
+        elif bps >= 1024:
+            return f"{bps / 1024:.1f} KB/s"
+        return f"{bps} B/s"
+
+    # Format ETA
+    def format_eta(seconds):
+        if seconds <= 0:
+            return "calculating..."
+        elif seconds < 60:
+            return f"{seconds}s"
+        elif seconds < 3600:
+            return f"{seconds // 60}m {seconds % 60}s"
+        return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
+
+    # Build progress bar
+    bar_width = 30
+    filled = int(bar_width * progress / 100)
+    bar = "█" * filled + "░" * (bar_width - filled)
+
+    # Color based on progress
+    if progress >= 100:
+        color = Fore.GREEN
+    elif progress >= 50:
+        color = Fore.YELLOW
+    else:
+        color = Fore.CYAN
+
+    # Build status line
+    size_info = f"{format_size(downloaded)}/{format_size(total)}"
+    speed_info = format_speed(speed) if speed > 0 else "..."
+    eta_info = format_eta(eta)
+    retry_info = f"[Retry {retry}/{max_retry}]" if retry > 0 else ""
+
+    # Clear line and print progress
+    status_line = (
+        f"\r  {color}[{bar}] {progress:3d}%{Style.RESET_ALL} | "
+        f"{Fore.WHITE}{size_info}{Style.RESET_ALL} | "
+        f"{Fore.CYAN}⚡{speed_info}{Style.RESET_ALL} | "
+        f"{Fore.MAGENTA}⏱️ {eta_info}{Style.RESET_ALL} | "
+        f"{Fore.YELLOW}📡{network}{Style.RESET_ALL} "
+        f"{Fore.RED}{retry_info}{Style.RESET_ALL}"
+    )
+
+    print(status_line + "    ", end="", flush=True)
 
 
 async def scan_for_device():
@@ -404,19 +532,35 @@ async def step_check_update(client):
 
 
 async def step_start_update(client):
-    """Step 2: Start firmware download"""
+    """Step 2: Start firmware download with real-time progress (v2.0.0)"""
+    global ota_progress_data
+
     print_step(2, 4, "Downloading firmware from GitHub")
 
     print_info("This may take 1-2 minutes depending on network speed...")
-    print_info("Please wait while firmware downloads and verifies...")
+    print_info("Real-time progress will be displayed via push notifications...")
+    print()
+
+    # Reset progress tracking
+    ota_progress_data["progress"] = 0
+    ota_progress_data["downloading"] = True
+    ota_progress_data["state"] = "STARTING"
+
+    # Show initial progress bar
+    print(f"  {Fore.CYAN}📥 Download Progress:{Style.RESET_ALL}")
     print()
 
     # Track download start time
     download_start = time.time()
 
-    response = await send_ota_command(client, "start_update", wait_time=360)  # 6 minutes timeout (allows retry on connection loss)
+    response = await send_ota_command(client, "start_update", wait_time=360)  # 6 minutes timeout
 
     download_time = time.time() - download_start
+
+    # Mark download complete
+    ota_progress_data["downloading"] = False
+    print()  # New line after progress bar
+    print()
 
     if not response:
         print_error("Timeout waiting for download to complete")
@@ -428,11 +572,21 @@ async def step_start_update(client):
     print_box("📋 Server Response", response[:500] if len(response) > 500 else response, Fore.CYAN)
 
     if data.get("status") == "ok":
+        # Get final stats from progress data
+        final_speed = ota_progress_data.get("bytes_per_second", 0)
+        final_network = ota_progress_data.get("network_mode", "Unknown")
+        total_bytes = ota_progress_data.get("total_bytes", 0)
+
+        avg_speed = total_bytes / download_time if download_time > 0 else 0
+
         print_success(f"Firmware downloaded and verified in {download_time:.1f} seconds!")
 
         # Show verification details if available
         info = {
             "Download Time": f"{download_time:.1f} seconds",
+            "Total Size": f"{total_bytes:,} bytes ({total_bytes/(1024*1024):.2f} MB)" if total_bytes else "Unknown",
+            "Average Speed": f"{avg_speed/1024:.1f} KB/s" if avg_speed > 0 else "Unknown",
+            "Network Mode": final_network,
             "Status": data.get("message", "Success"),
             "State": data.get("state", "VALIDATING")
         }
@@ -566,8 +720,200 @@ async def step_get_config(client):
     return None
 
 
+async def step_get_status(client):
+    """Get OTA status with enhanced progress info (v2.0.0)"""
+    print_step(0, 1, "Getting OTA Status")
+
+    response = await send_ota_command(client, "ota_status", wait_time=15)
+
+    if not response:
+        print_error("Timeout waiting for response")
+        return None
+
+    data = parse_response(response)
+    print_box("📋 Raw Response", response[:800], Fore.CYAN)
+
+    if data.get("status") == "ok":
+        # Extract all status fields
+        state_name = data.get("state_name", "UNKNOWN")
+        progress = data.get("progress", 0)
+        bytes_downloaded = data.get("bytes_downloaded", 0)
+        total_bytes = data.get("total_bytes", 0)
+        bytes_per_second = data.get("bytes_per_second", 0)
+        eta_seconds = data.get("eta_seconds", 0)
+        network_mode = data.get("network_mode", "Unknown")
+        retry_count = data.get("retry_count", 0)
+        max_retries = data.get("max_retries", 3)
+        current_version = data.get("current_version", "?")
+        target_version = data.get("target_version", "?")
+        update_available = data.get("update_available", False)
+
+        # Format values
+        def format_size(b):
+            if b >= 1024 * 1024:
+                return f"{b / (1024 * 1024):.2f} MB"
+            elif b >= 1024:
+                return f"{b / 1024:.1f} KB"
+            return f"{b} B"
+
+        def format_speed(bps):
+            if bps >= 1024 * 1024:
+                return f"{bps / (1024 * 1024):.1f} MB/s"
+            elif bps >= 1024:
+                return f"{bps / 1024:.1f} KB/s"
+            return f"{bps} B/s"
+
+        def format_eta(s):
+            if s <= 0:
+                return "N/A"
+            elif s < 60:
+                return f"{s}s"
+            return f"{s // 60}m {s % 60}s"
+
+        # Build status info
+        info = {
+            "State": f"{state_name} ({data.get('state', 0)})",
+            "Progress": f"{progress}%",
+            "Downloaded": f"{format_size(bytes_downloaded)} / {format_size(total_bytes)}",
+            "Speed": format_speed(bytes_per_second) if bytes_per_second > 0 else "N/A",
+            "ETA": format_eta(eta_seconds),
+            "Network": network_mode,
+            "Retries": f"{retry_count} / {max_retries}",
+            "Current Version": current_version,
+            "Target Version": target_version if target_version else "N/A",
+            "Update Available": "Yes" if update_available else "No"
+        }
+
+        # Add error info if present
+        if data.get("last_error"):
+            info["Last Error"] = f"[{data.get('last_error')}] {data.get('last_error_message', '')}"
+
+        # Color based on state
+        state_colors = {
+            "IDLE": Fore.WHITE,
+            "CHECKING": Fore.CYAN,
+            "DOWNLOADING": Fore.YELLOW,
+            "VALIDATING": Fore.MAGENTA,
+            "APPLYING": Fore.BLUE,
+            "REBOOTING": Fore.GREEN,
+            "ERROR": Fore.RED
+        }
+        color = state_colors.get(state_name, Fore.WHITE)
+
+        print_box(f"📊 OTA Status - {state_name}", info, color)
+
+        # If downloading, show progress bar
+        if state_name == "DOWNLOADING" and total_bytes > 0:
+            print()
+            display_ota_progress({
+                "progress": progress,
+                "bytes_downloaded": bytes_downloaded,
+                "total_bytes": total_bytes,
+                "bytes_per_second": bytes_per_second,
+                "eta_seconds": eta_seconds,
+                "network_mode": network_mode,
+                "retry_count": retry_count,
+                "max_retries": max_retries
+            })
+            print()
+
+        return data
+
+    return None
+
+
+async def step_monitor_status(client, interval=2.0, max_polls=60):
+    """Continuously monitor OTA status until complete or error (v2.0.0)"""
+    print_step(0, 1, "Monitoring OTA Progress")
+
+    print_info(f"Polling every {interval}s (max {max_polls} polls)...")
+    print_info("Press Ctrl+C to stop monitoring")
+    print()
+
+    polls = 0
+    last_state = None
+
+    try:
+        while polls < max_polls:
+            global response_buffer, response_complete
+            response_buffer = []
+            response_complete = False
+
+            # Send status command
+            command = {"op": "ota", "type": "ota_status"}
+            command_str = json.dumps(command, separators=(',', ':'))
+
+            chunk_size = 18
+            for i in range(0, len(command_str), chunk_size):
+                chunk = command_str[i:i+chunk_size]
+                await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+                await asyncio.sleep(0.05)
+
+            await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+
+            # Wait for response
+            elapsed = 0
+            while not response_complete and elapsed < 10:
+                await asyncio.sleep(0.1)
+                elapsed += 0.1
+
+            if response_complete:
+                response = ''.join(response_buffer)
+                data = parse_response(response)
+
+                if data.get("status") == "ok":
+                    state = data.get("state_name", "UNKNOWN")
+                    progress = data.get("progress", 0)
+                    speed = data.get("bytes_per_second", 0)
+                    eta = data.get("eta_seconds", 0)
+                    network = data.get("network_mode", "Unknown")
+
+                    # Update display
+                    display_ota_progress({
+                        "progress": progress,
+                        "bytes_downloaded": data.get("bytes_downloaded", 0),
+                        "total_bytes": data.get("total_bytes", 0),
+                        "bytes_per_second": speed,
+                        "eta_seconds": eta,
+                        "network_mode": network,
+                        "retry_count": data.get("retry_count", 0),
+                        "max_retries": data.get("max_retries", 3)
+                    })
+
+                    # Check for state change
+                    if state != last_state:
+                        print()
+                        print(f"  {Fore.CYAN}State changed: {last_state} → {state}{Style.RESET_ALL}")
+                        last_state = state
+
+                    # Check for completion
+                    if state in ["IDLE", "VALIDATING", "REBOOTING"]:
+                        if progress >= 100 or state == "VALIDATING":
+                            print()
+                            print_success("Download complete!")
+                            return True
+
+                    # Check for error
+                    if state == "ERROR":
+                        print()
+                        print_error(f"OTA Error: {data.get('last_error_message', 'Unknown')}")
+                        return False
+
+            polls += 1
+            await asyncio.sleep(interval)
+
+        print()
+        print_warning("Max polls reached. Monitoring stopped.")
+        return False
+
+    except KeyboardInterrupt:
+        print()
+        print_info("Monitoring stopped by user")
+        return False
+
+
 async def show_menu():
-    """Show interactive menu"""
+    """Show interactive menu (v2.0.0)"""
     print()
     print(f"  {Fore.CYAN}{'─' * 50}")
     print(f"  {Fore.WHITE}{Style.BRIGHT}Select an option:{Style.RESET_ALL}")
@@ -575,16 +921,18 @@ async def show_menu():
     print(f"  {Fore.WHITE}  1. {Fore.GREEN}Check for updates{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}  2. {Fore.YELLOW}Set GitHub token (for private repos){Style.RESET_ALL}")
     print(f"  {Fore.WHITE}  3. {Fore.CYAN}Get OTA configuration{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}  4. {Fore.MAGENTA}Full OTA update{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}  5. {Fore.RED}Exit{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  4. {Fore.BLUE}Get OTA status (enhanced v2.0){Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  5. {Fore.MAGENTA}Monitor OTA progress (real-time){Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  6. {Fore.WHITE}Full OTA update{Style.RESET_ALL}")
+    print(f"  {Fore.WHITE}  7. {Fore.RED}Exit{Style.RESET_ALL}")
     print(f"  {Fore.CYAN}{'─' * 50}")
     print()
 
     try:
-        choice = input(f"  {Fore.WHITE}Enter choice (1-5): {Style.RESET_ALL}").strip()
+        choice = input(f"  {Fore.WHITE}Enter choice (1-7): {Style.RESET_ALL}").strip()
         return choice
     except (KeyboardInterrupt, EOFError):
-        return "5"
+        return "7"
 
 
 async def show_final_summary(success, update_info=None):
@@ -829,6 +1177,18 @@ async def run_interactive_menu():
                 input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
 
             elif choice == "4":
+                # Get OTA status (v2.0.0)
+                await step_get_status(client)
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "5":
+                # Monitor OTA progress (v2.0.0)
+                await step_monitor_status(client)
+                print()
+                input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
+
+            elif choice == "6":
                 # Full OTA update - run the full flow
                 update_info = await step_check_update(client)
 
@@ -851,12 +1211,12 @@ async def run_interactive_menu():
                 print()
                 input(f"  {Fore.CYAN}Press Enter to continue...{Style.RESET_ALL}")
 
-            elif choice == "5":
+            elif choice == "7":
                 print_info("Exiting...")
                 break
 
             else:
-                print_error("Invalid choice. Please enter 1-5.")
+                print_error("Invalid choice. Please enter 1-7.")
 
     except KeyboardInterrupt:
         print(f"\n\n  {Fore.YELLOW}⚠️  Interrupted by user{Style.RESET_ALL}")
@@ -948,23 +1308,35 @@ async def run_check_only():
 # Entry Point
 # ============================================================================
 def parse_args():
-    """Parse command line arguments"""
+    """Parse command line arguments (v2.0.0)"""
     parser = argparse.ArgumentParser(
-        description="OTA Firmware Update Tool for SRT-MGATE-1210",
+        description="OTA Firmware Update Tool for SRT-MGATE-1210 (v2.0.0)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python ota_update.py                    # Interactive menu
   python ota_update.py --set-token ghp_xxx  # Set GitHub token
   python ota_update.py --check            # Check for updates only
+  python ota_update.py --status           # Get OTA status (enhanced)
+  python ota_update.py --monitor          # Monitor OTA progress in real-time
   python ota_update.py --update           # Full update flow
   python ota_update.py --auto             # Auto update (no prompts)
+
+v2.0.0 Features:
+  - Real-time progress notifications from device
+  - Download speed and ETA display
+  - Network mode indicator (WiFi/Ethernet)
+  - Retry count monitoring
         """
     )
     parser.add_argument("--set-token", metavar="TOKEN",
                         help="Set GitHub Personal Access Token for private repos")
     parser.add_argument("--check", action="store_true",
                         help="Check for updates only (no download)")
+    parser.add_argument("--status", action="store_true",
+                        help="Get OTA status with enhanced progress info (v2.0.0)")
+    parser.add_argument("--monitor", action="store_true",
+                        help="Monitor OTA progress in real-time (v2.0.0)")
     parser.add_argument("--update", action="store_true",
                         help="Run full OTA update flow")
     parser.add_argument("--auto", action="store_true",
@@ -975,8 +1347,76 @@ Examples:
     return parser.parse_args()
 
 
+async def run_status_only():
+    """Get OTA status only (v2.0.0)"""
+    print_header()
+
+    client = None
+    try:
+        print_step(0, 1, "Connecting to get OTA status", "running")
+
+        device = await scan_for_device()
+        if not device:
+            print_error(f"No MGate device found")
+            return False
+
+        client = await connect_device(device.address)
+        if not client:
+            print_error("Failed to connect to device")
+            return False
+
+        print_success("Connected!")
+        await asyncio.sleep(1)
+
+        result = await step_get_status(client)
+        return result is not None
+
+    finally:
+        if client and client.is_connected:
+            try:
+                await client.stop_notify(RESPONSE_CHAR_UUID)
+                await client.disconnect()
+                print(f"\n  {Fore.CYAN}🔌 Disconnected{Style.RESET_ALL}")
+            except:
+                pass
+
+
+async def run_monitor():
+    """Monitor OTA progress in real-time (v2.0.0)"""
+    print_header()
+
+    client = None
+    try:
+        print_step(0, 1, "Connecting to monitor OTA progress", "running")
+
+        device = await scan_for_device()
+        if not device:
+            print_error(f"No MGate device found")
+            return False
+
+        client = await connect_device(device.address)
+        if not client:
+            print_error("Failed to connect to device")
+            return False
+
+        print_success("Connected!")
+        await asyncio.sleep(1)
+
+        result = await step_monitor_status(client)
+        return result
+
+    finally:
+        if client and client.is_connected:
+            try:
+                await client.stop_notify(RESPONSE_CHAR_UUID)
+                await client.disconnect()
+                print(f"\n  {Fore.CYAN}🔌 Disconnected{Style.RESET_ALL}")
+            except:
+                pass
+
+
 def main():
-    """Entry point"""
+    """Entry point (v2.0.0)"""
     args = parse_args()
 
     try:
@@ -991,6 +1431,16 @@ def main():
         elif args.check:
             # Check only mode
             result = asyncio.run(run_check_only())
+            sys.exit(0 if result else 1)
+
+        elif args.status:
+            # Get OTA status (v2.0.0)
+            result = asyncio.run(run_status_only())
+            sys.exit(0 if result else 1)
+
+        elif args.monitor:
+            # Monitor OTA progress (v2.0.0)
+            result = asyncio.run(run_monitor())
             sys.exit(0 if result else 1)
 
         elif args.update or args.auto:
