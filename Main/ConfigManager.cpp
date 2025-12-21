@@ -378,21 +378,28 @@ String ConfigManager::createDevice(JsonObjectConst config)
     return "";
   }
 
-  // BUG #32 FIX: Check if device_id exists in config (for restore), otherwise generate new one
-  String deviceId;
-  JsonVariantConst idVariant = config["device_id"];
-  if (!idVariant.isNull())
+  // v2.5.39 FIX: ALWAYS generate new device_id, ignore any device_id from config
+  // This fixes bug where mobile app accidentally sends device_id causing overwrite
+  // Previous "BUG #32 FIX" allowed device_id from config which caused this issue
+  String deviceId = generateId("D");
+
+  // v2.5.39: Collision check - regenerate if ID already exists (extremely rare: 1 in 16 million)
+  int maxRetries = 5;
+  while (devicesCache->as<JsonObject>()[deviceId] && maxRetries > 0)
   {
-    // Use device_id from config (for restore operations)
-    deviceId = idVariant.as<String>();
-    LOG_CONFIG_INFO("[CONFIG] Using device_id from config: %s\n", deviceId.c_str());
-  }
-  else
-  {
-    // Generate new device_id (for new device creation)
+    LOG_CONFIG_INFO("[CONFIG] WARNING: Generated ID %s already exists, regenerating...\n", deviceId.c_str());
     deviceId = generateId("D");
-    LOG_CONFIG_INFO("[CONFIG] Generated new device_id: %s\n", deviceId.c_str());
+    maxRetries--;
   }
+
+  if (maxRetries == 0)
+  {
+    LOG_CONFIG_INFO("[CONFIG] ERROR: Failed to generate unique device_id after 5 attempts\n");
+    xSemaphoreGive(cacheMutex);
+    return "";
+  }
+
+  LOG_CONFIG_INFO("[CONFIG] Generated new device_id: %s\n", deviceId.c_str());
 
   JsonObject device = (*devicesCache)[deviceId].to<JsonObject>();
 

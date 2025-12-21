@@ -143,6 +143,11 @@ void ModbusTcpService::stop()
 
 void ModbusTcpService::notifyConfigChange()
 {
+  // v2.5.39: Set atomic flag for reliable config change detection
+  // This ensures config changes are detected even if task is blocked in TCP operations
+  configChangePending.store(true);
+  LOG_TCP_INFO("[TCP] Config change notified - flagged for refresh\n");
+
   if (tcpTaskHandle != nullptr)
   {
     xTaskNotifyGive(tcpTaskHandle);
@@ -215,11 +220,13 @@ void ModbusTcpService::readTcpDevicesLoop()
     // ============================================
     MemoryRecovery::checkAndRecover();
 
-    // Check for configuration change notifications (non-blocking)
-    if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+    // v2.5.39: Check BOTH atomic flag AND task notification for reliable config change detection
+    // Atomic flag catches changes when task is blocked in TCP operations
+    bool shouldRefresh = configChangePending.exchange(false);
+    if (shouldRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
     {
+      LOG_TCP_INFO("[TCP] Config change detected - refreshing device list...\n");
       refreshDeviceList();
-      // Config refresh is silent to reduce log noise
     }
 
     // Smart network detection - check both Ethernet AND WiFi
@@ -306,11 +313,12 @@ void ModbusTcpService::readTcpDevicesLoop()
         break; // Exit if stopped
       }
 
-      // BUGFIX: Check for config changes during iteration for immediate device deletion response
-      // This prevents continuing to poll deleted devices until next full iteration
-      if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+      // v2.5.39: Check for config changes during iteration using BOTH atomic flag AND task notification
+      // This catches config changes that occur while task is blocked in TCP connect/read operations
+      bool midLoopRefresh = configChangePending.exchange(false);
+      if (midLoopRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
-        LOG_TCP_INFO("[TCP] Configuration changed during polling, refreshing immediately...");
+        LOG_TCP_INFO("[TCP] Config change during polling - refreshing immediately...\n");
         xSemaphoreGiveRecursive(vectorMutex);
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list

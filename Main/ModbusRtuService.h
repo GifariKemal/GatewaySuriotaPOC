@@ -13,6 +13,7 @@
 #include <vector>
 #include <queue>  // For std::priority_queue
 #include <memory> // For std::unique_ptr (Bug #2 fix)
+#include <atomic> // v2.5.39: For configChangePending flag
 
 class ModbusRtuService
 {
@@ -20,6 +21,10 @@ private:
   ConfigManager *configManager;
   bool running;
   TaskHandle_t rtuTaskHandle;
+
+  // v2.5.39: Atomic flag for reliable config change detection
+  // Consistent with ModbusTcpService implementation
+  std::atomic<bool> configChangePending{false};
 
   // FIXED ISSUE #1: Critical race condition protection for all vectors
   // Prevents heap corruption when multiple tasks access vectors simultaneously
