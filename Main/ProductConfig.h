@@ -35,14 +35,14 @@
 // Format: MAJOR.MINOR.PATCH
 // Update this for every release
 
-#define FIRMWARE_VERSION        "2.5.39"
+#define FIRMWARE_VERSION        "2.5.40"
 #define FIRMWARE_VERSION_MAJOR  2
 #define FIRMWARE_VERSION_MINOR  5
-#define FIRMWARE_VERSION_PATCH  39
+#define FIRMWARE_VERSION_PATCH  40
 
-// Build number: Derived from version (2.5.39 = 2539)
+// Build number: Derived from version (2.5.40 = 2540)
 // Used for OTA version comparison
-#define FIRMWARE_BUILD_NUMBER   2539
+#define FIRMWARE_BUILD_NUMBER   2540
 
 // ============================================================================
 // PRODUCT MODEL & VARIANT

@@ -8,7 +8,133 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.39 (Current - Device Creation & LED Stack Overflow Fix)
+## 🚀 Version 2.5.40 (Current - Shadow Cache & Unit Symbol Fix)
+
+**Release Date:** December 22, 2025 (Sunday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+Critical bug fixes for register operations and unit display:
+1. Register CRUD operations (create/update/delete) didn't update shadow cache
+2. Unit "deg" not converted to degree symbol (°) for display
+3. Connection pool cleanup when config changes
+
+---
+
+### 🐛 **Bug Fixed**
+
+#### CRITICAL: Calibration (offset/scale) Not Applied After Register Update
+**Category:** 🔴 CRITICAL BUG FIX
+
+**Symptoms:**
+- Setting `offset=1` on a register, value stays same (e.g., 12 instead of 13)
+- Calibration changes require device restart to take effect
+- Same issue affects scale, unit, and other register properties
+
+**Root Cause:**
+Three functions in `ConfigManager.cpp` were missing `updateDevicesShadowCopy()` call:
+1. `createRegister()` - line 949
+2. `updateRegister()` - line 1113
+3. `deleteRegister()` - line 1168
+
+After these operations, the file was saved with new data, but the **shadow cache** (used for reads by Modbus services) still had old values.
+
+**Solution:**
+Added `updateDevicesShadowCopy()` call after each successful `saveJson()`:
+```cpp
+if (saveJson(DEVICES_FILE, *devicesCache))
+{
+    // v2.5.40 FIX: Update shadow copy after register update
+    // CRITICAL: Without this, calibration (offset/scale) changes are NOT applied!
+    updateDevicesShadowCopy();
+    return true;
+}
+```
+
+**Files Modified:**
+- `ConfigManager.cpp:953` - Added shadow update in createRegister()
+- `ConfigManager.cpp:1118` - Added shadow update in updateRegister()
+- `ConfigManager.cpp:1172` - Added shadow update in deleteRegister()
+
+**Impact:**
+| Operation | Before | After |
+|-----------|--------|-------|
+| Create register | Shadow cache stale | Shadow cache synced |
+| Update register (offset/scale) | Changes ignored | Changes apply immediately |
+| Delete register | Deleted reg still polled | Deleted reg removed |
+
+---
+
+#### FIX: Connection Pool Not Cleared on Config Change
+**Category:** 🟡 BUG FIX
+
+**Symptoms:**
+- Changing device IP in config might not connect to new IP immediately
+- Old connections linger in pool until idle timeout
+
+**Root Cause:**
+`refreshDeviceList()` did not close existing pooled connections when config changed.
+
+**Solution:**
+Added `closeAllConnections()` call at start of `refreshDeviceList()`:
+```cpp
+void ModbusTcpService::refreshDeviceList()
+{
+    // v2.5.40 FIX: Close all pooled connections when config changes
+    closeAllConnections();
+    // ... rest of refresh logic
+}
+```
+
+**Files Modified:**
+- `ModbusTcpService.cpp:162-165` - Added connection cleanup
+
+---
+
+### ✨ **New Feature**
+
+#### Unit Symbol Conversion: "deg" → "°"
+**Category:** 🟢 ENHANCEMENT
+
+**Requirement:**
+User requested that units like "degC" display as "°C" in MQTT output.
+
+**Previous Behavior (v2.3.16):**
+Code converted "°C" → "degC" for MQTT compatibility.
+
+**New Behavior (v2.5.40):**
+Code now converts "deg" → "°" for proper unit display:
+- Input: "degC" → Output: "°C"
+- Input: "degF" → Output: "°F"
+- Input: "°C" → Output: "°C" (unchanged)
+
+**Implementation:**
+```cpp
+// v2.5.40: Convert "deg" to degree symbol (°) for proper unit display
+String rawUnit = reg["unit"] | "";
+rawUnit.replace("deg", "\xC2\xB0");  // UTF-8 degree symbol
+dataPoint["unit"] = rawUnit;
+```
+
+**Files Modified:**
+- `ModbusTcpService.cpp:1151-1156` - deg→° conversion
+- `ModbusRtuService.cpp:764-769` - deg→° conversion
+
+---
+
+### 📁 **Files Changed Summary**
+
+| File | Lines Changed | Type |
+|------|---------------|------|
+| ConfigManager.cpp | 953, 1118, 1172 | BUG FIX (shadow cache) |
+| ModbusTcpService.cpp | 162-165, 1151-1156 | BUG FIX + FEATURE |
+| ModbusRtuService.cpp | 764-769 | FEATURE (unit symbol) |
+
+---
+
+## 🚀 Version 2.5.39 (Device Creation & LED Stack Overflow Fix)
 
 **Release Date:** December 21, 2025 (Saturday)
 **Developer:** Kemal (with Claude Code)

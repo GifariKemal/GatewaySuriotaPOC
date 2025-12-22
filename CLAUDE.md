@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.39 | **Last Updated:** December 21, 2025
+**Version:** 2.5.40 | **Last Updated:** December 22, 2025
 
 ---
 
@@ -31,18 +31,24 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.39 - Dec 21, 2025)
+## 🆕 Latest Updates (v2.5.40 - Dec 22, 2025)
+
+### v2.5.40 - Shadow Cache & Unit Symbol Fix (Dec 22, 2025)
+- **CRITICAL FIX:** Register CRUD operations (create/update/delete) didn't update shadow cache
+- **Symptoms:** Calibration offset/scale changes not applied, required restart to take effect
+- **Root Cause:** `createRegister()`, `updateRegister()`, `deleteRegister()` missing `updateDevicesShadowCopy()` call
+- **Solution:** Added shadow cache sync after each register operation in ConfigManager
+- **Impact:** Calibration (offset/scale) and all register changes now apply immediately
+- **FEATURE:** Unit "deg" now converts to degree symbol (°) for display
+- **Example:** "degC" → "°C", "degF" → "°F" in MQTT/BLE output
+- **CONNECTION FIX:** Pooled connections now cleared when device config changes
+- **Impact:** IP/port changes take effect immediately without lingering old connections
 
 ### v2.5.39 - Device Creation, LED Stack Overflow & TCP Config Fix (Dec 21, 2025)
 - **CRITICAL FIX:** Device creation was overwriting existing devices when mobile app sends `device_id` in config
-- **Symptoms:** First device after restart replaces existing device, second device works normally
-- **Root Cause:** Previous "BUG #32 FIX" allowed using `device_id` from config payload for restore operations
 - **Solution:** ALWAYS generate new device_id, ignore any `device_id` in config + collision check with retry
-- **Impact:** Create device now always creates new device, never overwrites existing ones
 - **CRASH FIX:** LED_Blink_Task stack overflow causing "Guru Meditation Error"
-- **LED Fix:** Increased stack size from 2048 to 3072 bytes (LOG_LED_INFO needs more stack)
 - **MODBUS FIX:** Config change not applied after device update (IP/slave_id change ignored)
-- **Root Cause:** Task notification missed when Modbus task blocked in operations
 - **Solution:** Added `std::atomic<bool> configChangePending` flag for reliable detection (TCP & RTU)
 
 ### v2.5.36 - MQTT, Gateway Info & BLE Buffer Fix (Dec 16, 2025)
