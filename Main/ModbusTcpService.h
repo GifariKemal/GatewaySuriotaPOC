@@ -31,6 +31,10 @@ private:
   bool running;
   TaskHandle_t tcpTaskHandle;
 
+  // v2.5.39: Atomic flag for reliable config change detection
+  // Task notifications can be missed if task is blocked in TCP operations
+  std::atomic<bool> configChangePending{false};
+
   // 2-Level Polling Hierarchy (CLEANUP: Removed Level 1 per-register polling)
 
   // Level 1: Device-level timing (device refresh_rate)

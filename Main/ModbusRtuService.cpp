@@ -178,6 +178,11 @@ void ModbusRtuService::stop()
 
 void ModbusRtuService::notifyConfigChange()
 {
+  // v2.5.39: Set atomic flag for reliable config change detection
+  // Consistent with ModbusTcpService implementation
+  configChangePending.store(true);
+  LOG_RTU_INFO("[RTU] Config change notified - flagged for refresh\n");
+
   if (rtuTaskHandle != nullptr)
   {
     xTaskNotifyGive(rtuTaskHandle);
@@ -249,11 +254,13 @@ void ModbusRtuService::readRtuDevicesLoop()
     // ============================================
     MemoryRecovery::checkAndRecover();
 
-    // Check for configuration change notifications (non-blocking)
-    if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+    // v2.5.39: Check BOTH atomic flag AND task notification for reliable config change detection
+    // Consistent with ModbusTcpService implementation
+    bool shouldRefresh = configChangePending.exchange(false);
+    if (shouldRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
     {
+      LOG_RTU_INFO("[RTU] Config change detected - refreshing device list...\n");
       refreshDeviceList();
-      // Config refresh is silent to reduce log noise
     }
 
     // FIXED ISSUE #1: Use cached rtuDevices vector instead of calling ConfigManager repeatedly
@@ -273,11 +280,12 @@ void ModbusRtuService::readRtuDevicesLoop()
       if (!running)
         break;
 
-      // BUGFIX: Check for config changes during iteration for immediate device deletion response
-      // This prevents continuing to poll deleted devices until next full iteration
-      if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+      // v2.5.39: Check for config changes during iteration using BOTH atomic flag AND task notification
+      // Consistent with ModbusTcpService implementation
+      bool midLoopRefresh = configChangePending.exchange(false);
+      if (midLoopRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
-        LOG_RTU_INFO("[RTU] Configuration changed during polling, refreshing immediately...");
+        LOG_RTU_INFO("[RTU] Config change during polling - refreshing immediately...\n");
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list
       }
@@ -753,12 +761,12 @@ bool ModbusRtuService::storeRegisterValue(const char *deviceId, const JsonObject
   dataPoint["value"] = calibratedValue;                       // Use calibrated value
   dataPoint["description"] = reg["description"] | "";         // Optional field from BLE config
 
-  // v2.3.16 FIX: Sanitize unit to avoid UTF-8 encoding issues in MQTT payload
-  // Replace degree symbol (° or Â°) with "deg" for maximum compatibility
+  // v2.5.40: Convert "deg" to degree symbol (°) for proper unit display
+  // User request: show "°C" instead of "degC" in output
+  // This also handles legacy data that might have been stored with "deg" prefix
   String rawUnit = reg["unit"] | "";
-  rawUnit.replace("°", "deg");           // UTF-8 single-byte degree
-  rawUnit.replace("\xC2\xB0", "deg");    // UTF-8 two-byte degree (Â°)
-  dataPoint["unit"] = rawUnit;                                // Sanitized unit field
+  rawUnit.replace("deg", "\xC2\xB0");    // Convert "deg" to UTF-8 degree symbol (°)
+  dataPoint["unit"] = rawUnit;           // Unit with proper degree symbol
 
   dataPoint["register_id"] = reg["register_id"].as<String>(); // Internal use for deduplication
   dataPoint["register_index"] = reg["register_index"] | 0;    // For customize mode topic mapping

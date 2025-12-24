@@ -8,7 +8,254 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.38 (Current - Network Status API & OTA Pre-Check)
+## 🚀 Version 2.5.40 (Current - Shadow Cache & Unit Symbol Fix)
+
+**Release Date:** December 22, 2025 (Sunday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+Critical bug fixes for register operations and unit display:
+1. Register CRUD operations (create/update/delete) didn't update shadow cache
+2. Unit "deg" not converted to degree symbol (°) for display
+3. Connection pool cleanup when config changes
+
+---
+
+### 🐛 **Bug Fixed**
+
+#### CRITICAL: Calibration (offset/scale) Not Applied After Register Update
+**Category:** 🔴 CRITICAL BUG FIX
+
+**Symptoms:**
+- Setting `offset=1` on a register, value stays same (e.g., 12 instead of 13)
+- Calibration changes require device restart to take effect
+- Same issue affects scale, unit, and other register properties
+
+**Root Cause:**
+Three functions in `ConfigManager.cpp` were missing `updateDevicesShadowCopy()` call:
+1. `createRegister()` - line 949
+2. `updateRegister()` - line 1113
+3. `deleteRegister()` - line 1168
+
+After these operations, the file was saved with new data, but the **shadow cache** (used for reads by Modbus services) still had old values.
+
+**Solution:**
+Added `updateDevicesShadowCopy()` call after each successful `saveJson()`:
+```cpp
+if (saveJson(DEVICES_FILE, *devicesCache))
+{
+    // v2.5.40 FIX: Update shadow copy after register update
+    // CRITICAL: Without this, calibration (offset/scale) changes are NOT applied!
+    updateDevicesShadowCopy();
+    return true;
+}
+```
+
+**Files Modified:**
+- `ConfigManager.cpp:953` - Added shadow update in createRegister()
+- `ConfigManager.cpp:1118` - Added shadow update in updateRegister()
+- `ConfigManager.cpp:1172` - Added shadow update in deleteRegister()
+
+**Impact:**
+| Operation | Before | After |
+|-----------|--------|-------|
+| Create register | Shadow cache stale | Shadow cache synced |
+| Update register (offset/scale) | Changes ignored | Changes apply immediately |
+| Delete register | Deleted reg still polled | Deleted reg removed |
+
+---
+
+#### FIX: Connection Pool Not Cleared on Config Change
+**Category:** 🟡 BUG FIX
+
+**Symptoms:**
+- Changing device IP in config might not connect to new IP immediately
+- Old connections linger in pool until idle timeout
+
+**Root Cause:**
+`refreshDeviceList()` did not close existing pooled connections when config changed.
+
+**Solution:**
+Added `closeAllConnections()` call at start of `refreshDeviceList()`:
+```cpp
+void ModbusTcpService::refreshDeviceList()
+{
+    // v2.5.40 FIX: Close all pooled connections when config changes
+    closeAllConnections();
+    // ... rest of refresh logic
+}
+```
+
+**Files Modified:**
+- `ModbusTcpService.cpp:162-165` - Added connection cleanup
+
+---
+
+### ✨ **New Feature**
+
+#### Unit Symbol Conversion: "deg" → "°"
+**Category:** 🟢 ENHANCEMENT
+
+**Requirement:**
+User requested that units like "degC" display as "°C" in MQTT output.
+
+**Previous Behavior (v2.3.16):**
+Code converted "°C" → "degC" for MQTT compatibility.
+
+**New Behavior (v2.5.40):**
+Code now converts "deg" → "°" for proper unit display:
+- Input: "degC" → Output: "°C"
+- Input: "degF" → Output: "°F"
+- Input: "°C" → Output: "°C" (unchanged)
+
+**Implementation:**
+```cpp
+// v2.5.40: Convert "deg" to degree symbol (°) for proper unit display
+String rawUnit = reg["unit"] | "";
+rawUnit.replace("deg", "\xC2\xB0");  // UTF-8 degree symbol
+dataPoint["unit"] = rawUnit;
+```
+
+**Files Modified:**
+- `ModbusTcpService.cpp:1151-1156` - deg→° conversion
+- `ModbusRtuService.cpp:764-769` - deg→° conversion
+
+---
+
+### 📁 **Files Changed Summary**
+
+| File | Lines Changed | Type |
+|------|---------------|------|
+| ConfigManager.cpp | 953, 1118, 1172 | BUG FIX (shadow cache) |
+| ModbusTcpService.cpp | 162-165, 1151-1156 | BUG FIX + FEATURE |
+| ModbusRtuService.cpp | 764-769 | FEATURE (unit symbol) |
+
+---
+
+## 🚀 Version 2.5.39 (Device Creation & LED Stack Overflow Fix)
+
+**Release Date:** December 21, 2025 (Saturday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+Two critical bug fixes:
+1. Device creation was overwriting existing devices when mobile app accidentally sends `device_id` in the config payload
+2. LED_Blink_Task stack overflow causing ESP32 crash (Guru Meditation Error)
+
+---
+
+### 🐛 **Bug Fixed**
+
+#### CRITICAL: Device Creation Overwriting Existing Devices
+**Category:** 🔴 CRITICAL BUG FIX
+
+**Symptoms:**
+- When adding FIRST device after restart, it replaces/overwrites an existing device
+- Second device creation works normally
+- Reported by Mobile App team during testing
+
+**Root Cause:**
+Previous "BUG #32 FIX" in `ConfigManager::createDevice()` allowed using `device_id` from config payload:
+```cpp
+// OLD CODE (BUGGY):
+JsonVariantConst idVariant = config["device_id"];
+if (!idVariant.isNull())
+{
+  deviceId = idVariant.as<String>();  // ⚠️ Uses ID from mobile app
+}
+```
+
+If mobile app accidentally sends a `device_id` (from cached data or copied object), firmware would use that ID. If the ID already exists → device gets OVERWRITTEN.
+
+**Solution:**
+1. **ALWAYS generate new device_id** - ignore any `device_id` in config payload
+2. **Add collision check** - regenerate if ID already exists (extremely rare: 1 in 16 million)
+
+```cpp
+// NEW CODE (FIXED):
+String deviceId = generateId("D");  // Always generate new
+
+// Collision check with retry
+int maxRetries = 5;
+while (devicesCache->as<JsonObject>()[deviceId] && maxRetries > 0)
+{
+  deviceId = generateId("D");
+  maxRetries--;
+}
+```
+
+**Files Modified:**
+- `ConfigManager.cpp:381-402` - Fixed device ID generation logic
+
+**Impact:**
+| Operation | Before | After |
+|-----------|--------|-------|
+| Create device | Could overwrite if mobile sends device_id | Always creates new device |
+| Restore backup | Uses ID from backup | Generates new IDs (data preserved) |
+| Update device | Not affected | Not affected |
+
+---
+
+#### FIX: LED_Blink_Task Stack Overflow
+**Category:** 🔴 CRITICAL BUG FIX
+
+**Symptoms:**
+```
+Stack canary watchpoint triggered (LED_Blink_Task)
+Guru Meditation Error: Core 0 panic'ed (Unhandled debug exception)
+```
+
+**Root Cause:**
+- LED task stack size was 2048 bytes
+- `LOG_LED_INFO` with printf formatting uses significant stack space
+- When DRAM is low, stack overflow occurs causing ESP32 crash
+
+**Solution:**
+Increased stack size from 2048 to 3072 bytes.
+
+**Files Modified:**
+- `LEDManager.cpp:44` - Stack size increased from 2048 to 3072
+
+---
+
+#### FIX: Modbus Config Change Not Applied After Device Update (TCP & RTU)
+**Category:** 🔴 CRITICAL BUG FIX
+
+**Symptoms:**
+- Updating device config (IP, slave_id, etc.) via BLE shows success
+- But Modbus service still uses OLD config values
+- Config change notification not reliably received when task is busy
+
+**Root Cause:**
+- Both TCP and RTU tasks use `xTaskNotifyGive`/`ulTaskNotifyTake` for config change detection
+- When task is blocked in Modbus operations, notifications can be missed
+- TCP especially vulnerable due to 3+ second connection timeouts
+
+**Solution:**
+Added `std::atomic<bool> configChangePending` flag for reliable config change detection:
+1. `notifyConfigChange()` sets atomic flag + sends task notification
+2. Loop checks BOTH atomic flag AND task notification
+3. Flag persists even when task is blocked, ensuring refresh on next opportunity
+
+**Files Modified (TCP):**
+- `ModbusTcpService.h:34-36` - Added `configChangePending` atomic flag
+- `ModbusTcpService.cpp:144-155` - Set flag in notifyConfigChange()
+- `ModbusTcpService.cpp:223-230` - Check flag at loop start
+- `ModbusTcpService.cpp:316-325` - Check flag during device iteration
+
+**Files Modified (RTU):**
+- `ModbusRtuService.h:24-26` - Added `configChangePending` atomic flag
+- `ModbusRtuService.cpp:179-190` - Set flag in notifyConfigChange()
+- `ModbusRtuService.cpp:257-264` - Check flag at loop start
+- `ModbusRtuService.cpp:283-291` - Check flag during device iteration
+
+---
+
+## 🚀 Version 2.5.38 (Network Status API & OTA Pre-Check)
 
 **Release Date:** December 19, 2025 (Thursday)
 **Developer:** Kemal (with Claude Code)

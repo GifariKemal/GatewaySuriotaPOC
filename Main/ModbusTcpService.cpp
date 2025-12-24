@@ -143,6 +143,11 @@ void ModbusTcpService::stop()
 
 void ModbusTcpService::notifyConfigChange()
 {
+  // v2.5.39: Set atomic flag for reliable config change detection
+  // This ensures config changes are detected even if task is blocked in TCP operations
+  configChangePending.store(true);
+  LOG_TCP_INFO("[TCP] Config change notified - flagged for refresh\n");
+
   if (tcpTaskHandle != nullptr)
   {
     xTaskNotifyGive(tcpTaskHandle);
@@ -154,7 +159,12 @@ void ModbusTcpService::refreshDeviceList()
   // FIXED ISSUE #1: Protect vector operations from race conditions
   xSemaphoreTakeRecursive(vectorMutex, portMAX_DELAY);
 
-  LOG_TCP_INFO("[TCP Task] Refreshing device list...");
+  // v2.5.40 FIX: Close all pooled connections when config changes
+  // This ensures clean reconnection when IP/port changes
+  // Without this, old connections might linger and cause confusion
+  closeAllConnections();
+
+  LOG_TCP_INFO("[TCP Task] Refreshing device list (connections cleared)...");
   tcpDevices.clear(); // FIXED Bug #2: Now safe - unique_ptr auto-deletes old documents
 
   JsonDocument devicesIdList;
@@ -215,11 +225,13 @@ void ModbusTcpService::readTcpDevicesLoop()
     // ============================================
     MemoryRecovery::checkAndRecover();
 
-    // Check for configuration change notifications (non-blocking)
-    if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+    // v2.5.39: Check BOTH atomic flag AND task notification for reliable config change detection
+    // Atomic flag catches changes when task is blocked in TCP operations
+    bool shouldRefresh = configChangePending.exchange(false);
+    if (shouldRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
     {
+      LOG_TCP_INFO("[TCP] Config change detected - refreshing device list...\n");
       refreshDeviceList();
-      // Config refresh is silent to reduce log noise
     }
 
     // Smart network detection - check both Ethernet AND WiFi
@@ -306,11 +318,12 @@ void ModbusTcpService::readTcpDevicesLoop()
         break; // Exit if stopped
       }
 
-      // BUGFIX: Check for config changes during iteration for immediate device deletion response
-      // This prevents continuing to poll deleted devices until next full iteration
-      if (ulTaskNotifyTake(pdTRUE, 0) > 0)
+      // v2.5.39: Check for config changes during iteration using BOTH atomic flag AND task notification
+      // This catches config changes that occur while task is blocked in TCP connect/read operations
+      bool midLoopRefresh = configChangePending.exchange(false);
+      if (midLoopRefresh || ulTaskNotifyTake(pdTRUE, 0) > 0)
       {
-        LOG_TCP_INFO("[TCP] Configuration changed during polling, refreshing immediately...");
+        LOG_TCP_INFO("[TCP] Config change during polling - refreshing immediately...\n");
         xSemaphoreGiveRecursive(vectorMutex);
         refreshDeviceList();
         break; // Exit current iteration, next iteration will use updated device list
@@ -1140,12 +1153,12 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   dataPoint["value"] = calibratedValue;                       // Use calibrated value
   dataPoint["description"] = reg["description"] | "";         // Optional field from BLE config
 
-  // v2.3.16 FIX: Sanitize unit to avoid UTF-8 encoding issues in MQTT payload
-  // Replace degree symbol (° or Â°) with "deg" for maximum compatibility
+  // v2.5.40: Convert "deg" to degree symbol (°) for proper unit display
+  // User request: show "°C" instead of "degC" in output
+  // This also handles legacy data that might have been stored with "deg" prefix
   String rawUnit = reg["unit"] | "";
-  rawUnit.replace("°", "deg");           // UTF-8 single-byte degree
-  rawUnit.replace("\xC2\xB0", "deg");    // UTF-8 two-byte degree (Â°)
-  dataPoint["unit"] = rawUnit;                                // Sanitized unit field
+  rawUnit.replace("deg", "\xC2\xB0");    // Convert "deg" to UTF-8 degree symbol (°)
+  dataPoint["unit"] = rawUnit;           // Unit with proper degree symbol
 
   dataPoint["register_id"] = reg["register_id"].as<String>(); // Internal use for deduplication
   dataPoint["register_index"] = reg["register_index"] | 0;    // For customize mode topic mapping

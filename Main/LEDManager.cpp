@@ -36,10 +36,12 @@ void LEDManager::begin()
 
   // Create LED blinking task
   // OPTIMIZATION: Moved to Core 0 to balance load (low-priority task)
+  // v2.5.39: Increased stack from 2048 to 3072 to prevent stack overflow
+  // (LOG_LED_INFO with printf formatting requires more stack space)
   xTaskCreatePinnedToCore(
       ledBlinkTask,
       "LED_Blink_Task",
-      2048, // Stack size (increased for mutex operations)
+      3072, // Stack size (v2.5.39: increased from 2048 to prevent overflow)
       this,
       1, // Priority (low but higher than 0)
       &ledTaskHandle,
