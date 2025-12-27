@@ -3,23 +3,53 @@
 OTA Firmware Signing Tool for SRT-MGATE-1210
 Generates ECDSA P-256 signature and SHA-256 checksum for firmware binary
 
+================================================================================
+FIRMWARE BINARY NAMING CONVENTION
+================================================================================
+
+Format: {MODEL}_{VARIANT}_v{VERSION}.bin
+
+Components:
+  - MODEL    : Product model code (e.g., "MGATE-1210")
+  - VARIANT  : Hardware variant ("P" for POE, omit for non-POE)
+  - VERSION  : Semantic version (e.g., "1.0.0")
+
+Examples:
+  - MGATE-1210_P_v1.0.0.bin     (POE variant, version 1.0.0)
+  - MGATE-1210_P_v1.2.5.bin     (POE variant, version 1.2.5)
+  - MGATE-1210_v1.0.0.bin       (Non-POE variant, version 1.0.0)
+  - MGATE-1210_v2.0.0.bin       (Non-POE variant, version 2.0.0)
+
+This naming convention:
+  1. Identifies product model at a glance
+  2. Distinguishes hardware variants (POE vs Non-POE)
+  3. Shows version clearly for OTA management
+  4. Avoids confusion when multiple binaries exist
+
+================================================================================
+
 Usage:
-    python sign_firmware.py <firmware.bin> [private_key.pem]
+    python sign_firmware.py <input.bin> [private_key.pem] [version] [variant]
 
 Example:
-    python sign_firmware.py ../Main/build/Main.ino.bin ota_private_key.pem
+    python sign_firmware.py ../Main/build/Main.ino.bin
+    python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0 P
 
 Output:
+    - MGATE-1210_{VARIANT}_v{VERSION}.bin (renamed firmware)
     - firmware_manifest.json (ready for GitHub upload)
     - Console output with signature and checksum
 
 Requirements:
     pip install ecdsa
+
+Copyright (c) 2026 Suriota IoT Solutions
 """
 
 import hashlib
 import json
 import os
+import shutil
 import sys
 from datetime import datetime
 
@@ -31,8 +61,38 @@ except ImportError:
     print("Install with: pip install ecdsa")
     sys.exit(1)
 
+# ============================================================================
+# PRODUCT CONFIGURATION - Must match ProductConfig.h
+# ============================================================================
+PRODUCT_MODEL = "MGATE-1210"           # Short model name for filename
+PRODUCT_FULL_NAME = "SRT-MGATE-1210"   # Full product name
+MANUFACTURER = "SURIOTA IoT Solutions"
+COPYRIGHT = "Copyright (c) 2026 Suriota IoT Solutions"
 
-def sign_firmware(firmware_path, private_key_path, version=None):
+# Default variant (P = POE, empty = Non-POE)
+DEFAULT_VARIANT = "P"
+
+# Minimum supported version for OTA
+MIN_VERSION = "0.1.0"
+
+
+def generate_firmware_filename(version, variant=""):
+    """
+    Generate firmware filename following naming convention.
+
+    Format: {MODEL}_{VARIANT}_v{VERSION}.bin
+
+    Examples:
+        generate_firmware_filename("1.0.0", "P")  -> "MGATE-1210_P_v1.0.0.bin"
+        generate_firmware_filename("1.0.0", "")   -> "MGATE-1210_v1.0.0.bin"
+    """
+    if variant:
+        return f"{PRODUCT_MODEL}_{variant}_v{version}.bin"
+    else:
+        return f"{PRODUCT_MODEL}_v{version}.bin"
+
+
+def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
     """Sign firmware and generate manifest"""
 
     print("=" * 60)
@@ -77,27 +137,49 @@ def sign_firmware(firmware_path, private_key_path, version=None):
 
     # Determine version
     if version is None:
-        version = input("\nEnter firmware version (e.g., 2.5.0): ").strip()
+        version = input("\nEnter firmware version (e.g., 1.0.0): ").strip()
         if not version:
             version = "1.0.0"
 
-    # Parse version to build number
+    # Determine variant
+    if variant is None:
+        variant = input(f"Enter variant (P=POE, empty=Non-POE) [{DEFAULT_VARIANT}]: ").strip()
+        if not variant:
+            variant = DEFAULT_VARIANT
+
+    # Parse version to build number (MAJOR*1000 + MINOR*100 + PATCH)
     try:
         parts = version.split('.')
         build_number = int(parts[0]) * 1000 + int(parts[1]) * 100 + int(parts[2])
     except:
         build_number = 1000
 
+    # Generate proper firmware filename
+    output_filename = generate_firmware_filename(version, variant)
+    output_dir = os.path.dirname(firmware_path)
+    output_path = os.path.join(output_dir, output_filename)
+
+    # Copy/rename firmware to proper name
+    print(f"[5/6] Copying firmware with proper naming...")
+    print(f"       {os.path.basename(firmware_path)} -> {output_filename}")
+    shutil.copy2(firmware_path, output_path)
+
     # Generate manifest
-    print("[5/5] Generating firmware_manifest.json...")
+    print("[6/6] Generating firmware_manifest.json...")
 
     manifest = {
+        "product": {
+            "name": PRODUCT_FULL_NAME,
+            "model": f"{PRODUCT_MODEL}({variant})" if variant else PRODUCT_MODEL,
+            "manufacturer": MANUFACTURER,
+            "copyright": COPYRIGHT
+        },
         "version": version,
         "build_number": build_number,
         "release_date": datetime.now().strftime("%Y-%m-%d"),
-        "min_version": "2.3.0",
+        "min_version": MIN_VERSION,
         "firmware": {
-            "filename": os.path.basename(firmware_path),
+            "filename": output_filename,
             "size": firmware_size,
             "sha256": hash_hex,
             "signature": signature_hex
@@ -109,11 +191,12 @@ def sign_firmware(firmware_path, private_key_path, version=None):
     }
 
     # Save manifest
-    manifest_path = os.path.join(os.path.dirname(firmware_path), "firmware_manifest.json")
+    manifest_path = os.path.join(output_dir, "firmware_manifest.json")
     with open(manifest_path, 'w') as f:
         json.dump(manifest, f, indent=2)
 
     print(f"       Saved: {manifest_path}")
+    print(f"       Firmware: {output_path}")
 
     # Print summary
     print("\n" + "=" * 60)
@@ -121,24 +204,32 @@ def sign_firmware(firmware_path, private_key_path, version=None):
     print("=" * 60)
 
     print(f"""
-Files ready for upload:
-  1. {firmware_path}
-  2. {manifest_path}
+Output Files:
+  1. Firmware: {output_path}
+  2. Manifest: {manifest_path}
 
-Upload to GitHub:
-  Option A: GitHub Releases
-    gh release create v{version} "{firmware_path}" "{manifest_path}"
+Firmware Naming Convention:
+  Format: {{MODEL}}_{{VARIANT}}_v{{VERSION}}.bin
+  Result: {output_filename}
 
-  Option B: Raw files (ota/ folder)
-    git add "{firmware_path}" "{manifest_path}"
-    git commit -m "Release v{version}"
-    git push
+Upload to GitHub OTA Repository:
+  # Copy to OTA repo releases folder
+  mkdir -p releases/v{version}
+  cp "{output_path}" releases/v{version}/
+
+  # Update root manifest with proper URL
+  # URL format: https://api.github.com/repos/{{owner}}/{{repo}}/contents/releases/v{version}/{output_filename}?ref=main
+
+  # Commit and push
+  git add releases/v{version}/ firmware_manifest.json
+  git commit -m "feat(v{version}): Release {PRODUCT_FULL_NAME} firmware"
+  git push
 
 Manifest content:
 """)
     print(json.dumps(manifest, indent=2))
 
-    return manifest
+    return manifest, output_path
 
 
 def verify_signature(firmware_path, public_key_path, signature_hex):
@@ -169,11 +260,20 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
-        print("Usage: python sign_firmware.py <firmware.bin> [private_key.pem] [version]")
+        print("Usage: python sign_firmware.py <input.bin> [private_key.pem] [version] [variant]")
+        print("\nArguments:")
+        print("  input.bin      : Input firmware binary (e.g., Main.ino.bin)")
+        print("  private_key    : ECDSA private key (default: OTA_Keys/ota_private_key.pem)")
+        print("  version        : Firmware version (e.g., 1.0.0)")
+        print("  variant        : Hardware variant (P=POE, empty=Non-POE)")
         print("\nExamples:")
-        print("  python sign_firmware.py firmware.bin")
-        print("  python sign_firmware.py firmware.bin ota_private_key.pem")
-        print("  python sign_firmware.py firmware.bin ota_private_key.pem 2.5.0")
+        print("  python sign_firmware.py ../Main/build/Main.ino.bin")
+        print("  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0")
+        print("  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0 P")
+        print("\nOutput Naming Convention:")
+        print("  Format: {MODEL}_{VARIANT}_v{VERSION}.bin")
+        print("  Example: MGATE-1210_P_v1.0.0.bin (POE variant)")
+        print("  Example: MGATE-1210_v1.0.0.bin (Non-POE variant)")
         sys.exit(1)
 
     firmware_path = sys.argv[1]
@@ -184,10 +284,11 @@ if __name__ == "__main__":
 
     private_key_path = sys.argv[2] if len(sys.argv) > 2 else default_key
     version = sys.argv[3] if len(sys.argv) > 3 else None
+    variant = sys.argv[4] if len(sys.argv) > 4 else None
 
-    manifest = sign_firmware(firmware_path, private_key_path, version)
+    manifest, output_path = sign_firmware(firmware_path, private_key_path, version, variant)
 
     # Optional: verify if public key exists
     public_key_path = private_key_path.replace("private", "public")
     if os.path.exists(public_key_path):
-        verify_signature(firmware_path, public_key_path, manifest["firmware"]["signature"])
+        verify_signature(output_path, public_key_path, manifest["firmware"]["signature"])

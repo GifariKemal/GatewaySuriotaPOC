@@ -1040,7 +1040,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->enableDeviceByCommand(deviceId, clearMetrics);
+      // v2.5.41: Add .c_str() for const char* parameter
+      success = modbusTcpService->enableDeviceByCommand(deviceId.c_str(), clearMetrics);
     }
     else
     {
@@ -1093,7 +1094,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->disableDeviceByCommand(deviceId, reason);
+      // v2.5.41: Add .c_str() for const char* parameters
+      success = modbusTcpService->disableDeviceByCommand(deviceId.c_str(), reason.c_str());
     }
     else
     {
@@ -1148,7 +1150,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->getDeviceStatusInfo(deviceId, statusInfo);
+      // v2.5.41: Add .c_str() for const char* parameter
+      success = modbusTcpService->getDeviceStatusInfo(deviceId.c_str(), statusInfo);
     }
     else
     {
@@ -1645,6 +1648,9 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 1: Restore devices configuration
     Serial.println("[CONFIG RESTORE] [1/3] Restoring devices configuration...");
+    // v1.0.3: Send restore progress notification
+    // Mobile app MUST filter config_restore_progress notifications (like ota_progress)
+    manager->sendConfigRestoreProgress("devices", 1, 3);
 
     // BUG #32 FIX: Bypass type check, access directly
     JsonVariantConst devicesVariant = restoreConfig["devices"];
@@ -1717,6 +1723,8 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 2: Restore server configuration
     Serial.println("[CONFIG RESTORE] [2/3] Restoring server configuration...");
+    // v1.0.3: Send restore progress notification
+    manager->sendConfigRestoreProgress("server_config", 2, 3);
 
     // BUG #32 FIX: Bypass type check, access directly
     JsonVariantConst serverVariant = restoreConfig["server_config"];
@@ -1749,6 +1757,8 @@ void CRUDHandler::setupCommandHandlers()
 
     // Step 3: Restore logging configuration
     Serial.println("[CONFIG RESTORE] [3/3] Restoring logging configuration...");
+    // v1.0.3: Send restore progress notification
+    manager->sendConfigRestoreProgress("logging_config", 3, 3);
 
     // BUG #32 FIX: Bypass type check, access directly
     JsonVariantConst loggingVariant = restoreConfig["logging_config"];

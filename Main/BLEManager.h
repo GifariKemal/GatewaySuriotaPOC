@@ -206,6 +206,11 @@ public:
                                    uint32_t bytesPerSecond, uint32_t etaSeconds,
                                    const String& state, const String& networkMode);
 
+  // v2.5.41: Config Transfer Progress notifications (like OTA progress)
+  void sendConfigDownloadProgress(uint8_t percent, size_t bytesSent, size_t totalBytes);
+  void sendConfigUploadProgress(uint8_t percent, size_t bytesReceived, size_t totalExpected);
+  void sendConfigRestoreProgress(const String& step, uint8_t currentStep, uint8_t totalSteps);
+
   // Metrics access methods
   MTUMetrics getMTUMetrics() const;
   QueueMetrics getQueueMetrics() const;

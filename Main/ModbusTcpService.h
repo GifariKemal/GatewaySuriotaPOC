@@ -3,6 +3,7 @@
 
 #include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
+#include "PSRAMString.h" // v2.5.41: Unified PSRAMString for TCP (was using Arduino String)
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "ConfigManager.h"
@@ -38,9 +39,10 @@ private:
   // 2-Level Polling Hierarchy (CLEANUP: Removed Level 1 per-register polling)
 
   // Level 1: Device-level timing (device refresh_rate)
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct DeviceTimer
   {
-    String deviceId;
+    PSRAMString deviceId;   // v2.5.41: PSRAMString for memory efficiency
     unsigned long lastRead; // Last time device's registers were collectively polled
     uint32_t refreshRateMs; // Device-level interval
   };
@@ -53,17 +55,19 @@ private:
     uint32_t dataIntervalMs;       // Interval for data transmission (from server_config)
   } dataTransmissionSchedule;
 
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct TcpDeviceConfig
   {
-    String deviceId;
+    PSRAMString deviceId;              // v2.5.41: PSRAMString for memory efficiency
     std::unique_ptr<JsonDocument> doc; // FIXED Bug #2: Use smart pointer for auto-cleanup
   };
   std::vector<TcpDeviceConfig> tcpDevices;
 
   // NEW: Enhancement - Device Failure State Tracking (matching RTU service)
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct DeviceFailureState
   {
-    String deviceId; // TODO: Convert to PSRAMString in future (BUG #31 continuation)
+    PSRAMString deviceId;                 // v2.5.41: PSRAMString for memory efficiency
     uint8_t consecutiveFailures = 0;
     uint8_t retryCount = 0;
     unsigned long nextRetryTime = 0;
@@ -81,15 +85,16 @@ private:
       AUTO_TIMEOUT = 3
     };
     DisableReason disableReason = NONE;
-    String disableReasonDetail;
+    PSRAMString disableReasonDetail;      // v2.5.41: PSRAMString for memory efficiency
     unsigned long disabledTimestamp = 0;
   };
   std::vector<DeviceFailureState> deviceFailureStates;
 
   // NEW: Enhancement - Device Read Timeout Configuration
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct DeviceReadTimeout
   {
-    String deviceId;
+    PSRAMString deviceId;                 // v2.5.41: PSRAMString for memory efficiency
     uint16_t timeoutMs = 5000;
     uint8_t consecutiveTimeouts = 0;
     unsigned long lastSuccessfulRead = 0;
@@ -98,9 +103,10 @@ private:
   std::vector<DeviceReadTimeout> deviceTimeouts;
 
   // NEW: Enhancement - Device Health Metrics Tracking
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct DeviceHealthMetrics
   {
-    String deviceId;
+    PSRAMString deviceId;                 // v2.5.41: PSRAMString for memory efficiency
 
     uint32_t totalReads = 0;
     uint32_t successfulReads = 0;
@@ -151,9 +157,10 @@ private:
 
   // FIXED BUG #14: TCP Connection Pooling
   // Keep persistent connections for frequently polled devices
+  // v2.5.41: Changed from String to PSRAMString (unified with RTU service)
   struct ConnectionPoolEntry
   {
-    String deviceKey;        // "IP:PORT" identifier
+    PSRAMString deviceKey;   // "IP:PORT" identifier (v2.5.41: PSRAMString)
     TCPClient *client;       // Persistent connection
     unsigned long lastUsed;  // Last activity timestamp
     unsigned long createdAt; // Connection creation time
@@ -173,20 +180,22 @@ private:
   static constexpr uint8_t MAX_POOL_SIZE = 3;                   // DRAM FIX (v2.3.9): Reduced from 10 to 3 (ESP32 DRAM limited!)
 
   // Connection pool methods
-  TCPClient *getPooledConnection(const String &ip, int port);
-  void returnPooledConnection(const String &ip, int port, TCPClient *client, bool healthy);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  TCPClient *getPooledConnection(const char *ip, int port);
+  void returnPooledConnection(const char *ip, int port, TCPClient *client, bool healthy);
   void closeIdleConnections();
   void closeAllConnections();
-  String getDeviceKey(const String &ip, int port);
+  PSRAMString getDeviceKey(const char *ip, int port);
 
   static void readTcpDevicesTask(void *parameter);
   void readTcpDevicesLoop();
   void readTcpDeviceData(const JsonObject &deviceConfig);
   // NOTE: processRegisterValue and processMultiRegisterValue moved to ModbusUtils (shared with RTU)
-  bool storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName = ""); // FIXED: Returns bool for error handling
-  bool readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient = nullptr);
-  bool readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient = nullptr);
-  bool readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient = nullptr);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  bool storeRegisterValue(const char *deviceId, const JsonObject &reg, double value, const char *deviceName = ""); // FIXED: Returns bool for error handling
+  bool readModbusRegister(const char *ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient = nullptr);
+  bool readModbusRegisters(const char *ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient = nullptr);
+  bool readModbusCoil(const char *ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient = nullptr);
   void buildModbusRequest(uint8_t *buffer, uint16_t transId, uint8_t unitId, uint8_t funcCode, uint16_t addr, uint16_t qty);
   bool parseModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, uint16_t *result, bool *boolResult);
   bool parseMultiModbusResponse(uint8_t *buffer, int length, uint8_t expectedFunc, int count, uint16_t *results);
@@ -195,15 +204,17 @@ private:
 
   // FIXED ISSUE #4: Helper function to eliminate code duplication in register logging
   // Consolidates unit processing, value formatting, and compact line building
-  void appendRegisterToLog(const String &registerName, double value, const String &unit,
-                           const String &deviceId, String &outputBuffer,
-                           String &compactLine, int &successCount, int &lineNumber);
+  // v2.5.41: Changed from String to PSRAMString and const char* for consistency
+  void appendRegisterToLog(const char *registerName, double value, const char *unit,
+                           const char *deviceId, PSRAMString &outputBuffer,
+                           PSRAMString &compactLine, int &successCount, int &lineNumber);
 
   // Polling Hierarchy Helper Methods (CLEANUP: Removed Level 1 per-register methods)
   // Level 1 (Device-level): Device-level timing
-  DeviceTimer *getDeviceTimer(const String &deviceId);
-  bool shouldPollDevice(const String &deviceId, uint32_t refreshRateMs);
-  void updateDeviceLastRead(const String &deviceId);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  DeviceTimer *getDeviceTimer(const char *deviceId);
+  bool shouldPollDevice(const char *deviceId, uint32_t refreshRateMs);
+  void updateDeviceLastRead(const char *deviceId);
 
   // Level 3 (Server-level): Data transmission interval
   bool shouldTransmitData(uint32_t dataIntervalMs);
@@ -216,26 +227,30 @@ private:
   uint16_t getNextTransactionId();
 
   // NEW: Enhancement - Device failure and metrics management
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
   void initializeDeviceFailureTracking();
   void initializeDeviceTimeouts();
   void initializeDeviceMetrics();
-  struct DeviceFailureState *getDeviceFailureState(const String &deviceId);
-  struct DeviceReadTimeout *getDeviceTimeout(const String &deviceId);
-  struct DeviceHealthMetrics *getDeviceMetrics(const String &deviceId);
+  struct DeviceFailureState *getDeviceFailureState(const char *deviceId);
+  struct DeviceReadTimeout *getDeviceTimeout(const char *deviceId);
+  struct DeviceHealthMetrics *getDeviceMetrics(const char *deviceId);
 
   // NEW: Enhancement - Flexible enable/disable with reason tracking
-  void enableDevice(const String &deviceId, bool clearMetrics = false);
-  void disableDevice(const String &deviceId, DeviceFailureState::DisableReason reason, const String &reasonDetail = "");
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  void enableDevice(const char *deviceId, bool clearMetrics = false);
+  void disableDevice(const char *deviceId, DeviceFailureState::DisableReason reason, const char *reasonDetail = "");
 
   // Exponential backoff retry logic
-  void handleReadFailure(const String &deviceId);
-  bool shouldRetryDevice(const String &deviceId);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  void handleReadFailure(const char *deviceId);
+  bool shouldRetryDevice(const char *deviceId);
   unsigned long calculateBackoffTime(uint8_t retryCount);
-  void resetDeviceFailureState(const String &deviceId);
+  void resetDeviceFailureState(const char *deviceId);
 
   // Timeout and device management
-  void handleReadTimeout(const String &deviceId);
-  bool isDeviceEnabled(const String &deviceId);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  void handleReadTimeout(const char *deviceId);
+  bool isDeviceEnabled(const char *deviceId);
 
   // NEW: Enhancement - Auto-recovery for auto-disabled devices
   static void autoRecoveryTask(void *parameter);
@@ -253,9 +268,10 @@ public:
   void notifyConfigChange();
 
   // NEW: Enhancement - Public API for BLE device control commands
-  bool enableDeviceByCommand(const String &deviceId, bool clearMetrics = false);
-  bool disableDeviceByCommand(const String &deviceId, const String &reasonDetail = "");
-  bool getDeviceStatusInfo(const String &deviceId, JsonObject &statusInfo);
+  // v2.5.41: Changed from String& to const char* for consistency with RTU service
+  bool enableDeviceByCommand(const char *deviceId, bool clearMetrics = false);
+  bool disableDeviceByCommand(const char *deviceId, const char *reasonDetail = "");
+  bool getDeviceStatusInfo(const char *deviceId, JsonObject &statusInfo);
   bool getAllDevicesStatus(JsonObject &allStatus);
 
   // v2.5.35: Get aggregated Modbus stats for ProductionLogger

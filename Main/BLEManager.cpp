@@ -365,6 +365,10 @@ void BLEManager::receiveFragment(const String &fragment)
       return;
     }
 
+    // NOTE: Upload progress notifications are NOT sent here because mobile app
+    // is already waiting for command response. Any notification would corrupt
+    // the response parsing. Progress must be tracked on mobile app side.
+
     processing = true;
     commandBuffer[commandBufferIndex] = '\0'; // Null-terminate the command
 
@@ -410,6 +414,10 @@ void BLEManager::receiveFragment(const String &fragment)
     {
       memcpy(commandBuffer + commandBufferIndex, fragment.c_str(), fragmentLen);
       commandBufferIndex += fragmentLen;
+
+      // NOTE: Upload progress notifications are NOT sent during fragment reception
+      // because mobile app is already waiting for command response. Any notification
+      // would corrupt the response parsing. Progress must be tracked on mobile app side.
 
 #if PRODUCTION_MODE == 0
       // Only log every 5th fragment to reduce serial spam
@@ -679,6 +687,140 @@ void BLEManager::sendOtaProgressNotification(uint8_t progress, size_t bytesDownl
   }
 }
 
+/**
+ * @brief Send config download progress notification (v2.5.41)
+ *
+ * Sends progress during large response transmission (firmware → mobile).
+ * Called from sendFragmented() during chunk transmission.
+ * Throttled to send every 10% to avoid BLE congestion.
+ *
+ * @param percent Download progress percentage (0-100)
+ * @param bytesSent Bytes sent so far
+ * @param totalBytes Total bytes to send
+ */
+void BLEManager::sendConfigDownloadProgress(uint8_t percent, size_t bytesSent, size_t totalBytes)
+{
+  if (!pResponseChar || !connectionMetrics.isConnected) {
+    return;
+  }
+
+  // Throttle: Only send every 10% to avoid congestion
+  static uint8_t lastDownloadPercent = 255; // 255 = not started
+  if (percent < 100 && lastDownloadPercent != 255 && (percent - lastDownloadPercent) < 10) {
+    return;
+  }
+  lastDownloadPercent = percent;
+
+  // Reset for next transfer when complete
+  if (percent >= 100) {
+    lastDownloadPercent = 255;
+  }
+
+  JsonDocument doc;
+  doc["type"] = "config_download_progress";
+  doc["percent"] = percent;
+  doc["bytes_sent"] = bytesSent;
+  doc["total_bytes"] = totalBytes;
+
+  String payload;
+  serializeJson(doc, payload);
+
+  LOG_BLE_DEBUG("[BLE] Config download progress: %d%% (%zu/%zu bytes)\n", percent, bytesSent, totalBytes);
+
+  pResponseChar->setValue(payload.c_str());
+  pResponseChar->notify();
+  vTaskDelay(pdMS_TO_TICKS(5)); // Small delay to ensure delivery
+}
+
+/**
+ * @brief Send config upload progress notification (v2.5.41)
+ *
+ * Sends progress during large command reception (mobile → firmware).
+ * Called from receiveFragment() during chunk reception.
+ *
+ * @param percent Upload progress percentage (0-100)
+ * @param bytesReceived Bytes received so far
+ * @param totalExpected Expected total bytes (0 if unknown)
+ */
+void BLEManager::sendConfigUploadProgress(uint8_t percent, size_t bytesReceived, size_t totalExpected)
+{
+  if (!pResponseChar || !connectionMetrics.isConnected) {
+    return;
+  }
+
+  // Throttle: Only send every 10% or every 2KB
+  static uint8_t lastUploadPercent = 255;
+  static size_t lastUploadBytes = 0;
+
+  bool shouldSend = (percent >= 100) ||                          // Always send 100%
+                    (lastUploadPercent == 255) ||                // First progress
+                    (percent - lastUploadPercent >= 10) ||       // Every 10%
+                    (bytesReceived - lastUploadBytes >= 2048);   // Every 2KB
+
+  if (!shouldSend) {
+    return;
+  }
+
+  lastUploadPercent = percent;
+  lastUploadBytes = bytesReceived;
+
+  // Reset for next transfer when complete
+  if (percent >= 100) {
+    lastUploadPercent = 255;
+    lastUploadBytes = 0;
+  }
+
+  JsonDocument doc;
+  doc["type"] = "config_upload_progress";
+  doc["percent"] = percent;
+  doc["bytes_received"] = bytesReceived;
+  if (totalExpected > 0) {
+    doc["total_expected"] = totalExpected;
+  }
+
+  String payload;
+  serializeJson(doc, payload);
+
+  LOG_BLE_DEBUG("[BLE] Config upload progress: %d%% (%zu bytes)\n", percent, bytesReceived);
+
+  pResponseChar->setValue(payload.c_str());
+  pResponseChar->notify();
+  vTaskDelay(pdMS_TO_TICKS(5));
+}
+
+/**
+ * @brief Send config restore progress notification (v2.5.41)
+ *
+ * Sends progress during restore_config processing.
+ * Called from CRUDHandler for each restore step.
+ *
+ * @param step Current step name ("devices", "server_config", "logging_config")
+ * @param currentStep Current step number (1-based)
+ * @param totalSteps Total number of steps
+ */
+void BLEManager::sendConfigRestoreProgress(const String& step, uint8_t currentStep, uint8_t totalSteps)
+{
+  if (!pResponseChar || !connectionMetrics.isConnected) {
+    return;
+  }
+
+  JsonDocument doc;
+  doc["type"] = "config_restore_progress";
+  doc["step"] = step;
+  doc["current"] = currentStep;
+  doc["total"] = totalSteps;
+  doc["percent"] = (currentStep * 100) / totalSteps;
+
+  String payload;
+  serializeJson(doc, payload);
+
+  LOG_BLE_DEBUG("[BLE] Config restore progress: %s (%d/%d)\n", step.c_str(), currentStep, totalSteps);
+
+  pResponseChar->setValue(payload.c_str());
+  pResponseChar->notify();
+  vTaskDelay(pdMS_TO_TICKS(10)); // Slightly longer delay for restore steps
+}
+
 void BLEManager::sendFragmented(const char *data, size_t length)
 {
   if (!pResponseChar || !data)
@@ -834,6 +976,15 @@ void BLEManager::sendFragmented(const char *data, size_t length)
 
     vTaskDelay(pdMS_TO_TICKS(adaptiveDelay));
     i += chunkLen;
+
+    // v1.0.3: Send download progress notification for large payloads
+    // Only for payloads > 5KB to avoid overhead on small responses
+    // Mobile app MUST filter these notifications (like ota_progress)
+    // or response JSON will be corrupted!
+    if (dataLen > LARGE_PAYLOAD_THRESHOLD) {
+      uint8_t progressPercent = (i * 100) / dataLen;
+      sendConfigDownloadProgress(progressPercent, i, dataLen);
+    }
   }
 
   // Send end marker

@@ -3,38 +3,25 @@
 =============================================================================
 Modbus RTU Slave Simulator - 45 Input Registers
 =============================================================================
-Description:
-    Simulates a Modbus RTU slave with 45 Input Registers
-    matching the Device_Testing configuration
 
-    Device Configuration:
-    - Serial Port: COM8 (Windows) or /dev/ttyUSB0 (Linux)
-    - Baud Rate: 9600
-    - Data Bits: 8
-    - Parity: None
-    - Stop Bits: 1
-    - Slave ID: 1
-    - Protocol: Modbus RTU
-    - Flow Control: RTS Toggle (RTS disable delay: 1ms)
-
-    Registers (45 Input Registers - Function Code 4):
-    - Addresses: 0 to 44
-    - Various sensor types for comprehensive testing
-
-Usage:
-    1. Install: pip install pymodbus pyserial
-    2. Configure COM port in script (default: COM8)
-    3. Run: python modbus_slave_45_registers.py
-    4. Gateway will poll via RTU at configured refresh rate
-
-Requirements:
-    pip install pymodbus pyserial
-
+Version: 2.0.0 | December 2025 | SURIOTA R&D Team
 Compatible with: pymodbus 2.x and 3.x
 
-Author: Kemal - SURIOTA R&D Team
-Date: 2025-11-17
-Firmware Target: SRT-MGATE-1210 v2.2.0
+Serial Configuration:
+  - Port: COM8 (Windows) or /dev/ttyUSB0 (Linux)
+  - Baud Rate: 9600
+  - Format: 8N1
+  - Slave ID: 1
+  - Function Code: 4 (Read Input Registers)
+
+Dependencies:
+  pip install pymodbus pyserial colorama
+
+Usage:
+  1. Connect USB-to-RS485 adapter
+  2. Run this simulator
+  3. Gateway will poll via RTU
+
 =============================================================================
 """
 
@@ -43,125 +30,128 @@ import threading
 import time
 import random
 import sys
+import os
 import platform
 
-# Check pymodbus and pyserial installation
+# Add parent directory to path for shared module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
 try:
-    # Try pymodbus 3.x import first
+    from simulator_common import (
+        print_header, print_section, print_success, print_error, print_warning,
+        print_info, print_table, print_box, print_register_values,
+        print_connection_info, print_startup_banner, print_ready_message,
+        print_dependencies, Fore, Style
+    )
+    COMMON_AVAILABLE = True
+except ImportError:
+    COMMON_AVAILABLE = False
+    def print_header(t, s="", v=""): print(f"\n=== {t} ===")
+    def print_section(t, i=""): print(f"\n--- {t} ---")
+    def print_success(m): print(f"[OK] {m}")
+    def print_error(m): print(f"[ERROR] {m}")
+    def print_warning(m): print(f"[WARN] {m}")
+    def print_info(m): print(f"[INFO] {m}")
+    class Fore:
+        RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+    class Style:
+        BRIGHT = DIM = RESET_ALL = ""
+
+# =============================================================================
+# pymodbus Import (2.x and 3.x compatible)
+# =============================================================================
+try:
     try:
         from pymodbus.server import StartSerialServer
         PYMODBUS_VERSION = 3
     except ImportError:
-        # Fall back to pymodbus 2.x import
         from pymodbus.server.sync import StartSerialServer
         PYMODBUS_VERSION = 2
 
     from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
 
-    # ModbusRtuFramer import handling for version compatibility
     try:
         from pymodbus.transaction import ModbusRtuFramer
     except ImportError:
-        # pymodbus 2.x uses different import
         from pymodbus.framer.rtu_framer import ModbusRtuFramer
 
-    PYMODBUS_IMPORTED = True
+    PYMODBUS_AVAILABLE = True
 except ImportError as e:
-    print("\n" + "="*70)
-    print("  ERROR: Required libraries not installed!")
-    print("="*70)
-    print(f"\n  {e}\n")
-    print("  Please install required packages:")
-    print("  → pip install pymodbus pyserial")
-    print("\n  Or:")
-    print("  → pip3 install pymodbus pyserial")
-    print("\n" + "="*70 + "\n")
-    sys.exit(1)
-
-try:
-    import serial
-    PYSERIAL_IMPORTED = True
-except ImportError as e:
-    print("\n" + "="*70)
-    print("  ERROR: pyserial not installed!")
-    print("="*70)
-    print(f"\n  {e}\n")
-    print("  Please install pyserial:")
-    print("  → pip install pyserial")
-    print("\n" + "="*70 + "\n")
+    PYMODBUS_AVAILABLE = False
+    print_error(f"pymodbus not installed: {e}")
+    print_info("Install with: pip install pymodbus pyserial")
     sys.exit(1)
 
 # =============================================================================
 # Configuration
 # =============================================================================
-# Serial Port Configuration - ADJUST FOR YOUR SYSTEM
 if platform.system() == 'Windows':
-    SERIAL_PORT = 'COM8'  # MUST match device_testing configuration
+    SERIAL_PORT = 'COM8'
 else:
-    SERIAL_PORT = '/dev/ttyUSB0'  # Linux/Raspberry Pi
+    SERIAL_PORT = '/dev/ttyUSB0'
 
-BAUD_RATE = 9600       # MUST match device config
-DATA_BITS = 8          # MUST match device config (8N1)
-PARITY = 'N'           # None parity (8N1)
-STOP_BITS = 1          # MUST match device config
-SLAVE_ID = 1           # MUST match device config slave_id
-NUM_REGISTERS = 45      # 45 Input Registers
+BAUD_RATE = 9600
+DATA_BITS = 8
+PARITY = 'N'
+STOP_BITS = 1
+SLAVE_ID = 1
+NUM_REGISTERS = 45
 
 # Register definitions
 REGISTER_INFO = {
-    0: {"name": "Temperature", "unit": "°C", "min": 20, "max": 35, "initial": 25},
+    0: {"name": "Temperature", "unit": "degC", "min": 20, "max": 35, "initial": 25},
     1: {"name": "Humidity", "unit": "%", "min": 40, "max": 80, "initial": 60},
     2: {"name": "Pressure", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
     3: {"name": "Voltage", "unit": "V", "min": 220, "max": 240, "initial": 230},
     4: {"name": "Current", "unit": "A", "min": 1, "max": 10, "initial": 5},
     5: {"name": "Power", "unit": "W", "min": 0, "max": 5000, "initial": 1000},
     6: {"name": "Frequency", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
-    7: {"name": "PowerFactor", "unit": "", "min": 0, "max": 100, "initial": 95},
+    7: {"name": "PowerFactor", "unit": "%", "min": 0, "max": 100, "initial": 95},
     8: {"name": "Energy", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
     9: {"name": "Flow", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
-    10: {"name": "Level", "unit": "cm", "min": 0, "max": 200, "initial": 100},
-    11: {"name": "pH", "unit": "", "min": 0, "max": 14, "initial": 7},
-    12: {"name": "Conductivity", "unit": "mS/cm", "min": 0, "max": 200, "initial": 100},
-    13: {"name": "TDS", "unit": "ppm", "min": 0, "max": 1000, "initial": 500},
-    14: {"name": "Turbidity", "unit": "NTU", "min": 0, "max": 100, "initial": 10},
-    15: {"name": "Speed", "unit": "RPM", "min": 0, "max": 3000, "initial": 1500},
-    16: {"name": "Torque", "unit": "Nm", "min": 0, "max": 500, "initial": 100},
-    17: {"name": "Vibration", "unit": "mm/s", "min": 0, "max": 20, "initial": 5},
-    18: {"name": "CO2", "unit": "ppm", "min": 300, "max": 2000, "initial": 400},
-    19: {"name": "VOC", "unit": "ppb", "min": 0, "max": 1000, "initial": 100},
-    20: {"name": "Light", "unit": "lux", "min": 0, "max": 10000, "initial": 500},
-    21: {"name": "Noise", "unit": "dB", "min": 30, "max": 120, "initial": 60},
-    22: {"name": "Distance", "unit": "cm", "min": 0, "max": 400, "initial": 100},
-    23: {"name": "Angle", "unit": "deg", "min": 0, "max": 360, "initial": 180},
-    24: {"name": "Weight", "unit": "kg", "min": 0, "max": 1000, "initial": 100},
-    25: {"name": "Force", "unit": "N", "min": 0, "max": 1000, "initial": 100},
-    26: {"name": "Position", "unit": "mm", "min": 0, "max": 500, "initial": 250},
-    27: {"name": "Velocity", "unit": "m/s", "min": 0, "max": 50, "initial": 10},
-    28: {"name": "Acceleration", "unit": "m/s²", "min": 0, "max": 20, "initial": 10},
-    29: {"name": "Tank1Level", "unit": "%", "min": 0, "max": 100, "initial": 50},
-    30: {"name": "Tank2Level", "unit": "%", "min": 0, "max": 100, "initial": 60},
-    31: {"name": "Pump1Speed", "unit": "RPM", "min": 0, "max": 1500, "initial": 750},
-    32: {"name": "Pump2Speed", "unit": "RPM", "min": 0, "max": 1500, "initial": 800},
-    33: {"name": "Valve1Position", "unit": "%", "min": 0, "max": 100, "initial": 50},
-    34: {"name": "Valve2Position", "unit": "%", "min": 0, "max": 100, "initial": 60},
-    35: {"name": "MotorCurrent", "unit": "A", "min": 0, "max": 50, "initial": 10},
-    36: {"name": "MotorVoltage", "unit": "V", "min": 0, "max": 480, "initial": 380},
-    37: {"name": "MotorTemp", "unit": "°C", "min": 20, "max": 80, "initial": 40},
-    38: {"name": "AmbientTemp", "unit": "°C", "min": 15, "max": 40, "initial": 25},
-    39: {"name": "AmbientHumidity", "unit": "%", "min": 20, "max": 90, "initial": 60},
-    40: {"name": "Dewpoint", "unit": "°C", "min": -10, "max": 30, "initial": 15},
-    41: {"name": "WindSpeed", "unit": "m/s", "min": 0, "max": 30, "initial": 5},
-    42: {"name": "WindDirection", "unit": "deg", "min": 0, "max": 360, "initial": 180},
-    43: {"name": "Rain", "unit": "mm", "min": 0, "max": 100, "initial": 0},
-    44: {"name": "SolarRadiation", "unit": "W/m²", "min": 0, "max": 1200, "initial": 500}
+    10: {"name": "Temperature_2", "unit": "degC", "min": 20, "max": 35, "initial": 25},
+    11: {"name": "Humidity_2", "unit": "%", "min": 40, "max": 80, "initial": 60},
+    12: {"name": "Pressure_2", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
+    13: {"name": "Voltage_2", "unit": "V", "min": 220, "max": 240, "initial": 230},
+    14: {"name": "Current_2", "unit": "A", "min": 1, "max": 10, "initial": 5},
+    15: {"name": "Power_2", "unit": "W", "min": 0, "max": 5000, "initial": 1000},
+    16: {"name": "Frequency_2", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
+    17: {"name": "PowerFactor_2", "unit": "%", "min": 0, "max": 100, "initial": 95},
+    18: {"name": "Energy_2", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
+    19: {"name": "Flow_2", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
+    20: {"name": "Temperature_3", "unit": "degC", "min": 20, "max": 35, "initial": 25},
+    21: {"name": "Humidity_3", "unit": "%", "min": 40, "max": 80, "initial": 60},
+    22: {"name": "Pressure_3", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
+    23: {"name": "Voltage_3", "unit": "V", "min": 220, "max": 240, "initial": 230},
+    24: {"name": "Current_3", "unit": "A", "min": 1, "max": 10, "initial": 5},
+    25: {"name": "Power_3", "unit": "W", "min": 0, "max": 5000, "initial": 1000},
+    26: {"name": "Frequency_3", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
+    27: {"name": "PowerFactor_3", "unit": "%", "min": 0, "max": 100, "initial": 95},
+    28: {"name": "Energy_3", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
+    29: {"name": "Flow_3", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
+    30: {"name": "Temperature_4", "unit": "degC", "min": 20, "max": 35, "initial": 25},
+    31: {"name": "Humidity_4", "unit": "%", "min": 40, "max": 80, "initial": 60},
+    32: {"name": "Pressure_4", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
+    33: {"name": "Voltage_4", "unit": "V", "min": 220, "max": 240, "initial": 230},
+    34: {"name": "Current_4", "unit": "A", "min": 1, "max": 10, "initial": 5},
+    35: {"name": "Power_4", "unit": "W", "min": 0, "max": 5000, "initial": 1000},
+    36: {"name": "Frequency_4", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
+    37: {"name": "PowerFactor_4", "unit": "%", "min": 0, "max": 100, "initial": 95},
+    38: {"name": "Energy_4", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
+    39: {"name": "Flow_4", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
+    40: {"name": "Temperature_5", "unit": "degC", "min": 20, "max": 35, "initial": 25},
+    41: {"name": "Humidity_5", "unit": "%", "min": 40, "max": 80, "initial": 60},
+    42: {"name": "Pressure_5", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
+    43: {"name": "Voltage_5", "unit": "V", "min": 220, "max": 240, "initial": 230},
+    44: {"name": "Current_5", "unit": "A", "min": 1, "max": 10, "initial": 5}
 }
 
 # Auto-update configuration
 AUTO_UPDATE = True
-UPDATE_INTERVAL = 5.0  # Update every 5 seconds (gateway polls every 2s)
+UPDATE_INTERVAL = 2.0
 
 # =============================================================================
-# Logging Configuration
+# Logging
 # =============================================================================
 logging.basicConfig(
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -171,90 +161,41 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # =============================================================================
-# Display Banner
-# =============================================================================
-def print_banner():
-    """Display startup banner with configuration"""
-    try:
-        import pymodbus
-        pymodbus_version = f"{pymodbus.__version__} (API v{PYMODBUS_VERSION}.x)"
-    except:
-        pymodbus_version = f"Unknown (API v{PYMODBUS_VERSION}.x)"
-
-    try:
-        import serial
-        pyserial_version = serial.VERSION
-    except:
-        pyserial_version = "Unknown"
-
-    print("\n" + "="*70)
-    print("  MODBUS RTU SLAVE SIMULATOR")
-    print(f"  SRT-MGATE-1210 Testing - 45 Input Registers")
-    print("="*70)
-    print(f"  Serial Configuration:")
-    print(f"  - Port:           {SERIAL_PORT}")
-    print(f"  - Baud Rate:      {BAUD_RATE}")
-    print(f"  - Data Bits:      {DATA_BITS}")
-    print(f"  - Parity:         {PARITY} (None)")
-    print(f"  - Stop Bits:      {STOP_BITS}")
-    print(f"  - Frame Format:   RTU")
-    print(f"  - Flow Control:   RTS Toggle")
-    print(f"")
-    print(f"  Modbus Configuration:")
-    print(f"  - Slave ID:       {SLAVE_ID}")
-    print(f"  - Registers:      {NUM_REGISTERS} Input Registers (Function Code 4)")
-    print(f"  - Data Type:      INT16 (0-65535)")
-    print(f"  - Address Range:  0-{NUM_REGISTERS-1}")
-    print(f"")
-    print(f"  Auto Update:")
-    print(f"  - Enabled:        {'Yes' if AUTO_UPDATE else 'No'}")
-    print(f"  - Interval:       {UPDATE_INTERVAL}s")
-    print(f"")
-    print(f"  Libraries:")
-    print(f"  - PyModbus:       v{pymodbus_version}")
-    print(f"  - PySerial:       v{pyserial_version}")
-    print(f"  - Platform:       {platform.system()}")
-    print("="*70)
-    print("\n[INFO] Initializing Modbus RTU slave server...")
-
-# =============================================================================
-# Verify Serial Port Availability
+# Serial Port Check
 # =============================================================================
 def verify_serial_port():
-    """Check if the specified serial port is available"""
+    """Check if serial port is available"""
     try:
         import serial.tools.list_ports
         ports = serial.tools.list_ports.comports()
-        available_ports = [port.device for port in ports]
+        available = [p.device for p in ports]
 
-        print(f"\n[INFO] Available serial ports on this system:")
-        if not available_ports:
-            print("  → No serial ports detected!")
+        print_section("Available Serial Ports", "[COM]") if COMMON_AVAILABLE else print("\n--- Serial Ports ---")
+
+        if not available:
+            print_warning("No serial ports detected!") if COMMON_AVAILABLE else print("[WARN] No ports found")
             return False
 
         for port in ports:
-            print(f"  → {port.device}: {port.description}")
+            if port.device == SERIAL_PORT:
+                print_success(f"{port.device}: {port.description}") if COMMON_AVAILABLE else print(f"[OK] {port.device}")
+            else:
+                print_info(f"{port.device}: {port.description}") if COMMON_AVAILABLE else print(f"[INFO] {port.device}")
 
-        if SERIAL_PORT not in available_ports and platform.system() == 'Windows':
-            print(f"\n[WARNING] Configured port '{SERIAL_PORT}' not found in available ports!")
-            print(f"[WARNING] Please check:")
-            print(f"  1. USB-to-RS485 adapter is connected")
-            print(f"  2. Driver is installed correctly")
-            print(f"  3. Port number matches your configuration")
-            print(f"  4. No other program is using {SERIAL_PORT}")
+        if SERIAL_PORT not in available:
+            print_warning(f"Configured port '{SERIAL_PORT}' not found!") if COMMON_AVAILABLE else print(f"[WARN] {SERIAL_PORT} not found")
             return False
 
         return True
-
     except Exception as e:
         log.warning(f"Could not verify serial port: {e}")
-        return True  # Continue anyway on Linux
+        return True
 
 # =============================================================================
-# Auto-Update Thread
+# Register Updater Thread
 # =============================================================================
 class RegisterUpdater(threading.Thread):
-    """Thread to automatically update register values with realistic simulation"""
+    """Thread to automatically update register values"""
 
     def __init__(self, context, slave_id):
         super().__init__()
@@ -265,414 +206,174 @@ class RegisterUpdater(threading.Thread):
         self.update_count = 0
 
     def run(self):
-        """Main update loop"""
         log.info("Auto-update thread started")
 
         while self.running:
             try:
                 time.sleep(UPDATE_INTERVAL)
 
-                # Get the slave context
                 slave_context = self.context[self.slave_id]
 
-                # Update each register with realistic variations
                 for address in range(NUM_REGISTERS):
-                    info = REGISTER_INFO[address]
+                    if address in REGISTER_INFO:
+                        info = REGISTER_INFO[address]
+                        current_value = slave_context.getValues(4, address, count=1)[0]
 
-                    # Get current value (function code 4 = Input Registers)
-                    current_value = slave_context.getValues(4, address, count=1)[0]
-
-                    # Simulate realistic sensor variations
-                    if address == 0:  # Temperature
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
+                        change = random.choice([-2, -1, 0, 0, 1, 2])
+                        new_value = current_value + change
                         new_value = max(info["min"], min(info["max"], new_value))
 
-                    elif address == 1:  # Humidity
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 2:  # Pressure
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 3:  # Voltage
-                        new_value = current_value + random.choice([-1, 0, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 4:  # Current
-                        new_value = current_value + random.choice([-1, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 5:  # Power
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 6:  # Frequency
-                        new_value = current_value + random.choice([-1, 0, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 7:  # PowerFactor
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 8:  # Energy
-                        new_value = current_value + random.randint(0, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 9:  # Flow
-                        new_value = current_value + random.randint(-3, 3)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 10:  # Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 11:  # pH
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 12:  # Conductivity
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 13:  # TDS
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 14:  # Turbidity
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 15:  # Speed
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 16:  # Torque
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 17:  # Vibration
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 18:  # CO2
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 19:  # VOC
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 20:  # Light
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 21:  # Noise
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 22:  # Distance
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 23:  # Angle
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 24:  # Weight
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 25:  # Force
-                        new_value = current_value + random.randint(-10, 10)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 26:  # Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 27:  # Velocity
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 28:  # Acceleration
-                        new_value = current_value + random.choice([-1, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 29:  # Tank1Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 30:  # Tank2Level
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 31:  # Pump1Speed
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 32:  # Pump2Speed
-                        new_value = current_value + random.randint(-20, 20)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 33:  # Valve1Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 34:  # Valve2Position
-                        new_value = current_value + random.randint(-5, 5)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 35:  # MotorCurrent
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 36:  # MotorVoltage
-                        new_value = current_value + random.choice([-2, -1, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 37:  # MotorTemp
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 38:  # AmbientTemp
-                        new_value = current_value + random.choice([-1, 0, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 39:  # AmbientHumidity
-                        new_value = current_value + random.randint(-3, 3)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 40:  # Dewpoint
-                        new_value = current_value + random.choice([-1, 0, 1])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 41:  # WindSpeed
-                        new_value = current_value + random.randint(-2, 2)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 42:  # WindDirection
-                        new_value = current_value + random.randint(-15, 15)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 43:  # Rain
-                        new_value = current_value + random.choice([0, 0, 0, 1, 2])
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    elif address == 44:  # SolarRadiation
-                        new_value = current_value + random.randint(-50, 50)
-                        new_value = max(info["min"], min(info["max"], new_value))
-
-                    else:
-                        new_value = current_value
-
-                    # Set new value
-                    slave_context.setValues(4, address, [new_value])
+                        slave_context.setValues(4, address, [new_value])
 
                 self.update_count += 1
 
-                # Log updated values (first 10 and last register for brevity)
                 values = slave_context.getValues(4, 0, count=NUM_REGISTERS)
-                if NUM_REGISTERS <= 10:
-                    log.info(f"Update #{self.update_count:04d} - Values: {values}")
-                else:
-                    log.info(f"Update #{self.update_count:04d} - First 5: {values[:5]} ... Last: {values[-1]}")
+                print(f"\n{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
+                print(f"  {Fore.WHITE}{Style.BRIGHT}Update #{self.update_count:04d} - Slave ID: {SLAVE_ID}{Style.RESET_ALL}")
+                print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
 
-                # Print detailed values every update (limited to first 10 for readability)
-                print(f"\n{'─'*70}")
-                print(f"  Update #{self.update_count:04d} - Register Values (Slave ID: {SLAVE_ID}):")
-                print(f"{'─'*70}")
-
-                # Show first 10 registers
-                display_count = min(10, NUM_REGISTERS)
-                for addr in range(display_count):
-                    info = REGISTER_INFO[addr]
-                    value = values[addr]
-                    print(f"  [{addr}] {info['name']:15s}: {value:5d} {info['unit']:6s}")
+                for addr in range(min(10, NUM_REGISTERS)):
+                    if addr in REGISTER_INFO:
+                        info = REGISTER_INFO[addr]
+                        value = values[addr]
+                        print(f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info['unit']}")
 
                 if NUM_REGISTERS > 10:
-                    print(f"  ... ({NUM_REGISTERS - display_count} more registers)")
+                    print(f"  ... and {NUM_REGISTERS - 10} more registers")
 
-                print(f"{'─'*70}")
-                print(f"[INFO] Waiting for Modbus RTU requests on {SERIAL_PORT}...\n")
+                print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
+                print(f"  {Fore.GREEN}Waiting for Modbus RTU requests on {SERIAL_PORT}...{Style.RESET_ALL}\n")
 
             except Exception as e:
-                log.error(f"Error in auto-update thread: {e}")
-                import traceback
-                traceback.print_exc()
+                log.error(f"Update error: {e}")
 
     def stop(self):
-        """Stop the update thread"""
         self.running = False
 
 # =============================================================================
-# Main Server Setup
+# Main Server
 # =============================================================================
 def run_server():
     """Setup and run the Modbus RTU server"""
 
-    print_banner()
+    print_startup_banner("RTU", NUM_REGISTERS) if COMMON_AVAILABLE else print(f"\n=== RTU Simulator - {NUM_REGISTERS} Registers ===")
 
-    # Verify serial port availability
+    if COMMON_AVAILABLE:
+        print_dependencies()
+
     if not verify_serial_port():
-        print("\n[ERROR] Serial port verification failed!")
-        print("[INFO] You can still try to run the server, but connection may fail.")
+        print_warning("Serial port verification failed") if COMMON_AVAILABLE else print("[WARN] Port check failed")
         response = input("\nContinue anyway? (y/n): ")
         if response.lower() != 'y':
-            print("[INFO] Exiting...")
-            sys.exit(1)
+            return
 
-    # Create initial values for Input Registers
+    print_section("Configuration", "[CFG]") if COMMON_AVAILABLE else print("\n--- Configuration ---")
+
+    config = {
+        "port": SERIAL_PORT,
+        "baud_rate": BAUD_RATE,
+        "data_bits": DATA_BITS,
+        "parity": PARITY,
+        "stop_bits": STOP_BITS,
+        "slave_id": SLAVE_ID,
+        "num_registers": NUM_REGISTERS
+    }
+
+    if COMMON_AVAILABLE:
+        print_connection_info("RTU", config)
+    else:
+        print(f"  Port: {SERIAL_PORT}")
+        print(f"  Baud: {BAUD_RATE}")
+        print(f"  Slave ID: {SLAVE_ID}")
+
     initial_values = [REGISTER_INFO[i]["initial"] for i in range(NUM_REGISTERS)]
 
-    # Create data blocks for Input Registers (function code 4)
-    input_registers = ModbusSequentialDataBlock(
-        0,  # Starting address
-        initial_values
-    )
+    input_registers = ModbusSequentialDataBlock(0, initial_values)
 
-    # Create slave context with only Input Registers
     slave_context = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [0]*100),  # Discrete Inputs (not used)
-        co=ModbusSequentialDataBlock(0, [0]*100),  # Coils (not used)
-        hr=ModbusSequentialDataBlock(0, [0]*200),  # Holding Registers (not used)
-        ir=input_registers,                         # Input Registers (USED)
-        zero_mode=True  # Use 0-based addressing
+        di=ModbusSequentialDataBlock(0, [0]*100),
+        co=ModbusSequentialDataBlock(0, [0]*100),
+        hr=ModbusSequentialDataBlock(0, [0]*100),
+        ir=input_registers,
+        zero_mode=True
     )
 
-    # Create server context with single slave
     server_context = ModbusServerContext(
         slaves={SLAVE_ID: slave_context},
         single=False
     )
 
-    # Display initial register values (first 10 for brevity)
-    print("\n" + "="*70)
-    print(f"  INITIAL REGISTER VALUES ({NUM_REGISTERS} Input Registers)")
-    print("="*70)
-    print(f"  {'Addr':<6} {'Name':<18} {'Value':<10} {'Unit':<10} {'Range':<20}")
-    print("─"*70)
+    print_section("Initial Values", "[REG]") if COMMON_AVAILABLE else print("\n--- Initial Values ---")
 
-    display_count = min(10, NUM_REGISTERS)
-    for addr in range(display_count):
+    headers = ["Addr", "Name", "Value", "Unit", "Range"]
+    rows = []
+    for addr in range(min(15, NUM_REGISTERS)):
         info = REGISTER_INFO[addr]
-        value = info["initial"]
-        range_str = f"{info['min']}-{info['max']}"
-        print(f"  {addr:<6} {info['name']:<18} {value:<10} {info['unit']:<10} {range_str:<20}")
+        rows.append([addr, info["name"][:15], info["initial"], info["unit"], f"{info['min']}-{info['max']}"])
 
-    if NUM_REGISTERS > 10:
-        print(f"  ... ({NUM_REGISTERS - display_count} more registers)")
+    if COMMON_AVAILABLE:
+        from simulator_common import print_table
+        print_table(headers, rows)
+    else:
+        for row in rows:
+            print(f"  [{row[0]:2d}] {row[1]:<15s}: {row[2]:5d} {row[3]}")
 
-    print("="*70)
+    if NUM_REGISTERS > 15:
+        print(f"  ... and {NUM_REGISTERS - 15} more registers")
 
-    print(f"\n[INFO] Server listening on {SERIAL_PORT}")
-    print(f"[INFO] Baud Rate: {BAUD_RATE}, Format: {DATA_BITS}{PARITY}{STOP_BITS}, Framer: RTU")
-    print(f"[INFO] Slave ID: {SLAVE_ID}")
-    print(f"[INFO] Function Code: 4 (Read Input Registers)")
-    print(f"[INFO] Register Addresses: 0-{NUM_REGISTERS-1}")
-    print(f"\n[INFO] Ready for connections from SRT-MGATE-1210 Gateway")
-    print(f"[INFO] Press Ctrl+C to stop server\n")
-
-    # Start auto-update thread if enabled
     updater = None
     if AUTO_UPDATE:
         updater = RegisterUpdater(server_context, SLAVE_ID)
         updater.start()
-        log.info("Auto-update enabled - register values will change every %.1fs", UPDATE_INTERVAL)
+        print_info(f"Auto-update enabled ({UPDATE_INTERVAL}s interval)") if COMMON_AVAILABLE else print(f"[INFO] Auto-update: {UPDATE_INTERVAL}s")
+
+    if COMMON_AVAILABLE:
+        print_ready_message("RTU", config)
+    else:
+        print(f"\n[INFO] Server ready on {SERIAL_PORT}")
+        print("[INFO] Press Ctrl+C to stop")
 
     try:
-        # Start RTU Serial server (blocks until stopped)
-        # Compatibility for pymodbus 2.x and 3.x
-        log.info(f"Starting Modbus RTU server on {SERIAL_PORT}...")
-        log.info(f"Using pymodbus {PYMODBUS_VERSION}.x API")
-
-        if PYMODBUS_VERSION == 3:
-            # pymodbus 3.x API
-            StartSerialServer(
-                context=server_context,
-                framer=ModbusRtuFramer,
-                port=SERIAL_PORT,
-                baudrate=BAUD_RATE,
-                bytesize=DATA_BITS,
-                parity=PARITY,
-                stopbits=STOP_BITS,
-                timeout=1  # 1 second timeout for serial reads
-            )
-        else:
-            # pymodbus 2.x API
-            StartSerialServer(
-                context=server_context,
-                framer=ModbusRtuFramer,
-                port=SERIAL_PORT,
-                baudrate=BAUD_RATE,
-                bytesize=DATA_BITS,
-                parity=PARITY,
-                stopbits=STOP_BITS,
-                timeout=1  # 1 second timeout for serial reads
-            )
-
+        log.info(f"Starting RTU server on {SERIAL_PORT} (pymodbus {PYMODBUS_VERSION}.x)")
+        StartSerialServer(
+            context=server_context,
+            framer=ModbusRtuFramer,
+            port=SERIAL_PORT,
+            baudrate=BAUD_RATE,
+            bytesize=DATA_BITS,
+            parity=PARITY,
+            stopbits=STOP_BITS,
+            timeout=1
+        )
     except KeyboardInterrupt:
-        print("\n\n[INFO] Shutting down server...")
+        print("\n\n[INFO] Shutting down...")
         if updater:
             updater.stop()
             updater.join(timeout=2)
-        print("[INFO] Server stopped gracefully")
-
+        print("[INFO] Server stopped")
     except Exception as e:
         log.error(f"Server error: {e}")
-        import traceback
-        traceback.print_exc()
         if updater:
             updater.stop()
-
-        # Check for common errors
         if "could not open port" in str(e).lower():
-            print("\n" + "="*70)
-            print("  SERIAL PORT ERROR")
-            print("="*70)
-            print(f"\n  Could not open {SERIAL_PORT}")
-            print(f"\n  Common causes:")
-            print(f"  1. Port is already in use by another program")
-            print(f"  2. USB-to-RS485 adapter not connected")
-            print(f"  3. Incorrect COM port number")
-            print(f"  4. Insufficient permissions (try running as Administrator)")
-            print(f"  5. Driver not installed correctly")
-            print("\n" + "="*70 + "\n")
+            print_error(f"Could not open {SERIAL_PORT}") if COMMON_AVAILABLE else print(f"[ERROR] Port error")
+            print_info("Check: USB adapter connected, port not in use, correct port number")
         raise
 
 # =============================================================================
-# Main Entry Point
+# Main
 # =============================================================================
 if __name__ == "__main__":
-    print("\n" + "="*70)
-    print("  MODBUS RTU SLAVE SIMULATOR")
-    print("  SRT-MGATE-1210 Firmware Testing Tool")
-    print("="*70)
-    print(f"\n  Configuration:")
-    print(f"  ├─ Port:         {SERIAL_PORT}")
-    print(f"  ├─ Baud Rate:    {BAUD_RATE}")
-    print(f"  ├─ Format:       {DATA_BITS}{PARITY}{STOP_BITS} (RTU)")
-    print(f"  ├─ Slave ID:     {SLAVE_ID}")
-    print(f"  ├─ Registers:    {NUM_REGISTERS} Input Registers (INT16)")
-    print(f"  └─ Addresses:    0-{NUM_REGISTERS-1}")
-
-    print(f"\n  First {min(10, NUM_REGISTERS)} Register Mapping:")
-    for addr in range(min(10, NUM_REGISTERS)):
-        info = REGISTER_INFO[addr]
-        print(f"  [{addr}] {info['name']:15s} - {info['unit']:6s} ({info['min']}-{info['max']})")
-
-    if NUM_REGISTERS > 10:
-        print(f"  ... ({NUM_REGISTERS - 10} more registers)")
-
-    print("\n" + "="*70)
-    print(f"\n  This simulator provides {NUM_REGISTERS} Input Registers for comprehensive testing")
-    print(f"  Compatible with Device_Testing/RTU/create_device_{NUM_REGISTERS}_registers.py")
-    print("\n  IMPORTANT:")
-    print("  - Make sure USB-to-RS485 adapter is connected to COM8")
-    print(f"  - Configure gateway to poll {NUM_REGISTERS} registers (addresses 0-{NUM_REGISTERS-1})")
-    print("  - RTS Toggle with 1ms disable delay")
-    print("  - No other program should use COM8")
-    print("\n" + "="*70 + "\n")
+    print()
+    print("=" * 60)
+    print(f"  Modbus RTU Slave Simulator - {NUM_REGISTERS} Registers")
+    print("=" * 60)
+    print(f"  Port: {SERIAL_PORT}")
+    print(f"  Baud: {BAUD_RATE}, Format: {DATA_BITS}{PARITY}{STOP_BITS}")
+    print(f"  Slave ID: {SLAVE_ID}")
+    print(f"  pymodbus: v{PYMODBUS_VERSION}.x API")
+    print("=" * 60)
+    print()
 
     input("Press Enter to start server...")
 
