@@ -8,7 +8,87 @@ Firmware Changelog and Release Notes
 
 ---
 
-## 🚀 Version 2.5.40 (Current - Shadow Cache & Unit Symbol Fix)
+## 🚀 Version 2.5.41 (Current - PSRAMString Unification for ModbusTcpService)
+
+**Release Date:** December 27, 2025 (Friday)
+**Developer:** Kemal (with Claude Code)
+**Status:** ✅ Production Ready
+
+### 🎯 **Purpose**
+
+Code refactoring to unify string types between ModbusRtuService and ModbusTcpService:
+- Both services now use PSRAMString instead of mixed Arduino String/PSRAMString
+- Eliminates DRAM fragmentation from Arduino String allocations
+- Aligns with Espressif research: PSRAM cache makes small strings perform identically to DRAM
+
+---
+
+### 🔧 **Code Refactoring**
+
+#### REFACTOR: ModbusTcpService PSRAMString Unification
+**Category:** 🟢 CODE QUALITY / MEMORY OPTIMIZATION
+
+**Background:**
+- ModbusRtuService already uses PSRAMString for all device tracking (v2.5.32+)
+- ModbusTcpService was still using Arduino String causing:
+  - DRAM fragmentation from frequent String reallocations
+  - Inconsistent code patterns between services
+  - Duplicated struct definitions
+
+**Changes Made:**
+
+1. **ModbusTcpService.h** - Updated struct definitions:
+   - `DeviceTimer.deviceId`: String → PSRAMString
+   - `TcpDeviceConfig.deviceId`: String → PSRAMString
+   - `DeviceFailureState.deviceId/disableReasonDetail`: String → PSRAMString
+   - `DeviceReadTimeout.deviceId`: String → PSRAMString
+   - `DeviceHealthMetrics.deviceId`: String → PSRAMString
+   - `ConnectionPoolEntry.deviceKey`: String → PSRAMString
+
+2. **ModbusTcpService.h** - Updated method signatures:
+   - All methods changed from `const String&` to `const char*` parameters
+   - `getDeviceKey()` return type changed from String to PSRAMString
+   - Matches RTU service pattern for consistency
+
+3. **ModbusTcpService.cpp** - Implementation updates:
+   - All method signatures updated to use `const char*`
+   - String comparisons changed from `==` to `strcmp()`
+   - Removed unnecessary `.c_str()` calls where parameter is already const char*
+   - `appendRegisterToLog()` uses PSRAMString for buffers
+
+4. **ModbusDeviceTypes.h** - NEW shared header (prepared for future use):
+   - Contains shared struct definitions for both RTU and TCP services
+   - All structs use PSRAMString
+   - Namespace `ModbusDeviceConfig` for shared constants
+
+**Files Modified:**
+- `Main/ModbusTcpService.h` - 30+ lines changed (structs + method signatures)
+- `Main/ModbusTcpService.cpp` - 50+ lines changed (implementations)
+- `Main/ModbusDeviceTypes.h` - NEW FILE (~240 lines)
+
+**Memory Impact:**
+| Metric | Before | After |
+|--------|--------|-------|
+| String type | Arduino String (DRAM) | PSRAMString (PSRAM w/ fallback) |
+| DRAM fragmentation | Possible | Eliminated |
+| Code consistency | Mixed patterns | Unified with RTU |
+
+**Technical Notes:**
+- PSRAMString automatically uses PSRAM with DRAM fallback
+- ESP32-S3 PSRAM cache makes small strings (<16KB) perform identically to DRAM
+- DRAM is limited (512KB) and shared with WiFi/BLE stack
+- Reference: Espressif ESP32-S3 Technical Reference Manual
+
+---
+
+### 📝 **Documentation**
+
+- Updated `Documentation/Technical_Guides/REFACTORING_MODBUS_SERVICES.md` v1.1
+- Added PSRAMString unification rationale based on Espressif research
+
+---
+
+## 🚀 Version 2.5.40 (Shadow Cache & Unit Symbol Fix)
 
 **Release Date:** December 22, 2025 (Sunday)
 **Developer:** Kemal (with Claude Code)

@@ -175,8 +175,9 @@ void ModbusTcpService::refreshDeviceList()
 
   for (JsonVariant deviceIdVar : deviceIds)
   {
-    String deviceId = deviceIdVar.as<String>();
-    if (deviceId.isEmpty() || deviceId == "{}" || deviceId.length() < 3)
+    // v2.5.41: Use const char* to avoid String allocation (matches RTU service pattern)
+    const char *deviceId = deviceIdVar.as<const char *>();
+    if (!deviceId || strcmp(deviceId, "") == 0 || strcmp(deviceId, "{}") == 0 || strlen(deviceId) < 3)
     {
       continue;
     }
@@ -185,11 +186,11 @@ void ModbusTcpService::refreshDeviceList()
     JsonObject deviceObj = tempDeviceDoc.to<JsonObject>();
     if (configManager->readDevice(deviceId, deviceObj))
     {
-      String protocol = deviceObj["protocol"] | "";
-      if (protocol == "TCP")
+      const char *protocol = deviceObj["protocol"] | "";
+      if (strcmp(protocol, "TCP") == 0)
       {
         TcpDeviceConfig newDeviceEntry;
-        newDeviceEntry.deviceId = deviceId;
+        newDeviceEntry.deviceId = deviceId;  // PSRAMString accepts const char*
         newDeviceEntry.doc = std::make_unique<JsonDocument>(); // FIXED Bug #2: Use smart pointer
         newDeviceEntry.doc->set(deviceObj);
         tcpDevices.push_back(std::move(newDeviceEntry));
@@ -330,7 +331,8 @@ void ModbusTcpService::readTcpDevicesLoop()
       }
 
       // Use cached device data from tcpDevices vector
-      String deviceId = deviceEntry.deviceId;
+      // v2.5.41: Use const char* instead of String (matches RTU service pattern)
+      const char *deviceId = deviceEntry.deviceId.c_str();
       JsonObject deviceObj = deviceEntry.doc->as<JsonObject>();
 
       // Get device refresh rate from BLE config
@@ -346,14 +348,14 @@ void ModbusTcpService::readTcpDevicesLoop()
           // Device is disabled, skip polling
           static LogThrottle disabledThrottle(30000); // Log every 30s to reduce spam
           char contextMsg[64];
-          snprintf(contextMsg, sizeof(contextMsg), "TCP Device %s disabled", deviceId.c_str());
+          snprintf(contextMsg, sizeof(contextMsg), "TCP Device %s disabled", deviceId);
           if (disabledThrottle.shouldLog(contextMsg))
           {
-            LOG_TCP_INFO("Device %s is disabled, skipping read\n", deviceId.c_str());
+            LOG_TCP_INFO("Device %s is disabled, skipping read\n", deviceId);
           }
           continue; // Skip to next device
         }
-        
+
         readTcpDeviceData(deviceObj);
         // Device-level timing is updated inside readTcpDeviceData via updateDeviceLastRead()
       }
@@ -388,16 +390,16 @@ void ModbusTcpService::readTcpDevicesLoop()
 
 void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
 {
-  String deviceId = deviceConfig["device_id"] | "UNKNOWN";
-  String ip = deviceConfig["ip"] | "";
+  // v2.5.41: Use const char* instead of String (matches RTU service pattern)
+  const char *deviceId = deviceConfig["device_id"] | "UNKNOWN";
+  const char *ip = deviceConfig["ip"] | "";
   int port = deviceConfig["port"] | 502;
   uint8_t slaveId = deviceConfig["slave_id"] | 1;
   JsonArray registers = deviceConfig["registers"];
 
   // FIXED BUG #8: Validate IP address format before use
   // Previous code only checked isEmpty() → invalid IPs like "999.999.999.999" passed!
-  ip.trim();
-  if (ip.isEmpty() || registers.size() == 0)
+  if (!ip || strlen(ip) == 0 || registers.size() == 0)
   {
     return;
   }
@@ -409,7 +411,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     static unsigned long lastWarning = 0;
     if (millis() - lastWarning > 30000) // Log max once per 30s per device
     {
-      LOG_TCP_INFO("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId.c_str(), ip.c_str());
+      LOG_TCP_INFO("[TCP] ERROR: Invalid IP address format for device %s: '%s'\n", deviceId, ip);
       LOG_TCP_INFO("[TCP] HINT: IP must be in format A.B.C.D where 0 <= A,B,C,D <= 255");
       lastWarning = millis();
     }
@@ -417,7 +419,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   }
 
   // Determine network type for log
-  String networkType = "TCP/WiFi"; // Default assume WiFi
+  const char *networkType = "TCP/WiFi"; // Default assume WiFi
   NetworkMgr *networkMgr = NetworkMgr::getInstance();
   if (networkMgr)
   {
@@ -428,18 +430,20 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     }
   }
 
-  LOG_TCP_VERBOSE("[%s] Polling device %s at %s:%d\n", networkType.c_str(), deviceId.c_str(), ip.c_str(), port);
+  LOG_TCP_VERBOSE("[%s] Polling device %s at %s:%d\n", networkType, deviceId, ip, port);
 
   // OPTIMIZED: Get device_name once per device cycle (not per register)
-  String deviceName = deviceConfig["device_name"] | "";
+  // v2.5.41: Use const char* instead of String
+  const char *deviceName = deviceConfig["device_name"] | "";
 
   // Track register read results (for End-of-Batch Marker)
   uint8_t successRegisterCount = 0;
   uint8_t failedRegisterCount = 0;
 
   // COMPACT LOGGING: Buffer all output for atomic printing (prevent interruption by other tasks)
-  String outputBuffer = "";
-  String compactLine = "";
+  // v2.5.41: Use PSRAMString instead of String (matches RTU service pattern)
+  PSRAMString outputBuffer = "";
+  PSRAMString compactLine = "";
   int successCount = 0;
   int lineNumber = 1;
 
@@ -468,7 +472,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
 
   if (!connectionHealthy)
   {
-    LOG_TCP_INFO("[TCP] ERROR: Failed to get pooled connection for %s:%d\n", ip.c_str(), port);
+    LOG_TCP_INFO("[TCP] ERROR: Failed to get pooled connection for %s:%d\n", ip, port);
     // Continue without pooling (fallback to per-register connections)
     pooledClient = nullptr;
   }
@@ -525,7 +529,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       else
       {
         // v2.5.35: Use DEV_MODE check to prevent log leak in production
-        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId.c_str(), registerName);
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -561,11 +565,12 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       }
 
       // Determine register count based on base type
-      if (baseType == "INT32" || baseType == "UINT32" || baseType == "FLOAT32")
+      // v2.5.41: Use strcmp() instead of == for const char* comparison
+      if (strcmp(baseType, "INT32") == 0 || strcmp(baseType, "UINT32") == 0 || strcmp(baseType, "FLOAT32") == 0)
       {
         registerCount = 2;
       }
-      else if (baseType == "INT64" || baseType == "UINT64" || baseType == "DOUBLE64")
+      else if (strcmp(baseType, "INT64") == 0 || strcmp(baseType, "UINT64") == 0 || strcmp(baseType, "DOUBLE64") == 0)
       {
         registerCount = 4;
       }
@@ -620,7 +625,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
       else
       {
         // v2.5.35: Use DEV_MODE check to prevent log leak in production
-        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId.c_str(), registerName);
+        DEV_SERIAL_PRINTF("%s: %s = ERROR\n", deviceId, registerName);
         failedRegisterCount++;
 
         // FIXED ISSUE #2: Mark connection as unhealthy on read failure
@@ -637,7 +642,7 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   {
     returnPooledConnection(ip, port, pooledClient, connectionHealthy);
     LOG_TCP_INFO("[TCP] Returned pooled connection for %s:%d (healthy: %s)\n",
-                  ip.c_str(), port, connectionHealthy ? "YES" : "NO");
+                  ip, port, connectionHealthy ? "YES" : "NO");
   }
 
   // COMPACT LOGGING: Add remaining items and print buffer atomically
@@ -681,11 +686,11 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
     if (queueMgr->enqueue(marker))
     {
       LOG_TCP_DEBUG("Batch marker enqueued for device %s (success=%d, failed=%d)\n",
-                    deviceId.c_str(), successRegisterCount, failedRegisterCount);
+                    deviceId, successRegisterCount, failedRegisterCount);
     }
     else
     {
-      LOG_TCP_WARN("Failed to enqueue batch marker for device %s\n", deviceId.c_str());
+      LOG_TCP_WARN("Failed to enqueue batch marker for device %s\n", deviceId);
     }
   }
 
@@ -705,16 +710,18 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
 // Consolidates 80+ lines of duplicated code across FC1/2/3/4 blocks
 // Pattern matches RTU service for consistency
 // v2.5.16: Optimized to use char buffer with snprintf (eliminates heap fragmentation)
-void ModbusTcpService::appendRegisterToLog(const String &registerName, double value, const String &unit,
-                                           const String &deviceId, String &outputBuffer,
-                                           String &compactLine, int &successCount, int &lineNumber)
+// v2.5.41: Changed from String to PSRAMString and const char* for consistency
+void ModbusTcpService::appendRegisterToLog(const char *registerName, double value, const char *unit,
+                                           const char *deviceId, PSRAMString &outputBuffer,
+                                           PSRAMString &compactLine, int &successCount, int &lineNumber)
 {
   // v2.5.16: Use fixed-size char buffer instead of String concatenation
   // This eliminates heap fragmentation from repeated String reallocations
   char tempBuf[128];  // Sufficient for register:value.unit format
 
   // Process unit - replace degree symbol with "deg" to avoid UTF-8 issues
-  String processedUnit = unit;
+  // v2.5.41: Use PSRAMString for processedUnit
+  PSRAMString processedUnit = unit;
   processedUnit.replace("°", "deg");
 
   // Add header on first success
@@ -726,18 +733,18 @@ void ModbusTcpService::appendRegisterToLog(const String &registerName, double va
     {
       DateTime now = rtc->getCurrentTime();
       snprintf(tempBuf, sizeof(tempBuf), "[DATA] [%02d:%02d:%02d] %s:\n",
-               now.hour(), now.minute(), now.second(), deviceId.c_str());
+               now.hour(), now.minute(), now.second(), deviceId);
     }
     else
     {
-      snprintf(tempBuf, sizeof(tempBuf), "[DATA] %s:\n", deviceId.c_str());
+      snprintf(tempBuf, sizeof(tempBuf), "[DATA] %s:\n", deviceId);
     }
     outputBuffer += tempBuf;
   }
 
   // Build compact line using snprintf: "RegisterName:value.unit"
   snprintf(tempBuf, sizeof(tempBuf), "%s:%.1f%s",
-           registerName.c_str(), value, processedUnit.c_str());
+           registerName, value, processedUnit.c_str());
   compactLine += tempBuf;
   successCount++;
 
@@ -760,7 +767,8 @@ void ModbusTcpService::appendRegisterToLog(const String &registerName, double va
 // NOTE: processMultiRegisterValue() moved to ModbusUtils class (shared with ModbusRtuService)
 // See ModbusUtils.cpp for implementation
 
-bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::readModbusRegister(const char *ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, uint16_t *result, TCPClient *existingClient)
 {
   // FIXED ISSUE #2: Activate connection pooling (eliminates repeated TCP handshakes)
   // If existingClient provided, use it. Otherwise fall back to new connection (backward compatible)
@@ -779,9 +787,9 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
     client = new TCPClient();
     client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
 
-    if (!client->connect(ip.c_str(), port))
+    if (!client->connect(ip, port))
     {
-      LOG_TCP_INFO("[TCP] Register connection failed to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Register connection failed to %s:%d\n", ip, port);
       delete client;
       return false;
     }
@@ -842,7 +850,8 @@ bool ModbusTcpService::readModbusRegister(const String &ip, int port, uint8_t sl
   return parseModbusResponse(response.data(), bytesRead, functionCode, result, &dummy);
 }
 
-bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::readModbusRegisters(const char *ip, int port, uint8_t slaveId, uint8_t functionCode, uint16_t address, int count, uint16_t *results, TCPClient *existingClient)
 {
   // FIXED ISSUE #2: Activate connection pooling
   TCPClient *client = nullptr;
@@ -857,9 +866,9 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
     client = new TCPClient();
     client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
 
-    if (!client->connect(ip.c_str(), port))
+    if (!client->connect(ip, port))
     {
-      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d\n", ip, port);
       delete client;
       return false;
     }
@@ -884,7 +893,7 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
 
   if (client->available() < expectedBytes)
   {
-    LOG_TCP_INFO("[TCP] Response timeout or incomplete for %s:%d\n", ip.c_str(), port);
+    LOG_TCP_INFO("[TCP] Response timeout or incomplete for %s:%d\n", ip, port);
     if (shouldCloseConnection)
     {
       client->stop();
@@ -921,7 +930,8 @@ bool ModbusTcpService::readModbusRegisters(const String &ip, int port, uint8_t s
   return parseMultiModbusResponse(response.data(), bytesRead, functionCode, count, results);
 }
 
-bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::readModbusCoil(const char *ip, int port, uint8_t slaveId, uint16_t address, bool *result, TCPClient *existingClient)
 {
   // FIXED ISSUE #2: Activate connection pooling (eliminates repeated TCP handshakes)
   TCPClient *client = nullptr;
@@ -938,9 +948,9 @@ bool ModbusTcpService::readModbusCoil(const String &ip, int port, uint8_t slaveI
     client = new TCPClient();
     client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
 
-    if (!client->connect(ip.c_str(), port))
+    if (!client->connect(ip, port))
     {
-      LOG_TCP_INFO("[TCP] Coil connection failed to %s:%d\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Coil connection failed to %s:%d\n", ip, port);
       delete client;
       return false;
     }
@@ -1113,7 +1123,8 @@ bool ModbusTcpService::parseMultiModbusResponse(uint8_t *buffer, int length, uin
   return false;
 }
 
-bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObject &reg, double value, const String &deviceName)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::storeRegisterValue(const char *deviceId, const JsonObject &reg, double value, const char *deviceName)
 {
   QueueManager *queueMgr = QueueManager::getInstance();
 
@@ -1144,7 +1155,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
 
   // OPTIMIZED: Use pre-fetched device_name (passed from readTcpDeviceData)
   // This avoids expensive getAllDevicesWithRegisters() call per register
-  if (!deviceName.isEmpty())
+  if (deviceName && strlen(deviceName) > 0)
   {
     dataPoint["device_name"] = deviceName;
   }
@@ -1171,7 +1182,7 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
   {
     // CRITICAL: Log detailed error for debugging
     LOG_TCP_ERROR("Failed to enqueue register '%s' for device %s (queue full or memory exhausted)\n",
-                  reg["register_name"].as<String>().c_str(), deviceId.c_str());
+                  reg["register_name"].as<String>().c_str(), deviceId);
 
     // Trigger memory diagnostics to identify root cause
     MemoryRecovery::logMemoryStatus("ENQUEUE_FAILED_TCP");
@@ -1188,7 +1199,8 @@ bool ModbusTcpService::storeRegisterValue(const String &deviceId, const JsonObje
     streamId = crudHandler->getStreamDeviceId();
   }
 
-  if (!streamId.isEmpty() && streamId == deviceId && queueMgr)
+  // v2.5.41: Compare String with const char* using strcmp
+  if (!streamId.isEmpty() && strcmp(streamId.c_str(), deviceId) == 0 && queueMgr)
   {
     // Verbose log suppressed - summary shown in [STREAM] logs
     queueMgr->enqueueStream(dataPoint);
@@ -1227,11 +1239,13 @@ uint16_t ModbusTcpService::getNextTransactionId()
 // All registers now use device-level polling interval
 
 // Level 1: Device-level timing methods
-ModbusTcpService::DeviceTimer *ModbusTcpService::getDeviceTimer(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+ModbusTcpService::DeviceTimer *ModbusTcpService::getDeviceTimer(const char *deviceId)
 {
   for (auto &timer : deviceTimers)
   {
-    if (timer.deviceId == deviceId)
+    // v2.5.41: PSRAMString comparison with const char*
+    if (strcmp(timer.deviceId.c_str(), deviceId) == 0)
     {
       return &timer;
     }
@@ -1239,14 +1253,15 @@ ModbusTcpService::DeviceTimer *ModbusTcpService::getDeviceTimer(const String &de
   return nullptr;
 }
 
-bool ModbusTcpService::shouldPollDevice(const String &deviceId, uint32_t refreshRateMs)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::shouldPollDevice(const char *deviceId, uint32_t refreshRateMs)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (!timer)
   {
     // First time polling this device, create entry
     DeviceTimer newTimer;
-    newTimer.deviceId = deviceId;
+    newTimer.deviceId = deviceId;  // PSRAMString accepts const char*
     newTimer.lastRead = 0;
     newTimer.refreshRateMs = refreshRateMs;
     deviceTimers.push_back(newTimer);
@@ -1257,7 +1272,8 @@ bool ModbusTcpService::shouldPollDevice(const String &deviceId, uint32_t refresh
   return (now - timer->lastRead) >= timer->refreshRateMs;
 }
 
-void ModbusTcpService::updateDeviceLastRead(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::updateDeviceLastRead(const char *deviceId)
 {
   DeviceTimer *timer = getDeviceTimer(deviceId);
   if (timer)
@@ -1310,19 +1326,23 @@ void ModbusTcpService::setDataTransmissionInterval(uint32_t intervalMs)
 // - For 10 devices polled every 5s: saves ~1000ms per cycle (20% improvement)
 // ============================================
 
-String ModbusTcpService::getDeviceKey(const String &ip, int port)
+// v2.5.41: Changed from const String& to const char* and return PSRAMString
+PSRAMString ModbusTcpService::getDeviceKey(const char *ip, int port)
 {
-  return ip + ":" + String(port);
+  char keyBuf[64];
+  snprintf(keyBuf, sizeof(keyBuf), "%s:%d", ip, port);
+  return PSRAMString(keyBuf);
 }
 
-TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+TCPClient *ModbusTcpService::getPooledConnection(const char *ip, int port)
 {
   if (!poolMutex)
   {
     return nullptr; // Pool not initialized
   }
 
-  String deviceKey = getDeviceKey(ip, port);
+  PSRAMString deviceKey = getDeviceKey(ip, port);
   TCPClient *client = nullptr;
   unsigned long now = millis();
 
@@ -1336,7 +1356,8 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
   // Search for existing connection
   for (auto &entry : connectionPool)
   {
-    if (entry.deviceKey == deviceKey)
+    // v2.5.41: PSRAMString comparison
+    if (strcmp(entry.deviceKey.c_str(), deviceKey.c_str()) == 0)
     {
       // OPTIMIZED (v2.3.10): Smarter health check - don't rely on connected() alone
       // connected() is unreliable for pooled connections (false positives for idle sockets)
@@ -1391,9 +1412,9 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
     client = new TCPClient();
     client->setTimeout(ModbusTcpConfig::TIMEOUT_MS);
 
-    if (!client->connect(ip.c_str(), port))
+    if (!client->connect(ip, port))
     {
-      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d for pooling\n", ip.c_str(), port);
+      LOG_TCP_INFO("[TCP] Failed to connect to %s:%d for pooling\n", ip, port);
       delete client;
       xSemaphoreGive(poolMutex);
       return nullptr;
@@ -1404,7 +1425,8 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
     bool foundExistingEntry = false;
     for (auto &entry : connectionPool)
     {
-      if (entry.deviceKey == deviceKey && entry.client == nullptr)
+      // v2.5.41: PSRAMString comparison
+      if (strcmp(entry.deviceKey.c_str(), deviceKey.c_str()) == 0 && entry.client == nullptr)
       {
         // Reuse existing entry slot
         entry.client = client;
@@ -1469,14 +1491,15 @@ TCPClient *ModbusTcpService::getPooledConnection(const String &ip, int port)
   return client;
 }
 
-void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPClient *client, bool healthy)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::returnPooledConnection(const char *ip, int port, TCPClient *client, bool healthy)
 {
   if (!poolMutex || !client)
   {
     return;
   }
 
-  String deviceKey = getDeviceKey(ip, port);
+  PSRAMString deviceKey = getDeviceKey(ip, port);
   unsigned long now = millis();
 
   if (xSemaphoreTake(poolMutex, pdMS_TO_TICKS(100)) != pdTRUE)
@@ -1489,7 +1512,8 @@ void ModbusTcpService::returnPooledConnection(const String &ip, int port, TCPCli
   bool found = false;
   for (auto &entry : connectionPool)
   {
-    if (entry.deviceKey == deviceKey)
+    // v2.5.41: PSRAMString comparison
+    if (strcmp(entry.deviceKey.c_str(), deviceKey.c_str()) == 0)
     {
       entry.lastUsed = now;
       entry.isHealthy = healthy;
@@ -1723,11 +1747,13 @@ void ModbusTcpService::initializeDeviceMetrics()
   LOG_TCP_INFO("[TCP] Metrics tracking init: %d devices\n", deviceMetrics.size());
 }
 
-ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(const char *deviceId)
 {
   for (auto &state : deviceFailureStates)
   {
-    if (state.deviceId == deviceId)
+    // v2.5.41: PSRAMString comparison with const char*
+    if (strcmp(state.deviceId.c_str(), deviceId) == 0)
     {
       return &state;
     }
@@ -1735,11 +1761,13 @@ ModbusTcpService::DeviceFailureState *ModbusTcpService::getDeviceFailureState(co
   return nullptr;
 }
 
-ModbusTcpService::DeviceReadTimeout *ModbusTcpService::getDeviceTimeout(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+ModbusTcpService::DeviceReadTimeout *ModbusTcpService::getDeviceTimeout(const char *deviceId)
 {
   for (auto &timeout : deviceTimeouts)
   {
-    if (timeout.deviceId == deviceId)
+    // v2.5.41: PSRAMString comparison with const char*
+    if (strcmp(timeout.deviceId.c_str(), deviceId) == 0)
     {
       return &timeout;
     }
@@ -1747,11 +1775,13 @@ ModbusTcpService::DeviceReadTimeout *ModbusTcpService::getDeviceTimeout(const St
   return nullptr;
 }
 
-ModbusTcpService::DeviceHealthMetrics *ModbusTcpService::getDeviceMetrics(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+ModbusTcpService::DeviceHealthMetrics *ModbusTcpService::getDeviceMetrics(const char *deviceId)
 {
   for (auto &metrics : deviceMetrics)
   {
-    if (metrics.deviceId == deviceId)
+    // v2.5.41: PSRAMString comparison with const char*
+    if (strcmp(metrics.deviceId.c_str(), deviceId) == 0)
     {
       return &metrics;
     }
@@ -1759,7 +1789,8 @@ ModbusTcpService::DeviceHealthMetrics *ModbusTcpService::getDeviceMetrics(const 
   return nullptr;
 }
 
-void ModbusTcpService::enableDevice(const String &deviceId, bool clearMetrics)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::enableDevice(const char *deviceId, bool clearMetrics)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1790,14 +1821,15 @@ void ModbusTcpService::enableDevice(const String &deviceId, bool clearMetrics)
       metrics->minResponseTimeMs = 65535;
       metrics->maxResponseTimeMs = 0;
       metrics->lastResponseTimeMs = 0;
-      LOG_TCP_INFO("[TCP] Device %s metrics cleared\n", deviceId.c_str());
+      LOG_TCP_INFO("[TCP] Device %s metrics cleared\n", deviceId);
     }
   }
 
-  LOG_TCP_INFO("[TCP] Device %s enabled (reason cleared)\n", deviceId.c_str());
+  LOG_TCP_INFO("[TCP] Device %s enabled (reason cleared)\n", deviceId);
 }
 
-void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState::DisableReason reason, const String &reasonDetail)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::disableDevice(const char *deviceId, DeviceFailureState::DisableReason reason, const char *reasonDetail)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1805,7 +1837,7 @@ void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState:
 
   state->isEnabled = false;
   state->disableReason = reason;
-  state->disableReasonDetail = reasonDetail;
+  state->disableReasonDetail = reasonDetail ? reasonDetail : "";
   state->disabledTimestamp = millis();
 
   const char *reasonText = "";
@@ -1826,10 +1858,11 @@ void ModbusTcpService::disableDevice(const String &deviceId, DeviceFailureState:
   }
 
   LOG_TCP_INFO("[TCP] Device %s disabled (reason: %s, detail: %s)\n",
-                deviceId.c_str(), reasonText, reasonDetail.c_str());
+                deviceId, reasonText, reasonDetail ? reasonDetail : "");
 }
 
-void ModbusTcpService::handleReadFailure(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::handleReadFailure(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1845,17 +1878,18 @@ void ModbusTcpService::handleReadFailure(const String &deviceId)
     state->nextRetryTime = millis() + backoffTime;
 
     LOG_TCP_INFO("[TCP] Device %s read failed. Retry %d/%d in %lums\n",
-                  deviceId.c_str(), state->retryCount, state->maxRetries, backoffTime);
+                  deviceId, state->retryCount, state->maxRetries, backoffTime);
   }
   else
   {
     LOG_TCP_INFO("[TCP] Device %s exceeded max retries (%d), disabling...\n",
-                  deviceId.c_str(), state->maxRetries);
+                  deviceId, state->maxRetries);
     disableDevice(deviceId, DeviceFailureState::AUTO_RETRY, "Max retries exceeded");
   }
 }
 
-bool ModbusTcpService::shouldRetryDevice(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::shouldRetryDevice(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state || !state->isEnabled)
@@ -1877,7 +1911,8 @@ unsigned long ModbusTcpService::calculateBackoffTime(uint8_t retryCount)
   return backoff + jitter;
 }
 
-void ModbusTcpService::resetDeviceFailureState(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::resetDeviceFailureState(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1888,7 +1923,8 @@ void ModbusTcpService::resetDeviceFailureState(const String &deviceId)
   state->nextRetryTime = 0;
 }
 
-void ModbusTcpService::handleReadTimeout(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+void ModbusTcpService::handleReadTimeout(const char *deviceId)
 {
   DeviceReadTimeout *timeout = getDeviceTimeout(deviceId);
   if (!timeout)
@@ -1899,17 +1935,18 @@ void ModbusTcpService::handleReadTimeout(const String &deviceId)
   if (timeout->consecutiveTimeouts >= timeout->maxConsecutiveTimeouts)
   {
     LOG_TCP_INFO("[TCP] Device %s exceeded timeout limit (%d), disabling...\n",
-                  deviceId.c_str(), timeout->maxConsecutiveTimeouts);
+                  deviceId, timeout->maxConsecutiveTimeouts);
     disableDevice(deviceId, DeviceFailureState::AUTO_TIMEOUT, "Max consecutive timeouts exceeded");
   }
   else
   {
     LOG_TCP_INFO("[TCP] Device %s timeout %d/%d\n",
-                  deviceId.c_str(), timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
+                  deviceId, timeout->consecutiveTimeouts, timeout->maxConsecutiveTimeouts);
   }
 }
 
-bool ModbusTcpService::isDeviceEnabled(const String &deviceId)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::isDeviceEnabled(const char *deviceId)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
@@ -1921,15 +1958,16 @@ bool ModbusTcpService::isDeviceEnabled(const String &deviceId)
 // NEW: Enhancement - Public API for BLE Device Control Commands
 // ============================================
 
-bool ModbusTcpService::enableDeviceByCommand(const String &deviceId, bool clearMetrics)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::enableDeviceByCommand(const char *deviceId, bool clearMetrics)
 {
   LOG_TCP_INFO("[TCP] BLE Command: Enable device %s (clearMetrics: %s)\n",
-                deviceId.c_str(), clearMetrics ? "true" : "false");
+                deviceId, clearMetrics ? "true" : "false");
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -1937,15 +1975,16 @@ bool ModbusTcpService::enableDeviceByCommand(const String &deviceId, bool clearM
   return true;
 }
 
-bool ModbusTcpService::disableDeviceByCommand(const String &deviceId, const String &reasonDetail)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::disableDeviceByCommand(const char *deviceId, const char *reasonDetail)
 {
   LOG_TCP_INFO("[TCP] BLE Command: Disable device %s (reason: %s)\n",
-                deviceId.c_str(), reasonDetail.c_str());
+                deviceId, reasonDetail ? reasonDetail : "");
 
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -1953,12 +1992,13 @@ bool ModbusTcpService::disableDeviceByCommand(const String &deviceId, const Stri
   return true;
 }
 
-bool ModbusTcpService::getDeviceStatusInfo(const String &deviceId, JsonObject &statusInfo)
+// v2.5.41: Changed from const String& to const char* for consistency with RTU service
+bool ModbusTcpService::getDeviceStatusInfo(const char *deviceId, JsonObject &statusInfo)
 {
   DeviceFailureState *state = getDeviceFailureState(deviceId);
   if (!state)
   {
-    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId.c_str());
+    LOG_TCP_INFO("[TCP] ERROR: Device %s not found\n", deviceId);
     return false;
   }
 
@@ -2025,7 +2065,8 @@ bool ModbusTcpService::getAllDevicesStatus(JsonObject &allStatus)
   for (const auto &device : tcpDevices)
   {
     JsonObject deviceStatus = devicesArray.add<JsonObject>();
-    getDeviceStatusInfo(device.deviceId, deviceStatus);
+    // v2.5.41: Pass PSRAMString as const char*
+    getDeviceStatusInfo(device.deviceId.c_str(), deviceStatus);
   }
 
   allStatus["total_devices"] = tcpDevices.size();
@@ -2067,7 +2108,8 @@ void ModbusTcpService::autoRecoveryLoop()
         LOG_TCP_INFO("[TCP AutoRecovery] Device %s auto-disabled for %lu ms, attempting recovery...\n",
                       state.deviceId.c_str(), disabledDuration);
 
-        enableDevice(state.deviceId, false);
+        // v2.5.41: Pass PSRAMString as const char*
+        enableDevice(state.deviceId.c_str(), false);
         LOG_TCP_INFO("[TCP AutoRecovery] Device %s re-enabled\n", state.deviceId.c_str());
       }
     }
