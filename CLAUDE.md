@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 1.0.0 | **Last Updated:** December 27, 2025
+**Version:** 1.0.1 | **Last Updated:** December 27, 2025
 
 ---
 
@@ -31,7 +31,19 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Version 1.0.0 (Production Release - Dec 27, 2025)
+## 🆕 Version 1.0.1 (Patch - Dec 27, 2025)
+
+### v1.0.1 - Modbus Config Change Delay Fix
+- **CRITICAL BUG:** Config changes (IP/slave_id) took ~2 minutes to take effect
+- **Root Cause:** `configChangePending` only checked BETWEEN devices, not BETWEEN registers
+- **Impact:** 45 registers × 3s timeout = 135 second delay before config refresh
+- **Fix:** Added `configChangePending.load()` check inside register polling loop
+- **Files:** `ModbusTcpService.cpp`, `ModbusRtuService.cpp`
+- **Result:** Config changes now apply within 1 register poll cycle (~3 seconds max)
+
+---
+
+## Version 1.0.0 (Production Release - Dec 27, 2025)
 
 ### Core Features
 

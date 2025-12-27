@@ -432,6 +432,15 @@ void ModbusRtuService::readRtuDeviceData(const JsonObject &deviceConfig)
     if (!running)
       break;
 
+    // v2.5.41: Check for config changes DURING register iteration
+    // CRITICAL FIX: Without this, many registers × timeout = long delay before config refresh
+    // With this check, config changes are detected within 1 register poll cycle
+    if (configChangePending.load())
+    {
+      LOG_RTU_INFO("[RTU] Config change during register polling - aborting device read...\n");
+      break; // Exit register loop immediately, let device loop handle refresh
+    }
+
     JsonObject reg = regVar.as<JsonObject>();
     uint8_t functionCode = reg["function_code"] | 3;
     uint16_t address = reg["address"] | 0;

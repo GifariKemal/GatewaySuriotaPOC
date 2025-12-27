@@ -1,430 +1,286 @@
 #!/usr/bin/env python3
 """
 =============================================================================
-SRT-MGATE-1210 Testing Program
+SRT-MGATE-1210 Device Testing - TCP Mode
 Create 1 TCP Device + 50 Registers
 =============================================================================
-Device: TCP Device (10.21.239.9:502)
-Slave ID: 1
-Registers: 50 Input Registers (INT16)
-=============================================================================
-Author: Kemal - SURIOTA R&D Team
-Date: 2025-11-21
-Firmware: SRT-MGATE-1210 v2.3.0
+
+Version: 2.0.0 | December 2025 | SURIOTA R&D Team
+Firmware: SRT-MGATE-1210 v1.0.x
+
+Device Configuration:
+  - Protocol: Modbus TCP
+  - IP Address: 192.168.1.100
+  - Port: 502
+  - Slave ID: 1
+
+Registers: 50 Input Registers (INT16, Function Code 4)
+
+Dependencies:
+  pip install bleak colorama
+
+IMPORTANT: Start the Modbus TCP Slave Simulator BEFORE running this script!
+  Location: Testing/Modbus_Simulators/TCP_Slave/modbus_slave_50_registers.py
+
 =============================================================================
 """
 
 import asyncio
-import json
-from bleak import BleakClient, BleakScanner
+import sys
+import os
+
+# Add parent directory to path for shared module
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+from ble_common import (
+    BLEDeviceClient, check_dependencies,
+    print_header, print_section, print_step, print_success, print_error,
+    print_warning, print_info, print_data, print_progress_bar, print_table,
+    print_box, print_summary, countdown, Fore, Style
+)
 
 # =============================================================================
-# BLE Configuration
+# Configuration
 # =============================================================================
-SERVICE_UUID = "00001830-0000-1000-8000-00805f9b34fb"
-COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
-RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
-SERVICE_NAME = "SURIOTA GW"
+NUM_REGISTERS = 50
+DEVICE_NAME = "TCP_Device_50_Regs"
+DEVICE_CONFIG = {
+    "device_name": DEVICE_NAME,
+    "protocol": "TCP",
+    "slave_id": 1,
+    "timeout": 3000,
+    "retry_count": 3,
+    "refresh_rate_ms": 2000,
+    "ip": "192.168.1.101",
+    "port": 502
+}
 
-# =============================================================================
-# Device Creation Class
-# =============================================================================
-class DeviceCreationClient:
-    def __init__(self):
-        self.client = None
-        self.response_buffer = ""
-        self.connected = False
-        self.device_id = None
-        self.last_response = None
-        self.response_received = False
-
-    async def connect(self):
-        try:
-            print(f"[SCAN] Scanning for '{SERVICE_NAME}'...")
-            devices = await BleakScanner.discover(timeout=10.0)
-            device = next((d for d in devices if d.name == SERVICE_NAME), None)
-
-            if not device:
-                print(f"[ERROR] Service '{SERVICE_NAME}' not found")
-                return False
-
-            print(f"[FOUND] {device.name} ({device.address})")
-            self.client = BleakClient(device.address)
-            await self.client.connect()
-            await self.client.start_notify(RESPONSE_CHAR_UUID, self._notification_handler)
-
-            self.connected = True
-            print(f"[SUCCESS] Connected to {device.name}")
-            return True
-
-        except Exception as e:
-            print(f"[ERROR] Connection failed: {e}")
-            return False
-
-    async def disconnect(self):
-        if self.client and self.connected:
-            await self.client.disconnect()
-            self.connected = False
-            print("[DISCONNECT] Connection closed")
-
-    def _notification_handler(self, sender, data):
-        fragment = data.decode('utf-8')
-
-        if fragment == "<END>":
-            if self.response_buffer:
-                try:
-                    response = json.loads(self.response_buffer)
-                    self.last_response = response
-                    self.response_received = True
-
-                    # Compact response logging (just status + device_id/register_id)
-                    status = response.get('status', 'unknown')
-                    if status == 'ok':
-                        if 'device_id' in response:
-                            self.device_id = response['device_id']
-                            print(f"[OK] Device created: {self.device_id}")
-                        elif 'data' in response and 'register_name' in response['data']:
-                            reg_name = response['data']['register_name']
-                            print(f"[OK] Register created: {reg_name}")
-                        else:
-                            print(f"[OK] Operation successful")
-                    else:
-                        error_msg = response.get('error', 'Unknown error')
-                        print(f"[ERROR] Operation failed: {error_msg}")
-
-                except json.JSONDecodeError as e:
-                    print(f"[ERROR] JSON Parse: {e}")
-                    self.response_received = True
-                    self.last_response = {"status": "error", "error": str(e)}
-                finally:
-                    self.response_buffer = ""
-        else:
-            self.response_buffer += fragment
-
-    async def send_command(self, command, description="", max_retries=3):
-        if not self.connected:
-            raise RuntimeError("Not connected to BLE device")
-
-        json_str = json.dumps(command, separators=(',', ':'))
-
-        if description:
-            print(f"\n[COMMAND] {description}")
-
-        for attempt in range(1, max_retries + 1):
-            try:
-                # Reset response tracking
-                self.response_received = False
-                self.last_response = None
-
-                # Send command
-                await self.client.write_gatt_char(COMMAND_CHAR_UUID, json_str.encode())
-                await self.client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode())
-
-                # Wait for response (max 5 seconds)
-                for _ in range(50):  # 50 * 0.1s = 5 seconds
-                    if self.response_received:
-                        if self.last_response and self.last_response.get('status') == 'ok':
-                            return True  # Success
-                        else:
-                            print(f"[RETRY] Attempt {attempt}/{max_retries} failed")
-                            break
-                    await asyncio.sleep(0.1)
-
-                # Timeout - retry
-                if not self.response_received:
-                    print(f"[TIMEOUT] No response after 5s (attempt {attempt}/{max_retries})")
-
-                if attempt < max_retries:
-                    await asyncio.sleep(1.0)  # Wait before retry
-
-            except Exception as e:
-                print(f"[ERROR] Send failed: {e}")
-                if attempt < max_retries:
-                    await asyncio.sleep(1.0)
-
-        print(f"[FAILED] Command failed after {max_retries} attempts")
-        return False
-
-    async def create_device_and_registers(self):
-        print("\n" + "="*70)
-        print("  SRT-MGATE-1210 TESTING: CREATE 1 TCP DEVICE + 50 REGISTERS")
-        print("="*70)
-
-        # =============================================================================
-        # IMPORTANT WARNING
-        # =============================================================================
-        print("\n" + "!"*70)
-        print("  IMPORTANT: BEFORE RUNNING THIS SCRIPT")
-        print("!"*70)
-        print("  1. START Modbus TCP Slave Simulator FIRST")
-        print("     Location: Testing/Modbus_Simulators/TCP_Slave/")
-        print("     Command:  python modbus_slave_50_registers.py")
-        print("")
-        print("  2. This prevents TCP polling errors during device creation")
-        print("     which can cause DRAM warnings and BLE packet loss")
-        print("")
-        print("  3. Wait 10 seconds after starting the simulator before")
-        print("     running this script")
-        print("!"*70)
-
-        user_input = input("\nHave you started the Modbus slave simulator? (yes/no): ")
-        if user_input.lower() != 'yes':
-            print("\n[ABORTED] Please start the Modbus slave simulator first")
-            return
-
-        # =============================================================================
-        # STEP 1: Create TCP Device
-        # =============================================================================
-        print("\n>>> STEP 1: Creating TCP Device...")
-
-        device_config = {
-            "op": "create",
-            "type": "device",
-            "device_id": None,
-            "config": {
-                "device_name": "TCP_Device_50Regs",
-                "protocol": "TCP",
-                "slave_id": 1,
-                "timeout": 3000,
-                "retry_count": 3,
-                "refresh_rate_ms": 3000,
-                "ip": "192.168.1.6",
-                "port": 502
-            }
-        }
-
-        success = await self.send_command(device_config, "Creating TCP Device: TCP_Device_50Regs")
-
-        if not success or not self.device_id:
-            print("[ERROR] Device creation failed. Aborting...")
-            return
-
-        print(f"\n[SUCCESS] Device created: {self.device_id}")
-        await asyncio.sleep(2)
-
-        # =============================================================================
-        # STEP 2: Create 50 Registers (ALIGNED with RTU)
-        # =============================================================================
-        print(f"\n>>> STEP 2: Creating 50 Registers for Device ID: {self.device_id}")
-        print("[INFO] Using batch processing with DRAM recovery pauses (v2.5.2 fix)")
-
-        # Generate 50 registers with diverse sensor types
-        registers = []
-
-        # Temperature sensors (0-9)
-        for i in range(10):
-            registers.append({
-                "address": i,
-                "name": f"Temp_Zone_{i+1}",
-                "desc": f"Temperature Zone {i+1}",
-                "unit": "°C"
-            })
-
-        # Humidity sensors (10-19)
-        for i in range(10):
-            registers.append({
-                "address": 10 + i,
-                "name": f"Humid_Zone_{i+1}",
-                "desc": f"Humidity Zone {i+1}",
-                "unit": "%"
-            })
-
-        # Pressure sensors (20-24)
-        for i in range(5):
-            registers.append({
-                "address": 20 + i,
-                "name": f"Press_Sensor_{i+1}",
-                "desc": f"Pressure Sensor {i+1}",
-                "unit": "Pa"
-            })
-
-        # Voltage sensors (25-29)
-        for i in range(5):
-            registers.append({
-                "address": 25 + i,
-                "name": f"Voltage_L{i+1}",
-                "desc": f"Voltage Line {i+1}",
-                "unit": "V"
-            })
-
-        # Current sensors (30-34)
-        for i in range(5):
-            registers.append({
-                "address": 30 + i,
-                "name": f"Current_L{i+1}",
-                "desc": f"Current Line {i+1}",
-                "unit": "A"
-            })
-
-        # Power sensors (35-39)
-        for i in range(5):
-            registers.append({
-                "address": 35 + i,
-                "name": f"Power_{i+1}",
-                "desc": f"Power Meter {i+1}",
-                "unit": "W"
-            })
-
-        # Energy counters (40-44)
-        for i in range(5):
-            registers.append({
-                "address": 40 + i,
-                "name": f"Energy_{i+1}",
-                "desc": f"Energy Counter {i+1}",
-                "unit": "kWh"
-            })
-
-        # Flow rate sensors (45-49)
-        for i in range(5):
-            registers.append({
-                "address": 45 + i,
-                "name": f"Flow_{i+1}",
-                "desc": f"Flow Meter {i+1}",
-                "unit": "L/min"
-            })
-
-        # Create all 50 registers with retry mechanism
-        # v2.5.2 FIX: Batch processing to prevent DRAM exhaustion
-        # Process in batches of 10 with recovery pause between batches
-        BATCH_SIZE = 10
-        DELAY_BETWEEN_COMMANDS = 0.15  # 150ms between commands in same batch
-        DELAY_BETWEEN_BATCHES = 3.0    # 3 seconds between batches for DRAM recovery
-
-        success_count = 0
-        failed_count = 0
-        failed_registers = []
-
-        total_registers = len(registers)
-
-        for idx, reg in enumerate(registers, 1):
-            register_config = {
-                "op": "create",
-                "type": "register",
-                "device_id": self.device_id,
-                "config": {
-                    "address": reg["address"],
-                    "register_name": reg["name"],
-                    "type": "Input Registers",
-                    "function_code": 4,
-                    "data_type": "INT16",
-                    "description": reg["desc"],
-                    "unit": reg["unit"],
-                    "scale": 1.0,
-                    "offset": 0.0
-                }
-            }
-
-            print(f"\n[{idx}/{total_registers}] {reg['name']} (Addr: {reg['address']})", end=" ")
-            success = await self.send_command(register_config, "")
-
-            if success:
-                success_count += 1
-                print(f"✓")
-            else:
-                failed_count += 1
-                failed_registers.append(reg)
-                print(f"✗ FAILED")
-
-            # v2.5.2 FIX: Batch processing with recovery pauses
-            # Short delay between commands in same batch
-            await asyncio.sleep(DELAY_BETWEEN_COMMANDS)
-
-            # Every BATCH_SIZE commands, pause for DRAM recovery
-            if idx % BATCH_SIZE == 0 and idx < total_registers:
-                batch_num = idx // BATCH_SIZE
-                total_batches = (total_registers + BATCH_SIZE - 1) // BATCH_SIZE
-                print(f"\n[BATCH {batch_num}/{total_batches}] Pausing {DELAY_BETWEEN_BATCHES}s for DRAM recovery...")
-                await asyncio.sleep(DELAY_BETWEEN_BATCHES)
-
-        # =============================================================================
-        # STEP 3: Summary
-        # =============================================================================
-        print("\n" + "="*70)
-        print("  SUMMARY")
-        print("="*70)
-        print(f"Device Name:      TCP_Device_50Regs")
-        print(f"Device ID:        {self.device_id}")
-        print(f"Protocol:         Modbus TCP")
-        print(f"IP Address:       10.21.239.9")
-        print(f"Port:             502")
-        print(f"Slave ID:         1")
-        print(f"Timeout:          5000 ms")
-        print(f"Refresh Rate:     10000 ms")
-        print(f"\nRegister Creation Results:")
-        print(f"  Total Attempted:  50")
-        print(f"  Success:          {success_count} ✓")
-        print(f"  Failed:           {failed_count} ✗")
-
-        if success_count == 50:
-            print(f"\n  STATUS: ALL REGISTERS CREATED SUCCESSFULLY! 🎉")
-        elif success_count >= 45:
-            print(f"\n  STATUS: Nearly complete ({success_count}/50)")
-        else:
-            print(f"\n  STATUS: Incomplete - many failures")
-
-        if failed_registers:
-            print(f"\n  Failed Registers:")
-            for reg in failed_registers:
-                print(f"    - {reg['name']} (Addr: {reg['address']})")
-            print(f"\n  [TIP] Re-run the script to retry failed registers")
-            print(f"  [TIP] Or manually create them via BLE app")
-
-        print(f"\nRegister Layout:")
-        print(f"  Temperature Zones:  0-9   (10 sensors)")
-        print(f"  Humidity Zones:     10-19 (10 sensors)")
-        print(f"  Pressure Sensors:   20-24 (5 sensors)")
-        print(f"  Voltage Lines:      25-29 (5 sensors)")
-        print(f"  Current Lines:      30-34 (5 sensors)")
-        print(f"  Power Meters:       35-39 (5 sensors)")
-        print(f"  Energy Counters:    40-44 (5 sensors)")
-        print(f"  Flow Meters:        45-49 (5 sensors)")
-        print("="*70)
-
-        if success_count == 50:
-            print("\n[INFO] Expected Gateway behavior:")
-            print("  - TCP polling time: ~2-3 seconds for 50 registers")
-            print("  - Batch completion: All 50 registers attempted")
-            print("  - MQTT payload: ~2.5-3.0 KB")
-            print("  - Publish interval: Every 15-20 seconds")
-            print("="*70)
+# Register definitions (Temperature Zones)
+REGISTERS = [
+    {"address": 0, "name": "Temp_Zone_1", "desc": "Temperature Zone 1", "unit": "degC"},
+    {"address": 1, "name": "Temp_Zone_2", "desc": "Temperature Zone 2", "unit": "degC"},
+    {"address": 2, "name": "Temp_Zone_3", "desc": "Temperature Zone 3", "unit": "degC"},
+    {"address": 3, "name": "Temp_Zone_4", "desc": "Temperature Zone 4", "unit": "degC"},
+    {"address": 4, "name": "Temp_Zone_5", "desc": "Temperature Zone 5", "unit": "degC"},
+    {"address": 5, "name": "Temp_Zone_6", "desc": "Temperature Zone 6", "unit": "degC"},
+    {"address": 6, "name": "Temp_Zone_7", "desc": "Temperature Zone 7", "unit": "degC"},
+    {"address": 7, "name": "Temp_Zone_8", "desc": "Temperature Zone 8", "unit": "degC"},
+    {"address": 8, "name": "Temp_Zone_9", "desc": "Temperature Zone 9", "unit": "degC"},
+    {"address": 9, "name": "Temp_Zone_10", "desc": "Temperature Zone 10", "unit": "degC"},
+    {"address": 10, "name": "Temp_Zone_11", "desc": "Temperature Zone 11", "unit": "degC"},
+    {"address": 11, "name": "Temp_Zone_12", "desc": "Temperature Zone 12", "unit": "degC"},
+    {"address": 12, "name": "Temp_Zone_13", "desc": "Temperature Zone 13", "unit": "degC"},
+    {"address": 13, "name": "Temp_Zone_14", "desc": "Temperature Zone 14", "unit": "degC"},
+    {"address": 14, "name": "Temp_Zone_15", "desc": "Temperature Zone 15", "unit": "degC"},
+    {"address": 15, "name": "Temp_Zone_16", "desc": "Temperature Zone 16", "unit": "degC"},
+    {"address": 16, "name": "Temp_Zone_17", "desc": "Temperature Zone 17", "unit": "degC"},
+    {"address": 17, "name": "Temp_Zone_18", "desc": "Temperature Zone 18", "unit": "degC"},
+    {"address": 18, "name": "Temp_Zone_19", "desc": "Temperature Zone 19", "unit": "degC"},
+    {"address": 19, "name": "Temp_Zone_20", "desc": "Temperature Zone 20", "unit": "degC"},
+    {"address": 20, "name": "Temp_Zone_21", "desc": "Temperature Zone 21", "unit": "degC"},
+    {"address": 21, "name": "Temp_Zone_22", "desc": "Temperature Zone 22", "unit": "degC"},
+    {"address": 22, "name": "Temp_Zone_23", "desc": "Temperature Zone 23", "unit": "degC"},
+    {"address": 23, "name": "Temp_Zone_24", "desc": "Temperature Zone 24", "unit": "degC"},
+    {"address": 24, "name": "Temp_Zone_25", "desc": "Temperature Zone 25", "unit": "degC"},
+    {"address": 25, "name": "Temp_Zone_26", "desc": "Temperature Zone 26", "unit": "degC"},
+    {"address": 26, "name": "Temp_Zone_27", "desc": "Temperature Zone 27", "unit": "degC"},
+    {"address": 27, "name": "Temp_Zone_28", "desc": "Temperature Zone 28", "unit": "degC"},
+    {"address": 28, "name": "Temp_Zone_29", "desc": "Temperature Zone 29", "unit": "degC"},
+    {"address": 29, "name": "Temp_Zone_30", "desc": "Temperature Zone 30", "unit": "degC"},
+    {"address": 30, "name": "Temp_Zone_31", "desc": "Temperature Zone 31", "unit": "degC"},
+    {"address": 31, "name": "Temp_Zone_32", "desc": "Temperature Zone 32", "unit": "degC"},
+    {"address": 32, "name": "Temp_Zone_33", "desc": "Temperature Zone 33", "unit": "degC"},
+    {"address": 33, "name": "Temp_Zone_34", "desc": "Temperature Zone 34", "unit": "degC"},
+    {"address": 34, "name": "Temp_Zone_35", "desc": "Temperature Zone 35", "unit": "degC"},
+    {"address": 35, "name": "Temp_Zone_36", "desc": "Temperature Zone 36", "unit": "degC"},
+    {"address": 36, "name": "Temp_Zone_37", "desc": "Temperature Zone 37", "unit": "degC"},
+    {"address": 37, "name": "Temp_Zone_38", "desc": "Temperature Zone 38", "unit": "degC"},
+    {"address": 38, "name": "Temp_Zone_39", "desc": "Temperature Zone 39", "unit": "degC"},
+    {"address": 39, "name": "Temp_Zone_40", "desc": "Temperature Zone 40", "unit": "degC"},
+    {"address": 40, "name": "Temp_Zone_41", "desc": "Temperature Zone 41", "unit": "degC"},
+    {"address": 41, "name": "Temp_Zone_42", "desc": "Temperature Zone 42", "unit": "degC"},
+    {"address": 42, "name": "Temp_Zone_43", "desc": "Temperature Zone 43", "unit": "degC"},
+    {"address": 43, "name": "Temp_Zone_44", "desc": "Temperature Zone 44", "unit": "degC"},
+    {"address": 44, "name": "Temp_Zone_45", "desc": "Temperature Zone 45", "unit": "degC"},
+    {"address": 45, "name": "Temp_Zone_46", "desc": "Temperature Zone 46", "unit": "degC"},
+    {"address": 46, "name": "Temp_Zone_47", "desc": "Temperature Zone 47", "unit": "degC"},
+    {"address": 47, "name": "Temp_Zone_48", "desc": "Temperature Zone 48", "unit": "degC"},
+    {"address": 48, "name": "Temp_Zone_49", "desc": "Temperature Zone 49", "unit": "degC"},
+    {"address": 49, "name": "Temp_Zone_50", "desc": "Temperature Zone 50", "unit": "degC"}
+]
 
 # =============================================================================
-# Main Execution
+# Main Program
 # =============================================================================
 async def main():
-    client = DeviceCreationClient()
+    """Main entry point"""
+    if not check_dependencies():
+        return
+
+    print_header(
+        "TCP Device Creation",
+        f"{NUM_REGISTERS} Input Registers",
+        "2.0.0"
+    )
+
+    # =========================================================================
+    # Pre-flight Check
+    # =========================================================================
+    print_section("Pre-flight Check", "!")
+
+    print_box("IMPORTANT", [
+        "Before continuing, make sure:",
+        "",
+        "1. Modbus TCP Slave Simulator is RUNNING",
+        f"   Location: Testing/Modbus_Simulators/TCP_Slave/",
+        f"   Command:  python modbus_slave_{NUM_REGISTERS}_registers.py",
+        "",
+        "2. Simulator is configured with:",
+        f"   - IP: {DEVICE_CONFIG['ip']}",
+        f"   - Port: {DEVICE_CONFIG['port']}",
+        "   - Slave ID: 1",
+        "",
+        "3. Gateway can reach the simulator network"
+    ], Fore.YELLOW)
+
+    print()
+    try:
+        response = input(f"  {Fore.WHITE}Have you started the simulator? (yes/no): {Style.RESET_ALL}").strip().lower()
+        if response != 'yes':
+            print()
+            print_warning("Please start the Modbus TCP Slave Simulator first!")
+            print_info(f"Run: python modbus_slave_{NUM_REGISTERS}_registers.py")
+            return
+    except KeyboardInterrupt:
+        print()
+        return
+
+    client = BLEDeviceClient()
+    success_count = 0
+    failed_count = 0
 
     try:
-        print("\n" + "="*70)
-        print("  SRT-MGATE-1210 Firmware Testing - TCP Mode (50 Registers)")
-        print("  Python BLE Device Creation Client")
-        print("="*70)
-        print("  Version:    2.0.0")
-        print("  Date:       2025-11-21")
-        print("  Firmware:   SRT-MGATE-1210 v2.3.0")
-        print("  Author:     Kemal - SURIOTA R&D Team")
-        print("="*70)
+        # =====================================================================
+        # Step 1: Connect to Gateway
+        # =====================================================================
+        print_section("Step 1: BLE Connection", "[BLE]")
 
         if not await client.connect():
+            print_error("Could not connect to MGate Gateway")
             return
 
-        await client.create_device_and_registers()
+        await asyncio.sleep(1)
 
-        print("\n[SUCCESS] Program completed")
-        print("\n[NEXT STEPS]")
-        print("  1. Monitor Gateway serial output for TCP polling logs")
-        print("  2. Verify batch completion: (X success, Y failed, 50/50 total)")
-        print("  3. Check MQTT broker for published payload (~2.5-3.0 KB)")
-        print("  4. If some registers failed, re-run this script (it will retry)")
-        print("\n[TROUBLESHOOTING]")
-        print("  - Low DRAM warnings: Modbus slave should be running")
-        print("  - BLE packet loss: Try increasing delay in script")
-        print("  - Polling errors: Check slave simulator is running correctly")
+        # =====================================================================
+        # Step 2: Create TCP Device
+        # =====================================================================
+        print_section("Step 2: Create TCP Device", "[TCP]")
+
+        print_box("Device Configuration", {
+            "Name": DEVICE_NAME,
+            "Protocol": "Modbus TCP",
+            "IP Address": DEVICE_CONFIG["ip"],
+            "Port": str(DEVICE_CONFIG["port"]),
+            "Slave ID": "1",
+            "Timeout": "3000 ms",
+            "Refresh Rate": "2000 ms"
+        })
+
+        device_id = await client.create_device(DEVICE_CONFIG, DEVICE_NAME)
+
+        if not device_id:
+            print_error("Device creation failed. Aborting...")
+            return
+
+        print_success(f"Device created: {device_id}")
+        await asyncio.sleep(2)
+
+        # =====================================================================
+        # Step 3: Create Registers
+        # =====================================================================
+        print_section(f"Step 3: Create {NUM_REGISTERS} Registers", "[REG]")
+
+        print_info(f"Creating {NUM_REGISTERS} Input Registers for device {device_id}")
+        print_info("Using 0.5s delay between registers")
+        print()
+
+        for idx, reg in enumerate(REGISTERS, 1):
+            register_config = {
+                "address": reg["address"],
+                "register_name": reg["name"],
+                "type": "Input Registers",
+                "function_code": 4,
+                "data_type": "INT16",
+                "description": reg["desc"],
+                "unit": reg["unit"],
+                "scale": 1.0,
+                "offset": 0.0
+            }
+
+            # Progress bar
+            progress = int((idx / NUM_REGISTERS) * 100)
+            print_progress_bar(progress, prefix=f"Register {idx}/{NUM_REGISTERS}")
+
+            result = await client.create_register(device_id, register_config, reg["name"])
+
+            if result:
+                success_count += 1
+            else:
+                failed_count += 1
+                print()
+                print_warning(f"Failed: {reg['name']} (Address: {reg['address']})")
+
+            await asyncio.sleep(0.5)
+
+        print()  # New line after progress bar
+
+        # =====================================================================
+        # Summary
+        # =====================================================================
+        print_section("Summary", "[OK]")
+
+        all_success = failed_count == 0
+
+        # Register table
+        headers = ["#", "Address", "Name", "Unit", "Status"]
+        rows = []
+        for idx, reg in enumerate(REGISTERS):
+            rows.append([idx+1, reg["address"], reg["name"][:20], reg["unit"], "OK" if idx < success_count else "FAIL"])
+
+        # Only show first 10 and last 5 if too many
+        if len(rows) > 20:
+            display_rows = rows[:10] + [["...", "...", "...", "...", "..."]] + rows[-5:]
+        else:
+            display_rows = rows
+
+        print_table(headers, display_rows, "Register Status")
+
+        print_summary("Creation Complete", {
+            "Device ID": device_id,
+            "Device Name": DEVICE_NAME,
+            "Protocol": "Modbus TCP",
+            "Target": f"{DEVICE_CONFIG['ip']}:{DEVICE_CONFIG['port']}",
+            "Registers Created": f"{success_count}/{NUM_REGISTERS}",
+            "Success Rate": f"{(success_count/NUM_REGISTERS)*100:.1f}%"
+        }, all_success)
+
+        if all_success:
+            print_info("All registers created successfully!")
+            print_info("Gateway will start TCP polling immediately")
+        else:
+            print_warning(f"{failed_count} registers failed - you may retry manually")
+
+        print()
+        print_info("Expected Gateway Behavior:")
+        print_info(f"  - TCP polling time: ~1-2 seconds for {NUM_REGISTERS} registers")
+        print_info("  - Connection pool: Reuses TCP connections")
+        print_info("  - MQTT publish: Every refresh interval")
 
     except KeyboardInterrupt:
-        print("\n[INTERRUPT] Program interrupted by user")
+        print()
+        print_warning("Interrupted by user")
     except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}")
+        print_error(f"Unexpected error: {e}")
         import traceback
         traceback.print_exc()
     finally:
