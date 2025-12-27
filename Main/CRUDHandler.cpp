@@ -1040,7 +1040,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->enableDeviceByCommand(deviceId, clearMetrics);
+      // v2.5.41: Add .c_str() for const char* parameter
+      success = modbusTcpService->enableDeviceByCommand(deviceId.c_str(), clearMetrics);
     }
     else
     {
@@ -1093,7 +1094,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->disableDeviceByCommand(deviceId, reason);
+      // v2.5.41: Add .c_str() for const char* parameters
+      success = modbusTcpService->disableDeviceByCommand(deviceId.c_str(), reason.c_str());
     }
     else
     {
@@ -1148,7 +1150,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else if (protocol == "TCP" && modbusTcpService)
     {
-      success = modbusTcpService->getDeviceStatusInfo(deviceId, statusInfo);
+      // v2.5.41: Add .c_str() for const char* parameter
+      success = modbusTcpService->getDeviceStatusInfo(deviceId.c_str(), statusInfo);
     }
     else
     {
