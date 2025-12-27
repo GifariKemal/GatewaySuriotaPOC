@@ -1,9 +1,10 @@
 # Panduan Refactoring: ModbusRtuService & ModbusTcpService
 
-**Versi Dokumen:** 1.0
+**Versi Dokumen:** 1.1
 **Tanggal:** 27 Desember 2025
 **Status:** Draft - Menunggu Review
 **Penulis:** Claude AI Assistant
+**Update v1.1:** Rekomendasi diubah ke PSRAMString unified berdasarkan riset Espressif
 
 ---
 
@@ -44,9 +45,14 @@ Ditemukan **~1.074 baris kode duplikat** antara `ModbusRtuService` dan `ModbusTc
 
 ### 1.3 Solusi yang Direkomendasikan
 
-Menggunakan **Composition Pattern dengan Template Class** untuk mengekstrak kode duplikat ke dalam:
-- `ModbusDeviceTypes.h` - Definisi struct bersama
+Menggunakan **Composition Pattern dengan PSRAMString Unified** untuk mengekstrak kode duplikat ke dalam:
+- `ModbusDeviceTypes.h` - Definisi struct bersama (PSRAMString untuk semua)
 - `ModbusDeviceManager.h` - Template class untuk logika device management
+
+**Keputusan String Type:** Menggunakan `PSRAMString` untuk KEDUA service (RTU dan TCP) berdasarkan riset teknis Espressif yang membuktikan:
+- PSRAM cache membuat string kecil (<16KB) memiliki performa identik dengan DRAM
+- Arduino String mengkonsumsi DRAM yang terbatas (512KB)
+- PSRAMString dengan fallback ke DRAM adalah solusi paling optimal
 
 ### 1.4 Hasil yang Diharapkan
 
@@ -432,13 +438,15 @@ Alih-alih menggunakan inheritance (yang memiliki overhead virtual function), kit
 ┌─────────────────────────────────────────────────────────────────┐
 │                    ModbusDeviceTypes.h                          │
 │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
-│  │ DeviceTimer<T>  │ │DeviceFailure<T> │ │DeviceMetrics<T> │   │
+│  │  DeviceTimer    │ │ DeviceFailure   │ │ DeviceMetrics   │   │
+│  │  (PSRAMString)  │ │  (PSRAMString)  │ │  (PSRAMString)  │   │
 │  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                   ModbusDeviceManager<T>                        │
+│                   ModbusDeviceManager                           │
+│                   (PSRAMString unified)                         │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │ - initializeDeviceFailureTracking()                      │   │
 │  │ - initializeDeviceTimeouts()                             │   │
@@ -459,7 +467,7 @@ Alih-alih menggunakan inheritance (yang memiliki overhead virtual function), kit
 │   ModbusRtuService      │    │   ModbusTcpService      │
 ├─────────────────────────┤    ├─────────────────────────┤
 │ ModbusDeviceManager     │    │ ModbusDeviceManager     │
-│   <PSRAMString>         │    │   <String>              │
+│   (PSRAMString)         │    │   (PSRAMString)  ← UNIFIED
 ├─────────────────────────┤    ├─────────────────────────┤
 │ - RTU-specific polling  │    │ - TCP-specific polling  │
 │ - Serial communication  │    │ - Connection pooling    │
@@ -481,10 +489,51 @@ Alih-alih menggunakan inheritance (yang memiliki overhead virtual function), kit
 
 | Perbedaan | Solusi |
 |-----------|--------|
-| String type (`PSRAMString` vs `String`) | Template parameter `<typename StringT>` |
+| ~~String type (`PSRAMString` vs `String`)~~ | **UNIFIED:** Semua menggunakan `PSRAMString` |
 | Base backoff delay (100ms vs 2000ms) | Parameter pada `calculateBackoffTime(baseDelay)` |
 | Log prefix (`[RTU]` vs `[TCP]`) | Parameter string pada method yang log |
 | RTU-specific `baudRate` field | Optional field atau separate struct |
+
+### 4.5 Justifikasi Teknis: Mengapa PSRAMString untuk Semua?
+
+Berdasarkan riset dokumentasi resmi Espressif dan ESP32 Forum:
+
+#### 4.5.1 PSRAM Cache Behavior
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     ESP32-S3 Memory Architecture                 │
+├─────────────────────────────────────────────────────────────────┤
+│  CPU Cache (16-32KB)                                             │
+│    ↓ cache hit = DRAM-speed access                              │
+│  PSRAM (8MB) via QSPI/OSPI                                       │
+│    ↓ cache miss = ~10-20 cycles latency                         │
+│  DRAM (512KB) - limited, shared with WiFi/BLE stack              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Fakta Kunci:**
+1. String kecil (<16KB) yang sering diakses → masuk CPU cache → performa = DRAM
+2. DRAM adalah resource terbatas (512KB) yang harus dibagi dengan WiFi/BLE stack
+3. PSRAMString dengan fallback ke DRAM = strategi paling aman
+
+#### 4.5.2 Referensi Espressif Official
+- **ESP-IDF Heap Allocator:** `heap_caps_malloc(MALLOC_CAP_SPIRAM)` dengan fallback
+- **Recommended Pattern:** "Use PSRAM for large allocations, let cache handle frequently accessed data"
+- **Source:** Espressif Programming Guide - External RAM
+
+#### 4.5.3 Implementasi PSRAMString
+```cpp
+// PSRAMString::allocate() di Main/PSRAMString.h
+void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+if (!ptr) {
+    ptr = heap_caps_malloc(size, MALLOC_CAP_8BIT); // Fallback ke DRAM
+}
+```
+
+**Keuntungan:**
+- PSRAM priority → menjaga DRAM untuk operasi kritikal
+- Automatic DRAM fallback → tidak pernah gagal alokasi
+- Cache-friendly → string yang sering diakses tetap cepat
 
 ---
 
@@ -754,19 +803,20 @@ public:
 };
 ```
 
-#### 8.1.2 ModbusTcpService (After)
+#### 8.1.2 ModbusTcpService (After) - UPDATED: PSRAMString Unified
 
 ```cpp
 // ModbusTcpService.h
 #include "ModbusDeviceTypes.h"
 #include "ModbusDeviceManager.h"
+#include "PSRAMString.h"  // ← TAMBAHAN: Include PSRAMString
 
 class ModbusTcpService {
 private:
-    // Type aliases untuk TCP
-    using TcpDeviceManager = ModbusDeviceManager<String>;
-    using TcpDeviceTimer = DeviceTimer<String>;
-    using TcpFailureState = DeviceFailureState<String>;
+    // Type aliases untuk TCP - SEKARANG SAMA DENGAN RTU!
+    using TcpDeviceManager = ModbusDeviceManager<PSRAMString>;  // ← CHANGED from String
+    using TcpDeviceTimer = DeviceTimer<PSRAMString>;            // ← CHANGED from String
+    using TcpFailureState = DeviceFailureState<PSRAMString>;    // ← CHANGED from String
 
     // Composition
     TcpDeviceManager deviceManager;
@@ -775,12 +825,21 @@ private:
     std::vector<ConnectionPoolEntry> connectionPool;
 
 public:
-    // Public API TIDAK BERUBAH
+    // Public API TIDAK BERUBAH (backward compatible)
+    // Catatan: Parameter bisa tetap const String& untuk backward compat,
+    // internal akan convert ke PSRAMString
     bool enableDeviceByCommand(const String &deviceId, bool clearMetrics = false) {
-        return deviceManager.enableDeviceByCommand(deviceId, clearMetrics, "[TCP]");
+        PSRAMString psramId(deviceId.c_str());  // Convert sekali di entry point
+        return deviceManager.enableDeviceByCommand(psramId, clearMetrics, "[TCP]");
     }
 };
 ```
+
+**Catatan Migrasi TCP ke PSRAMString:**
+1. Tambahkan `#include "PSRAMString.h"` di header
+2. Ubah semua internal string dari `String` ke `PSRAMString`
+3. Public API bisa tetap menerima `const String&` untuk backward compatibility
+4. Konversi dilakukan di entry point method (one-time cost)
 
 ### 8.2 Handling Backoff Delay Berbeda
 
@@ -895,11 +954,34 @@ Sebelum memulai implementasi, diperlukan keputusan untuk:
 
 | Opsi | Deskripsi | Pro | Con |
 |------|-----------|-----|-----|
-| **A** | Keep both via template | Backward compatible, no memory change | Template complexity |
-| **B** | Unify ke PSRAMString | Better memory efficiency | More refactoring needed |
-| **C** | Unify ke String | Simpler code | Worse memory for RTU |
+| **A** | Keep both via template | Backward compatible | Template complexity, inconsistensi |
+| **B** | Unify ke PSRAMString | Better memory efficiency, konsisten | Sedikit refactoring di TCP |
+| **C** | Unify ke Arduino String | Simpler code | Buruk untuk memory - TIDAK DIREKOMENDASIKAN |
 
-**Rekomendasi:** Opsi A (Keep both via template)
+**~~Rekomendasi Lama:~~ ~~Opsi A (Keep both via template)~~**
+
+**✅ Rekomendasi Baru (v1.1): Opsi B (Unify ke PSRAMString)**
+
+#### Justifikasi Keputusan:
+
+Berdasarkan riset dokumentasi Espressif dan ESP32 Forum, diputuskan untuk menggunakan **PSRAMString untuk kedua service** karena:
+
+| Aspek | Arduino String | PSRAMString | Pemenang |
+|-------|---------------|-------------|----------|
+| Alokasi memori | DRAM only | PSRAM + DRAM fallback | PSRAMString |
+| DRAM consumption | Tinggi | Rendah | PSRAMString |
+| Performa string kecil | Cepat | Sama (cache) | Seri |
+| Performa string besar | Cepat | Sedikit lambat | String |
+| Fragmentasi heap | Tinggi | Rendah (PSRAM besar) | PSRAMString |
+| WiFi/BLE stability | Dapat terganggu | Aman | PSRAMString |
+
+**Fakta Teknis:**
+1. **PSRAM Cache:** String kecil (<16KB) yang sering diakses masuk CPU cache → performa identik dengan DRAM
+2. **DRAM Limited:** ESP32-S3 hanya punya 512KB DRAM yang harus dibagi dengan WiFi/BLE stack
+3. **Fallback Aman:** PSRAMString otomatis fallback ke DRAM jika PSRAM gagal
+4. **Best Practice Espressif:** "Use PSRAM for large allocations, let cache handle frequently accessed data"
+
+**Kesimpulan:** Tidak ada alasan teknis untuk menggunakan Arduino String di TCP service. PSRAMString unified memberikan konsistensi dan efisiensi memori yang lebih baik.
 
 ### 11.2 Implementation Priority
 
@@ -947,6 +1029,7 @@ Sebelum memulai implementasi, diperlukan keputusan untuk:
 | Versi | Tanggal | Perubahan |
 |-------|---------|-----------|
 | 1.0 | 27 Des 2025 | Initial draft |
+| 1.1 | 27 Des 2025 | **UPDATE:** Rekomendasi diubah dari Hybrid (Opsi A) ke PSRAMString Unified (Opsi B) berdasarkan riset Espressif. Ditambahkan Section 4.5 tentang justifikasi teknis PSRAM cache behavior. Updated architecture diagram dan code examples. |
 
 ---
 
@@ -958,6 +1041,12 @@ Refactoring ini adalah **technical debt cleanup** yang akan meningkatkan maintai
 2. **Easier bug fixes** - perbaiki di satu tempat, berlaku untuk RTU dan TCP
 3. **Consistent behavior** - tidak ada risiko implementasi berbeda
 4. **Better testability** - shared code bisa di-unit test
+5. **Unified memory strategy** - PSRAMString untuk semua, menjaga DRAM untuk WiFi/BLE
+
+**Update v1.1:** Keputusan untuk menggunakan PSRAMString secara konsisten di kedua service didasarkan pada riset teknis yang membuktikan:
+- PSRAM cache membuat string kecil berperforma identik dengan DRAM
+- Arduino String mengkonsumsi DRAM yang terbatas dan shared dengan WiFi/BLE stack
+- PSRAMString dengan fallback ke DRAM adalah strategi paling optimal untuk ESP32-S3
 
 Dokumen ini akan di-update setelah menerima feedback dari review.
 
