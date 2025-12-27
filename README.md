@@ -20,6 +20,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 - [Hardware Specifications](#-hardware-specifications)
 - [Quick Start](#-quick-start)
 - [Architecture](#-architecture)
+- [OTA Firmware Updates](#-ota-firmware-updates)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
 - [Support](#-support)
@@ -385,6 +386,66 @@ graph LR
     HEAP -->|Fallback| JSON_DOC
     TASK_STACK -->|Main Stacks| HEAP
 ```
+
+---
+
+## 📦 OTA Firmware Updates
+
+### Firmware Binary Naming Convention
+
+All firmware binaries follow a consistent naming convention:
+
+**Format:** `{MODEL}_{VARIANT}_v{VERSION}.bin`
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| **MODEL** | Product model code | `MGATE-1210` |
+| **VARIANT** | Hardware variant (P=POE, omit for non-POE) | `P` or empty |
+| **VERSION** | Semantic version (MAJOR.MINOR.PATCH) | `1.0.0` |
+
+**Examples:**
+```
+MGATE-1210_P_v1.0.0.bin      # POE variant, version 1.0.0
+MGATE-1210_P_v1.2.5.bin      # POE variant, version 1.2.5
+MGATE-1210_v1.0.0.bin        # Non-POE variant, version 1.0.0
+```
+
+### OTA Features
+
+- **Signed Firmware**: ECDSA P-256 signatures for security
+- **Version Checking**: Automatic version comparison before update
+- **GitHub Integration**: Download from public or private repositories
+- **Checksum Verification**: SHA-256 hash validation
+- **Rollback Protection**: Only allows upgrade to newer versions
+
+### Creating OTA Releases
+
+```bash
+# 1. Compile firmware in Arduino IDE
+#    Sketch → Export Compiled Binary
+
+# 2. Sign firmware using the signing tool
+cd Tools
+python sign_firmware.py ../Main/build/esp32.esp32.esp32s3/Main.ino.bin
+
+# Script prompts for version and variant, outputs:
+#   - MGATE-1210_P_v1.0.0.bin (properly named binary)
+#   - firmware_manifest.json (with signature & checksum)
+```
+
+### OTA Repository Structure
+
+```
+GatewaySuriotaOTA/
+├── firmware_manifest.json    # Root manifest (device checks this)
+└── releases/
+    ├── v1.0.0/
+    │   └── MGATE-1210_P_v1.0.0.bin
+    └── v1.1.0/
+        └── MGATE-1210_P_v1.1.0.bin
+```
+
+**Note:** OTA updates can be triggered via BLE command. See [API.md](Documentation/API_Reference/API.md) for details.
 
 ---
 

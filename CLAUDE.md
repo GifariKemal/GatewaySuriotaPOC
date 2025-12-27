@@ -290,6 +290,71 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 
 ---
 
+## 📦 OTA Firmware Release
+
+### Firmware Binary Naming Convention
+
+**Format:** `{MODEL}_{VARIANT}_v{VERSION}.bin`
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| MODEL | Product model code | `MGATE-1210` |
+| VARIANT | Hardware variant (P=POE, omit for non-POE) | `P` or empty |
+| VERSION | Semantic version | `1.0.0` |
+
+**Examples:**
+```
+MGATE-1210_P_v1.0.0.bin      # POE variant, version 1.0.0
+MGATE-1210_P_v1.2.5.bin      # POE variant, version 1.2.5
+MGATE-1210_v1.0.0.bin        # Non-POE variant, version 1.0.0
+MGATE-1210_v2.0.0.bin        # Non-POE variant, version 2.0.0
+```
+
+### OTA Release Process
+
+```bash
+# 1. Compile firmware in Arduino IDE (Sketch → Export Compiled Binary)
+
+# 2. Sign firmware using Tools/sign_firmware.py
+cd Tools
+python sign_firmware.py ../Main/build/esp32.esp32.esp32s3/Main.ino.bin
+
+# Script will prompt for version and variant, then output:
+#   - MGATE-1210_P_v1.0.0.bin (properly named)
+#   - firmware_manifest.json (with signature & checksum)
+
+# 3. Copy to OTA repository
+cp MGATE-1210_P_v1.0.0.bin /path/to/GatewaySuriotaOTA/releases/v1.0.0/
+cp firmware_manifest.json /path/to/GatewaySuriotaOTA/
+
+# 4. Update manifest URL to point to firmware
+# URL format: https://api.github.com/repos/{owner}/{repo}/contents/releases/v{VERSION}/{FILENAME}?ref=main
+
+# 5. Commit and push to OTA repo
+git add releases/v1.0.0/ firmware_manifest.json
+git commit -m "feat(v1.0.0): Release MGATE-1210 firmware"
+git push
+```
+
+### OTA Repository Structure
+```
+GatewaySuriotaOTA/
+├── firmware_manifest.json    # Root manifest (device checks this)
+└── releases/
+    ├── v1.0.0/
+    │   └── MGATE-1210_P_v1.0.0.bin
+    ├── v1.1.0/
+    │   └── MGATE-1210_P_v1.1.0.bin
+    └── ...
+```
+
+### Key Files
+- **Signing Tool:** `Tools/sign_firmware.py` - ECDSA P-256 signature generator
+- **Private Key:** `Tools/OTA_Keys/ota_private_key.pem` (NEVER commit to public repo!)
+- **Public Key:** Embedded in firmware (`OTAManager.cpp`)
+
+---
+
 ## ⚠️ Critical Warnings
 
 1. **Include Order:** `DebugConfig.h` MUST be first (defines LOG_* macros)
@@ -362,6 +427,8 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 - Logging: `/Main/DebugConfig.h`, `/Main/LoggingConfig.h`
 - Errors: `/Main/UnifiedErrorCodes.h`
 - Memory: `/Main/MemoryRecovery.h`, `/Main/PSRAMValidator.h`
+- OTA Signing: `/Tools/sign_firmware.py` (generates `MGATE-1210_{VARIANT}_v{VERSION}.bin`)
+- OTA Keys: `/Tools/OTA_Keys/` (private/public key pair)
 - Docs: `/Documentation/Changelog/VERSION_HISTORY.md`, `/Documentation/API_Reference/API.md`
 
 ### Code Templates
