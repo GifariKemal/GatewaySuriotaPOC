@@ -1,7 +1,7 @@
 /**
  * @file ProductConfig.h
  * @brief Centralized Product Identity Configuration
- * @version 2.5.41
+ * @version 1.0.0
  * @date 2025-12-27
  *
  * ============================================================================
@@ -18,7 +18,7 @@
  * USAGE:
  *   #include "ProductConfig.h"
  *
- *   Serial.println(FIRMWARE_VERSION);      // "2.5.41"
+ *   Serial.println(FIRMWARE_VERSION);      // "1.0.0"
  *   Serial.println(PRODUCT_MODEL);         // "SRT-MGATE-1210"
  *   Serial.println(PRODUCT_VARIANT);       // "P" or ""
  *   Serial.println(PRODUCT_FULL_MODEL);    // "MGate-1210(P)" or "MGate-1210"
@@ -35,14 +35,14 @@
 // Format: MAJOR.MINOR.PATCH
 // Update this for every release
 
-#define FIRMWARE_VERSION        "2.5.41"
-#define FIRMWARE_VERSION_MAJOR  2
-#define FIRMWARE_VERSION_MINOR  5
-#define FIRMWARE_VERSION_PATCH  41
+#define FIRMWARE_VERSION        "1.0.0"
+#define FIRMWARE_VERSION_MAJOR  1
+#define FIRMWARE_VERSION_MINOR  0
+#define FIRMWARE_VERSION_PATCH  0
 
-// Build number: Derived from version (2.5.41 = 2541)
+// Build number: Derived from version (1.0.0 = 100)
 // Used for OTA version comparison
-#define FIRMWARE_BUILD_NUMBER   2541
+#define FIRMWARE_BUILD_NUMBER   100
 
 // ============================================================================
 // PRODUCT MODEL & VARIANT

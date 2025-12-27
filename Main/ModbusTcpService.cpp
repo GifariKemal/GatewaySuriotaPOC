@@ -651,10 +651,15 @@ void ModbusTcpService::readTcpDeviceData(const JsonObject &deviceConfig)
   {
     if (!compactLine.isEmpty())
     {
-      // Remove trailing " | "
-      if (compactLine.endsWith(" | "))
+      // Remove trailing " | " - v2.5.41: Use length check instead of endsWith()
+      size_t lineLen = compactLine.length();
+      if (lineLen >= 3)
       {
-        compactLine = compactLine.substring(0, compactLine.length() - 3);
+        const char *lineStr = compactLine.c_str();
+        if (strcmp(lineStr + lineLen - 3, " | ") == 0)
+        {
+          compactLine = compactLine.substring(0, lineLen - 3);
+        }
       }
       // Use char buffer with snprintf instead of String concatenation
       char lineBuf[256];
@@ -720,9 +725,23 @@ void ModbusTcpService::appendRegisterToLog(const char *registerName, double valu
   char tempBuf[128];  // Sufficient for register:value.unit format
 
   // Process unit - replace degree symbol with "deg" to avoid UTF-8 issues
-  // v2.5.41: Use PSRAMString for processedUnit
-  PSRAMString processedUnit = unit;
-  processedUnit.replace("°", "deg");
+  // v2.5.41: Manual replacement (PSRAMString doesn't have replace() method)
+  // Degree symbol "°" is UTF-8: 0xC2 0xB0 (2 bytes)
+  char processedUnit[32];
+  const char *degSymbol = strstr(unit, "°");
+  if (degSymbol)
+  {
+    // Copy part before "°", add "deg", then copy rest after "°" (skip 2 UTF-8 bytes)
+    size_t prefixLen = degSymbol - unit;
+    memcpy(processedUnit, unit, prefixLen);
+    memcpy(processedUnit + prefixLen, "deg", 3);
+    strcpy(processedUnit + prefixLen + 3, degSymbol + 2); // +2 to skip "°" UTF-8 bytes
+  }
+  else
+  {
+    strncpy(processedUnit, unit, sizeof(processedUnit) - 1);
+    processedUnit[sizeof(processedUnit) - 1] = '\0';
+  }
 
   // Add header on first success
   if (successCount == 0)
@@ -744,7 +763,7 @@ void ModbusTcpService::appendRegisterToLog(const char *registerName, double valu
 
   // Build compact line using snprintf: "RegisterName:value.unit"
   snprintf(tempBuf, sizeof(tempBuf), "%s:%.1f%s",
-           registerName, value, processedUnit.c_str());
+           registerName, value, processedUnit);
   compactLine += tempBuf;
   successCount++;
 

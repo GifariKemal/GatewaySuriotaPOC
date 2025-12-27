@@ -89,7 +89,7 @@ COMMAND_DELAY = 3.0     # Delay between OTA commands
 # GitHub Token for Private Repository Access
 # Set this ONLY if repository is PRIVATE. Leave empty for public repos.
 # Note: Token can cause 404 errors on public repos!
-GITHUB_TOKEN = "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"  # Fine-grained PAT for OTA repo
+GITHUB_TOKEN = ""  # Set your GitHub Personal Access Token here for private repos
 
 # ============================================================================
 # Global Variables

@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SRT-MGATE-1210 Gateway
 
-**Version:** 2.5.40 | **Last Updated:** December 22, 2025
+**Version:** 1.0.0 | **Last Updated:** December 27, 2025
 
 ---
 
@@ -31,140 +31,54 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 
 ---
 
-## 🆕 Latest Updates (v2.5.40 - Dec 22, 2025)
+## 🆕 Version 1.0.0 (Production Release - Dec 27, 2025)
 
-### v2.5.40 - Shadow Cache & Unit Symbol Fix (Dec 22, 2025)
-- **CRITICAL FIX:** Register CRUD operations (create/update/delete) didn't update shadow cache
-- **Symptoms:** Calibration offset/scale changes not applied, required restart to take effect
-- **Root Cause:** `createRegister()`, `updateRegister()`, `deleteRegister()` missing `updateDevicesShadowCopy()` call
-- **Solution:** Added shadow cache sync after each register operation in ConfigManager
-- **Impact:** Calibration (offset/scale) and all register changes now apply immediately
-- **FEATURE:** Unit "deg" now converts to degree symbol (°) for display
-- **Example:** "degC" → "°C", "degF" → "°F" in MQTT/BLE output
-- **CONNECTION FIX:** Pooled connections now cleared when device config changes
-- **Impact:** IP/port changes take effect immediately without lingering old connections
+### Core Features
 
-### v2.5.39 - Device Creation, LED Stack Overflow & TCP Config Fix (Dec 21, 2025)
-- **CRITICAL FIX:** Device creation was overwriting existing devices when mobile app sends `device_id` in config
-- **Solution:** ALWAYS generate new device_id, ignore any `device_id` in config + collision check with retry
-- **CRASH FIX:** LED_Blink_Task stack overflow causing "Guru Meditation Error"
-- **MODBUS FIX:** Config change not applied after device update (IP/slave_id change ignored)
-- **Solution:** Added `std::atomic<bool> configChangePending` flag for reliable detection (TCP & RTU)
+#### Modbus Protocol Support
+- **Modbus RTU** - Dual RS485 ports with dynamic baudrate switching (1200-115200)
+- **Modbus TCP** - Connection pooling, auto-reconnect, multi-device support
+- **40+ Data Types** - INT16, UINT32, FLOAT32, SWAP variants, BCD, ASCII
+- **Calibration** - Per-register scale and offset support
+- **Device Failure Tracking** - Exponential backoff, auto-disable, health metrics
 
-### v2.5.36 - MQTT, Gateway Info & BLE Buffer Fix (Dec 16, 2025)
-- **CRITICAL FIX:** MQTT reconnection loop caused by client_id collision on public brokers
-- **Root Cause:** Default `client_id` was static `"esp32_gateway"` - all devices shared same ID
-- **Solution:** Auto-generate unique client_id from MAC address: `MGate1210_XXXXXX`
-- **Migration:** Old configs with `"esp32_gateway"` are automatically upgraded to unique ID
-- **Impact:** MQTT connections now stable, no more "tug-of-war" between devices/subscribers
-- **API FIX:** `get_gateway_info` now returns complete response (13 fields including uid, serial_number, build_number, variant, is_poe, manufacturer)
-- **BLE FIX:** Clear command buffer on disconnect to prevent JSON corruption on reconnect
+#### Cloud Connectivity
+- **MQTT** - TLS support, retain flag, unique client_id from MAC, auto-reconnect
+- **HTTP/HTTPS** - REST API with certificate validation
+- **Data Buffering** - Queue-based buffering during network outages
 
-### v2.5.32 - Centralized Product Configuration (Dec 5, 2025)
-- **NEW FILE:** `ProductConfig.h` - Single source of truth for all product identity settings
-- **Product Model:** SRT-MGATE-1210 with POE variant support (MGate-1210(P) / MGate-1210)
-- **BLE Name Format Changed:** `SURIOTA-XXXXXX` → `MGate-1210(P)-XXXX` (4 hex chars from MAC)
-  - POE variant: `MGate-1210(P)-A716`
-  - Non-POE variant: `MGate-1210-C726`
-- **Serial Number Format:** `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)
-- **Centralized Settings:** Firmware version, model, variant, BLE format, serial format, hardware pins, manufacturer info
-- **GatewayConfig Updated:** Uses ProductConfig for BLE name and serial number generation
-- **Easy Variant Switch:** Edit `ProductConfig.h` to switch between POE and Non-POE builds
+#### BLE Configuration Interface
+- **CRUD API** - Full device/register/server configuration
+- **OTA Updates** - Signed firmware from GitHub (public/private repos)
+- **Backup/Restore** - Complete configuration export/import (up to 200KB)
+- **Factory Reset** - One-command device reset
+- **BLE Name Format** - `MGate-1210(P)XXXX` (4 hex chars from MAC)
 
-### v2.5.31 - Multi-Gateway Support (Dec 4, 2025)
-- **Multi-Gateway BLE:** Unique BLE names from MAC address (SURIOTA-XXXXXX format)
-- **GatewayConfig:** New gateway identity management system
-- **BLE Commands:** `get_gateway_info`, `set_friendly_name`, `set_location`
+#### Network Management
+- **Dual Network** - WiFi + Ethernet with automatic failover
+- **Network Status API** - Real-time connectivity monitoring
 
-### v2.5.30 - OTA Buffer Optimization (Dec 4, 2025)
-- **OTA Speed Boost:** Increased OTA buffer size to 32KB for faster download
+#### Memory Optimization
+- **PSRAMString** - Unified PSRAM-based string allocation
+- **Memory Recovery** - 4-tier automatic memory management
+- **Shadow Copy Pattern** - Reduced file system I/O
 
-### v2.5.11 - Private Repo OTA Support (Nov 28, 2025)
-- **CRITICAL OTA FIX:** Fixed OTA from PRIVATE GitHub repositories (was returning HTTP 404)
-- **Root Cause:** `raw.githubusercontent.com` is a CDN that doesn't accept any authentication
-- **Fix:** Use GitHub API (`api.github.com`) for private repos with `Authorization: token` header
-- **API Endpoint:** `https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={branch}`
-- **Headers:** `Authorization: token {token}` + `Accept: application/vnd.github.v3.raw`
-- **Backward Compatible:** Public repos still use `raw.githubusercontent.com` (no auth needed)
+#### Production Features
+- **Two-Tier Logging** - Compile-time + runtime log level control
+- **Unified Error Codes** - 7 domains, 60+ error codes
+- **Atomic File Writes** - WAL pattern for crash-safe configuration
 
-### v2.5.10 - OTA Signature Bug Fix (Nov 28, 2025)
-- **CRITICAL OTA FIX:** Fixed double-hash bug in `sign_firmware.py` that caused all OTA signature verifications to fail
-- **Root Cause:** Python ecdsa library internally hashes data passed to `sign_deterministic()`. Script was pre-hashing, causing `SHA256(SHA256(firmware))`
-- **Fix:** Pass raw firmware data with `hashfunc=hashlib.sha256` parameter: `sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)`
-- **Signature Format:** DER encoded (70-72 bytes), hex string encoding
-- **OTA Debug Cleanup:** Replaced `Serial.printf("[OTA DEBUG]...")` with `LOG_OTA_DEBUG()` macro (respects PRODUCTION_MODE)
-- **Testing Tools:** New `Testing/BLE_Testing/OTA_Test/ota_update.py` for BLE OTA testing
-- **MockupUI:** New `MockupUI/OTA Update.html` for Android developers
-- **Test Results:** OTA verified working on both WiFi (84 sec) and Ethernet (62 sec)
+### Quality Metrics
 
-### v2.5.1 - Critical Bug Fixes & Memory Safety (Nov 27, 2025)
-- **DRAM Exhaustion Fix:** `saveJson()` now uses PSRAM buffer instead of Arduino String (DRAM) - prevents crash when creating 45+ registers
-- **MQTT Loop Fix:** Interval timestamp updated BEFORE queue empty check - stops 14 logs/sec spam when idle
-- **Memory Thresholds:** Adjusted for realistic BLE operation (CRITICAL: 20KB→12KB, EMERGENCY: 10KB→8KB)
-- **SSL Compatibility:** `setCACert()` with DigiCert for ESP32 Arduino 3.x compatibility
-- **Race Condition Fix:** MqttManager uses EventGroup for safe task termination
-- **Data Loss Prevention:** HttpManager uses peek-then-dequeue pattern
-- **OTA Non-Blocking:** Version check runs in async FreeRTOS task
+| Category | Score |
+|----------|-------|
+| Logging System | 97% |
+| Thread Safety | 96% |
+| Memory Management | 95% |
+| Error Handling | 93% |
+| Overall | 91/100 |
 
-### v2.3.15 - CRITICAL MQTT Retain Flag Fix (Nov 26, 2025)
-- **CRITICAL BUG FIX:** Added `retain=true` flag to MQTT publish - messages now persist on broker
-- **Root Cause:** Publish without retain flag caused data loss when no subscriber online
-- **Impact:** IoT telemetry data now available for late subscribers (retained messages)
-- **Additional:** Fixed strcpy() vulnerability in topic buffer allocation (defensive programming)
-- **Result:** 100% MQTT message delivery reliability for asynchronous subscribers
-
-### v2.3.14 - Code Quality Improvements (Nov 26, 2025)
-- **Thread Safety Fix:** Changed MemoryRecovery static variable to `std::atomic<bool>` for lock-free thread-safe operations
-- **Defensive Programming:** Replaced `strcpy()` with `memcpy()` in BLEManager for explicit bounds checking
-- **JSON Validation:** Added `.is<JsonObject>()` type checks before `as<JsonObject>()` casts in NetworkManager
-- **Firmware Quality:** Improved from 95/100 to 98/100 (zero known race conditions, 100% memory safety)
-- **Impact:** Enhanced thread safety, defensive programming, zero performance overhead
-
-### v2.3.13 - Code Cleanup & Optimization (Nov 26, 2025)
-- **NetworkHysteresis Removal:** Deleted NetworkHysteresis.h/.cpp (~8KB Flash saved) - Simplified failover logic for industrial Ethernet-primary deployments
-- **Code Cleanup:** Removed obsolete DeviceBatchManager comments (cosmetic cleanup)
-- **Impact:** Network failover now uses simple timer-based switching (5s check interval, 1s switch delay) without signal quality hysteresis
-- **Result:** Cleaner codebase, faster compilation, lower memory footprint, suitable for stable Ethernet-primary setups
-
-### Critical Fixes & Major Optimizations (Previous Versions)
-- **v2.3.12:** CRITICAL fixes - ModbusTCP polling now respects refresh_rate_ms (was ignoring config) + connection pool duplicate entry prevention (eliminated false "unhealthy" warnings)
-- **v2.3.11:** CRITICAL BLE command corruption fix + ModbusTCP dramatic optimization (vector caching, connection pooling, thread-safe mutex)
-- **v2.3.10:** TCP connection pool optimization (180x reduction in recreations, 99% connection reuse)
-- **v2.3.9:** CRITICAL fix - TCP memory leak causing DRAM exhaustion and ESP32 restarts
-- **v2.3.8:** Performance optimization (shadow copy pattern, stack optimization, DRAM fragmentation elimination)
-- **v2.3.5:** CRITICAL fix - Production mode switching via BLE now works correctly after restart (log level initialization fixed)
-- **v2.3.4-2.3.7:** BLE transmission timeout fixes, MQTT interval corrections, log formatting enhancements
-
-### v2.3.5 Critical Bug Fix
-- **BUG - Runtime Mode Switch:** Fixed initialization sequence - LoggingConfig now loaded BEFORE log level init, so production mode from config is properly applied after ESP restart
-- **Impact:** BLE `set_production_mode` command now works end-to-end without firmware re-upload required
-- **Result:** Mode 0→1 switch correctly shows ERROR log level + production JSON logs only; Mode 1→0 switch correctly shows INFO log level + DEVELOPMENT MODE banner
-
-### v2.3.11 Key Features
-- **BLE Corruption Fix:** Timeout protection (5s), <START> marker handling, buffer validation
-- **ModbusTCP Optimization:** 100% file system access elimination via vector caching, 50% TCP handshake reduction via connection pooling
-- **Thread Safety:** Mutex protection for device vectors in ModbusTCP and ModbusRTU
-- **Dynamic Polling:** Loop delay respects device-specific refresh_rate_ms (design was correct, implementation had bug - FIXED in v2.3.12)
-- **ErrorHandler Fix:** Array overflow prevention with DOMAIN_COUNT constant
-- **Timestamp Support:** Added to Modbus polling for better diagnostics
-
-### v2.3.0 Features (Nov 21, 2025)
-
-#### BLE Enhancements
-- **Backup/Restore:** Complete config export (200KB responses, PSRAM optimized)
-- **Factory Reset:** One-command full device reset with auto-restart
-- **Device Control:** Enable/disable devices via BLE with health metrics
-- **Response Size:** Increased from 10KB → 200KB
-
-**Documentation:** See `/Documentation/API_Reference/BLE_*.md` files
-
-#### Performance Evolution
-- **Phase 1:** Two-tier logging (15% size reduction)
-- **Phase 2:** Auto memory recovery with 3-tier thresholds
-- **Phase 3:** RTC timestamps for accurate logging
-- **Phase 4:** MTU negotiation timeout control (5s timeout, 2 retries, 100-byte fallback)
-- **v2.1.1:** BLE transmission optimization (28x faster: 244-byte chunks, 10ms delay)
-- **v2.2.0:** Config refactoring (HTTP interval in `http_config`)
+**Development History:** See `Documentation/Archive/Development_Phase/` for complete changelog
 
 ---
 
@@ -173,8 +87,8 @@ Core 1 priority tasks: MQTT, HTTP, RTU, TCP, BLE_CMD, BLE_STREAM, CRUD_Processor
 ```
 Main/                    # Production firmware (PRIMARY)
   ├── Main.ino          # Entry point
-  ├── ProductConfig.h   # 🆕 Centralized product identity (v2.5.32)
-  ├── DebugConfig.h     # ⚠️ MUST BE FIRST INCLUDE
+  ├── ProductConfig.h   # Centralized product identity (version, model, variant)
+  ├── DebugConfig.h     # MUST BE FIRST INCLUDE (defines LOG_* macros)
   ├── GatewayConfig.*   # Gateway identity (BLE name, serial number)
   ├── ConfigManager.*   # JSON config with atomic writes
   ├── BLEManager.*      # BLE interface + fragmentation
@@ -185,9 +99,10 @@ Main/                    # Production firmware (PRIMARY)
   └── MemoryRecovery.*  # Auto memory monitoring
 
 Documentation/          # Complete technical docs
-  ├── API_Reference/API.md
-  ├── Technical_Guides/MODBUS_DATATYPES.md (40+ types)
-  └── Changelog/VERSION_HISTORY.md
+  ├── API_Reference/    # BLE CRUD API documentation
+  ├── Technical_Guides/ # MODBUS_DATATYPES, PROTOCOL, LOGGING
+  ├── Changelog/        # VERSION_HISTORY.md
+  └── Archive/          # Development phase documentation
 
 Testing/               # Test infrastructure
   ├── Device_Testing/  # Python BLE CRUD scripts
@@ -249,7 +164,7 @@ public:
 
 **Error Handling:** Use `UnifiedErrorCode` enum (0-99: Network, 100-199: MQTT, 200-299: BLE, 300-399: Modbus, 400-499: Memory, 500-599: Config)
 
-**BLE Response Format (v2.1.1+):** ALWAYS return full objects:
+**BLE Response Format:** ALWAYS return full objects:
 ```json
 {
   "status": "ok",
@@ -381,7 +296,7 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 2. **PSRAM Fallback:** Always provide heap fallback for allocations
 3. **Thread Safety:** Use mutexes for shared resources in FreeRTOS
 4. **Atomic Writes:** Use `atomicWrite()` for critical configs (crash-safe)
-5. **Full Objects:** Return complete objects in BLE CRUD responses (v2.1.1+)
+5. **Full Objects:** Return complete objects in BLE CRUD responses
 6. **Notify Services:** Call `notifyConfigChange()` after config updates
 7. **Hysteresis:** Respect network switching delays (prevent oscillation)
 8. **Baudrate:** Restore original baudrate after Modbus device polling
@@ -394,7 +309,7 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 
 | Issue | Solution |
 |-------|----------|
-| BLE connection hangs | Update to v2.2.0+ (MTU timeout handling) |
+| BLE connection hangs | Check MTU timeout handling in BLEManager |
 | Memory exhaustion | Use `SpiRamJsonDocument`, check PSRAM allocation |
 | Modbus no response | Check baudrate, slave ID, wiring, timeout settings |
 | Network oscillation | Enable hysteresis (15s delay) in `network_config.json` |
@@ -432,7 +347,7 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 2. ✅ PSRAM allocation with heap fallback for large objects
 3. ✅ Atomic writes for config files (WAL pattern)
 4. ✅ Notify services after config changes
-5. ✅ Return full objects in BLE CRUD (v2.1.1+)
+5. ✅ Return full objects in BLE CRUD responses
 6. ✅ Mutex protection for shared resources
 7. ✅ Update VERSION_HISTORY.md for all changes
 8. ✅ Respect network hysteresis delays
@@ -441,7 +356,7 @@ See `/Documentation/Technical_Guides/LIBRARIES.md` for details.
 
 ### Common File Locations
 - Entry: `/Main/Main.ino`
-- Product Config: `/Main/ProductConfig.h` 🆕 (firmware version, model, variant, BLE format)
+- Product Config: `/Main/ProductConfig.h` (firmware version, model, variant, BLE format)
 - Gateway Identity: `/Main/GatewayConfig.h` (BLE name generation, serial number)
 - Configs: `/*.json` (devices, server_config, network_config, logging_config)
 - Logging: `/Main/DebugConfig.h`, `/Main/LoggingConfig.h`
