@@ -8,6 +8,128 @@
 
 ---
 
+## Version 1.0.3 (Config Transfer Progress)
+
+**Release Date:** December 27, 2025 (Friday)
+**Status:** Production (⚠️ BREAKING CHANGE - Mobile App Update Required)
+
+### Feature: Config Transfer Progress Notifications - ACTIVATED
+
+**Background:** Unlike OTA which has real-time progress notifications, config backup/restore operations had no progress reporting to the mobile app.
+
+**Status:** ✅ Progress notifications now ACTIVE!
+
+### ⚠️ BREAKING CHANGE
+
+Mobile app **MUST** be updated to handle new notification types before using this firmware version. Without update, backup/restore operations will have **corrupted JSON responses**.
+
+### New Notification Types
+
+**1. config_download_progress** (during backup/export):
+```json
+{"type":"config_download_progress","percent":45,"bytes_sent":5000,"total_bytes":11000}
+```
+- Sent every 10% during large response transmission (>5KB)
+- Mobile app must filter this from response buffer
+
+**2. config_restore_progress** (during restore/import):
+```json
+{"type":"config_restore_progress","step":"devices","current":1,"total":3,"percent":33}
+```
+- Sent at each restore step: `devices` → `server_config` → `logging_config`
+- Mobile app must filter this from response buffer
+
+**3. config_upload_progress** (NOT sent by firmware):
+```json
+{"type":"config_upload_progress","percent":60,"bytes_received":6000,"total_expected":10000}
+```
+- Function exists but NOT called - mobile app should track upload progress locally
+- Mobile app knows bytes sent vs total payload size
+
+### Mobile App Changes Required
+
+Add handler in BLE notification receiver (like existing `ota_progress`):
+
+```dart
+void _handleBleNotification(List<int> data) {
+  final jsonStr = utf8.decode(data);
+
+  // Filter progress notifications - don't add to response buffer
+  if (jsonStr.startsWith('{"type":"config_download_progress"') ||
+      jsonStr.startsWith('{"type":"config_restore_progress"') ||
+      jsonStr.startsWith('{"type":"config_upload_progress"')) {
+    _handleConfigProgress(jsonDecode(jsonStr));
+    return; // Don't add to response buffer!
+  }
+
+  // Existing ota_progress handler
+  if (jsonStr.startsWith('{"type":"ota_progress"')) {
+    _handleOtaProgress(jsonDecode(jsonStr));
+    return;
+  }
+
+  // Regular response - add to buffer
+  _responseBuffer.addAll(data);
+}
+```
+
+### Files Changed
+
+- `Main/BLEManager.cpp` - Activated `sendConfigDownloadProgress()` in `sendFragmented()`
+- `Main/CRUDHandler.cpp` - Added `sendConfigRestoreProgress()` calls in restore handler
+- `Main/ProductConfig.h` - Version bump to 1.0.3
+
+---
+
+## Version 1.0.2 (Preparation Release)
+
+**Release Date:** December 27, 2025 (Friday)
+**Status:** Superseded by v1.0.3
+
+### Prepared Feature: Config Transfer Progress Notifications
+
+Functions implemented but not activated. See v1.0.3 for activated version.
+
+**Functions Added:**
+```cpp
+void sendConfigDownloadProgress(uint8_t percent, size_t bytesSent, size_t totalBytes);
+void sendConfigUploadProgress(uint8_t percent, size_t bytesReceived, size_t totalExpected);
+void sendConfigRestoreProgress(const String& step, uint8_t currentStep, uint8_t totalSteps);
+```
+
+---
+
+## Version 1.0.1 (Patch Release)
+
+**Release Date:** December 27, 2025 (Friday)
+**Status:** Production Patch
+
+### Critical Bug Fix
+
+**Issue:** Modbus TCP/RTU config changes (IP address, slave ID, etc.) took ~2 minutes to take effect.
+
+**Symptoms:**
+- Config change notification received immediately
+- Old config still used for polling for ~2 minutes
+- Logs showed "ERROR" connecting to old IP until device refresh
+
+**Root Cause:**
+- `configChangePending` flag only checked BETWEEN devices (line 324)
+- NOT checked BETWEEN registers during device polling
+- With 45 registers × 3 second timeout = **135 seconds delay** before config refresh
+
+**Fix:**
+- Added `configChangePending.load()` check inside register polling loop
+- Both `ModbusTcpService.cpp` and `ModbusRtuService.cpp` patched
+- Config changes now detected within 1 register poll cycle (~3 seconds max)
+
+**Files Changed:**
+- `Main/ModbusTcpService.cpp` - Added config check in register loop
+- `Main/ModbusRtuService.cpp` - Added config check in register loop
+- `Main/ProductConfig.h` - Version bump to 1.0.1
+
+---
+
 ## Version 1.0.0 (Production Release)
 
 **Release Date:** December 27, 2025 (Friday)
