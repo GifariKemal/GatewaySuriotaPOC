@@ -8,6 +8,82 @@
 
 ---
 
+## Version 1.0.4 (Device Summary Connection Identifiers)
+
+**Release Date:** December 29, 2025 (Sunday)
+**Status:** Production
+**Related:** BUG_001_SLAVE_ID_VALIDATION (Mobile App)
+
+### Bug Fix: Device Summary Missing Connection Identifiers
+
+**Background:** Mobile app's slave_id validation was rejecting valid configurations because `devices_summary` and `devices_with_registers` (minimal mode) did not include `ip` and `serial_port` fields. Without these fields, mobile app couldn't determine if slave_id collision was on the same bus/endpoint.
+
+**Root Cause:**
+- `getDevicesSummary()` only returned: `device_id`, `device_name`, `protocol`, `slave_id`, `register_count`
+- `getAllDevicesWithRegisters(minimal=true)` did not include `ip` field
+
+**Impact:** Mobile app showed "Slave ID already exists" error even when:
+- RTU devices were on **different serial ports** (different RS-485 bus)
+- TCP devices had **different IP addresses** (different endpoints)
+- Devices used **different protocols** (RTU vs TCP)
+
+### Fix Applied
+
+**1. `getDevicesSummary()` now includes:**
+```json
+{
+  "device_id": "D7A3F2",
+  "device_name": "Meter RTU",
+  "protocol": "RTU",
+  "slave_id": 10,
+  "serial_port": 1,        // NEW - for RTU devices
+  "register_count": 5
+}
+```
+
+```json
+{
+  "device_id": "B8C4E1",
+  "device_name": "PLC TCP",
+  "protocol": "TCP",
+  "slave_id": 10,
+  "ip": "192.168.1.100",   // NEW - for TCP devices
+  "register_count": 3
+}
+```
+
+**2. `getAllDevicesWithRegisters(minimal=true)` now includes `ip` field**
+
+### Correct Validation Logic (Mobile App)
+
+Per Modbus standard, slave_id uniqueness should be checked:
+- **RTU:** Per `serial_port` (RS-485 bus)
+- **TCP:** Per `ip` (endpoint)
+- **Cross-protocol:** Always allowed (RTU and TCP are independent)
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| RTU Port 1 + RTU Port 2, same slave_id | ❌ Error | ✅ OK |
+| RTU + TCP, same slave_id | ❌ Error | ✅ OK |
+| TCP IP1 + TCP IP2, same slave_id | ❌ Error | ✅ OK |
+| RTU Port 1 + RTU Port 1, same slave_id | ❌ Error | ❌ Error |
+| TCP same IP, same slave_id | ❌ Error | ❌ Error |
+
+### Files Changed
+
+- `Main/ConfigManager.cpp` - Added `ip` and `serial_port` to summary responses
+- `Main/ProductConfig.h` - Version bump to 1.0.4
+
+### Mobile App Action Required
+
+Update `_isSlaveIdDuplicate()` in `form_setup_device_screen.dart` to use:
+- `device['serial_port']` for RTU protocol comparison
+- `device['ip']` for TCP protocol comparison
+
+See `BUG_001_SLAVE_ID_VALIDATION.md` for detailed implementation guide.
+
+---
+
 ## Version 1.0.3 (Config Transfer Progress)
 
 **Release Date:** December 27, 2025 (Friday)
