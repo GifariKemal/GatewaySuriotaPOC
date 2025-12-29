@@ -81,14 +81,111 @@ void _handleBleNotification(List<int> data) {
 
 ---
 
-## Version 1.0.2 (Preparation Release)
+## Version 1.0.2 (Standardized Error Responses)
 
-**Release Date:** December 27, 2025 (Friday)
-**Status:** Superseded by v1.0.3
+**Release Date:** December 28, 2025 (Saturday)
+**Status:** Production
 
-### Prepared Feature: Config Transfer Progress Notifications
+### Feature: Standardized Error Response Format
 
-Functions implemented but not activated. See v1.0.3 for activated version.
+**Background:** BLE CRUD responses previously used inconsistent error formats with string-based error codes. Mobile apps couldn't programmatically handle errors reliably.
+
+**Solution:** Implemented `ErrorResponseHelper` utility that creates consistent error responses with:
+- **Numeric error_code** (0-699) from `UnifiedErrorCodes.h`
+- **Domain classification** (NETWORK, MQTT, BLE, MODBUS, MEMORY, CONFIG, SYSTEM)
+- **Severity level** (INFO, WARN, ERR, CRIT)
+- **Human-readable message**
+- **Recovery suggestion** (when available)
+
+### New Error Response Format
+
+**Before (v1.0.1):**
+```json
+{
+  "status": "error",
+  "message": "Device not found",
+  "type": "device"
+}
+```
+
+**After (v1.0.2):**
+```json
+{
+  "status": "error",
+  "error_code": 501,
+  "domain": "CONFIG",
+  "severity": "ERROR",
+  "message": "Device not found",
+  "suggestion": "Create new configuration",
+  "type": "device"
+}
+```
+
+### Error Code Ranges
+
+| Domain | Range | Examples |
+|--------|-------|----------|
+| NETWORK | 0-99 | WiFi/Ethernet connectivity |
+| MQTT | 100-199 | Broker communication |
+| BLE | 200-299 | Bluetooth Low Energy |
+| MODBUS | 300-399 | RTU/TCP devices |
+| MEMORY | 400-499 | PSRAM allocation |
+| CONFIG | 500-599 | Configuration/Storage |
+| SYSTEM | 600-699 | System health |
+
+### Files Added
+
+- `Main/ErrorResponseHelper.h` - Helper functions for standardized error responses
+
+### Files Changed
+
+- `Main/BLEManager.h` - Added `sendError(UnifiedErrorCode, ...)` overloads
+- `Main/BLEManager.cpp` - Implemented new sendError methods
+- `Main/CRUDHandler.cpp` - Updated key error responses to use new format
+- `Main/OTACrudBridge.cpp` - Updated OTA error responses
+- `Documentation/API_Reference/API.md` - Documented new error format
+
+### Mobile App Integration
+
+```dart
+void handleError(Map<String, dynamic> response) {
+  if (response['status'] == 'error') {
+    final errorCode = response['error_code'] as int;
+    final domain = response['domain'] as String;
+    final severity = response['severity'] as String;
+
+    // Programmatic handling
+    switch (errorCode) {
+      case 7:   // ERR_NET_NO_NETWORK_AVAILABLE
+        showNetworkError();
+        break;
+      case 301: // ERR_MODBUS_DEVICE_TIMEOUT
+        showDeviceOfflineWarning();
+        break;
+      case 504: // ERR_CFG_SAVE_FAILED
+        showSaveError();
+        break;
+    }
+
+    // UI styling by severity
+    if (severity == 'CRIT') {
+      showCriticalAlert(response['message']);
+    }
+  }
+}
+```
+
+### Backward Compatibility
+
+- The `type` field is preserved for backward compatibility
+- Old error responses still work but lack new fields
+- Mobile apps can check for `error_code` presence for progressive enhancement
+
+---
+
+### Previous v1.0.2 Features (Config Transfer Progress - Preparation)
+
+Functions implemented but not activated in v1.0.2. See v1.0.3 for activated version.
 
 **Functions Added:**
 ```cpp

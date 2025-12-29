@@ -4,17 +4,18 @@
 #include "QueueManager.h"
 #include "ModbusRtuService.h"
 #include "ModbusTcpService.h"
-#include "MqttManager.h"    //For calling updateDataTransmissionInterval()
-#include "HttpManager.h"    //For calling updateDataTransmissionInterval()
-#include "MemoryManager.h"  // For make_psram_unique
-#include "MemoryRecovery.h" // For triggerCleanup() - memory optimization
-#include "RTCManager.h"     // For RTC timestamp in factory reset
-#include "LEDManager.h"     // For stopping LED task during factory reset
-#include "OTACrudBridge.h"  // v2.5.35: Bridge to OTA (avoids ESP_SSLClient linker error)
-#include "GatewayConfig.h"  // For gateway identity (v2.5.31)
-#include "ProductConfig.h"  // For firmware version, model (v2.5.32)
-#include "NetworkManager.h" // For network status API (v2.5.38)
-#include <esp_heap_caps.h>  // For PSRAM allocation
+#include "MqttManager.h"         // For calling updateDataTransmissionInterval()
+#include "HttpManager.h"         // For calling updateDataTransmissionInterval()
+#include "MemoryManager.h"       // For make_psram_unique
+#include "MemoryRecovery.h"      // For triggerCleanup() - memory optimization
+#include "RTCManager.h"          // For RTC timestamp in factory reset
+#include "LEDManager.h"          // For stopping LED task during factory reset
+#include "OTACrudBridge.h"       // v2.5.35: Bridge to OTA (avoids ESP_SSLClient linker error)
+#include "GatewayConfig.h"       // For gateway identity (v2.5.31)
+#include "ProductConfig.h"       // For firmware version, model (v2.5.32)
+#include "NetworkManager.h"      // For network status API (v2.5.38)
+#include "ErrorResponseHelper.h" // v1.0.2: Standardized error responses
+#include <esp_heap_caps.h>       // For PSRAM allocation
 
 // Make service pointers available to the handler
 extern ModbusRtuService *modbusRtuService;
@@ -336,7 +337,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device not found", "device");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_FILE_NOT_FOUND, "Device not found", "device");
     }
   };
 
@@ -413,7 +415,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("No registers found", "registers");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_FILE_NOT_FOUND, "No registers found", "registers");
     }
   };
 
@@ -429,7 +432,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("No registers found", "registers");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_FILE_NOT_FOUND, "No registers found", "registers");
     }
   };
 
@@ -444,7 +448,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to get server config", "server_config");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_LOAD_FAILED, "Failed to get server config", "server_config");
     }
   };
 
@@ -459,7 +464,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Failed to get logging config", "logging_config");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_LOAD_FAILED, "Failed to get logging config", "logging_config");
     }
   };
 
@@ -784,7 +790,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device creation failed", "device");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_SAVE_FAILED, "Device creation failed", "device");
     }
   };
 
@@ -825,8 +832,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      // v2.5.31: Return specific error message to mobile app
-      manager->sendError(errorMsg.isEmpty() ? "Register creation failed" : errorMsg.c_str(), "registers");
+      // v1.0.2: Standardized error response with specific message
+      manager->sendError(ERR_CFG_SAVE_FAILED, errorMsg.isEmpty() ? "Register creation failed" : errorMsg.c_str(), "registers");
     }
   };
 
@@ -852,7 +859,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Device update failed", "device");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_SAVE_FAILED, "Device update failed", "device");
     }
   };
 
@@ -893,7 +901,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Register update failed", "registers");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_SAVE_FAILED, "Register update failed", "registers");
     }
   };
 
@@ -917,7 +926,8 @@ void CRUDHandler::setupCommandHandlers()
     }
     else
     {
-      manager->sendError("Server configuration update failed", "server_config");
+      // v1.0.2: Standardized error response
+      manager->sendError(ERR_CFG_SAVE_FAILED, "Server configuration update failed", "server_config");
     }
   };
 

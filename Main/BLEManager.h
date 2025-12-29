@@ -8,6 +8,7 @@
 #include <BLE2902.h>
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
+#include "UnifiedErrorCodes.h" // v1.0.2: For standardized error responses
 #include <freertos/task.h>
 #include <freertos/queue.h>
 #include <atomic> // v2.5.36: Thread-safe atomic operations
@@ -200,6 +201,11 @@ public:
   void sendResponse(const JsonDocument &data);
   void sendError(const String &message, const String &type = "unknown");
   void sendSuccess(const String &type = "unknown");
+
+  // v1.0.2: Standardized error responses with UnifiedErrorCode
+  // These methods include: error_code, domain, severity, message, suggestion
+  void sendError(UnifiedErrorCode code, const String &customMessage = "", const String &type = "");
+  void sendError(UnifiedErrorCode code, const char *customMessage, const char *type = nullptr);
 
   // v2.5.37: OTA Progress notification (push notifications during download)
   void sendOtaProgressNotification(uint8_t progress, size_t bytesDownloaded, size_t totalBytes,

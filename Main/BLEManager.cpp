@@ -2,7 +2,8 @@
 #include "BLEManager.h"
 #include "CRUDHandler.h"
 #include "QueueManager.h"
-#include "MemoryManager.h" // Include the new memory manager
+#include "MemoryManager.h"       // Include the new memory manager
+#include "ErrorResponseHelper.h" // v1.0.2: Standardized error responses
 #include <esp_heap_caps.h>
 #include <esp_bt.h> // For BT controller memory release
 #include <new>
@@ -634,6 +635,38 @@ void BLEManager::sendSuccess(const String &type)
   doc["message"] = "Success";
   doc["type"] = type.isEmpty() ? "unknown" : type;
   doc["config"] = JsonArray(); // Empty array for mobile app consistency
+  sendResponse(doc);
+}
+
+/**
+ * @brief Send standardized error response with UnifiedErrorCode (v1.0.2)
+ *
+ * Response Format:
+ * {
+ *   "status": "error",
+ *   "error_code": 301,
+ *   "domain": "MODBUS",
+ *   "severity": "ERROR",
+ *   "message": "Modbus device timeout",
+ *   "suggestion": "Check device power and serial connection",
+ *   "type": "modbus"
+ * }
+ *
+ * @param code UnifiedErrorCode from UnifiedErrorCodes.h
+ * @param customMessage Optional custom message (overrides default)
+ * @param type Optional type field for backward compatibility
+ */
+void BLEManager::sendError(UnifiedErrorCode code, const String &customMessage, const String &type)
+{
+  JsonDocument doc;
+  ErrorResponse::create(doc, code, customMessage, type);
+  sendResponse(doc);
+}
+
+void BLEManager::sendError(UnifiedErrorCode code, const char *customMessage, const char *type)
+{
+  JsonDocument doc;
+  ErrorResponse::create(doc, code, customMessage, type);
   sendResponse(doc);
 }
 

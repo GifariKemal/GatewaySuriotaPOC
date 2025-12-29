@@ -5,11 +5,18 @@ BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 2.5.34 (December 10, 2025)
+**Version:** 1.0.2 (December 28, 2025)
 **Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Last Updated:** December 28, 2025
 
-> **What's New in v2.5.34:**
+> **What's New in v1.0.2:**
+>
+> - ✅ **Standardized Error Responses** - All errors now include `error_code`, `domain`, `severity`, and `suggestion` fields
+> - ✅ **Numeric Error Codes** - 70+ error codes organized by domain (0-699) for programmatic handling
+> - ✅ **Mobile App Integration** - Easy error handling with consistent response format
+>
+> **Previous Release (v1.0.1):**
+>
 > - ✅ **Memory Safety Fix** - Fixed critical PSRAM allocator mismatch bugs
 > - ✅ **Network Failover Task** - Automatic reconnection and failover (v2.5.33)
 > - ✅ **Centralized Product Config** - All identity settings in `ProductConfig.h` (v2.5.32)
@@ -17,6 +24,7 @@ BLE CRUD API Documentation
 > - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full documentation
 >
 > **Previous Highlights:**
+>
 > - v2.5.31: Multi-gateway support, unique BLE names from MAC address
 > - v2.5.30: OTA buffer optimization (32KB for faster downloads)
 > - v2.5.11: Private GitHub repo OTA support
@@ -81,14 +89,14 @@ sequenceDiagram
 
 For detailed documentation on advanced BLE features, see:
 
-| Feature | Documentation | Description |
-|---------|---------------|-------------|
+| Feature              | Documentation                                      | Description                                                     |
+| -------------------- | -------------------------------------------------- | --------------------------------------------------------------- |
 | **Gateway Identity** | [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) | Multi-gateway support, unique BLE names, mobile app integration |
-| **Backup & Restore** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Complete configuration backup/restore system via BLE |
-| **Factory Reset** | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md) | One-command device reset to factory defaults |
-| **Device Control** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics tracking |
-| **OTA Update** | [BLE_OTA_API.md](BLE_OTA_API.md) | Over-the-air firmware update via BLE |
-| **Production Mode** | [BLE_PRODUCTION_MODE.md](BLE_PRODUCTION_MODE.md) | Switch between development and production mode |
+| **Backup & Restore** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md)     | Complete configuration backup/restore system via BLE            |
+| **Factory Reset**    | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md)       | One-command device reset to factory defaults                    |
+| **Device Control**   | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md)     | Enable/disable devices with health metrics tracking             |
+| **OTA Update**       | [BLE_OTA_API.md](BLE_OTA_API.md)                   | Over-the-air firmware update via BLE                            |
+| **Production Mode**  | [BLE_PRODUCTION_MODE.md](BLE_PRODUCTION_MODE.md)   | Switch between development and production mode                  |
 
 > **💡 New in v2.5.32:** BLE Name Format Changed to `MGate-1210(P)-XXXX` (POE variant) or `MGate-1210-XXXX` (Non-POE variant). Each gateway has a unique 4-character UID from MAC address. See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration guide.
 
@@ -104,7 +112,7 @@ All commands follow a consistent JSON structure:
   "type": "device|register|server|logging|data|status|metrics",
   "device_id": "string (optional)",
   "register_id": "string (optional)",
-  "config": { },
+  "config": {},
   "priority": "high|normal|low (optional)"
 }
 ```
@@ -113,8 +121,8 @@ All commands follow a consistent JSON structure:
 
 ### Common Fields
 
-| Field         | Type   | Required      | Description                            |
-| ------------- | ------ | ------------- | -------------------------------------- |
+| Field         | Type   | Required       | Description                            |
+| ------------- | ------ | -------------- | -------------------------------------- |
 | `op`          | string | ✅ Yes         | Operation type                         |
 | `type`        | string | ✅ Yes         | Resource type                          |
 | `device_id`   | string | ⚠️ Conditional | Required for device-specific ops       |
@@ -141,6 +149,7 @@ Commands can be prioritized for execution order:
 Create a new Modbus device configuration.
 
 **Request:**
+
 ```json
 {
   "op": "create",
@@ -165,32 +174,33 @@ Create a new Modbus device configuration.
 
 | Field             | Type    | Required | Default | Description                  |
 | ----------------- | ------- | -------- | ------- | ---------------------------- |
-| `device_name`     | string  | ✅ Yes    | -       | Device identifier            |
-| `protocol`        | string  | ✅ Yes    | -       | `"RTU"` or `"TCP"`           |
-| `slave_id`        | integer | ✅ Yes    | -       | Modbus slave address (1-247) |
-| `timeout`         | integer | ❌ No     | 3000    | Response timeout (ms)        |
-| `retry_count`     | integer | ❌ No     | 3       | Max retry attempts           |
-| `refresh_rate_ms` | integer | ❌ No     | 1000    | Polling interval (ms)        |
-| `serial_port`     | integer | ✅ Yes    | -       | `1` or `2` (for RTU)         |
-| `baud_rate`       | integer | ❌ No     | 9600    | Baudrate (1200-115200)       |
-| `data_bits`       | integer | ❌ No     | 8       | Data bits (7 or 8)           |
-| `stop_bits`       | integer | ❌ No     | 1       | Stop bits (1 or 2)           |
-| `parity`          | string  | ❌ No     | "None"  | `"None"`, `"Even"`, `"Odd"`  |
+| `device_name`     | string  | ✅ Yes   | -       | Device identifier            |
+| `protocol`        | string  | ✅ Yes   | -       | `"RTU"` or `"TCP"`           |
+| `slave_id`        | integer | ✅ Yes   | -       | Modbus slave address (1-247) |
+| `timeout`         | integer | ❌ No    | 3000    | Response timeout (ms)        |
+| `retry_count`     | integer | ❌ No    | 3       | Max retry attempts           |
+| `refresh_rate_ms` | integer | ❌ No    | 1000    | Polling interval (ms)        |
+| `serial_port`     | integer | ✅ Yes   | -       | `1` or `2` (for RTU)         |
+| `baud_rate`       | integer | ❌ No    | 9600    | Baudrate (1200-115200)       |
+| `data_bits`       | integer | ❌ No    | 8       | Data bits (7 or 8)           |
+| `stop_bits`       | integer | ❌ No    | 1       | Stop bits (1 or 2)           |
+| `parity`          | string  | ❌ No    | "None"  | `"None"`, `"Even"`, `"Odd"`  |
 
 **Config Fields (TCP):**
 
 | Field             | Type    | Required | Default | Description                      |
 | ----------------- | ------- | -------- | ------- | -------------------------------- |
-| `device_name`     | string  | ✅ Yes    | -       | Device identifier                |
-| `protocol`        | string  | ✅ Yes    | -       | `"TCP"`                          |
-| `slave_id`        | integer | ✅ Yes    | -       | Modbus unit ID (1-247)           |
-| `ip_address`      | string  | ✅ Yes    | -       | Device IP (e.g., "192.168.1.10") |
-| `port`            | integer | ❌ No     | 502     | Modbus TCP port                  |
-| `timeout`         | integer | ❌ No     | 3000    | Response timeout (ms)            |
-| `retry_count`     | integer | ❌ No     | 3       | Max retry attempts               |
-| `refresh_rate_ms` | integer | ❌ No     | 1000    | Polling interval (ms)            |
+| `device_name`     | string  | ✅ Yes   | -       | Device identifier                |
+| `protocol`        | string  | ✅ Yes   | -       | `"TCP"`                          |
+| `slave_id`        | integer | ✅ Yes   | -       | Modbus unit ID (1-247)           |
+| `ip_address`      | string  | ✅ Yes   | -       | Device IP (e.g., "192.168.1.10") |
+| `port`            | integer | ❌ No    | 502     | Modbus TCP port                  |
+| `timeout`         | integer | ❌ No    | 3000    | Response timeout (ms)            |
+| `retry_count`     | integer | ❌ No    | 3       | Max retry attempts               |
+| `refresh_rate_ms` | integer | ❌ No    | 1000    | Polling interval (ms)            |
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -214,11 +224,13 @@ Create a new Modbus device configuration.
 ```
 
 **Benefits:**
+
 - ✅ No need for additional `read device` API call
 - ✅ Immediate UI update with created device data
 - ✅ Validate that device was created with correct config
 
 **Error Response:**
+
 ```json
 {
   "status": "error",
@@ -234,6 +246,7 @@ Create a new Modbus device configuration.
 Retrieve a device configuration.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -243,6 +256,7 @@ Retrieve a device configuration.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -270,6 +284,7 @@ Retrieve a device configuration.
 Get a list of all configured devices with full details.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -278,6 +293,7 @@ Get a list of all configured devices with full details.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -309,6 +325,7 @@ Get a list of all configured devices with full details.
 Get a compact summary of all devices (minimal fields).
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -317,6 +334,7 @@ Get a compact summary of all devices (minimal fields).
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -348,6 +366,7 @@ Get a compact summary of all devices (minimal fields).
 **Use Case:** Perfect for hierarchical UI (Device → Registers selection) in MQTT Customize Mode.
 
 **Request (Full Details):**
+
 ```json
 {
   "op": "read",
@@ -356,27 +375,29 @@ Get a compact summary of all devices (minimal fields).
 ```
 
 **Request (Minimal - Optimized for large datasets):**
+
 ```json
-    {
-      "op": "read",
-      "type": "devices_with_registers",
-      "minimal": true
-    }
+{
+  "op": "read",
+  "type": "devices_with_registers",
+  "minimal": true
+}
 ```
 
 **Parameters:**
 
-| Field     | Type    | Required | Default | Description                                                                        |
-| --------- | ------- | -------- | ------- | ---------------------------------------------------------------------------------- |
+| Field     | Type    | Required | Default | Description                                                                         |
+| --------- | ------- | -------- | ------- | ----------------------------------------------------------------------------------- |
 | `minimal` | boolean | No       | `false` | If `true`, returns only `register_id` and `register_name` (⚡ ~70% smaller payload) |
-| `page`    | integer | No       | -       | Page number (0-indexed). If provided, enables pagination (v2.5.12+)                |
-| `limit`   | integer | No       | `10`    | Items per page (default 10 when `page` is specified) (v2.5.12+)                    |
+| `page`    | integer | No       | -       | Page number (0-indexed). If provided, enables pagination (v2.5.12+)                 |
+| `limit`   | integer | No       | `10`    | Items per page (default 10 when `page` is specified) (v2.5.12+)                     |
 
 #### 📄 Pagination Support (v2.5.12+)
 
 For large device configurations (e.g., 70 devices × 70 registers), use pagination to reduce payload size and improve BLE reliability.
 
 **Request (Paginated):**
+
 ```json
 {
   "op": "read",
@@ -388,6 +409,7 @@ For large device configurations (e.g., 70 devices × 70 registers), use paginati
 ```
 
 **Response (Paginated):**
+
 ```json
 {
   "status": "ok",
@@ -407,15 +429,16 @@ For large device configurations (e.g., 70 devices × 70 registers), use paginati
 
 **Pagination Response Fields:**
 
-| Field         | Type    | Description                                |
-| ------------- | ------- | ------------------------------------------ |
-| `total_count` | integer | Total devices in database                  |
-| `page`        | integer | Current page number (echo of request)      |
-| `limit`       | integer | Items per page (echo of request)           |
-| `total_pages` | integer | Total number of pages                      |
-| `devices`     | array   | Array of devices for current page ONLY     |
+| Field         | Type    | Description                            |
+| ------------- | ------- | -------------------------------------- |
+| `total_count` | integer | Total devices in database              |
+| `page`        | integer | Current page number (echo of request)  |
+| `limit`       | integer | Items per page (echo of request)       |
+| `total_pages` | integer | Total number of pages                  |
+| `devices`     | array   | Array of devices for current page ONLY |
 
 **Pagination Example (70 devices, 5 per page = 14 pages):**
+
 ```
 Page 0:  {"page": 0, "limit": 5}  → devices 0-4
 Page 1:  {"page": 1, "limit": 5}  → devices 5-9
@@ -427,17 +450,19 @@ Page 14: {"page": 14, "limit": 5} → devices [] (empty, beyond data)
 
 **Edge Cases:**
 
-| Case | Request | Response |
-|------|---------|----------|
-| Page beyond data | `{"page": 100, "limit": 5}` | `{"devices": [], "total_count": 70, ...}` (empty array, not error) |
-| Last page partial | `{"page": 13, "limit": 5}` with 70 devices | Returns 5 devices (65-69) |
-| No pagination | `{"type": "devices_with_registers"}` | Returns ALL devices, no pagination fields |
+| Case              | Request                                    | Response                                                           |
+| ----------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| Page beyond data  | `{"page": 100, "limit": 5}`                | `{"devices": [], "total_count": 70, ...}` (empty array, not error) |
+| Last page partial | `{"page": 13, "limit": 5}` with 70 devices | Returns 5 devices (65-69)                                          |
+| No pagination     | `{"type": "devices_with_registers"}`       | Returns ALL devices, no pagination fields                          |
 
 **Backward Compatibility:**
+
 - Request WITHOUT `page`/`limit` → Returns ALL devices (no pagination fields)
 - Request WITH `page`/`limit` → Returns paginated response with metadata
 
 **Response (Full Details - `minimal=false`):**
+
 ```json
 {
   "status": "ok",
@@ -517,6 +542,7 @@ Page 14: {"page": 14, "limit": 5} → devices [] (empty, beyond data)
 ```
 
 **Response (Minimal - `minimal=true`):**
+
 ```json
 {
   "status": "ok",
@@ -557,18 +583,20 @@ Page 14: {"page": 14, "limit": 5} → devices [] (empty, beyond data)
 
 | Mode             | Payload Size | Fields per Register | BLE Packets (~512 bytes) | Transmission Time |
 | ---------------- | ------------ | ------------------- | ------------------------ | ----------------- |
-| **Full Details** | ~21KB        | 10 fields           | ~41 packets              | ~4 seconds ⚠️      |
-| **Minimal**      | ~6KB ✅       | 2 fields            | ~12 packets              | ~1.2 seconds ✅    |
+| **Full Details** | ~21KB        | 10 fields           | ~41 packets              | ~4 seconds ⚠️     |
+| **Minimal**      | ~6KB ✅      | 2 fields            | ~12 packets              | ~1.2 seconds ✅   |
 
 **Savings:** ~71% smaller payload, 3.3x faster transmission!
 
 **Benefits:**
+
 - ✅ **Single API call** instead of N+1 queries (1 for devices + N for each device's registers)
 - ✅ **Performance:** Reduces BLE transmission overhead significantly
 - ✅ **Perfect for UI:** Directly usable for hierarchical Device → Registers selection widget
 - ✅ **MQTT Customize Mode:** Get all data needed for register selection in one shot
 
 **Typical Usage:**
+
 ```javascript
 // Mobile App - MQTT Customize Mode Setup
 async function loadDevicesForMqttConfig() {
@@ -576,16 +604,16 @@ async function loadDevicesForMqttConfig() {
   const response = await ble.sendCommand({
     op: "read",
     type: "devices_with_registers",
-    minimal: true  // ⚡ 71% smaller payload for 100 registers
+    minimal: true, // ⚡ 71% smaller payload for 100 registers
   });
 
   // Response contains everything needed for UI
   const devices = response.devices;
 
   // Render hierarchical selection
-  devices.forEach(device => {
+  devices.forEach((device) => {
     renderDeviceCard(device.device_id, device.device_name);
-    device.registers.forEach(reg => {
+    device.registers.forEach((reg) => {
       // Only register_id and register_name available in minimal mode
       renderRegisterCheckbox(reg.register_id, reg.register_name);
     });
@@ -594,6 +622,7 @@ async function loadDevicesForMqttConfig() {
 ```
 
 **Recommendation:**
+
 - ✅ Use `minimal=true` for **MQTT Customize Mode** (only needs `register_id` and `register_name`)
 - ✅ Use `minimal=false` for **detailed register view** (needs all fields like address, data_type, unit, etc.)
 
@@ -604,6 +633,7 @@ async function loadDevicesForMqttConfig() {
 Modify an existing device configuration.
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -618,11 +648,13 @@ Modify an existing device configuration.
 ```
 
 **Notes:**
+
 - Only include fields you want to change
 - Dynamic baudrate switching supported (1200-115200)
 - Works for both RTU and TCP devices
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -647,6 +679,7 @@ Modify an existing device configuration.
 ```
 
 **Benefits:**
+
 - ✅ Returns full updated device state
 - ✅ Verify configuration changes applied correctly
 - ✅ No need for additional `read device` call
@@ -658,6 +691,7 @@ Modify an existing device configuration.
 Remove a device and all its registers.
 
 **Request:**
+
 ```json
 {
   "op": "delete",
@@ -667,6 +701,7 @@ Remove a device and all its registers.
 ```
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -688,6 +723,7 @@ Remove a device and all its registers.
 ```
 
 **Benefits:**
+
 - ✅ Returns device data before deletion
 - ✅ Useful for confirmation dialogs
 - ✅ Enables undo functionality
@@ -704,6 +740,7 @@ Remove a device and all its registers.
 Add a new register to an existing device.
 
 **Request:**
+
 ```json
 {
   "op": "create",
@@ -726,14 +763,14 @@ Add a new register to an existing device.
 
 | Field             | Type    | Required | Default  | Description                                    |
 | ----------------- | ------- | -------- | -------- | ---------------------------------------------- |
-| `register_name`   | string  | ✅ Yes    | -        | Register identifier                            |
-| `address`         | integer | ✅ Yes    | -        | Modbus address (0-65535)                       |
-| `function_code`   | string  | ✅ Yes    | -        | `"holding"`, `"input"`, `"coil"`, `"discrete"` |
-| `data_type`       | string  | ✅ Yes    | -        | See [Data Types](#supported-data-types)        |
-| `scale`           | float   | ❌ No     | 1.0      | Multiplier for raw value                       |
-| `offset`          | float   | ❌ No     | 0.0      | Offset added after scaling                     |
-| `unit`            | string  | ❌ No     | ""       | Measurement unit                               |
-| `refresh_rate_ms` | integer | ❌ No     | (device) | Override device refresh rate                   |
+| `register_name`   | string  | ✅ Yes   | -        | Register identifier                            |
+| `address`         | integer | ✅ Yes   | -        | Modbus address (0-65535)                       |
+| `function_code`   | string  | ✅ Yes   | -        | `"holding"`, `"input"`, `"coil"`, `"discrete"` |
+| `data_type`       | string  | ✅ Yes   | -        | See [Data Types](#supported-data-types)        |
+| `scale`           | float   | ❌ No    | 1.0      | Multiplier for raw value                       |
+| `offset`          | float   | ❌ No    | 0.0      | Offset added after scaling                     |
+| `unit`            | string  | ❌ No    | ""       | Measurement unit                               |
+| `refresh_rate_ms` | integer | ❌ No    | (device) | Override device refresh rate                   |
 
 **Supported Data Types:**
 
@@ -749,6 +786,7 @@ Add a new register to an existing device.
 <summary>32-bit Types (2 Registers)</summary>
 
 **Integers:**
+
 - `INT32_BE` - Big-endian signed (ABCD)
 - `INT32_LE` - Little-endian signed (DCBA)
 - `INT32_BE_BS` - Big-endian with byte swap (BADC)
@@ -759,6 +797,7 @@ Add a new register to an existing device.
 - `UINT32_LE_BS` - Little-endian with word swap (CDAB)
 
 **Floats:**
+
 - `FLOAT32_BE` - Big-endian IEEE 754 (ABCD)
 - `FLOAT32_LE` - Little-endian IEEE 754 (DCBA)
 - `FLOAT32_BE_BS` - Big-endian with byte swap (BADC)
@@ -769,6 +808,7 @@ Add a new register to an existing device.
 <summary>64-bit Types (4 Registers)</summary>
 
 **Integers:**
+
 - `INT64_BE` - Big-endian signed (ABCDEFGH)
 - `INT64_LE` - Little-endian signed (HGFEDCBA)
 - `INT64_BE_BS` - Big-endian with byte swap (BADCFEHG)
@@ -779,6 +819,7 @@ Add a new register to an existing device.
 - `UINT64_LE_BS` - Little-endian with word swap (CDABGHEF)
 
 **Doubles:**
+
 - `DOUBLE64_BE` - Big-endian IEEE 754 (ABCDEFGH)
 - `DOUBLE64_LE` - Little-endian IEEE 754 (HGFEDCBA)
 - `DOUBLE64_BE_BS` - Big-endian with byte swap (BADCFEHG)
@@ -786,6 +827,7 @@ Add a new register to an existing device.
 </details>
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -807,6 +849,7 @@ Add a new register to an existing device.
 ```
 
 **Benefits:**
+
 - ✅ Returns full created register configuration
 - ✅ No need for additional `read register` call
 - ✅ Immediate UI update
@@ -818,6 +861,7 @@ Add a new register to an existing device.
 Retrieve a register configuration.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -828,6 +872,7 @@ Retrieve a register configuration.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -852,6 +897,7 @@ Retrieve a register configuration.
 Get all registers for a device.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -861,6 +907,7 @@ Get all registers for a device.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -890,6 +937,7 @@ Get all registers for a device.
 Get a compact summary of device registers.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -899,6 +947,7 @@ Get a compact summary of device registers.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -922,6 +971,7 @@ Get a compact summary of device registers.
 Modify an existing register configuration.
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -937,6 +987,7 @@ Modify an existing register configuration.
 ```
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -959,6 +1010,7 @@ Modify an existing register configuration.
 ```
 
 **Benefits:**
+
 - ✅ Returns full updated register state
 - ✅ Verify calibration changes applied
 - ✅ No additional API call needed
@@ -970,6 +1022,7 @@ Modify an existing register configuration.
 Remove a register from a device.
 
 **Request:**
+
 ```json
 {
   "op": "delete",
@@ -980,6 +1033,7 @@ Remove a register from a device.
 ```
 
 **Response (v2.1.1+):**
+
 ```json
 {
   "status": "ok",
@@ -1002,6 +1056,7 @@ Remove a register from a device.
 ```
 
 **Benefits:**
+
 - ✅ Returns register data before deletion
 - ✅ Useful for undo functionality
 - ✅ Audit trail of deleted configuration
@@ -1015,6 +1070,7 @@ Remove a register from a device.
 Get the current server and network configuration.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1023,6 +1079,7 @@ Get the current server and network configuration.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1088,6 +1145,7 @@ Modify server and network settings, including MQTT publish modes.
 #### Example 1: Update MQTT Default Mode
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -1112,6 +1170,7 @@ Modify server and network settings, including MQTT publish modes.
 #### Example 2: Update MQTT Customize Mode
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -1147,6 +1206,7 @@ Modify server and network settings, including MQTT publish modes.
 #### Example 3: Update HTTP Configuration (v2.2.0+)
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -1172,11 +1232,13 @@ Modify server and network settings, including MQTT publish modes.
 ```
 
 **What's New in v2.2.0:**
+
 - ✅ `http_config.interval` - HTTP transmission interval (moved from root-level `data_interval`)
 - ✅ `http_config.interval_unit` - Interval unit: `"ms"`, `"s"`, or `"m"`
 - ❌ ~~`data_interval`~~ - **REMOVED** (breaking change from v2.1.1)
 
 **Migration from v2.1.1:**
+
 ```json
 // OLD (v2.1.1 - no longer supported):
 {
@@ -1203,20 +1265,21 @@ Modify server and network settings, including MQTT publish modes.
 
 **Key Fields:**
 
-| Field           | Type   | Description                                      |
-| --------------- | ------ | ------------------------------------------------ |
-| `mqtt_config.*` | object | MQTT configuration (see MQTT_PUBLISH_MODES.md)   |
-| `http_config.*` | object | HTTP-specific settings (v2.2.0: includes interval) |
-| `communication.*` | object | Communication mode (WiFi/Ethernet)             |
-| `wifi.*`        | object | WiFi settings                                    |
-| `ethernet.*`    | object | Ethernet settings                                |
-| `protocol`      | string | `"mqtt"` or `"http"`                             |
-| `publish_mode`  | string | `"default"` or `"customize"` (MQTT only)         |
-| `registers`     | array  | Array of register_id (String) for customize mode |
-| `interval`      | int    | Publish/transmission interval value              |
-| `interval_unit` | string | `"ms"`, `"s"`, or `"m"`                          |
+| Field             | Type   | Description                                        |
+| ----------------- | ------ | -------------------------------------------------- |
+| `mqtt_config.*`   | object | MQTT configuration (see MQTT_PUBLISH_MODES.md)     |
+| `http_config.*`   | object | HTTP-specific settings (v2.2.0: includes interval) |
+| `communication.*` | object | Communication mode (WiFi/Ethernet)                 |
+| `wifi.*`          | object | WiFi settings                                      |
+| `ethernet.*`      | object | Ethernet settings                                  |
+| `protocol`        | string | `"mqtt"` or `"http"`                               |
+| `publish_mode`    | string | `"default"` or `"customize"` (MQTT only)           |
+| `registers`       | array  | Array of register_id (String) for customize mode   |
+| `interval`        | int    | Publish/transmission interval value                |
+| `interval_unit`   | string | `"ms"`, `"s"`, or `"m"`                            |
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1225,7 +1288,8 @@ Modify server and network settings, including MQTT publish modes.
 ```
 
 **Notes:**
-- ⚠️  **Device ALWAYS restarts** 5 seconds after server_config update
+
+- ⚠️ **Device ALWAYS restarts** 5 seconds after server_config update
 - **IMPORTANT:** `registers` field uses `register_id` (String), not `register_index` (int)
 - **v2.2.0 Breaking Change:** `data_interval` removed from root level, HTTP now uses `http_config.interval`
 - MQTT intervals are mode-specific (`default_mode.interval` or `customize_mode.custom_topics[].interval`)
@@ -1238,6 +1302,7 @@ Modify server and network settings, including MQTT publish modes.
 Get the current logging settings.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1246,6 +1311,7 @@ Get the current logging settings.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1266,6 +1332,7 @@ Get the current logging settings.
 Modify logging settings.
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -1278,6 +1345,7 @@ Modify logging settings.
 ```
 
 **Log Levels:**
+
 - `ERROR` - Errors only
 - `WARN` - Warnings and errors
 - `INFO` - Informational messages (default)
@@ -1285,6 +1353,7 @@ Modify logging settings.
 - `TRACE` - All logs including verbose output
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1301,6 +1370,7 @@ Modify logging settings.
 Begin real-time data streaming for a specific device.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1310,6 +1380,7 @@ Begin real-time data streaming for a specific device.
 ```
 
 **Response (initial):**
+
 ```json
 {
   "status": "ok",
@@ -1318,6 +1389,7 @@ Begin real-time data streaming for a specific device.
 ```
 
 **Data Notifications (continuous):**
+
 ```json
 {
   "status": "data",
@@ -1334,6 +1406,7 @@ Begin real-time data streaming for a specific device.
 ```
 
 **Flow:**
+
 ```mermaid
 sequenceDiagram
     participant App
@@ -1360,6 +1433,7 @@ sequenceDiagram
 Stop data streaming.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1369,6 +1443,7 @@ Stop data streaming.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1377,6 +1452,7 @@ Stop data streaming.
 ```
 
 **Race Condition Prevention:**
+
 1. Set `streamingActive` flag to false
 2. Clear stream queue
 3. Wait for in-flight transmissions to complete (max 10s)
@@ -1393,6 +1469,7 @@ Execute multiple commands in a single transaction.
 Commands executed in order, continues on failure.
 
 **Request:**
+
 ```json
 {
   "op": "batch",
@@ -1424,6 +1501,7 @@ Commands executed in order, continues on failure.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1441,6 +1519,7 @@ Commands executed in order, continues on failure.
 All-or-nothing transaction. If any command fails, all changes are rolled back.
 
 **Request:**
+
 ```json
 {
   "op": "batch",
@@ -1468,6 +1547,7 @@ All-or-nothing transaction. If any command fails, all changes are rolled back.
 ```
 
 **Response (success):**
+
 ```json
 {
   "status": "ok",
@@ -1478,6 +1558,7 @@ All-or-nothing transaction. If any command fails, all changes are rolled back.
 ```
 
 **Response (failure):**
+
 ```json
 {
   "status": "error",
@@ -1492,8 +1573,8 @@ All-or-nothing transaction. If any command fails, all changes are rolled back.
 
 | Mode           | Rollback | Continue on Failure | Use Case                                |
 | -------------- | -------- | ------------------- | --------------------------------------- |
-| **sequential** | ❌ No     | ✅ Yes               | Bulk operations, partial success OK     |
-| **atomic**     | ✅ Yes    | ❌ No                | Critical config changes, all-or-nothing |
+| **sequential** | ❌ No    | ✅ Yes              | Bulk operations, partial success OK     |
+| **atomic**     | ✅ Yes   | ❌ No               | Critical config changes, all-or-nothing |
 
 ---
 
@@ -1506,6 +1587,7 @@ All-or-nothing transaction. If any command fails, all changes are rolled back.
 Retrieve system health and metrics.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1514,6 +1596,7 @@ Retrieve system health and metrics.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1552,6 +1635,7 @@ Retrieve system health and metrics.
 Retrieve BLE transmission metrics.
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -1560,6 +1644,7 @@ Retrieve BLE transmission metrics.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -1581,13 +1666,14 @@ Retrieve BLE transmission metrics.
 
 For advanced configuration management and device control, see the specialized documentation:
 
-| Operation Type | Documentation | Description |
-|----------------|---------------|-------------|
-| **`op: "system"`** | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Backup/restore complete configuration (up to 200KB) |
-| **`op: "system"`** | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md) | Factory reset device to defaults |
-| **`op: "control"`** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics |
+| Operation Type      | Documentation                                  | Description                                         |
+| ------------------- | ---------------------------------------------- | --------------------------------------------------- |
+| **`op: "system"`**  | [BLE_BACKUP_RESTORE.md](BLE_BACKUP_RESTORE.md) | Backup/restore complete configuration (up to 200KB) |
+| **`op: "system"`**  | [BLE_FACTORY_RESET.md](BLE_FACTORY_RESET.md)   | Factory reset device to defaults                    |
+| **`op: "control"`** | [BLE_DEVICE_CONTROL.md](BLE_DEVICE_CONTROL.md) | Enable/disable devices with health metrics          |
 
 **Example Operations:**
+
 - **Backup Configuration**: `{"op":"system","type":"backup_config"}`
 - **Restore Configuration**: `{"op":"system","type":"restore_config","config":{...}}`
 - **Factory Reset**: `{"op":"system","type":"factory_reset"}`
@@ -1608,11 +1694,12 @@ Standard success response structure:
 {
   "status": "ok",
   "message": "Operation completed successfully",
-  "data": { }
+  "data": {}
 }
 ```
 
 **Fields:**
+
 - `status`: Always `"ok"` for success
 - `message`: Human-readable success message (optional)
 - `data`: Response payload (varies by operation)
@@ -1621,40 +1708,137 @@ Standard success response structure:
 
 ### Error Response
 
+> **v1.0.2 Update:** Error responses now include numeric `error_code`, `domain`, `severity`, and optional `suggestion` fields for programmatic error handling by mobile apps.
+
 Standard error response structure:
 
 ```json
 {
   "status": "error",
-  "code": "ERR_DEVICE_NOT_FOUND",
-  "message": "Device not found",
-  "details": { }
+  "error_code": 501,
+  "domain": "CONFIG",
+  "severity": "ERROR",
+  "message": "Config file not found",
+  "suggestion": "Create new configuration",
+  "type": "device"
 }
 ```
 
 **Fields:**
-- `status`: Always `"error"` for failures
-- `code`: Error code identifier
-- `message`: Human-readable error description
-- `details`: Additional error context (optional)
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `status` | string | ✅ Yes | Always `"error"` for failures |
+| `error_code` | integer | ✅ Yes | Numeric error code (see table below) |
+| `domain` | string | ✅ Yes | Error domain: `NETWORK`, `MQTT`, `BLE`, `MODBUS`, `MEMORY`, `CONFIG`, `SYSTEM` |
+| `severity` | string | ✅ Yes | Severity level: `INFO`, `WARN`, `ERR`, `CRIT` |
+| `message` | string | ✅ Yes | Human-readable error description |
+| `suggestion` | string | ❌ No | Recovery suggestion (when available) |
+| `type` | string | ❌ No | Error type for backward compatibility |
 
 ---
 
 ## ⚠️ Error Codes
 
-| Code                     | HTTP Equiv | Description               |
-| ------------------------ | ---------- | ------------------------- |
-| `ERR_INVALID_JSON`       | 400        | Malformed JSON command    |
-| `ERR_MISSING_FIELD`      | 400        | Required field missing    |
-| `ERR_INVALID_OP`         | 400        | Unsupported operation     |
-| `ERR_INVALID_TYPE`       | 400        | Unsupported resource type |
-| `ERR_DEVICE_NOT_FOUND`   | 404        | Device ID doesn't exist   |
-| `ERR_REGISTER_NOT_FOUND` | 404        | Register ID doesn't exist |
-| `ERR_CONFIG_SAVE_FAILED` | 500        | SPIFFS write error        |
-| `ERR_CONFIG_LOAD_FAILED` | 500        | SPIFFS read error         |
-| `ERR_TIMEOUT`            | 504        | Operation timeout         |
-| `ERR_MEMORY_ALLOCATION`  | 500        | Out of memory             |
-| `ERR_BATCH_FAILED`       | 500        | Batch operation failed    |
+Error codes are organized by domain with numeric ranges:
+
+### Error Code Ranges
+
+| Domain  | Range   | Description                |
+| ------- | ------- | -------------------------- |
+| NETWORK | 0-99    | WiFi/Ethernet connectivity |
+| MQTT    | 100-199 | MQTT broker communication  |
+| BLE     | 200-299 | Bluetooth Low Energy       |
+| MODBUS  | 300-399 | Modbus RTU/TCP devices     |
+| MEMORY  | 400-499 | Memory/PSRAM allocation    |
+| CONFIG  | 500-599 | Configuration/Storage      |
+| SYSTEM  | 600-699 | System health              |
+
+### Common Error Codes
+
+#### Network Errors (0-99)
+
+| Code | Name                              | Description                 | Suggestion                        |
+| ---- | --------------------------------- | --------------------------- | --------------------------------- |
+| 0    | `ERR_NET_SUCCESS`                 | Network OK                  | -                                 |
+| 1    | `ERR_NET_NO_WIFI_AP`              | WiFi AP not found           | Check WiFi SSID and availability  |
+| 2    | `ERR_NET_WIFI_AUTH_FAILED`        | WiFi authentication failed  | Verify WiFi password              |
+| 3    | `ERR_NET_WIFI_CONNECTION_TIMEOUT` | WiFi connection timeout     | Move closer to AP or check signal |
+| 5    | `ERR_NET_ETHERNET_CABLE_DOWN`     | Ethernet cable disconnected | Check Ethernet connection         |
+| 7    | `ERR_NET_NO_NETWORK_AVAILABLE`    | No network available        | Connect to WiFi or Ethernet       |
+| 8    | `ERR_NET_DNS_RESOLUTION_FAILED`   | DNS resolution failed       | Check DNS settings or internet    |
+
+#### MQTT Errors (100-199)
+
+| Code | Name                             | Description          | Suggestion                |
+| ---- | -------------------------------- | -------------------- | ------------------------- |
+| 100  | `ERR_MQTT_SUCCESS`               | MQTT OK              | -                         |
+| 101  | `ERR_MQTT_BROKER_UNREACHABLE`    | Broker not reachable | Check broker connectivity |
+| 102  | `ERR_MQTT_CONNECTION_FAILED`     | Connection failed    | Check broker address/port |
+| 103  | `ERR_MQTT_AUTHENTICATION_FAILED` | Auth failed          | Verify MQTT credentials   |
+| 109  | `ERR_MQTT_QUEUE_FULL`            | Queue full           | Wait for queue to drain   |
+
+#### Modbus Errors (300-399)
+
+| Code | Name                          | Description             | Suggestion                               |
+| ---- | ----------------------------- | ----------------------- | ---------------------------------------- |
+| 300  | `ERR_MODBUS_SUCCESS`          | Modbus OK               | -                                        |
+| 301  | `ERR_MODBUS_DEVICE_TIMEOUT`   | Device no response      | Check device power and serial connection |
+| 302  | `ERR_MODBUS_CRC_ERROR`        | CRC check failed        | Check serial connection quality          |
+| 303  | `ERR_MODBUS_INVALID_RESPONSE` | Invalid response format | Check device compatibility               |
+| 311  | `ERR_MODBUS_DEVICE_DISABLED`  | Device disabled/backoff | Wait for backoff period                  |
+
+#### Config Errors (500-599)
+
+| Code | Name                     | Description            | Suggestion               |
+| ---- | ------------------------ | ---------------------- | ------------------------ |
+| 500  | `ERR_CFG_SUCCESS`        | Config OK              | -                        |
+| 501  | `ERR_CFG_FILE_NOT_FOUND` | Config file not found  | Create new configuration |
+| 502  | `ERR_CFG_FILE_CORRUPTED` | Config file corrupted  | Restore from backup      |
+| 503  | `ERR_CFG_INVALID_JSON`   | Invalid JSON in config | Check JSON syntax        |
+| 504  | `ERR_CFG_SAVE_FAILED`    | Config save failed     | Check storage space      |
+| 505  | `ERR_CFG_LOAD_FAILED`    | Config load failed     | Restore from backup      |
+
+#### Memory Errors (400-499)
+
+| Code | Name                           | Description               | Suggestion                         |
+| ---- | ------------------------------ | ------------------------- | ---------------------------------- |
+| 400  | `ERR_MEM_SUCCESS`              | Memory OK                 | -                                  |
+| 401  | `ERR_MEM_ALLOCATION_FAILED`    | Memory allocation failed  | Restart gateway or reduce features |
+| 402  | `ERR_MEM_FRAGMENTATION_HIGH`   | Memory fragmentation high | Restart gateway                    |
+| 404  | `ERR_MEM_UTILIZATION_CRITICAL` | Memory critical           | Immediately reduce memory usage    |
+
+### Mobile App Error Handling Example
+
+```javascript
+// Parse standardized error response
+function handleError(response) {
+  if (response.status === "error") {
+    const errorCode = response.error_code;
+    const domain = response.domain;
+    const severity = response.severity;
+
+    // Programmatic handling by error code
+    switch (errorCode) {
+      case 7: // ERR_NET_NO_NETWORK_AVAILABLE
+        showNetworkError(response.suggestion);
+        break;
+      case 301: // ERR_MODBUS_DEVICE_TIMEOUT
+        showDeviceOfflineWarning(response.message);
+        break;
+      case 504: // ERR_CFG_SAVE_FAILED
+        showSaveError(response.message);
+        break;
+      default:
+        showGenericError(response.message);
+    }
+
+    // UI styling based on severity
+    if (severity === "CRIT") {
+      showCriticalAlert(response.message);
+    }
+  }
+}
+```
 
 ---
 
@@ -1667,15 +1851,15 @@ Standard error response structure:
 
 ```javascript
 // BLE Service UUIDs
-const SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
-const COMMAND_CHAR_UUID = '12345678-1234-1234-1234-123456789abd';
-const RESPONSE_CHAR_UUID = '12345678-1234-1234-1234-123456789abe';
+const SERVICE_UUID = "12345678-1234-1234-1234-123456789abc";
+const COMMAND_CHAR_UUID = "12345678-1234-1234-1234-123456789abd";
+const RESPONSE_CHAR_UUID = "12345678-1234-1234-1234-123456789abe";
 
 // Connect to gateway
 async function connectToGateway() {
   const device = await navigator.bluetooth.requestDevice({
-    filters: [{ namePrefix: 'MGate-1210' }],  // v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
-    optionalServices: [SERVICE_UUID]
+    filters: [{ namePrefix: "MGate-1210" }], // v2.5.32+: MGate-1210(P)-XXXX or MGate-1210-XXXX
+    optionalServices: [SERVICE_UUID],
   });
 
   const server = await device.gatt.connect();
@@ -1686,7 +1870,7 @@ async function connectToGateway() {
 
   // Listen for responses
   await responseChar.startNotifications();
-  responseChar.addEventListener('characteristicvaluechanged', handleResponse);
+  responseChar.addEventListener("characteristicvaluechanged", handleResponse);
 
   return { commandChar, responseChar };
 }
@@ -1717,10 +1901,10 @@ function handleResponse(event) {
     responseBuffer[fragNum] = payload;
 
     // Check if complete
-    if (responseBuffer.filter(x => x).length === totalFrags) {
-      const completeJson = responseBuffer.join('');
+    if (responseBuffer.filter((x) => x).length === totalFrags) {
+      const completeJson = responseBuffer.join("");
       const response = JSON.parse(completeJson);
-      console.log('Response:', response);
+      console.log("Response:", response);
       responseBuffer = [];
     }
   }
@@ -1729,15 +1913,15 @@ function handleResponse(event) {
 // Example: Create device
 const { commandChar } = await connectToGateway();
 await sendCommand(commandChar, {
-  op: 'create',
-  type: 'device',
+  op: "create",
+  type: "device",
   config: {
-    device_name: 'Temperature Sensor',
-    protocol: 'RTU',
+    device_name: "Temperature Sensor",
+    protocol: "RTU",
     slave_id: 1,
     serial_port: 1,
-    baud_rate: 9600
-  }
+    baud_rate: 9600,
+  },
 });
 ```
 
@@ -1946,11 +2130,13 @@ class SuriotaGateway {
 ## Related Documentation
 
 ### Advanced BLE Features
+
 - **[Backup & Restore System](BLE_BACKUP_RESTORE.md)** - Complete configuration backup/restore via BLE
 - **[Factory Reset](BLE_FACTORY_RESET.md)** - One-command device reset to factory defaults
 - **[Device Control](BLE_DEVICE_CONTROL.md)** - Enable/disable devices with health metrics
 
 ### Technical Guides
+
 - [Hardware Specifications](../Technical_Guides/HARDWARE.md) - GPIO pinout and electrical specs
 - [Protocol Documentation](../Technical_Guides/PROTOCOL.md) - BLE and Modbus protocol details
 - [MQTT Publish Modes](../Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT publish modes (Default & Customize)
@@ -1958,6 +2144,7 @@ class SuriotaGateway {
 - [Troubleshooting Guide](../Technical_Guides/TROUBLESHOOTING.md) - Common issues and solutions
 
 ### Getting Started
+
 - [Best Practices](../BEST_PRACTICES.md) - Production deployment guidelines
 - [Quick Start Guide](../QUICKSTART.md) - Get started in 5 minutes
 
@@ -1971,4 +2158,4 @@ class SuriotaGateway {
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)
 
 **© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+_For technical support: support@suriota.com_
