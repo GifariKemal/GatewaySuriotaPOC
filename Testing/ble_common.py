@@ -395,9 +395,11 @@ class BLEDeviceClient:
 
         return False
 
-    async def scan_for_device(self, timeout=10):
-        """Scan for MGate device"""
+    async def scan_all_devices(self, timeout=10):
+        """Scan for all MGate devices and return list"""
         print_info(f"Scanning for MGate devices... (timeout: {timeout}s)")
+
+        found_devices = []
 
         if RICH_AVAILABLE:
             with Progress(
@@ -407,20 +409,108 @@ class BLEDeviceClient:
                 transient=True
             ) as progress:
                 task = progress.add_task("Scanning BLE devices...", total=None)
-
                 devices = await BleakScanner.discover(timeout=timeout)
 
                 for device in devices:
                     if self._is_target_device(device.name):
-                        progress.update(task, description=f"Found: {device.name}")
-                        return device
+                        found_devices.append(device)
+                        progress.update(task, description=f"Found {len(found_devices)} device(s)...")
         else:
             devices = await BleakScanner.discover(timeout=timeout)
             for device in devices:
                 if self._is_target_device(device.name):
-                    return device
+                    found_devices.append(device)
 
-        return None
+        return found_devices
+
+    def _select_device(self, devices):
+        """Display device selection menu and return selected device"""
+        if not devices:
+            return None
+
+        if len(devices) == 1:
+            print_info(f"Found 1 gateway: {devices[0].name}")
+            return devices[0]
+
+        # Multiple devices found - show selection menu
+        print_section("Gateway Selection", "")
+        print_info(f"Found {len(devices)} gateways:")
+        print()
+
+        if RICH_AVAILABLE:
+            table = Table(title="Available Gateways", box=ROUNDED, border_style="cyan")
+            table.add_column("#", justify="center", style="bold yellow", width=4)
+            table.add_column("Name", style="bold white")
+            table.add_column("MAC Address", style="cyan")
+            table.add_column("RSSI", justify="right", style="dim")
+
+            for idx, device in enumerate(devices, 1):
+                rssi = getattr(device, 'rssi', 'N/A')
+                rssi_str = f"{rssi} dBm" if rssi != 'N/A' else "N/A"
+                table.add_row(str(idx), device.name or "Unknown", device.address, rssi_str)
+
+            console.print(table)
+        else:
+            print("  +-----+------------------------+-------------------+----------+")
+            print("  |  #  | Name                   | MAC Address       | RSSI     |")
+            print("  +-----+------------------------+-------------------+----------+")
+            for idx, device in enumerate(devices, 1):
+                rssi = getattr(device, 'rssi', 'N/A')
+                rssi_str = f"{rssi} dBm" if rssi != 'N/A' else "N/A"
+                name = (device.name or "Unknown")[:22]
+                print(f"  | {idx:^3} | {name:<22} | {device.address:<17} | {rssi_str:<8} |")
+            print("  +-----+------------------------+-------------------+----------+")
+
+        print()
+
+        # Get user selection
+        while True:
+            try:
+                if RICH_AVAILABLE:
+                    console.print("[bold yellow]Select gateway (1-{0}):[/bold yellow] ".format(len(devices)), end="")
+                else:
+                    print(f"  Select gateway (1-{len(devices)}): ", end="")
+
+                choice = input().strip()
+
+                if choice.lower() == 'q':
+                    print_info("Selection cancelled")
+                    return None
+
+                idx = int(choice) - 1
+                if 0 <= idx < len(devices):
+                    selected = devices[idx]
+                    print()
+                    print_success(f"Selected: {selected.name} ({selected.address})")
+                    return selected
+                else:
+                    print_warning(f"Invalid selection. Enter 1-{len(devices)} or 'q' to cancel")
+            except ValueError:
+                print_warning("Please enter a number")
+            except KeyboardInterrupt:
+                print()
+                print_info("Selection cancelled")
+                return None
+
+    async def scan_for_device(self, timeout=10, auto_select=False):
+        """Scan for MGate device with optional auto-select
+
+        Args:
+            timeout: Scan timeout in seconds
+            auto_select: If True, automatically select first device found (legacy behavior)
+                        If False, show selection menu when multiple devices found
+        """
+        devices = await self.scan_all_devices(timeout)
+
+        if not devices:
+            return None
+
+        if auto_select:
+            # Legacy behavior - return first device
+            return devices[0]
+
+        # New behavior - let user select
+        return self._select_device(devices)
 
     def _notification_handler(self, sender, data):
         """Handle BLE notifications"""
@@ -440,9 +530,15 @@ class BLEDeviceClient:
         except Exception as e:
             print_warning(f"Notification decode error: {e}")
 
-    async def connect(self, timeout=10):
-        """Connect to MGate device"""
-        self.device = await self.scan_for_device(timeout)
+    async def connect(self, timeout=10, auto_select=False):
+        """Connect to MGate device
+
+        Args:
+            timeout: Scan timeout in seconds
+            auto_select: If True, automatically connect to first device found
+                        If False (default), show selection menu when multiple devices found
+        """
+        self.device = await self.scan_for_device(timeout, auto_select=auto_select)
 
         if not self.device:
             print_error("MGate device not found")
@@ -632,6 +728,10 @@ __all__ = [
     'SERVICE_UUID', 'COMMAND_CHAR_UUID', 'RESPONSE_CHAR_UUID',
     'DEVICE_NAME_PREFIX', 'DEVICE_NAME_LEGACY_PREFIX', 'DEVICE_NAME_LEGACY',
     'check_dependencies',
+    # Note: BLEDeviceClient now supports gateway selection:
+    #   - scan_all_devices(timeout): Returns list of all found gateways
+    #   - scan_for_device(timeout, auto_select=False): Shows selection menu
+    #   - connect(timeout, auto_select=False): Connect with selection menu
 
     # UI Functions
     'print_header', 'print_section', 'print_step',
