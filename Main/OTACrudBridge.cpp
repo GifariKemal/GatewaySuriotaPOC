@@ -13,8 +13,9 @@
 
 #include "DebugConfig.h"  // MUST BE FIRST
 #include "OTACrudBridge.h"
-#include "OTAManager.h"   // ONLY include here - causes ESP_SSLClient to be pulled in
-#include "NetworkManager.h" // v2.5.38: For network pre-check before OTA download
+#include "OTAManager.h"          // ONLY include here - causes ESP_SSLClient to be pulled in
+#include "NetworkManager.h"      // v2.5.38: For network pre-check before OTA download
+#include "ErrorResponseHelper.h" // v1.0.2: Standardized error responses
 
 namespace OTACrudBridge {
 
@@ -60,8 +61,8 @@ void setBLENotificationManager(OTAManager* otaManager, BLEManager* bleManager) {
 
 bool checkUpdate(OTAManager* otaManager, JsonDocument& response) {
     if (!otaManager) {
-        response["status"] = "error";
-        response["error_message"] = "OTA Manager not initialized";
+        // v1.0.2: Standardized error response
+        ErrorResponse::create(response, ERR_SYS_UNKNOWN, "OTA Manager not initialized", "ota");
         return false;
     }
 
@@ -99,17 +100,18 @@ bool checkUpdate(OTAManager* otaManager, JsonDocument& response) {
 
 bool startUpdate(OTAManager* otaManager, const String& customUrl, JsonDocument& response) {
     if (!otaManager) {
-        response["status"] = "error";
-        response["error_message"] = "OTA Manager not initialized";
+        // v1.0.2: Standardized error response
+        ErrorResponse::create(response, ERR_SYS_UNKNOWN, "OTA Manager not initialized", "ota");
         return false;
     }
 
     // v2.5.38: Network pre-check before OTA download
     NetworkMgr* netMgr = NetworkMgr::getInstance();
     if (!netMgr || !netMgr->isAvailable()) {
-        response["status"] = "error";
+        // v1.0.2: Standardized error response with network error code
+        ErrorResponse::create(response, ERR_NET_NO_NETWORK_AVAILABLE,
+                             "No network connection. Connect to WiFi or Ethernet before OTA.", "ota");
         response["command"] = "start_update";
-        response["error_message"] = "No network connection. Connect to WiFi or Ethernet before OTA.";
         response["network_available"] = false;
         LOG_OTA_INFO("[OTA] Cannot start update: No network connection");
         return false;

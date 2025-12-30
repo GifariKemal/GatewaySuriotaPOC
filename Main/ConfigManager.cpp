@@ -699,6 +699,19 @@ void ConfigManager::getDevicesSummary(JsonArray &summary)
     deviceSummary["protocol"] = device["protocol"];
     deviceSummary["slave_id"] = device["slave_id"];
     deviceSummary["register_count"] = device["registers"].size();
+
+    // v1.0.2: Include connection identifiers for proper slave_id validation
+    // Mobile app needs these to check uniqueness per bus/endpoint (not global)
+    // - RTU: slave_id must be unique per serial_port (RS-485 bus)
+    // - TCP: slave_id must be unique per ip (endpoint)
+    if (device["serial_port"].is<int>())
+    {
+      deviceSummary["serial_port"] = device["serial_port"];
+    }
+    if (device["ip"].is<const char *>() || device["ip"].is<String>())
+    {
+      deviceSummary["ip"] = device["ip"];
+    }
   }
 }
 
@@ -748,8 +761,10 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray &result, bool minimalFi
       {
         // In minimal mode, only copy essential fields for MQTT timeout calculation
         // CRITICAL FIX: Must include refresh_rate_ms and baud_rate for adaptive timeout
+        // v1.0.2: Added "ip" for proper slave_id validation in mobile app
+        // Mobile app needs ip (TCP) and serial_port (RTU) to validate slave_id uniqueness per bus/endpoint
         if (key == "device_name" || key == "protocol" || key == "refresh_rate_ms" ||
-            key == "baud_rate" || key == "slave_id" || key == "serial_port")
+            key == "baud_rate" || key == "slave_id" || key == "serial_port" || key == "ip")
         {
           deviceWithRegs[deviceKv.key()] = deviceKv.value();
         }

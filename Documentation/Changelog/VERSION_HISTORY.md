@@ -8,6 +8,82 @@
 
 ---
 
+## Version 1.0.4 (Device Summary Connection Identifiers)
+
+**Release Date:** December 29, 2025 (Sunday)
+**Status:** Production
+**Related:** BUG_001_SLAVE_ID_VALIDATION (Mobile App)
+
+### Bug Fix: Device Summary Missing Connection Identifiers
+
+**Background:** Mobile app's slave_id validation was rejecting valid configurations because `devices_summary` and `devices_with_registers` (minimal mode) did not include `ip` and `serial_port` fields. Without these fields, mobile app couldn't determine if slave_id collision was on the same bus/endpoint.
+
+**Root Cause:**
+- `getDevicesSummary()` only returned: `device_id`, `device_name`, `protocol`, `slave_id`, `register_count`
+- `getAllDevicesWithRegisters(minimal=true)` did not include `ip` field
+
+**Impact:** Mobile app showed "Slave ID already exists" error even when:
+- RTU devices were on **different serial ports** (different RS-485 bus)
+- TCP devices had **different IP addresses** (different endpoints)
+- Devices used **different protocols** (RTU vs TCP)
+
+### Fix Applied
+
+**1. `getDevicesSummary()` now includes:**
+```json
+{
+  "device_id": "D7A3F2",
+  "device_name": "Meter RTU",
+  "protocol": "RTU",
+  "slave_id": 10,
+  "serial_port": 1,        // NEW - for RTU devices
+  "register_count": 5
+}
+```
+
+```json
+{
+  "device_id": "B8C4E1",
+  "device_name": "PLC TCP",
+  "protocol": "TCP",
+  "slave_id": 10,
+  "ip": "192.168.1.100",   // NEW - for TCP devices
+  "register_count": 3
+}
+```
+
+**2. `getAllDevicesWithRegisters(minimal=true)` now includes `ip` field**
+
+### Correct Validation Logic (Mobile App)
+
+Per Modbus standard, slave_id uniqueness should be checked:
+- **RTU:** Per `serial_port` (RS-485 bus)
+- **TCP:** Per `ip` (endpoint)
+- **Cross-protocol:** Always allowed (RTU and TCP are independent)
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| RTU Port 1 + RTU Port 2, same slave_id | ❌ Error | ✅ OK |
+| RTU + TCP, same slave_id | ❌ Error | ✅ OK |
+| TCP IP1 + TCP IP2, same slave_id | ❌ Error | ✅ OK |
+| RTU Port 1 + RTU Port 1, same slave_id | ❌ Error | ❌ Error |
+| TCP same IP, same slave_id | ❌ Error | ❌ Error |
+
+### Files Changed
+
+- `Main/ConfigManager.cpp` - Added `ip` and `serial_port` to summary responses
+- `Main/ProductConfig.h` - Version bump to 1.0.4
+
+### Mobile App Action Required
+
+Update `_isSlaveIdDuplicate()` in `form_setup_device_screen.dart` to use:
+- `device['serial_port']` for RTU protocol comparison
+- `device['ip']` for TCP protocol comparison
+
+See `BUG_001_SLAVE_ID_VALIDATION.md` for detailed implementation guide.
+
+---
+
 ## Version 1.0.3 (Config Transfer Progress)
 
 **Release Date:** December 27, 2025 (Friday)
@@ -81,14 +157,111 @@ void _handleBleNotification(List<int> data) {
 
 ---
 
-## Version 1.0.2 (Preparation Release)
+## Version 1.0.2 (Standardized Error Responses)
 
-**Release Date:** December 27, 2025 (Friday)
-**Status:** Superseded by v1.0.3
+**Release Date:** December 28, 2025 (Saturday)
+**Status:** Production
 
-### Prepared Feature: Config Transfer Progress Notifications
+### Feature: Standardized Error Response Format
 
-Functions implemented but not activated. See v1.0.3 for activated version.
+**Background:** BLE CRUD responses previously used inconsistent error formats with string-based error codes. Mobile apps couldn't programmatically handle errors reliably.
+
+**Solution:** Implemented `ErrorResponseHelper` utility that creates consistent error responses with:
+- **Numeric error_code** (0-699) from `UnifiedErrorCodes.h`
+- **Domain classification** (NETWORK, MQTT, BLE, MODBUS, MEMORY, CONFIG, SYSTEM)
+- **Severity level** (INFO, WARN, ERR, CRIT)
+- **Human-readable message**
+- **Recovery suggestion** (when available)
+
+### New Error Response Format
+
+**Before (v1.0.1):**
+```json
+{
+  "status": "error",
+  "message": "Device not found",
+  "type": "device"
+}
+```
+
+**After (v1.0.2):**
+```json
+{
+  "status": "error",
+  "error_code": 501,
+  "domain": "CONFIG",
+  "severity": "ERROR",
+  "message": "Device not found",
+  "suggestion": "Create new configuration",
+  "type": "device"
+}
+```
+
+### Error Code Ranges
+
+| Domain | Range | Examples |
+|--------|-------|----------|
+| NETWORK | 0-99 | WiFi/Ethernet connectivity |
+| MQTT | 100-199 | Broker communication |
+| BLE | 200-299 | Bluetooth Low Energy |
+| MODBUS | 300-399 | RTU/TCP devices |
+| MEMORY | 400-499 | PSRAM allocation |
+| CONFIG | 500-599 | Configuration/Storage |
+| SYSTEM | 600-699 | System health |
+
+### Files Added
+
+- `Main/ErrorResponseHelper.h` - Helper functions for standardized error responses
+
+### Files Changed
+
+- `Main/BLEManager.h` - Added `sendError(UnifiedErrorCode, ...)` overloads
+- `Main/BLEManager.cpp` - Implemented new sendError methods
+- `Main/CRUDHandler.cpp` - Updated key error responses to use new format
+- `Main/OTACrudBridge.cpp` - Updated OTA error responses
+- `Documentation/API_Reference/API.md` - Documented new error format
+
+### Mobile App Integration
+
+```dart
+void handleError(Map<String, dynamic> response) {
+  if (response['status'] == 'error') {
+    final errorCode = response['error_code'] as int;
+    final domain = response['domain'] as String;
+    final severity = response['severity'] as String;
+
+    // Programmatic handling
+    switch (errorCode) {
+      case 7:   // ERR_NET_NO_NETWORK_AVAILABLE
+        showNetworkError();
+        break;
+      case 301: // ERR_MODBUS_DEVICE_TIMEOUT
+        showDeviceOfflineWarning();
+        break;
+      case 504: // ERR_CFG_SAVE_FAILED
+        showSaveError();
+        break;
+    }
+
+    // UI styling by severity
+    if (severity == 'CRIT') {
+      showCriticalAlert(response['message']);
+    }
+  }
+}
+```
+
+### Backward Compatibility
+
+- The `type` field is preserved for backward compatibility
+- Old error responses still work but lack new fields
+- Mobile apps can check for `error_code` presence for progressive enhancement
+
+---
+
+### Previous v1.0.2 Features (Config Transfer Progress - Preparation)
+
+Functions implemented but not activated in v1.0.2. See v1.0.3 for activated version.
 
 **Functions Added:**
 ```cpp
