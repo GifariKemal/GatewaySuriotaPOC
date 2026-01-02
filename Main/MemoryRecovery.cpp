@@ -394,3 +394,85 @@ void MemoryRecovery::executeEmergencyRestart() {
   delay(1000);  // Allow logs to flush
   ESP.restart();
 }
+
+// ============================================
+// v1.0.6: DIAGNOSTICS AND CAPACITY FUNCTIONS
+// ============================================
+
+void MemoryRecovery::printDiagnostics() {
+  Serial.println("\n========================================");
+  Serial.println("       SYSTEM DIAGNOSTICS v1.0.6");
+  Serial.println("========================================\n");
+
+  // Memory Statistics
+  uint32_t freeDram = ESP.getFreeHeap();
+  uint32_t freePsram = ESP.getFreePsram();
+  uint32_t totalDram = 400000;   // ~400KB typical for ESP32-S3
+  uint32_t totalPsram = 8388608; // 8MB OPI PSRAM
+
+  Serial.println("[MEMORY]");
+  Serial.printf("  DRAM:  %lu KB free / %lu KB total (%.1f%% used)\n",
+                freeDram / 1024, totalDram / 1024,
+                getDramUsagePercent(totalDram));
+  Serial.printf("  PSRAM: %lu KB free / %lu KB total (%.1f%% used)\n",
+                freePsram / 1024, totalPsram / 1024,
+                getPsramUsagePercent(totalPsram));
+  Serial.printf("  Largest free DRAM block: %lu bytes\n",
+                heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+  Serial.printf("  Largest free PSRAM block: %lu KB\n",
+                heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024);
+
+  // Capacity Estimation
+  Serial.println("\n[CAPACITY ESTIMATION]");
+  uint32_t estimatedCapacity = getEstimatedDeviceCapacity();
+  Serial.printf("  Estimated additional devices: ~%lu\n", estimatedCapacity);
+  Serial.printf("  (Based on ~50KB PSRAM per device with 50 registers)\n");
+
+  // Recovery Status
+  Serial.println("\n[RECOVERY STATUS]");
+  Serial.printf("  Auto-recovery: %s\n",
+                autoRecoveryEnabled ? "ENABLED" : "DISABLED");
+  Serial.printf("  Low memory events: %lu\n", lowMemoryEventCount);
+  Serial.printf("  Critical events: %lu\n", criticalEventCount);
+  Serial.printf("  Check interval: %lu ms\n", memoryCheckInterval);
+
+  // Thresholds
+  Serial.println("\n[THRESHOLDS]");
+  Serial.printf("  DRAM Warning:   < %lu KB\n",
+                MemoryThresholds::DRAM_WARNING / 1024);
+  Serial.printf("  DRAM Critical:  < %lu KB\n",
+                MemoryThresholds::DRAM_CRITICAL / 1024);
+  Serial.printf("  DRAM Emergency: < %lu KB\n",
+                MemoryThresholds::DRAM_EMERGENCY / 1024);
+  Serial.printf("  PSRAM Warning:  < %lu KB\n",
+                MemoryThresholds::PSRAM_WARNING / 1024);
+  Serial.printf("  PSRAM Critical: < %lu KB\n",
+                MemoryThresholds::PSRAM_CRITICAL / 1024);
+
+  Serial.println("\n========================================\n");
+}
+
+uint32_t MemoryRecovery::getEstimatedDeviceCapacity() {
+  // Each device with 50 registers uses approximately:
+  // - PSRAM: ~50KB (JSON doc, register data, buffers)
+  // - DRAM: ~2KB (task overhead, pointers)
+
+  uint32_t freePsram = ESP.getFreePsram();
+  uint32_t freeDram = ESP.getFreeHeap();
+
+  // Reserve minimum memory for system stability
+  const uint32_t PSRAM_RESERVE = 1000000;  // 1MB reserve
+  const uint32_t DRAM_RESERVE = 30000;     // 30KB reserve
+
+  uint32_t availablePsram =
+      (freePsram > PSRAM_RESERVE) ? (freePsram - PSRAM_RESERVE) : 0;
+  uint32_t availableDram =
+      (freeDram > DRAM_RESERVE) ? (freeDram - DRAM_RESERVE) : 0;
+
+  // Calculate capacity based on both constraints
+  uint32_t psramCapacity = availablePsram / 51200;  // ~50KB per device
+  uint32_t dramCapacity = availableDram / 2048;     // ~2KB per device
+
+  // Return the lower of the two (limiting factor)
+  return (psramCapacity < dramCapacity) ? psramCapacity : dramCapacity;
+}

@@ -155,6 +155,19 @@ class MemoryRecovery {
    */
   static uint32_t triggerCleanup();
 
+  /**
+   * v1.0.6: Print comprehensive system diagnostics
+   * Includes memory stats, task stack high water marks, and capacity info
+   * Useful for debugging and capacity planning
+   */
+  static void printDiagnostics();
+
+  /**
+   * v1.0.6: Get estimated device capacity based on current memory
+   * @return Estimated number of additional devices that can be added
+   */
+  static uint32_t getEstimatedDeviceCapacity();
+
  private:
   /**
    * Execute queue flush recovery
