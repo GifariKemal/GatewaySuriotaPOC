@@ -16,14 +16,16 @@ class ArduinoBuilder:
     def __init__(self):
         self.arduino_cli = "arduino-cli"
 
-    async def _run_command(self, cmd: list[str], cwd: Optional[str] = None) -> Dict[str, Any]:
+    async def _run_command(
+        self, cmd: list[str], cwd: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Run a shell command and return results."""
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=cwd
+                cwd=cwd,
             )
 
             stdout, stderr = await process.communicate()
@@ -31,8 +33,8 @@ class ArduinoBuilder:
             return {
                 "success": process.returncode == 0,
                 "returncode": process.returncode,
-                "stdout": stdout.decode('utf-8', errors='replace'),
-                "stderr": stderr.decode('utf-8', errors='replace')
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
             }
 
         except FileNotFoundError:
@@ -40,18 +42,17 @@ class ArduinoBuilder:
                 "success": False,
                 "error": f"arduino-cli not found. Please install Arduino CLI from https://arduino.github.io/arduino-cli/",
                 "stdout": "",
-                "stderr": ""
+                "stderr": "",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": ""
-            }
+            return {"success": False, "error": str(e), "stdout": "", "stderr": ""}
 
-    async def build(self, project_path: str, fqbn: str = "esp32:esp32:esp32s3",
-                    verbose: bool = False) -> Dict[str, Any]:
+    async def build(
+        self,
+        project_path: str,
+        fqbn: str = "esp32:esp32:esp32s3",
+        verbose: bool = False,
+    ) -> Dict[str, Any]:
         """
         Compile Arduino project.
 
@@ -68,16 +69,13 @@ class ArduinoBuilder:
         if not os.path.isdir(project_path):
             return {
                 "success": False,
-                "error": f"Project directory not found: {project_path}"
+                "error": f"Project directory not found: {project_path}",
             }
 
         # Find .ino file
         ino_files = list(Path(project_path).glob("*.ino"))
         if not ino_files:
-            return {
-                "success": False,
-                "error": f"No .ino file found in {project_path}"
-            }
+            return {"success": False, "error": f"No .ino file found in {project_path}"}
 
         sketch_path = str(ino_files[0])
 
@@ -100,26 +98,30 @@ class ArduinoBuilder:
             output = result["stdout"] + result["stderr"]
 
             # Find sketch size
-            size_match = re.search(r'Sketch uses (\d+) bytes', output)
+            size_match = re.search(r"Sketch uses (\d+) bytes", output)
             sketch_size = int(size_match.group(1)) if size_match else 0
 
             # Find binary path
-            bin_match = re.search(r'Writing at.*\.bin', output)
+            bin_match = re.search(r"Writing at.*\.bin", output)
 
-            result.update({
-                "message": "Build successful",
-                "sketch_size": sketch_size,
-                "project_path": project_path,
-                "fqbn": fqbn
-            })
+            result.update(
+                {
+                    "message": "Build successful",
+                    "sketch_size": sketch_size,
+                    "project_path": project_path,
+                    "fqbn": fqbn,
+                }
+            )
         else:
             # Parse error messages
             errors = self._parse_build_errors(result["stderr"])
-            result.update({
-                "message": "Build failed",
-                "errors": errors,
-                "suggestion": self._suggest_fix(errors)
-            })
+            result.update(
+                {
+                    "message": "Build failed",
+                    "errors": errors,
+                    "suggestion": self._suggest_fix(errors),
+                }
+            )
 
         return result
 
@@ -141,38 +143,38 @@ class ArduinoBuilder:
         try:
             if os.path.exists(build_dir):
                 import shutil
+
                 shutil.rmtree(build_dir)
                 return {
                     "success": True,
-                    "message": f"Cleaned build directory: {build_dir}"
+                    "message": f"Cleaned build directory: {build_dir}",
                 }
             else:
                 return {
                     "success": True,
-                    "message": "No build directory found (already clean)"
+                    "message": "No build directory found (already clean)",
                 }
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to clean: {str(e)}"
-            }
+            return {"success": False, "error": f"Failed to clean: {str(e)}"}
 
     def _parse_build_errors(self, stderr: str) -> list[Dict[str, str]]:
         """Parse compilation errors from stderr."""
         errors = []
 
         # Common error patterns
-        error_pattern = r'(.+?):(\d+):(\d+):\s*(error|warning):\s*(.+)'
+        error_pattern = r"(.+?):(\d+):(\d+):\s*(error|warning):\s*(.+)"
 
         for match in re.finditer(error_pattern, stderr, re.MULTILINE):
             file_path, line, col, severity, message = match.groups()
-            errors.append({
-                "file": file_path,
-                "line": int(line),
-                "column": int(col),
-                "severity": severity,
-                "message": message.strip()
-            })
+            errors.append(
+                {
+                    "file": file_path,
+                    "line": int(line),
+                    "column": int(col),
+                    "severity": severity,
+                    "message": message.strip(),
+                }
+            )
 
         return errors
 
@@ -207,9 +209,13 @@ class ArduinoBuilder:
                     "Linker error: Check if library is properly installed and linked"
                 )
 
-        return "\n".join(suggestions) if suggestions else "Check compilation errors above"
+        return (
+            "\n".join(suggestions) if suggestions else "Check compilation errors above"
+        )
 
-    async def auto_fix_errors(self, project_path: str, error_log: str) -> Dict[str, Any]:
+    async def auto_fix_errors(
+        self, project_path: str, error_log: str
+    ) -> Dict[str, Any]:
         """
         Attempt to automatically fix common compilation errors.
 
@@ -230,28 +236,34 @@ class ArduinoBuilder:
 
             # Check for common fixable issues
             if "arduinojson" in msg and "was not declared" in msg:
-                fixes.append({
-                    "error": error["message"],
-                    "fix": "Install ArduinoJson library",
-                    "command": "arduino-cli lib install ArduinoJson"
-                })
+                fixes.append(
+                    {
+                        "error": error["message"],
+                        "fix": "Install ArduinoJson library",
+                        "command": "arduino-cli lib install ArduinoJson",
+                    }
+                )
             elif "rtclib" in msg and "was not declared" in msg:
-                fixes.append({
-                    "error": error["message"],
-                    "fix": "Install RTClib library",
-                    "command": "arduino-cli lib install RTClib"
-                })
+                fixes.append(
+                    {
+                        "error": error["message"],
+                        "fix": "Install RTClib library",
+                        "command": "arduino-cli lib install RTClib",
+                    }
+                )
             elif "ethernet" in msg and "was not declared" in msg:
-                fixes.append({
-                    "error": error["message"],
-                    "fix": "Install Ethernet library",
-                    "command": "arduino-cli lib install Ethernet"
-                })
+                fixes.append(
+                    {
+                        "error": error["message"],
+                        "fix": "Install Ethernet library",
+                        "command": "arduino-cli lib install Ethernet",
+                    }
+                )
 
         return {
             "success": True,
             "errors_found": len(errors),
             "fixes_suggested": len(fixes),
             "fixes": fixes,
-            "message": f"Found {len(fixes)} potential fixes for {len(errors)} errors"
+            "message": f"Found {len(fixes)} potential fixes for {len(errors)} errors",
         }

@@ -1,9 +1,9 @@
 # Hardware Specifications
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Hardware Reference Documentation
+**SRT-MGATE-1210 Modbus IIoT Gateway** Hardware Reference Documentation
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Hardware Specifications
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Hardware Specifications
 
 ---
 
@@ -189,6 +189,7 @@ Hardware Reference Documentation
 ### UART Configuration
 
 #### UART0 (USB Serial - Debug)
+
 ```cpp
 Pin: GPIO 43 (TX), GPIO 44 (RX)
 Baudrate: 115200
@@ -197,6 +198,7 @@ Status: Always active in development mode
 ```
 
 #### UART1 (Modbus RTU Port 1)
+
 ```cpp
 Pin: GPIO 16 (TX), GPIO 15 (RX)
 Baudrate: 1200 - 115200 (dynamic)
@@ -207,6 +209,7 @@ Default: 9600 baud
 ```
 
 #### UART2 (Modbus RTU Port 2)
+
 ```cpp
 Pin: GPIO 18 (TX), GPIO 17 (RX)
 Baudrate: 1200 - 115200 (dynamic)
@@ -242,6 +245,7 @@ vTaskDelay(pdMS_TO_TICKS(50));
 ```
 
 **Key Features:**
+
 - ✅ Smart caching (only reconfigure if baudrate changes)
 - ✅ Per-device baudrate storage
 - ✅ Automatic validation (1200-115200 range)
@@ -265,6 +269,7 @@ vTaskDelay(pdMS_TO_TICKS(50));
 | **Battery Backup**    | CR2032 (optional)         |
 
 **Code Configuration:**
+
 ```cpp
 #define I2C_SDA 5
 #define I2C_SCL 6
@@ -274,8 +279,10 @@ Wire.begin(I2C_SDA, I2C_SCL);
 ```
 
 **INT/SQW Features:**
+
 - **Interrupt Mode**: Alarm conditions trigger GPIO 4 LOW
-- **Square Wave Mode**: Programmable frequency output (1Hz, 1.024kHz, 4.096kHz, 8.192kHz)
+- **Square Wave Mode**: Programmable frequency output (1Hz, 1.024kHz, 4.096kHz,
+  8.192kHz)
 - Used by `RTCManager` for time synchronization
 
 ---
@@ -295,6 +302,7 @@ Wire.begin(I2C_SDA, I2C_SCL);
 | **File System**     | FAT16/FAT32           |
 
 **Code Configuration:**
+
 ```cpp
 #define SD_CS   11
 #define SD_MOSI 10
@@ -306,6 +314,7 @@ SD.begin(SD_CS);
 ```
 
 **Use Cases:**
+
 - Extended configuration storage
 - Data logging backup
 - Firmware update files
@@ -335,6 +344,7 @@ SD.begin(SD_CS);
 | **Protocols**   | Modbus TCP, MQTT, HTTP               |
 
 **Code Configuration:**
+
 ```cpp
 #define ETH_CS   48
 #define ETH_MOSI 14
@@ -353,10 +363,12 @@ Ethernet.init(ETH_CS);
 ```
 
 **Hardware Reset:**
+
 - **ETH_RST (GPIO 3)**: Must be held LOW for at least 500µs to reset W5500
 - **ETH_INT (GPIO 9)**: LOW = interrupt asserted, HIGH = no interrupt
 
 **Network Configuration:**
+
 ```json
 {
   "use_dhcp": true,
@@ -378,6 +390,7 @@ Ethernet.init(ETH_CS);
 | **Antenna**   | PCB trace antenna          |
 
 **Network Hysteresis:**
+
 - **Connection threshold**: 3 consecutive successful checks
 - **Disconnection threshold**: 5 consecutive failed checks
 - **Prevents**: Network flapping
@@ -433,8 +446,8 @@ Ethernet.init(ETH_CS);
 
 Visual indicator for network connectivity and data transmission.
 
-| State          | Pattern         | Meaning                      |
-| -------------- | --------------- | ---------------------------- |
+| State          | Pattern          | Meaning                      |
+| -------------- | ---------------- | ---------------------------- |
 | **OFF**        | ⚫ Solid OFF     | No network connection        |
 | **SLOW BLINK** | 🟢 1 Hz (1000ms) | Connected, no data flow      |
 | **FAST BLINK** | 🟢 5 Hz (200ms)  | Connected, data transmitting |
@@ -452,6 +465,7 @@ stateDiagram-v2
 ```
 
 **Implementation:**
+
 ```cpp
 void LEDManager::notifyDataTransmission() {
   lastDataMillis = millis();  // Reset 5s timeout
@@ -463,8 +477,8 @@ void LEDManager::notifyDataTransmission() {
 
 System mode indicator controlled by ButtonManager.
 
-| Mode                   | Pattern              | Meaning                 |
-| ---------------------- | -------------------- | ----------------------- |
+| Mode                   | Pattern               | Meaning                 |
+| ---------------------- | --------------------- | ----------------------- |
 | **Development**        | 🔵 Slow (2000ms)      | Dev mode, BLE always ON |
 | **Production Config**  | 🔵 Very Slow (3000ms) | Config mode, BLE ON     |
 | **Production Running** | 🔵 Medium (500ms)     | Running mode, BLE OFF   |
@@ -476,11 +490,13 @@ System mode indicator controlled by ButtonManager.
 ### Button Configuration (GPIO 0)
 
 **Hardware:**
+
 - Pull-up resistor: 10kΩ to 3.3V
 - Debounce: 50ms (OneButton library)
 - Active LOW (pressed = GND)
 
 **⚠️ IMPORTANT - Boot Mode:**
+
 - **GPIO 0 must be HIGH during boot** for normal operation
 - **GPIO 0 must be LOW during boot** for firmware programming mode
 - The button is used for both boot mode selection and runtime configuration
@@ -516,6 +532,7 @@ stateDiagram-v2
 ```
 
 **Development Mode Override:**
+
 ```cpp
 #define PRODUCTION_MODE 0  // Development
 // Button disabled, BLE always ON, LED slow blink (2000ms)
@@ -561,6 +578,7 @@ stateDiagram-v2
 | **Free PSRAM**       | ~4.5 MB | Dynamic allocation              |
 
 **Allocation Example:**
+
 ```cpp
 // Placement new for PSRAM allocation
 configManager = (ConfigManager*)heap_caps_malloc(
@@ -609,6 +627,7 @@ new (configManager) ConfigManager();
 | **Termination**    | 120Ω at both ends                |
 
 **RS485 Biasing:**
+
 ```
            VDD (5V)
             │
@@ -638,26 +657,31 @@ new (configManager) ConfigManager();
 ### Critical Design Guidelines
 
 #### Power Supply
+
 - ✅ **Decoupling capacitors**: 100nF ceramic + 10µF electrolytic near ESP32
 - ✅ **Power planes**: Separate 3.3V and GND planes
 - ✅ **Ferrite bead**: Between 5V and 3.3V domains
 
 #### High-Speed Signals
+
 - ✅ **SPI traces** (W5500): Keep < 10cm, matched length ±0.5mm
 - ✅ **USB traces** (D+/D-): 90Ω differential impedance
 - ✅ **Clock signals**: Avoid vias, minimize stubs
 
 #### RF Performance (BLE/WiFi)
+
 - ✅ **Antenna keepout**: 10mm clearance around antenna
 - ✅ **Ground plane**: Solid GND under antenna area
 - ✅ **Trace routing**: Avoid routing under antenna
 
 #### RS485 Communication
+
 - ✅ **Twisted pair**: Use shielded Cat5e cable
 - ✅ **GND isolation**: Optocoupler if needed (not implemented)
 - ✅ **Termination**: 120Ω resistor at both ends of bus
 
 #### EMI/EMC Compliance
+
 - ✅ **Shielding**: Metal enclosure recommended
 - ✅ **Filtering**: LC filter on power input
 - ✅ **Grounding**: Single point ground for RS485
@@ -733,8 +757,7 @@ TP10: SPI MISO (W5500)
 
 ---
 
-**Document Version:** 1.2
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.2 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#hardware-specifications)

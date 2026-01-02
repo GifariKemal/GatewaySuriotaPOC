@@ -1,14 +1,14 @@
 # OTA Update Testing Tools
 
-**Version:** 2.0.0
-**Last Updated:** December 19, 2025
+**Version:** 2.0.0 **Last Updated:** December 19, 2025
 
-Tools for testing OTA (Over-The-Air) firmware updates via BLE with real-time progress monitoring.
+Tools for testing OTA (Over-The-Air) firmware updates via BLE with real-time
+progress monitoring.
 
 ## Files
 
-| File            | Description                                    |
-| --------------- | ---------------------------------------------- |
+| File            | Description                                            |
+| --------------- | ------------------------------------------------------ |
 | `ota_update.py` | Full automated OTA update process with v2.0.0 features |
 
 ## Requirements
@@ -19,8 +19,10 @@ pip install bleak colorama
 
 ## What's New in v2.0.0
 
-- **Real-time Progress Notifications** - Receive push notifications from device during download
-- **Download Speed & ETA** - Live display of transfer speed and estimated time remaining
+- **Real-time Progress Notifications** - Receive push notifications from device
+  during download
+- **Download Speed & ETA** - Live display of transfer speed and estimated time
+  remaining
 - **Network Mode Indicator** - Shows WiFi or Ethernet connection
 - **Retry Count Monitoring** - Track retry attempts during download
 - **Interactive Progress Bar** - Color-coded progress visualization
@@ -35,6 +37,7 @@ python ota_update.py
 ```
 
 **Menu Options:**
+
 ```
   1. Check for updates
   2. Set GitHub token (for private repos)
@@ -91,16 +94,11 @@ During download, you'll see a live progress bar with detailed stats:
   [██████████████░░░░░░░░░░░░░░░░]  45% | 707.8 KB/1.5 MB | ⚡28.5 KB/s | ⏱️ 35s | 📡WiFi
 ```
 
-**Progress Bar Elements:**
-| Element | Description |
-|---------|-------------|
-| `[████░░░░]` | Visual progress bar |
-| `45%` | Download percentage |
-| `707.8 KB/1.5 MB` | Bytes downloaded / Total size |
-| `⚡28.5 KB/s` | Current download speed |
-| `⏱️ 35s` | Estimated time remaining |
-| `📡WiFi` | Network mode (WiFi/Ethernet) |
-| `[Retry 1/3]` | Retry count (if retrying) |
+**Progress Bar Elements:** | Element | Description | |---------|-------------| |
+`[████░░░░]` | Visual progress bar | | `45%` | Download percentage | |
+`707.8 KB/1.5 MB` | Bytes downloaded / Total size | | `⚡28.5 KB/s` | Current
+download speed | | `⏱️ 35s` | Estimated time remaining | | `📡WiFi` | Network
+mode (WiFi/Ethernet) | | `[Retry 1/3]` | Retry count (if retrying) |
 
 ## Enhanced OTA Status Response
 
@@ -197,15 +195,15 @@ Notifications are sent every 5% progress (0%, 5%, 10%, ..., 100%).
 
 ## State Reference
 
-| Value | State Name   | Description                            |
-| ----- | ------------ | -------------------------------------- |
-| 0     | `IDLE`       | No OTA in progress, ready for commands |
-| 1     | `CHECKING`   | Checking GitHub for updates            |
-| 2     | `DOWNLOADING`| Downloading firmware via HTTPS         |
-| 3     | `VALIDATING` | Verifying signature and checksum       |
-| 4     | `APPLYING`   | Writing firmware to flash              |
-| 5     | `REBOOTING`  | About to reboot with new firmware      |
-| 6     | `ERROR`      | Error occurred (check error_code)      |
+| Value | State Name    | Description                            |
+| ----- | ------------- | -------------------------------------- |
+| 0     | `IDLE`        | No OTA in progress, ready for commands |
+| 1     | `CHECKING`    | Checking GitHub for updates            |
+| 2     | `DOWNLOADING` | Downloading firmware via HTTPS         |
+| 3     | `VALIDATING`  | Verifying signature and checksum       |
+| 4     | `APPLYING`    | Writing firmware to flash              |
+| 5     | `REBOOTING`   | About to reboot with new firmware      |
+| 6     | `ERROR`       | Error occurred (check error_code)      |
 
 ## Notes
 
@@ -218,13 +216,13 @@ Notifications are sent every 5% progress (0%, 5%, 10%, ..., 100%).
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| No device found | Ensure device is powered on and BLE is enabled |
-| Connection timeout | Move closer to device, check for interference |
-| Download slow | Check WiFi/Ethernet signal strength on device |
-| Retries failing | Check network connectivity, GitHub availability |
-| No push notifications | Verify firmware is v2.5.37 or later |
+| Issue                 | Solution                                        |
+| --------------------- | ----------------------------------------------- |
+| No device found       | Ensure device is powered on and BLE is enabled  |
+| Connection timeout    | Move closer to device, check for interference   |
+| Download slow         | Check WiFi/Ethernet signal strength on device   |
+| Retries failing       | Check network connectivity, GitHub availability |
+| No push notifications | Verify firmware is v2.5.37 or later             |
 
 ## Related Documentation
 

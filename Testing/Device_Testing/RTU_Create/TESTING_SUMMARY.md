@@ -2,34 +2,35 @@
 
 ## Overview
 
-Testing suite untuk Modbus RTU device creation dengan berbagai jumlah registers (5, 10, 50).
+Testing suite untuk Modbus RTU device creation dengan berbagai jumlah registers
+(5, 10, 50).
 
-**Author:** Kemal - SURIOTA R&D Team
-**Date:** 2025-11-17
-**Firmware:** SRT-MGATE-1210 v2.3.0
+**Author:** Kemal - SURIOTA R&D Team **Date:** 2025-11-17 **Firmware:**
+SRT-MGATE-1210 v2.3.0
 
 ---
 
 ## Scripts Available
 
-| Script | Registers | Device Name | Use Case |
-|--------|-----------|-------------|----------|
-| `create_device_5_registers.py` | 5 | RTU_Device_Test | Quick testing, basic validation |
-| `create_device_10_registers.py` | 10 | RTU_Device_10Regs | Light load testing |
-| `create_device_15_registers.py` | 15 | RTU_Device_15_Regs | Light-medium load |
-| `create_device_20_registers.py` | 20 | RTU_Device_20_Regs | Medium load |
-| `create_device_25_registers.py` | 25 | RTU_Device_25_Regs | Medium-high load |
-| `create_device_30_registers.py` | 30 | RTU_Device_30_Regs | High load |
-| `create_device_35_registers.py` | 35 | RTU_Device_35_Regs | Very high load |
-| `create_device_40_registers.py` | 40 | RTU_Device_40_Regs | Near maximum |
-| `create_device_45_registers.py` | 45 | RTU_Device_45_Regs | Close to maximum |
-| `create_device_50_registers.py` | 50 | RTU_Device_50Regs | Maximum load, production testing |
+| Script                          | Registers | Device Name        | Use Case                         |
+| ------------------------------- | --------- | ------------------ | -------------------------------- |
+| `create_device_5_registers.py`  | 5         | RTU_Device_Test    | Quick testing, basic validation  |
+| `create_device_10_registers.py` | 10        | RTU_Device_10Regs  | Light load testing               |
+| `create_device_15_registers.py` | 15        | RTU_Device_15_Regs | Light-medium load                |
+| `create_device_20_registers.py` | 20        | RTU_Device_20_Regs | Medium load                      |
+| `create_device_25_registers.py` | 25        | RTU_Device_25_Regs | Medium-high load                 |
+| `create_device_30_registers.py` | 30        | RTU_Device_30_Regs | High load                        |
+| `create_device_35_registers.py` | 35        | RTU_Device_35_Regs | Very high load                   |
+| `create_device_40_registers.py` | 40        | RTU_Device_40_Regs | Near maximum                     |
+| `create_device_45_registers.py` | 45        | RTU_Device_45_Regs | Close to maximum                 |
+| `create_device_50_registers.py` | 50        | RTU_Device_50Regs  | Maximum load, production testing |
 
 ---
 
 ## Register Distribution
 
 ### 5 Registers Script
+
 ```
 0: Temperature (°C)
 1: Humidity (%)
@@ -39,6 +40,7 @@ Testing suite untuk Modbus RTU device creation dengan berbagai jumlah registers 
 ```
 
 ### 10 Registers Script
+
 ```
 0: Temperature (°C)
 1: Humidity (%)
@@ -53,6 +55,7 @@ Testing suite untuk Modbus RTU device creation dengan berbagai jumlah registers 
 ```
 
 ### 50 Registers Script
+
 ```
 Temperature Zones:  0-9   (10 sensors - Temp_Zone_1 to Temp_Zone_10)
 Humidity Zones:     10-19 (10 sensors - Humid_Zone_1 to Humid_Zone_10)
@@ -88,7 +91,7 @@ Flow Meters:        45-49 (5 sensors - Flow_1 to Flow_5)
 ## Performance Expectations
 
 | Registers | RTU Poll Time | MQTT Payload | Batch Time | Publish Interval |
-|-----------|---------------|--------------|------------|------------------|
+| --------- | ------------- | ------------ | ---------- | ---------------- |
 | 5         | ~1-2s         | ~1.5 KB      | ~1.5s      | 20-22s           |
 | 10        | ~2-3s         | ~1.8 KB      | ~2.5s      | 20-22s           |
 | 15        | ~3-4s         | ~2.0 KB      | ~3.5s      | 20-23s           |
@@ -101,6 +104,7 @@ Flow Meters:        45-49 (5 sensors - Flow_1 to Flow_5)
 | 50        | ~10-11s       | ~3.0 KB      | ~10.5s     | 20-25s           |
 
 **Notes:**
+
 - RTU polling lebih lambat dari TCP karena serial communication overhead
 - Batch tracking menunggu semua registers attempted (success + failed)
 - MQTT interval variance normal karena asynchronous polling
@@ -110,24 +114,28 @@ Flow Meters:        45-49 (5 sensors - Flow_1 to Flow_5)
 ## Modbus Slave Simulator Setup
 
 ### For 5 Registers
+
 ```
 Slave ID: 1
 Input Registers: 0-4 (5 registers)
 ```
 
 ### For 10 Registers
+
 ```
 Slave ID: 1
 Input Registers: 0-9 (10 registers)
 ```
 
 ### For 50 Registers
+
 ```
 Slave ID: 1
 Input Registers: 0-49 (50 registers)
 ```
 
 ### Serial Configuration (All)
+
 ```
 COM Port:     COM8
 Baud Rate:    9600
@@ -143,6 +151,7 @@ Flow Control: RTS Toggle (1ms delay)
 ## Running Tests
 
 ### Option 1: Individual Scripts
+
 ```bash
 python create_device_5_registers.py
 python create_device_10_registers.py
@@ -150,6 +159,7 @@ python create_device_50_registers.py
 ```
 
 ### Option 2: Progressive Testing
+
 ```bash
 # 1. Start with 5 registers (basic validation)
 python create_device_5_registers.py
@@ -172,6 +182,7 @@ python create_device_50_registers.py
 ## Expected Gateway Logs
 
 ### 5 Registers
+
 ```
 [RTU] Polling device RTU_Device_Test (Slave:1 Port:1 Baud:9600)
 [DATA] device_XXXXX:
@@ -182,6 +193,7 @@ python create_device_50_registers.py
 ```
 
 ### 10 Registers
+
 ```
 [RTU] Polling device RTU_Device_10Regs (Slave:1 Port:1 Baud:9600)
 [DATA] device_XXXXX:
@@ -193,6 +205,7 @@ python create_device_50_registers.py
 ```
 
 ### 50 Registers
+
 ```
 [RTU] Polling device RTU_Device_50Regs (Slave:1 Port:1 Baud:9600)
 [DATA] device_XXXXX:
@@ -209,28 +222,32 @@ python create_device_50_registers.py
 ## Troubleshooting
 
 ### Issue: "Timeout reading registers"
-**Cause:** Serial communication too slow or simulator not responding
-**Fix:**
+
+**Cause:** Serial communication too slow or simulator not responding **Fix:**
+
 - Check COM8 connection
 - Verify simulator is running and slave ID = 1
 - Increase timeout to 5000ms (already default)
 
 ### Issue: "Batch incomplete"
-**Cause:** Some registers failed to read
-**Fix:**
+
+**Cause:** Some registers failed to read **Fix:**
+
 - Normal behavior - batch tracks attempts (success + failed)
 - Check simulator has all required registers configured
 - Failed registers will be logged with ERROR
 
 ### Issue: "MQTT payload too large"
-**Cause:** 50 registers in full mode exceeds 8KB buffer
-**Fix:**
+
+**Cause:** 50 registers in full mode exceeds 8KB buffer **Fix:**
+
 - Should not happen with 50 registers (~2.8KB)
 - If happens, use minimal mode in future
 
 ### Issue: "Slow RTU polling"
-**Expected:** RTU is slower than TCP due to serial overhead
-**Normal rates:**
+
+**Expected:** RTU is slower than TCP due to serial overhead **Normal rates:**
+
 - 5 regs: ~1-2s
 - 10 regs: ~2-4s
 - 50 regs: ~8-10s
@@ -240,11 +257,13 @@ python create_device_50_registers.py
 ## BLE Communication Details
 
 ### MTU Configuration
+
 - **MTU Size:** 517 bytes (512 effective)
 - **Chunking:** Not used (commands <512 bytes)
 - **Transmission:** Single packet per command + END marker
 
 ### Command Flow
+
 ```
 Python Script
     ↓ (BLE)
@@ -270,15 +289,14 @@ MQTT Broker
 ## Success Criteria
 
 ### All Scripts Should Achieve:
-✅ Device creation successful (status: "ok")
-✅ All registers created successfully
-✅ RTU polling starts automatically
-✅ Batch tracking shows correct attempt count
-✅ MQTT publishes complete payload
-✅ No memory leaks (DRAM stable)
-✅ No crashes or reboots
+
+✅ Device creation successful (status: "ok") ✅ All registers created
+successfully ✅ RTU polling starts automatically ✅ Batch tracking shows correct
+attempt count ✅ MQTT publishes complete payload ✅ No memory leaks (DRAM
+stable) ✅ No crashes or reboots
 
 ### Specific Metrics:
+
 - **5 regs:** Batch complete in ~1.5s, MQTT payload ~1.5KB
 - **10 regs:** Batch complete in ~3s, MQTT payload ~2.0KB
 - **50 regs:** Batch complete in ~9s, MQTT payload ~2.8KB
@@ -309,6 +327,5 @@ RTU/
 
 ---
 
-**Last Updated:** 2025-11-17
-**Tested On:** SRT-MGATE-1210 v2.3.0
-**Author:** Kemal - SURIOTA R&D Team
+**Last Updated:** 2025-11-17 **Tested On:** SRT-MGATE-1210 v2.3.0 **Author:**
+Kemal - SURIOTA R&D Team

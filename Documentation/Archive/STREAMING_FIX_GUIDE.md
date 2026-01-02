@@ -8,13 +8,15 @@
 >
 > **Reason:** Streaming data fix has been fully integrated into v2.0.0+
 >
-> **Current Documentation:** See [PROTOCOL.md](../Technical_Guides/PROTOCOL.md) and [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md)
+> **Current Documentation:** See [PROTOCOL.md](../Technical_Guides/PROTOCOL.md)
+> and [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md)
 >
 > **Archive Info:** [ARCHIVE_INFO.md](ARCHIVE_INFO.md)
 
 ---
 
 ## 📋 Daftar Isi
+
 1. [Masalah yang Ditemukan](#masalah)
 2. [Root Cause Analysis](#root-cause)
 3. [Solusi Detail](#solusi)
@@ -28,6 +30,7 @@
 ## 🔴 Masalah yang Ditemukan {#masalah}
 
 ### Gejala
+
 - Streaming "started" tapi tidak ada data yang diterima
 - `streamedData` map tetap kosong
 - Tidak ada error message di Flutter
@@ -35,6 +38,7 @@
 - ESP32 firmware berjalan dengan benar
 
 ### Manifestasi
+
 ```dart
 // User expect ini bekerja:
 await controller.startDataStream('data', 'Dca4cf');
@@ -50,6 +54,7 @@ print(controller.streamedData);  // Expected: {address1: value1, address2: value
 ### Format Response Mismatch
 
 #### ESP32 Mengirim
+
 ```json
 {
   "status": "data",
@@ -62,6 +67,7 @@ print(controller.streamedData);  // Expected: {address1: value1, address2: value
 ```
 
 **File**: `main/BLEManager.cpp:246-272` (streamingTask)
+
 ```cpp
 void BLEManager::streamingTask(void* parameter) {
   // ...
@@ -75,6 +81,7 @@ void BLEManager::streamingTask(void* parameter) {
 ```
 
 #### Flutter Original Expect
+
 ```dart
 // Original code dari ble_controller.dart:794-867
 if (decoded is Map<String, dynamic>) {
@@ -87,6 +94,7 @@ if (decoded is Map<String, dynamic>) {
 ```
 
 **File**: `lib/core/controllers/ble_controller.dart:827-835`
+
 ```dart
 if (decoded is Map<String, dynamic>) {
   final address = decoded['address']?.toString();
@@ -309,12 +317,14 @@ adb logcat | grep -E "\[STREAM" | head -50
 ## 🛠️ Implementation Steps {#implementation}
 
 ### Step 1: Backup Original File
+
 ```bash
 cp lib/core/controllers/ble_controller.dart \
    lib/core/controllers/ble_controller.dart.backup
 ```
 
 ### Step 2: Copy Fixed File
+
 ```bash
 # Copy dari ble_controller_streaming_fixed.dart
 # Dan integrate methods ke ble_controller.dart
@@ -322,7 +332,8 @@ cp lib/core/controllers/ble_controller.dart \
 
 ### Step 3: Add Extension di BLE Controller
 
-Di file `lib/core/controllers/ble_controller.dart`, tambahkan extension di atas class definition:
+Di file `lib/core/controllers/ble_controller.dart`, tambahkan extension di atas
+class definition:
 
 ```dart
 // ============================================================================
@@ -571,15 +582,18 @@ adb logcat | grep STREAM
 ### Issue 1: "Empty buffer is empty" Error
 
 **Tanda**:
+
 ```
 [STREAM_ERROR] JSON parsing error: Exception: Cleaned buffer is empty
 ```
 
 **Penyebab**:
+
 - Response kosong atau corrupt
 - Buffer tidak properly accumulated
 
 **Solusi**:
+
 ```dart
 // Add buffer validation
 if (cleanedBuffer.isEmpty) {
@@ -591,15 +605,18 @@ if (cleanedBuffer.isEmpty) {
 ### Issue 2: "Missing required fields" Error
 
 **Tanda**:
+
 ```
 [STREAM_ERROR] Missing required fields! Data object keys: [status]
 ```
 
 **Penyebab**:
+
 - Response format berbeda dari expected
 - Parsing logic tidak handle semua format
 
 **Solusi**:
+
 ```dart
 // Log detail untuk debugging
 _logStreamError(
@@ -612,14 +629,17 @@ print('Raw response: ${jsonEncode(dataObject)}');
 ### Issue 3: Data tidak update di UI
 
 **Tanda**:
+
 - Logs menunjukkan data diterima
 - Tapi UI tidak refresh
 
 **Penyebab**:
+
 - streamedData adalah RxMap, need .update() call
 - Widget tidak listening ke changes
 
 **Solusi**:
+
 ```dart
 // Ensure RxMap trigger updates
 streamedData.refresh();
@@ -633,15 +653,18 @@ Obx(() {
 ### Issue 4: Device ID mismatch
 
 **Tanda**:
+
 ```
 [STREAM] Device ID mismatch: expected=Dca4cf, received=Abc123. Skipping.
 ```
 
 **Penyebab**:
+
 - Multiple devices streaming
 - Wrong device_id selected
 
 **Solusi**:
+
 ```dart
 // Verify device ID sebelum start stream
 final deviceId = 'Dca4cf';  // Confirm ini correct dari devices list
@@ -651,15 +674,18 @@ await controller.startDataStream('data', deviceId);
 ### Issue 5: BLE connection lost saat streaming
 
 **Tanda**:
+
 ```
 [STREAM_ERROR] Notification stream error: Exception: BLE disconnected
 ```
 
 **Penyebab**:
+
 - Device disconnect
 - Interference BLE
 
 **Solusi**:
+
 ```dart
 // Auto-reconnect logic
 onError: (e) {
@@ -753,11 +779,14 @@ Berikut adalah complete log dari streaming yang berjalan dengan sempurna:
 
 ## ✨ Key Takeaways
 
-1. **Format Mismatch adalah Root Cause**: ESP32 mengirim wrapped response, tapi Flutter expect unwrapped
+1. **Format Mismatch adalah Root Cause**: ESP32 mengirim wrapped response, tapi
+   Flutter expect unwrapped
 2. **Logging adalah Debug Tool**: Setiap step di-log untuk visibility penuh
-3. **Handle Multiple Formats**: Code robust handle berbagai response format variations
+3. **Handle Multiple Formats**: Code robust handle berbagai response format
+   variations
 4. **Device ID Validation**: Ensure streaming hanya untuk correct device
-5. **Buffer Management**: Proper cleanup dan accumulation untuk fragment reassembly
+5. **Buffer Management**: Proper cleanup dan accumulation untuk fragment
+   reassembly
 
 ---
 
@@ -768,4 +797,3 @@ Berikut adalah complete log dari streaming yang berjalan dengan sempurna:
 3. ✅ Monitor logs untuk verify format parsing
 4. ✅ Update UI untuk display streaming data
 5. ✅ Add error handling untuk edge cases
-

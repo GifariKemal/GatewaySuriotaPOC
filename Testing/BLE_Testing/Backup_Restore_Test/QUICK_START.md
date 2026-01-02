@@ -1,8 +1,7 @@
 # ⚡ QUICK START - BLE Backup & Restore Testing
 
-**Version:** 1.1.0 (BUG #32 FIXED!)
-**Date:** November 22, 2025
-**Firmware Required:** v2.3.1+
+**Version:** 1.1.0 (BUG #32 FIXED!) **Date:** November 22, 2025 **Firmware
+Required:** v2.3.1+
 
 **5 Langkah Simple untuk Testing Cepat**
 
@@ -20,12 +19,15 @@ pip3 install -r requirements.txt
 ## 2️⃣ Nyalakan Gateway & BLE
 
 **Development Mode:**
+
 - BLE otomatis ON saat boot
 
 **Production Mode:**
+
 - Tekan dan tahan button 3 detik
 
 **Verifikasi:** Buka Serial Monitor, cari:
+
 ```
 [BLE] BLE advertising started: SURIOTA GW
 ```
@@ -39,6 +41,7 @@ python3 test_backup_restore.py
 ```
 
 Script akan otomatis:
+
 - ✅ Scan dan connect ke gateway
 - ✅ Tampilkan menu testing
 
@@ -80,6 +83,7 @@ Ketik: yes         # Konfirmasi restore
 ### ✅ Test PASSED jika:
 
 **Backup:**
+
 - Status = "ok"
 - Ada backup_info dengan semua fields
 - Ada config dengan devices, server_config, logging_config
@@ -87,6 +91,7 @@ Ketik: yes         # Konfirmasi restore
 - Backup size reasonable (tidak 0, tidak > 200KB)
 
 **Restore:**
+
 - Status = "ok"
 - success_count = 3
 - fail_count = 0
@@ -94,6 +99,7 @@ Ketik: yes         # Konfirmasi restore
 - Device IDs preserved from backup (BUG #32 fixed!)
 
 **Error Handling:**
+
 - Status = "error"
 - Error message: "Missing 'config' object"
 
@@ -102,10 +108,12 @@ Ketik: yes         # Konfirmasi restore
 ## 🎯 Test Priority
 
 **WAJIB test ini:**
+
 1. ✅ Test 1: Backup (validate struktur response)
 2. ✅ Test 4: Backup-Restore-Compare Cycle (validate data integrity)
 
 **Opsional:**
+
 - Test 2: Restore (jika ingin test manual)
 - Test 3: Error handling (validate firmware error handling)
 
@@ -114,6 +122,7 @@ Ketik: yes         # Konfirmasi restore
 ## 🚨 Troubleshooting Cepat
 
 **Gateway tidak ditemukan:**
+
 ```bash
 # Check BLE status
 # Restart gateway
@@ -121,6 +130,7 @@ Ketik: yes         # Konfirmasi restore
 ```
 
 **Timeout:**
+
 ```bash
 # Check config size (terlalu besar?)
 # Check memory di serial monitor
@@ -128,6 +138,7 @@ Ketik: yes         # Konfirmasi restore
 ```
 
 **JSON Error:**
+
 ```bash
 # Restart gateway
 # Coba lagi
@@ -137,27 +148,30 @@ Ketik: yes         # Konfirmasi restore
 
 ## 📊 Expected Performance
 
-| Config Size | Devices | Processing | Transfer Time |
-|------------|---------|------------|---------------|
-| Small      | 5       | 200-300 ms | 2-3 sec       |
-| Medium     | 20      | 400-600 ms | 5-8 sec       |
-| Large      | 50      | 800-1200 ms| 15-20 sec     |
+| Config Size | Devices | Processing  | Transfer Time |
+| ----------- | ------- | ----------- | ------------- |
+| Small       | 5       | 200-300 ms  | 2-3 sec       |
+| Medium      | 20      | 400-600 ms  | 5-8 sec       |
+| Large       | 50      | 800-1200 ms | 15-20 sec     |
 
 ---
 
 ## 📞 Need Help?
 
 **Baca dokumentasi lengkap:**
+
 ```bash
 cat README_TESTING.md
 ```
 
 **Lihat contoh payloads:**
+
 ```bash
 cat example_payloads.json
 ```
 
 **Report bug:**
+
 - GitHub Issues
 - Email: support@suriota.com
 

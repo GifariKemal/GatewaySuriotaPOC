@@ -32,29 +32,56 @@ import sys
 import os
 
 # Add parent directory to path for shared module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 try:
     from simulator_common import (
-        print_header, print_section, print_success, print_error, print_warning,
-        print_info, print_table, print_box, print_register_values,
-        print_connection_info, print_startup_banner, print_ready_message,
-        print_dependencies, Fore, Style
+        print_header,
+        print_section,
+        print_success,
+        print_error,
+        print_warning,
+        print_info,
+        print_table,
+        print_box,
+        print_register_values,
+        print_connection_info,
+        print_startup_banner,
+        print_ready_message,
+        print_dependencies,
+        Fore,
+        Style,
     )
+
     COMMON_AVAILABLE = True
 except ImportError:
     COMMON_AVAILABLE = False
+
     # Fallback to basic printing
-    def print_header(t, s="", v=""): print(f"\n=== {t} ===")
-    def print_section(t, i=""): print(f"\n--- {t} ---")
-    def print_success(m): print(f"[OK] {m}")
-    def print_error(m): print(f"[ERROR] {m}")
-    def print_warning(m): print(f"[WARN] {m}")
-    def print_info(m): print(f"[INFO] {m}")
+    def print_header(t, s="", v=""):
+        print(f"\n=== {t} ===")
+
+    def print_section(t, i=""):
+        print(f"\n--- {t} ---")
+
+    def print_success(m):
+        print(f"[OK] {m}")
+
+    def print_error(m):
+        print(f"[ERROR] {m}")
+
+    def print_warning(m):
+        print(f"[WARN] {m}")
+
+    def print_info(m):
+        print(f"[INFO] {m}")
+
     class Fore:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Style:
         BRIGHT = DIM = RESET_ALL = ""
+
 
 # =============================================================================
 # pymodbus Import (2.x and 3.x compatible)
@@ -63,12 +90,19 @@ try:
     # Try pymodbus 3.x first
     try:
         from pymodbus.server import StartTcpServer
+
         PYMODBUS_VERSION = 3
     except ImportError:
         from pymodbus.server.sync import StartTcpServer
+
         PYMODBUS_VERSION = 2
 
-    from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
+    from pymodbus.datastore import (
+        ModbusSequentialDataBlock,
+        ModbusSlaveContext,
+        ModbusServerContext,
+    )
+
     PYMODBUS_AVAILABLE = True
 except ImportError as e:
     PYMODBUS_AVAILABLE = False
@@ -76,12 +110,14 @@ except ImportError as e:
     print_info("Install with: pip install pymodbus")
     sys.exit(1)
 
+
 # =============================================================================
 # Configuration
 # =============================================================================
 def get_local_ip():
     """Auto-detect local IP address"""
     import socket
+
     try:
         # Connect to external address to determine local IP
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -91,6 +127,7 @@ def get_local_ip():
         return local_ip
     except:
         return "192.168.100.101"  # Fallback
+
 
 SERVER_IP = get_local_ip()
 SERVER_PORT = 502
@@ -108,7 +145,7 @@ REGISTER_INFO = {
     6: {"name": "Temp_Zone_7", "unit": "degC", "min": 20, "max": 35, "initial": 25},
     7: {"name": "Temp_Zone_8", "unit": "degC", "min": 20, "max": 35, "initial": 25},
     8: {"name": "Temp_Zone_9", "unit": "degC", "min": 20, "max": 35, "initial": 25},
-    9: {"name": "Temp_Zone_10", "unit": "degC", "min": 20, "max": 35, "initial": 25}
+    9: {"name": "Temp_Zone_10", "unit": "degC", "min": 20, "max": 35, "initial": 25},
 }
 
 # Auto-update configuration
@@ -119,11 +156,12 @@ UPDATE_INTERVAL = 2.0
 # Logging
 # =============================================================================
 logging.basicConfig(
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format="%(asctime)s [%(levelname)s] %(message)s",
     level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
+
 
 # =============================================================================
 # Register Updater Thread
@@ -166,20 +204,26 @@ class RegisterUpdater(threading.Thread):
                 # Display update
                 values = slave_context.getValues(4, 0, count=NUM_REGISTERS)
                 print(f"\n{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
-                print(f"  {Fore.WHITE}{Style.BRIGHT}Update #{self.update_count:04d} - Slave ID: {SLAVE_ID}{Style.RESET_ALL}")
+                print(
+                    f"  {Fore.WHITE}{Style.BRIGHT}Update #{self.update_count:04d} - Slave ID: {SLAVE_ID}{Style.RESET_ALL}"
+                )
                 print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
 
                 for addr in range(min(10, NUM_REGISTERS)):  # Show first 10
                     if addr in REGISTER_INFO:
                         info = REGISTER_INFO[addr]
                         value = values[addr]
-                        print(f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info['unit']}")
+                        print(
+                            f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info['unit']}"
+                        )
 
                 if NUM_REGISTERS > 10:
                     print(f"  ... and {NUM_REGISTERS - 10} more registers")
 
                 print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
-                print(f"  {Fore.GREEN}Waiting for Modbus TCP requests on {SERVER_IP}:{SERVER_PORT}...{Style.RESET_ALL}\n")
+                print(
+                    f"  {Fore.GREEN}Waiting for Modbus TCP requests on {SERVER_IP}:{SERVER_PORT}...{Style.RESET_ALL}\n"
+                )
 
             except Exception as e:
                 log.error(f"Update error: {e}")
@@ -187,25 +231,34 @@ class RegisterUpdater(threading.Thread):
     def stop(self):
         self.running = False
 
+
 # =============================================================================
 # Main Server
 # =============================================================================
 def run_server():
     """Setup and run the Modbus TCP server"""
 
-    print_startup_banner("TCP", NUM_REGISTERS) if COMMON_AVAILABLE else print(f"\n=== TCP Simulator - {NUM_REGISTERS} Registers ===")
+    (
+        print_startup_banner("TCP", NUM_REGISTERS)
+        if COMMON_AVAILABLE
+        else print(f"\n=== TCP Simulator - {NUM_REGISTERS} Registers ===")
+    )
 
     if COMMON_AVAILABLE:
         print_dependencies()
 
     # Print configuration
-    print_section("Configuration", "[CFG]") if COMMON_AVAILABLE else print("\n--- Configuration ---")
+    (
+        print_section("Configuration", "[CFG]")
+        if COMMON_AVAILABLE
+        else print("\n--- Configuration ---")
+    )
 
     config = {
         "ip": SERVER_IP,
         "port": SERVER_PORT,
         "slave_id": SLAVE_ID,
-        "num_registers": NUM_REGISTERS
+        "num_registers": NUM_REGISTERS,
     }
 
     if COMMON_AVAILABLE:
@@ -222,29 +275,39 @@ def run_server():
     input_registers = ModbusSequentialDataBlock(0, initial_values)
 
     slave_context = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [0]*100),
-        co=ModbusSequentialDataBlock(0, [0]*100),
-        hr=ModbusSequentialDataBlock(0, [0]*100),
+        di=ModbusSequentialDataBlock(0, [0] * 100),
+        co=ModbusSequentialDataBlock(0, [0] * 100),
+        hr=ModbusSequentialDataBlock(0, [0] * 100),
         ir=input_registers,
-        zero_mode=True
+        zero_mode=True,
     )
 
-    server_context = ModbusServerContext(
-        slaves={SLAVE_ID: slave_context},
-        single=False
-    )
+    server_context = ModbusServerContext(slaves={SLAVE_ID: slave_context}, single=False)
 
     # Display initial values
-    print_section("Initial Values", "[REG]") if COMMON_AVAILABLE else print("\n--- Initial Values ---")
+    (
+        print_section("Initial Values", "[REG]")
+        if COMMON_AVAILABLE
+        else print("\n--- Initial Values ---")
+    )
 
     headers = ["Addr", "Name", "Value", "Unit", "Range"]
     rows = []
     for addr in range(min(15, NUM_REGISTERS)):
         info = REGISTER_INFO[addr]
-        rows.append([addr, info["name"][:15], info["initial"], info["unit"], f"{info['min']}-{info['max']}"])
+        rows.append(
+            [
+                addr,
+                info["name"][:15],
+                info["initial"],
+                info["unit"],
+                f"{info['min']}-{info['max']}",
+            ]
+        )
 
     if COMMON_AVAILABLE:
         from simulator_common import print_table
+
         print_table(headers, rows)
     else:
         for row in rows:
@@ -258,7 +321,11 @@ def run_server():
     if AUTO_UPDATE:
         updater = RegisterUpdater(server_context, SLAVE_ID)
         updater.start()
-        print_info(f"Auto-update enabled ({UPDATE_INTERVAL}s interval)") if COMMON_AVAILABLE else print(f"[INFO] Auto-update: {UPDATE_INTERVAL}s")
+        (
+            print_info(f"Auto-update enabled ({UPDATE_INTERVAL}s interval)")
+            if COMMON_AVAILABLE
+            else print(f"[INFO] Auto-update: {UPDATE_INTERVAL}s")
+        )
 
     # Ready message
     if COMMON_AVAILABLE:
@@ -268,7 +335,9 @@ def run_server():
         print("[INFO] Press Ctrl+C to stop")
 
     try:
-        log.info(f"Starting TCP server on {SERVER_IP}:{SERVER_PORT} (pymodbus {PYMODBUS_VERSION}.x)")
+        log.info(
+            f"Starting TCP server on {SERVER_IP}:{SERVER_PORT} (pymodbus {PYMODBUS_VERSION}.x)"
+        )
         StartTcpServer(context=server_context, address=(SERVER_IP, SERVER_PORT))
     except KeyboardInterrupt:
         print("\n\n[INFO] Shutting down...")
@@ -281,6 +350,7 @@ def run_server():
         if updater:
             updater.stop()
         raise
+
 
 # =============================================================================
 # Main

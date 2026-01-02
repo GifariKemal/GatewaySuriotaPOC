@@ -1,22 +1,23 @@
 #ifndef ETHERNET_MANAGER_H
 #define ETHERNET_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
-#include <SPI.h>
-#include <Ethernet.h>
 #include <ArduinoJson.h>
+#include <Ethernet.h>
+#include <SPI.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
-class EthernetManager
-{
-private:
-  static EthernetManager *instance;
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+
+class EthernetManager {
+ private:
+  static EthernetManager* instance;
   bool initialized;
   bool configStored;  // v2.5.33: Track if config is stored for reconnect
   int referenceCount;
   byte mac[6];
-  SemaphoreHandle_t refCountMutex; // Protect reference counting from race condition
+  SemaphoreHandle_t
+      refCountMutex;  // Protect reference counting from race condition
 
   // W5500 pins
   static const int CS_PIN = 48;
@@ -38,17 +39,19 @@ private:
   EthernetManager();
   void generateMacAddress();
 
-public:
-  static EthernetManager *getInstance();
+ public:
+  static EthernetManager* getInstance();
 
-  bool init(bool useDhcp = true, IPAddress staticIp = IPAddress(0, 0, 0, 0), IPAddress gateway = IPAddress(0, 0, 0, 0), IPAddress subnet = IPAddress(0, 0, 0, 0));
+  bool init(bool useDhcp = true, IPAddress staticIp = IPAddress(0, 0, 0, 0),
+            IPAddress gateway = IPAddress(0, 0, 0, 0),
+            IPAddress subnet = IPAddress(0, 0, 0, 0));
   void addReference();
   void removeReference();
   void cleanup();
 
   bool isAvailable();
   IPAddress getLocalIP();
-  void getStatus(JsonObject &status);
+  void getStatus(JsonObject& status);
 
   // v2.5.33: Reconnect support
   bool tryReconnect();           // Attempt to reconnect using stored config

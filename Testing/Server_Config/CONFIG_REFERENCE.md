@@ -2,7 +2,8 @@
 
 ## Overview
 
-This document explains the server configuration structure used in `update_server_config.py`.
+This document explains the server configuration structure used in
+`update_server_config.py`.
 
 ## Configuration Structure (API v2.3.0)
 
@@ -34,6 +35,7 @@ Determines which network interface is primary.
 ```
 
 **Options:**
+
 - `"ETH"` - Ethernet (wired) is primary
 - `"WIFI"` - WiFi (wireless) is primary
 
@@ -54,16 +56,19 @@ WiFi settings (can be enabled even if Ethernet is primary).
 ```
 
 **Fields:**
+
 - `enabled` (boolean) - Enable/disable WiFi
 - `ssid` (string) - WiFi network name
 - `password` (string) - WiFi password
 
 **Current Settings:**
+
 - Enabled: ✅ Yes
 - SSID: `KOWI`
 - Password: `@Kremi201`
 
 **Notes:**
+
 - ESP32-S3 only supports 2.4GHz WiFi
 - SSID and password are case-sensitive
 - Max SSID length: 32 characters
@@ -86,6 +91,7 @@ Ethernet settings with DHCP or static IP.
 ```
 
 **Fields:**
+
 - `enabled` (boolean) - Enable/disable Ethernet
 - `use_dhcp` (boolean) - Use DHCP (automatic IP) or static IP
 - `static_ip` (string) - Static IP address (only if `use_dhcp` is `false`)
@@ -93,11 +99,13 @@ Ethernet settings with DHCP or static IP.
 - `subnet` (string) - Subnet mask (only if `use_dhcp` is `false`)
 
 **Current Settings:**
+
 - Enabled: ✅ Yes
 - DHCP: ✅ Yes (Automatic IP)
 - Static IP: Not used (DHCP enabled)
 
 **Example Static IP Configuration:**
+
 ```json
 "ethernet": {
   "enabled": true,
@@ -119,6 +127,7 @@ Determines which telemetry protocol(s) to use.
 ```
 
 **Options:**
+
 - `"mqtt"` - Only MQTT enabled
 - `"http"` - Only HTTP enabled
 - `"both"` - Both MQTT and HTTP enabled
@@ -151,6 +160,7 @@ MQTT broker and publish mode settings.
 ### 5.1 MQTT Broker Settings
 
 **Fields:**
+
 - `enabled` (boolean) - Enable/disable MQTT
 - `broker_address` (string) - MQTT broker hostname/IP
 - `broker_port` (integer) - MQTT broker port (default: 1883, TLS: 8883)
@@ -162,6 +172,7 @@ MQTT broker and publish mode settings.
 - `use_tls` (boolean) - Enable TLS/SSL encryption
 
 **Current Settings:**
+
 - Broker: `broker.hivemq.com:1883`
 - Client ID: `SuriotaGateway-001`
 - Keep Alive: 60 seconds
@@ -188,19 +199,23 @@ All registers published to a single topic in one JSON payload.
 ```
 
 **Fields:**
+
 - `enabled` (boolean) - Enable default mode
 - `topic_publish` (string) - Topic for publishing telemetry data
 - `topic_subscribe` (string) - Topic for receiving commands
 - `interval` (integer) - Publish interval value
-- `interval_unit` (string) - `"ms"` (milliseconds), `"s"` (seconds), or `"m"` (minutes)
+- `interval_unit` (string) - `"ms"` (milliseconds), `"s"` (seconds), or `"m"`
+  (minutes)
 
 **Current Settings:**
+
 - Mode: ✅ Default Mode
 - Publish Topic: `v1/devices/me/telemetry`
 - Subscribe Topic: `v1/devices/me/rpc`
 - Interval: 20 seconds
 
 **Payload Example:**
+
 ```json
 {
   "timestamp": 1700000000,
@@ -239,6 +254,7 @@ Registers organized into multiple topics with different intervals.
 ```
 
 **Fields:**
+
 - `enabled` (boolean) - Enable customize mode
 - `topic_subscribe` (string) - Topic for receiving commands
 - `custom_topics` (array) - Array of custom topic configurations
@@ -248,6 +264,7 @@ Registers organized into multiple topics with different intervals.
   - `interval_unit` (string) - `"ms"`, `"s"`, or `"m"`
 
 **Current Settings:**
+
 - Mode: ❌ Disabled (using Default Mode instead)
 
 ---
@@ -271,6 +288,7 @@ HTTP REST API telemetry settings.
 ```
 
 **Fields:**
+
 - `enabled` (boolean) - Enable/disable HTTP
 - `endpoint_url` (string) - Full URL of REST API endpoint
 - `method` (string) - HTTP method: `"POST"`, `"PUT"`, or `"PATCH"`
@@ -282,9 +300,11 @@ HTTP REST API telemetry settings.
 - `headers` (object) - Custom HTTP headers
 
 **Current Settings:**
+
 - Enabled: ❌ No
 
 **Example Enabled HTTP Config:**
+
 ```json
 "http_config": {
   "enabled": true,
@@ -397,6 +417,7 @@ HTTP REST API telemetry settings.
 ⚠️ **The device ALWAYS restarts 5 seconds after receiving server_config update**
 
 This is firmware behavior and cannot be disabled. Make sure:
+
 - Network cable is connected (if using Ethernet)
 - WiFi credentials are correct (if using WiFi)
 - Configuration is correct before sending
@@ -404,11 +425,13 @@ This is firmware behavior and cannot be disabled. Make sure:
 ### Interval Units
 
 Three units are supported:
+
 - `"ms"` - Milliseconds (1000ms = 1 second)
 - `"s"` - Seconds
 - `"m"` - Minutes (1m = 60 seconds)
 
 **Examples:**
+
 - `"interval": 500, "interval_unit": "ms"` → Every 500 milliseconds
 - `"interval": 30, "interval_unit": "s"` → Every 30 seconds
 - `"interval": 2, "interval_unit": "m"` → Every 2 minutes
@@ -416,11 +439,13 @@ Three units are supported:
 ### API Version Changes
 
 **v2.3.0 Breaking Changes:**
+
 - ❌ `data_interval` removed from root config
 - ✅ `http_config.interval` and `http_config.interval_unit` added
 - ✅ MQTT intervals moved to mode-specific configs
 
 **Old (v2.1.1 - No longer supported):**
+
 ```json
 "config": {
   "data_interval": {"value": 10, "unit": "s"},  // ❌ Removed
@@ -429,6 +454,7 @@ Three units are supported:
 ```
 
 **New (v2.3.0+):**
+
 ```json
 "config": {
   "http_config": {
@@ -450,9 +476,15 @@ Three units are supported:
   "op": "update",
   "type": "server_config",
   "config": {
-    "communication": {"mode": "ETH"},
-    "wifi": {"enabled": false, "ssid": "", "password": ""},
-    "ethernet": {"enabled": true, "use_dhcp": true, "static_ip": "", "gateway": "", "subnet": ""},
+    "communication": { "mode": "ETH" },
+    "wifi": { "enabled": false, "ssid": "", "password": "" },
+    "ethernet": {
+      "enabled": true,
+      "use_dhcp": true,
+      "static_ip": "",
+      "gateway": "",
+      "subnet": ""
+    },
     "protocol": "mqtt",
     "mqtt_config": {
       "enabled": true,
@@ -472,9 +504,9 @@ Three units are supported:
         "interval": 10,
         "interval_unit": "s"
       },
-      "customize_mode": {"enabled": false, "custom_topics": []}
+      "customize_mode": { "enabled": false, "custom_topics": [] }
     },
-    "http_config": {"enabled": false}
+    "http_config": { "enabled": false }
   }
 }
 ```
@@ -486,8 +518,8 @@ Three units are supported:
   "op": "update",
   "type": "server_config",
   "config": {
-    "communication": {"mode": "ETH"},
-    "wifi": {"enabled": false, "ssid": "", "password": ""},
+    "communication": { "mode": "ETH" },
+    "wifi": { "enabled": false, "ssid": "", "password": "" },
     "ethernet": {
       "enabled": true,
       "use_dhcp": false,
@@ -496,7 +528,7 @@ Three units are supported:
       "subnet": "255.255.255.0"
     },
     "protocol": "http",
-    "mqtt_config": {"enabled": false},
+    "mqtt_config": { "enabled": false },
     "http_config": {
       "enabled": true,
       "endpoint_url": "https://api.company.com/sensors",
@@ -522,9 +554,19 @@ Three units are supported:
   "op": "update",
   "type": "server_config",
   "config": {
-    "communication": {"mode": "WIFI"},
-    "wifi": {"enabled": true, "ssid": "FactoryWiFi", "password": "SecurePass123"},
-    "ethernet": {"enabled": false, "use_dhcp": true, "static_ip": "", "gateway": "", "subnet": ""},
+    "communication": { "mode": "WIFI" },
+    "wifi": {
+      "enabled": true,
+      "ssid": "FactoryWiFi",
+      "password": "SecurePass123"
+    },
+    "ethernet": {
+      "enabled": false,
+      "use_dhcp": true,
+      "static_ip": "",
+      "gateway": "",
+      "subnet": ""
+    },
     "protocol": "mqtt",
     "mqtt_config": {
       "enabled": true,
@@ -537,7 +579,7 @@ Three units are supported:
       "clean_session": true,
       "use_tls": true,
       "publish_mode": "customize",
-      "default_mode": {"enabled": false},
+      "default_mode": { "enabled": false },
       "customize_mode": {
         "enabled": true,
         "topic_subscribe": "command/gateway/a1",
@@ -563,7 +605,7 @@ Three units are supported:
         ]
       }
     },
-    "http_config": {"enabled": false}
+    "http_config": { "enabled": false }
   }
 }
 ```
@@ -578,6 +620,5 @@ Three units are supported:
 
 ---
 
-**Version:** 2.3.0
-**Last Updated:** 2025-11-15
-**Author:** Kemal - SURIOTA R&D Team
+**Version:** 2.3.0 **Last Updated:** 2025-11-15 **Author:** Kemal - SURIOTA R&D
+Team

@@ -6,7 +6,8 @@
 
 1. **DebugConfig.h** (Enhanced) ✅
    - Added `LogLevel` enum (NONE, ERROR, WARN, INFO, DEBUG, VERBOSE)
-   - Added module-specific macros for all services (RTU, TCP, MQTT, BLE, HTTP, BATCH, CONFIG, etc.)
+   - Added module-specific macros for all services (RTU, TCP, MQTT, BLE, HTTP,
+     BATCH, CONFIG, etc.)
    - Added `LogThrottle` class for spam prevention
    - Maintained backward compatibility with existing `DEBUG_*` macros
    - Production mode optimization (INFO/WARN/ERROR only)
@@ -76,14 +77,14 @@ void setup() {
 
 #### ModbusRtuService.cpp - Critical Lines
 
-| Line | OLD | NEW | Level |
-|------|-----|-----|-------|
-| 255 | `Serial.printf("[RTU] Device %s is disabled...` | `LOG_RTU_INFO("Device %s is disabled...` | INFO |
-| 265 | `Serial.printf("[RTU] Device %s retry backoff...` | `LOG_RTU_DEBUG("Device %s retry backoff...` | DEBUG |
-| 280 | `Serial.printf("[RTU] Polling device %s...` | `LOG_RTU_VERBOSE("Polling device %s...` | VERBOSE |
-| 364 | `Serial.printf("%s: %s = ERROR...` | `LOG_RTU_WARN("%s: %s = ERROR...` | WARN |
-| 522 | `Serial.printf("[RTU] Device %s: Read successful...` | `LOG_RTU_INFO("Device %s: Read successful...` | INFO |
-| 536 | `Serial.printf("[RTU] Device %s: All %d register reads failed...` | `LOG_RTU_ERROR("Device %s: All %d register reads failed...` | ERROR |
+| Line | OLD                                                               | NEW                                                         | Level   |
+| ---- | ----------------------------------------------------------------- | ----------------------------------------------------------- | ------- |
+| 255  | `Serial.printf("[RTU] Device %s is disabled...`                   | `LOG_RTU_INFO("Device %s is disabled...`                    | INFO    |
+| 265  | `Serial.printf("[RTU] Device %s retry backoff...`                 | `LOG_RTU_DEBUG("Device %s retry backoff...`                 | DEBUG   |
+| 280  | `Serial.printf("[RTU] Polling device %s...`                       | `LOG_RTU_VERBOSE("Polling device %s...`                     | VERBOSE |
+| 364  | `Serial.printf("%s: %s = ERROR...`                                | `LOG_RTU_WARN("%s: %s = ERROR...`                           | WARN    |
+| 522  | `Serial.printf("[RTU] Device %s: Read successful...`              | `LOG_RTU_INFO("Device %s: Read successful...`               | INFO    |
+| 536  | `Serial.printf("[RTU] Device %s: All %d register reads failed...` | `LOG_RTU_ERROR("Device %s: All %d register reads failed...` | ERROR   |
 
 **Add throttling for repetitive logs (line 265):**
 
@@ -101,6 +102,7 @@ if (retryThrottle.shouldLog()) {
 #### ModbusTcpService.cpp - Key Lines
 
 **readTcpDevicesLoop():**
+
 ```cpp
 // OLD:
 Serial.println("[TCP Task] Refreshing device list and schedule...");
@@ -110,6 +112,7 @@ LOG_TCP_DEBUG("Refreshing device list and schedule...\n");
 ```
 
 **readTcpDeviceData():**
+
 ```cpp
 // OLD:
 Serial.printf("[TCP] Polling device %s (IP:%s Port:%d Slave:%d)\n", ...);
@@ -119,6 +122,7 @@ LOG_TCP_VERBOSE("Polling device %s (IP:%s Port:%d Slave:%d)\n", ...);
 ```
 
 **Error handling:**
+
 ```cpp
 // OLD:
 Serial.printf("[TCP] ERROR: Connection failed to %s:%d\n", ...);
@@ -147,6 +151,7 @@ if (batchWaitingThrottle.shouldLog()) {
 ```
 
 **publishDefaultMode() - success:**
+
 ```cpp
 // OLD:
 Serial.printf("[MQTT] Default Mode: Published %d registers from %d devices to %s (%.1f KB)\n", ...);
@@ -156,6 +161,7 @@ LOG_MQTT_INFO("Default Mode: Published %d registers from %d devices to %s (%.1f 
 ```
 
 **connectToMqtt() - connection established:**
+
 ```cpp
 // OLD:
 Serial.printf("[MQTT] Connected to %s:%d via %s (%s)\n", ...);
@@ -167,6 +173,7 @@ LOG_MQTT_INFO("Connected to %s:%d via %s (%s)\n", ...);
 #### DeviceBatchManager.h - Key Lines
 
 **startBatch() (line 86-87):**
+
 ```cpp
 // OLD:
 Serial.printf("[BATCH] Started tracking %s: expecting %d registers\n", ...);
@@ -176,6 +183,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n", ...);
 ```
 
 **incrementEnqueued() - batch complete (line 113-115):**
+
 ```cpp
 // OLD:
 Serial.printf("[BATCH] Device %s COMPLETE (%d success, %d failed, %d/%d total, took %lu ms)\n", ...);
@@ -185,6 +193,7 @@ LOG_BATCH_INFO("Device %s COMPLETE (%d success, %d failed, %d/%d total, took %lu
 ```
 
 **ERROR handling (line 74):**
+
 ```cpp
 // OLD:
 Serial.println("[BATCH] ERROR: Mutex timeout in startBatch");
@@ -206,7 +215,9 @@ outputBuffer += "  L" + String(lineNumber++) + ": " + compactLine + "\n";
 Serial.print(outputBuffer); // Keep this - don't migrate to LOG macro
 ```
 
-**Rationale:** [DATA] logs are already optimized for compactness (6 registers per line), and they provide real-time telemetry visualization. Converting to LOG_DATA_INFO would break the formatting.
+**Rationale:** [DATA] logs are already optimized for compactness (6 registers
+per line), and they provide real-time telemetry visualization. Converting to
+LOG_DATA_INFO would break the formatting.
 
 ---
 
@@ -233,6 +244,7 @@ setLogLevel(LOG_VERBOSE); // Everything
 ### Test 3: Output Reduction
 
 **Before Migration (LOG_VERBOSE equivalent):**
+
 ```
 [RTU] Polling device D7227b (Slave:1 Port:2 Baud:9600)
 [BATCH] Started tracking D7227b: expecting 48 registers
@@ -248,6 +260,7 @@ setLogLevel(LOG_VERBOSE); // Everything
 ```
 
 **After Migration (LOG_INFO):**
+
 ```
 [INFO][BATCH] Started tracking D7227b: expecting 48 registers
 [DATA] D7227b:
@@ -274,17 +287,18 @@ setLogLevel(LOG_VERBOSE); // Everything
 
 ### Log Volume Reduction
 
-| Log Level | Lines/Cycle | Reduction | Use Case |
-|-----------|-------------|-----------|----------|
-| VERBOSE | ~25 lines | 0% (baseline) | Heavy debugging |
-| DEBUG | ~15 lines | 40% | Development |
-| INFO | ~7 lines | 72% | Production default |
-| WARN | ~2 lines | 92% | Production quiet |
-| ERROR | ~0-1 lines | 96% | Production critical only |
+| Log Level | Lines/Cycle | Reduction     | Use Case                 |
+| --------- | ----------- | ------------- | ------------------------ |
+| VERBOSE   | ~25 lines   | 0% (baseline) | Heavy debugging          |
+| DEBUG     | ~15 lines   | 40%           | Development              |
+| INFO      | ~7 lines    | 72%           | Production default       |
+| WARN      | ~2 lines    | 92%           | Production quiet         |
+| ERROR     | ~0-1 lines  | 96%           | Production critical only |
 
 ### Performance Impact
 
-- **Compile-time optimization:** DEBUG/VERBOSE logs compiled out in production mode
+- **Compile-time optimization:** DEBUG/VERBOSE logs compiled out in production
+  mode
 - **Runtime overhead:** Negligible (<1ms per log check)
 - **Memory usage:** +2KB Flash for log level system
 - **Serial bandwidth:** 72% reduction at LOG_INFO level
@@ -326,6 +340,7 @@ if (operation == "update" && type == "config") {
 ## ✅ Completion Checklist
 
 ### Core System
+
 - [x] DebugConfig.h enhanced
 - [x] DebugConfig.cpp created
 - [x] Log macros for all modules (RTU, TCP, MQTT, BLE, BATCH, CONFIG, etc.)
@@ -334,6 +349,7 @@ if (operation == "update" && type == "config") {
 - [x] Automated migration script created
 
 ### Integration (TODO)
+
 - [ ] Add `#include "DebugConfig.h"` to Main.ino
 - [ ] Add `setLogLevel(LOG_INFO)` to setup()
 - [ ] Migrate ModbusRtuService.cpp (8-10 key lines)
@@ -345,6 +361,7 @@ if (operation == "update" && type == "config") {
 - [ ] Verify output reduction (should be ~70% at LOG_INFO)
 
 ### Optional Enhancements (Future)
+
 - [ ] Add BLE CRUD command for runtime log level control
 - [ ] Add SPIFFS/SD log file rotation
 - [ ] Add log level persistence to config file
@@ -355,12 +372,14 @@ if (operation == "update" && type == "config") {
 ## 🎯 Quick Start
 
 1. **Compile and test current system:**
+
    ```bash
    # Verify DebugConfig.h and DebugConfig.cpp are in Main/ folder
    # Compile in Arduino IDE
    ```
 
 2. **Add to Main.ino setup():**
+
    ```cpp
    setLogLevel(LOG_INFO);
    printLogLevelStatus();
@@ -385,6 +404,7 @@ if (operation == "update" && type == "config") {
 ## 🚀 Next Phase: Memory Recovery
 
 After log system is stable, proceed to:
+
 - **Phase 2:** Memory recovery strategy (Section 12.4)
 - **Phase 3:** RTC timestamps (Section 11.3)
 - **Phase 4:** BLE MTU timeout optimization (Section 10.3)

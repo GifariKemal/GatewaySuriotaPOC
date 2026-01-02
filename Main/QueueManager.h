@@ -1,49 +1,56 @@
 #ifndef QUEUE_MANAGER_H
 #define QUEUE_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
-class QueueManager
-{
-private:
-  static QueueManager *instance;
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+
+class QueueManager {
+ private:
+  static QueueManager* instance;
   QueueHandle_t dataQueue;
   QueueHandle_t streamQueue;
-  mutable SemaphoreHandle_t queueMutex;   // Mutable: mutex operations don't change logical state
-  mutable SemaphoreHandle_t streamMutex;  // Mutable: mutex operations don't change logical state
-  static const int MAX_QUEUE_SIZE = 1000; // CRITICAL FIX: Increased from 200 to 1000 to prevent queue overflow during slow MQTT publish intervals (60s+). Supports ~60s publish interval with 2 devices × 50 registers each.
+  mutable SemaphoreHandle_t
+      queueMutex;  // Mutable: mutex operations don't change logical state
+  mutable SemaphoreHandle_t
+      streamMutex;  // Mutable: mutex operations don't change logical state
+  static const int MAX_QUEUE_SIZE =
+      1000;  // CRITICAL FIX: Increased from 200 to 1000 to prevent queue
+             // overflow during slow MQTT publish intervals (60s+). Supports
+             // ~60s publish interval with 2 devices × 50 registers each.
   static const int MAX_STREAM_QUEUE_SIZE = 50;
 
   // Configurable mutex timeout (milliseconds)
-  uint32_t queueMutexTimeout = 100; // Default timeout for queue operations (100ms)
-  uint32_t streamMutexTimeout = 10; // Default timeout for stream operations (10ms)
+  uint32_t queueMutexTimeout =
+      100;  // Default timeout for queue operations (100ms)
+  uint32_t streamMutexTimeout =
+      10;  // Default timeout for stream operations (10ms)
 
   QueueManager();
 
-public:
-  static QueueManager *getInstance();
+ public:
+  static QueueManager* getInstance();
 
   bool init();
   // Using const reference to avoid copying large JsonObject
-  bool enqueue(const JsonObject &dataPoint);
-  bool dequeue(JsonObject &dataPoint);
-  bool peek(const JsonObject &dataPoint) const;
+  bool enqueue(const JsonObject& dataPoint);
+  bool dequeue(JsonObject& dataPoint);
+  bool peek(const JsonObject& dataPoint) const;
   bool isEmpty() const;
   bool isFull() const;
   int size() const;
   void clear();
-  void getStats(JsonObject &stats) const;
+  void getStats(JsonObject& stats) const;
 
   // Priority 1: Flush queue data for deleted device
-  int flushDeviceData(const String &deviceId);
+  int flushDeviceData(const String& deviceId);
 
   // Streaming queue methods
-  bool enqueueStream(const JsonObject &dataPoint);
-  bool dequeueStream(JsonObject &dataPoint);
+  bool enqueueStream(const JsonObject& dataPoint);
+  bool dequeueStream(JsonObject& dataPoint);
   bool isStreamEmpty() const;
   void clearStream();
 

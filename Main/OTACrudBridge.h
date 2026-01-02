@@ -1,15 +1,17 @@
 /**
  * @file OTACrudBridge.h
- * @brief Bridge between application code and OTAManager to avoid ESP_SSLClient linker issues
+ * @brief Bridge between application code and OTAManager to avoid ESP_SSLClient
+ * linker issues
  * @version 2.5.35
  * @date 2025-12-12
  *
- * This file provides function declarations that allow other modules to call OTA functions
- * without directly including OTAManager.h (which pulls in ESP_SSLClient headers).
+ * This file provides function declarations that allow other modules to call OTA
+ * functions without directly including OTAManager.h (which pulls in
+ * ESP_SSLClient headers).
  *
- * The actual implementations are in OTACrudBridge.cpp which is the ONLY file that
- * includes OTAManager.h. This prevents multiple definition linker errors from
- * ESP_SSLClient's Helper.h which has non-inline function definitions.
+ * The actual implementations are in OTACrudBridge.cpp which is the ONLY file
+ * that includes OTAManager.h. This prevents multiple definition linker errors
+ * from ESP_SSLClient's Helper.h which has non-inline function definitions.
  *
  * IMPORTANT: All access to OTAManager must go through this bridge!
  */
@@ -48,7 +50,8 @@ bool begin(OTAManager* otaManager);
  * @param version Firmware version string
  * @param buildNumber Build number
  */
-void setCurrentVersion(OTAManager* otaManager, const String& version, uint32_t buildNumber);
+void setCurrentVersion(OTAManager* otaManager, const String& version,
+                       uint32_t buildNumber);
 
 /**
  * @brief Mark firmware as valid (prevent rollback)
@@ -89,7 +92,8 @@ bool checkUpdate(OTAManager* otaManager, JsonDocument& response);
  * @param response JSON response object to fill
  * @return true if update started successfully
  */
-bool startUpdate(OTAManager* otaManager, const String& customUrl, JsonDocument& response);
+bool startUpdate(OTAManager* otaManager, const String& customUrl,
+                 JsonDocument& response);
 
 /**
  * @brief Get OTA status
@@ -132,7 +136,8 @@ void disableBleOta(OTAManager* otaManager, JsonDocument& response);
  * @param target "factory" or "previous"
  * @param response JSON response object to fill
  */
-void rollback(OTAManager* otaManager, const String& target, JsonDocument& response);
+void rollback(OTAManager* otaManager, const String& target,
+              JsonDocument& response);
 
 /**
  * @brief Get OTA configuration
@@ -149,8 +154,9 @@ void getConfig(OTAManager* otaManager, JsonDocument& response);
  * @param branch Branch name
  * @param response JSON response object to fill
  */
-void setGitHubRepo(OTAManager* otaManager, const String& owner, const String& repo,
-                   const String& branch, JsonDocument& response);
+void setGitHubRepo(OTAManager* otaManager, const String& owner,
+                   const String& repo, const String& branch,
+                   JsonDocument& response);
 
 /**
  * @brief Set GitHub token
@@ -158,8 +164,9 @@ void setGitHubRepo(OTAManager* otaManager, const String& owner, const String& re
  * @param token GitHub personal access token
  * @param response JSON response object to fill
  */
-void setGitHubToken(OTAManager* otaManager, const String& token, JsonDocument& response);
+void setGitHubToken(OTAManager* otaManager, const String& token,
+                    JsonDocument& response);
 
-} // namespace OTACrudBridge
+}  // namespace OTACrudBridge
 
-#endif // OTA_CRUD_BRIDGE_H
+#endif  // OTA_CRUD_BRIDGE_H

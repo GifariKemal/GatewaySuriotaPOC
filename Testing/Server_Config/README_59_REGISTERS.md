@@ -1,20 +1,21 @@
 # Server Config untuk 59 Registers - Custom Mode
 
-**Created:** 2025-11-22
-**Purpose:** Konfigurasi MQTT untuk publish 59 registers menggunakan Custom Mode
+**Created:** 2025-11-22 **Purpose:** Konfigurasi MQTT untuk publish 59 registers
+menggunakan Custom Mode
 
 ---
 
 ## 📊 Overview
 
-Konfigurasi ini memecah **59 registers** menjadi **4 topics** untuk bypass broker limit 2KB:
+Konfigurasi ini memecah **59 registers** menjadi **4 topics** untuk bypass
+broker limit 2KB:
 
-| Topic | Registers | Payload | Interval | Priority |
-|-------|-----------|---------|----------|----------|
-| `suriota/device/temperature` | 10 | ~620 bytes | 60s | Normal |
-| `suriota/device/humidity` | 10 | ~620 bytes | 60s | Normal |
-| `suriota/device/electrical` | 20 | ~1040 bytes | **30s** | **HIGH** ⚡ |
-| `suriota/device/sensors` | 19 | ~998 bytes | 120s | Low |
+| Topic                        | Registers | Payload     | Interval | Priority    |
+| ---------------------------- | --------- | ----------- | -------- | ----------- |
+| `suriota/device/temperature` | 10        | ~620 bytes  | 60s      | Normal      |
+| `suriota/device/humidity`    | 10        | ~620 bytes  | 60s      | Normal      |
+| `suriota/device/electrical`  | 20        | ~1040 bytes | **30s**  | **HIGH** ⚡ |
+| `suriota/device/sensors`     | 19        | ~998 bytes  | 120s     | Low         |
 
 **Total:** 59 registers, semua payload < 2KB ✅
 
@@ -130,11 +131,13 @@ cp server_config_59_registers_custom_mode.json /path/to/sdcard/server_config.jso
 ### 3. Subscribe di MQTT Client
 
 **Subscribe semua topics:**
+
 ```bash
 mosquitto_sub -h broker.hivemq.com -t "suriota/device/#" -v
 ```
 
 **Subscribe topic tertentu:**
+
 ```bash
 # Temperature only
 mosquitto_sub -h broker.hivemq.com -t "suriota/device/temperature"
@@ -193,6 +196,7 @@ Time     Topic                     Registers  Payload
 ```
 
 **Observation:**
+
 - Electrical data updates **TWICE as fast** (30s vs 60s)
 - Sensor data updates **HALF as fast** (120s vs 60s)
 - Total bandwidth optimized based on priority
@@ -202,6 +206,7 @@ Time     Topic                     Registers  Payload
 ## 📈 Bandwidth Analysis
 
 ### Default Mode (Would FAIL):
+
 ```
 Interval: 60s
 Payload: 2678 bytes (59 registers)
@@ -210,6 +215,7 @@ Status: ❌ FAIL (>2KB limit)
 ```
 
 ### Custom Mode (SUCCESS):
+
 ```
 Topic 1 (60s):   620 bytes / 60s  = 10.3 bytes/sec
 Topic 2 (60s):   620 bytes / 60s  = 10.3 bytes/sec
@@ -227,12 +233,14 @@ Status: ✅ SUCCESS (all topics < 2KB)
 ## 🎯 Benefits
 
 ### 1. Bypass Broker Limit ✅
+
 ```
 Default mode:  2678 bytes → ❌ FAIL
 Custom mode:   4 × <1.1KB → ✅ SUCCESS
 ```
 
 ### 2. Prioritized Updates ✅
+
 ```
 Electrical:   30s  (critical - power monitoring)
 Temp/Humid:   60s  (normal - environmental)
@@ -240,6 +248,7 @@ Sensors:     120s  (low priority - misc)
 ```
 
 ### 3. Selective Subscription ✅
+
 ```
 Dashboard A: Subscribe "suriota/device/electrical" only
 Dashboard B: Subscribe "suriota/device/temperature" only
@@ -247,6 +256,7 @@ Dashboard C: Subscribe "suriota/device/#" (all)
 ```
 
 ### 4. Better Organization ✅
+
 ```
 suriota/device/
 ├── temperature    (thermal monitoring)
@@ -281,12 +291,14 @@ suriota/device/
 ## 🔧 Troubleshooting
 
 ### Problem: "Waiting for batch completion"
+
 ```
 Solution: Check if all registers exist in device config
 Verify: All register IDs match device_id + register_name format
 ```
 
 ### Problem: "Publish failed"
+
 ```
 Check: Payload size < 2KB for each topic
 Check: Broker connection stable
@@ -294,6 +306,7 @@ Check: All register IDs valid
 ```
 
 ### Problem: "No data on topic"
+
 ```
 Check: Register IDs correct in custom_topics
 Check: Device enabled and polling
@@ -310,5 +323,4 @@ Check: Subscribe to correct topic name
 
 ---
 
-**Last Updated:** 2025-11-22
-**Author:** Kemal (Suriota R&D)
+**Last Updated:** 2025-11-22 **Author:** Kemal (Suriota R&D)

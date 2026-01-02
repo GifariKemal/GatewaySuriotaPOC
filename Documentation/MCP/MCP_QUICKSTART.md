@@ -2,7 +2,8 @@
 
 **Get Started with MCP Servers in 10 Minutes**
 
-**Project:** SRT-MGATE-1210 Gateway | **Version:** 1.0.0 | **Date:** Nov 24, 2025
+**Project:** SRT-MGATE-1210 Gateway | **Version:** 1.0.0 | **Date:** Nov 24,
+2025
 
 ---
 
@@ -39,6 +40,7 @@ claude mcp list
 ```
 
 **Expected Output:**
+
 ```
 context7: npx -y @upstash/context7-mcp - ✓ Connected
 playwright: npx @playwright/mcp@latest - ✓ Connected
@@ -55,6 +57,7 @@ Build the Main project and upload to ESP32-S3
 ```
 
 **What happens:**
+
 1. Arduino MCP compiles firmware
 2. Auto-detects COM port
 3. Uploads to board
@@ -70,6 +73,7 @@ use context7
 ```
 
 **What happens:**
+
 1. Context7 fetches ArduinoJson 7.x docs
 2. Returns current API + examples
 3. Includes PSRAM optimization tips
@@ -83,6 +87,7 @@ Open http://localhost:8080 and verify the Modbus simulator is running
 ```
 
 **What happens:**
+
 1. Playwright launches browser
 2. Navigates to URL
 3. Checks page loaded
@@ -152,14 +157,15 @@ Step 4: Validate
 
 ## 📊 Model Selection Quick Guide
 
-| Task Type | Model to Use | Example |
-|-----------|--------------|---------|
-| Quick builds | `haiku` | "Build the project" |
-| Feature development | `sonnet` (default) | "Add new BLE command" |
-| Complex debugging | `opus` | "Debug race condition in tasks" |
-| Architecture design | `opusplan` | "Design OTA update system" |
+| Task Type           | Model to Use       | Example                         |
+| ------------------- | ------------------ | ------------------------------- |
+| Quick builds        | `haiku`            | "Build the project"             |
+| Feature development | `sonnet` (default) | "Add new BLE command"           |
+| Complex debugging   | `opus`             | "Debug race condition in tasks" |
+| Architecture design | `opusplan`         | "Design OTA update system"      |
 
 **Usage:**
+
 ```bash
 # Use Haiku
 claude --model haiku "Build project"
@@ -259,12 +265,14 @@ npx playwright install
 ## 🎉 You're Ready!
 
 Now you can:
+
 - ✅ Build firmware with one command
 - ✅ Get latest documentation instantly
 - ✅ Automate web testing
 - ✅ Develop 4x faster
 
 **Start developing:**
+
 ```bash
 claude "Help me build the Gateway firmware"
 ```

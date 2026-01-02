@@ -1,9 +1,7 @@
 # UTF-8 Character Encoding Issue - Degree Symbol (°C)
 
-**Date:** 2025-11-22
-**Issue:** MQTT payload corruption at position 2005
-**Root Cause:** UTF-8 multi-byte character `°C` in unit field
-**Status:** ✅ FIXED
+**Date:** 2025-11-22 **Issue:** MQTT payload corruption at position 2005 **Root
+Cause:** UTF-8 multi-byte character `°C` in unit field **Status:** ✅ FIXED
 
 ---
 
@@ -12,13 +10,15 @@
 ### **The Problem:**
 
 **Device config contains:**
+
 ```json
 {
-  "unit": "°C"  // ← Multi-byte UTF-8 character!
+  "unit": "°C" // ← Multi-byte UTF-8 character!
 }
 ```
 
 **UTF-8 Encoding:**
+
 - Character `°` = `0xC2 0xB0` (2 bytes!)
 - Character `C` = `0x43` (1 byte)
 - Total: `°C` = **3 bytes** in UTF-8
@@ -35,18 +35,23 @@
 ### **Evidence:**
 
 **Serial Log (correct):**
+
 ```
 "Temp_Zone_10":{"value":22,"unit":"Â°C"}
                                    ^^^^
 ```
+
 Notice: `Â°C` instead of `°C` - this is UTF-8 encoding visualization!
 
 **MQTT Subscriber (corrupted):**
+
 ```
 ...,"Temp_Zone_1":{"value":27,�0�v1/device
                               ^^^^^^^^^^^^
 ```
-After `27,` should be `"unit":"°C"}}}}` but buffer overflow causes topic name to overwrite!
+
+After `27,` should be `"unit":"°C"}}}}` but buffer overflow causes topic name to
+overwrite!
 
 ---
 
@@ -57,6 +62,7 @@ After `27,` should be `"unit":"°C"}}}}` but buffer overflow causes topic name t
 **File:** `Testing/Device_Testing/RTU_Create/create_device_50_registers.py`
 
 **BEFORE:**
+
 ```python
 registers.append({
     "address": i,
@@ -67,6 +73,7 @@ registers.append({
 ```
 
 **AFTER:**
+
 ```python
 registers.append({
     "address": i,
@@ -83,6 +90,7 @@ registers.append({
 ### **Method 1: Recreate Device (RECOMMENDED)**
 
 **Step 1: Delete existing device via BLE**
+
 ```bash
 cd Testing/Device_Testing/RTU_Create
 python delete_device.py
@@ -90,6 +98,7 @@ python delete_device.py
 ```
 
 **Step 2: Create new device with fixed units**
+
 ```bash
 python create_device_50_registers.py
 # Uses updated script with degC instead of °C
@@ -98,6 +107,7 @@ python create_device_50_registers.py
 ### **Method 2: Update Existing Device**
 
 **Via BLE - Update each register manually:**
+
 ```json
 {
   "op": "update",
@@ -107,7 +117,7 @@ python create_device_50_registers.py
     "registers": [
       {
         "register_name": "Temp_Zone_1",
-        "unit": "degC"  // Changed from °C
+        "unit": "degC" // Changed from °C
       },
       {
         "register_name": "Temp_Zone_2",
@@ -128,6 +138,7 @@ python create_device_50_registers.py
 1. Remove SD card from ESP32
 2. Mount on PC
 3. Edit `devices.json`:
+
    ```bash
    # Linux/Mac
    sed -i 's/°C/degC/g' /mnt/sdcard/devices.json
@@ -135,6 +146,7 @@ python create_device_50_registers.py
    # Windows PowerShell
    (Get-Content devices.json) -replace '°C','degC' | Set-Content devices.json
    ```
+
 4. Insert SD card back
 5. Reset ESP32
 
@@ -145,16 +157,19 @@ python create_device_50_registers.py
 ### **Step 1: Verify No Degree Symbols**
 
 **Check Serial Monitor:**
+
 ```
 [DATA] D7227b:
   L1: Temp_Zone_1:25.0degC | Temp_Zone_2:30.0degC | ...
                    ^^^^^                    ^^^^^
 ```
+
 Should show `degC` NOT `°C` or `Â°C`!
 
 ### **Step 2: Verify MQTT Payload**
 
 **Expected Serial Log:**
+
 ```
 [MQTT] Payload FIRST 500 chars:
 {"timestamp":"22/11/2025 06:21:26","devices":{"D7227b":{"device_name":"RTU_Device_50Regs",...,"Temp_Zone_10":{"value":22,"unit":"degC"},...
@@ -163,11 +178,13 @@ Should show `degC` NOT `°C` or `Â°C`!
 ...,"Temp_Zone_1":{"value":27,"unit":"degC"}}}}
                                     ^^^^^
 ```
+
 Should end with `}}}}` and contain `degC`!
 
 ### **Step 3: Verify MQTT Subscriber**
 
 **Terminal:**
+
 ```bash
 mosquitto_sub -h broker.hivemq.com -p 1883 \
               -t "v1/devices/me/telemetry/gwsrt" \
@@ -175,6 +192,7 @@ mosquitto_sub -h broker.hivemq.com -p 1883 \
 ```
 
 **Check received.json:**
+
 ```json
 {
   "timestamp": "22/11/2025 06:21:26",
@@ -189,6 +207,7 @@ mosquitto_sub -h broker.hivemq.com -p 1883 \
 ```
 
 **Verify:**
+
 ```bash
 # Should parse without error
 cat received.json | python -m json.tool
@@ -233,6 +252,7 @@ print("✅ ALL VALIDATION PASSED!")
 ```
 
 **Expected Output:**
+
 ```
 ✅ Received 50 registers
 ✅ ALL VALIDATION PASSED!
@@ -242,14 +262,14 @@ print("✅ ALL VALIDATION PASSED!")
 
 ## 📊 BEFORE vs AFTER
 
-| Aspect | Before (°C) | After (degC) |
-|--------|-------------|--------------|
-| **Character Encoding** | UTF-8 multi-byte (3 bytes) | ASCII (4 bytes) |
-| **String Length** | Incorrect (counts bytes) | Correct |
-| **MQTT Packet Size** | Underestimated by ~10 bytes | Accurate |
-| **Buffer Overflow** | ❌ YES at position 2005 | ✅ NO |
-| **Subscriber Receives** | ❌ Corrupted JSON | ✅ Valid JSON |
-| **Parse Error** | ❌ SyntaxError position 2005 | ✅ Parses successfully |
+| Aspect                  | Before (°C)                  | After (degC)           |
+| ----------------------- | ---------------------------- | ---------------------- |
+| **Character Encoding**  | UTF-8 multi-byte (3 bytes)   | ASCII (4 bytes)        |
+| **String Length**       | Incorrect (counts bytes)     | Correct                |
+| **MQTT Packet Size**    | Underestimated by ~10 bytes  | Accurate               |
+| **Buffer Overflow**     | ❌ YES at position 2005      | ✅ NO                  |
+| **Subscriber Receives** | ❌ Corrupted JSON            | ✅ Valid JSON          |
+| **Parse Error**         | ❌ SyntaxError position 2005 | ✅ Parses successfully |
 
 ---
 
@@ -273,11 +293,14 @@ print("✅ ALL VALIDATION PASSED!")
 
 ## 🎯 CONCLUSION
 
-**Root Cause:** UTF-8 multi-byte character `°C` in unit field causes String.length() to return incorrect value, leading to MQTT packet size underestimation and buffer overflow.
+**Root Cause:** UTF-8 multi-byte character `°C` in unit field causes
+String.length() to return incorrect value, leading to MQTT packet size
+underestimation and buffer overflow.
 
 **Solution:** Replace `°C` with ASCII `degC` in all device configurations.
 
 **Expected Result:**
+
 - ✅ No corruption at position 2005
 - ✅ Subscriber receives complete 50 registers
 - ✅ Valid JSON (parseable)
@@ -308,16 +331,19 @@ print("✅ ALL VALIDATION PASSED!")
 ---
 
 **Reference:**
+
 - UTF-8 Encoding: https://en.wikipedia.org/wiki/UTF-8
-- ESP32 String Class: https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/WString.cpp
-- MQTT Packet Format: https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
+- ESP32 String Class:
+  https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/WString.cpp
+- MQTT Packet Format:
+  https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
 
 **Related Issues:**
+
 - MQTT Payload Corruption (2025-11-22)
 - Binary Publish Implementation (2025-11-22)
 - Separate Buffer Fix (2025-11-22)
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-*Empowering Industrial IoT Solutions*
+**Made with ❤️ by SURIOTA R&D Team** _Empowering Industrial IoT Solutions_

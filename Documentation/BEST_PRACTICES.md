@@ -1,7 +1,6 @@
 # Best Practices Guide
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Recommended Configurations and Patterns
+**SRT-MGATE-1210 Modbus IIoT Gateway** Recommended Configurations and Patterns
 
 [Home](../README.md) > [Documentation](README.md) > Best Practices
 
@@ -9,7 +8,10 @@ Recommended Configurations and Patterns
 
 ## Overview
 
-This guide provides recommended configurations, design patterns, and best practices for deploying the SRT-MGATE-1210 gateway in production environments. Following these guidelines will help ensure reliable operation, optimal performance, and easier maintenance.
+This guide provides recommended configurations, design patterns, and best
+practices for deploying the SRT-MGATE-1210 gateway in production environments.
+Following these guidelines will help ensure reliable operation, optimal
+performance, and easier maintenance.
 
 ---
 
@@ -32,6 +34,7 @@ This guide provides recommended configurations, design patterns, and best practi
 ### Use Dual Network with Failover (Recommended for Production)
 
 **Configuration:**
+
 ```json
 {
   "wifi": {
@@ -52,43 +55,49 @@ This guide provides recommended configurations, design patterns, and best practi
 ```
 
 **Why:**
+
 - Ethernet provides stable, low-latency connection
 - WiFi acts as automatic backup if Ethernet fails
 - No manual intervention needed during network issues
 - Gateway continues operating during cable disconnection
 
 **When to use WiFi only:**
+
 - Testing/development environments
 - Temporary installations
 - No Ethernet infrastructure available
 
 **When to use Ethernet only:**
+
 - Critical industrial environments
 - High EMI/interference areas
 - Maximum reliability required
 
 ### Network Settings Recommendations
 
-| Setting | Recommended | Notes |
-|---------|-------------|-------|
-| **Primary Network** | Ethernet | More stable, lower latency |
-| **Failover Delay** | 5000ms (5s) | Balance between responsiveness and stability |
-| **DHCP** | Enabled | Easier deployment; use static only if required |
-| **Preferred Network** | prefer_ethernet: true | Ethernet more reliable for industrial use |
+| Setting               | Recommended           | Notes                                          |
+| --------------------- | --------------------- | ---------------------------------------------- |
+| **Primary Network**   | Ethernet              | More stable, lower latency                     |
+| **Failover Delay**    | 5000ms (5s)           | Balance between responsiveness and stability   |
+| **DHCP**              | Enabled               | Easier deployment; use static only if required |
+| **Preferred Network** | prefer_ethernet: true | Ethernet more reliable for industrial use      |
 
 ### WiFi Configuration Tips
 
 **Signal Strength:**
+
 - Maintain RSSI > -70dBm for reliable operation
 - Test connection at actual installation location
 - Consider external antenna if signal is weak
 
 **Channel Selection:**
+
 - Avoid crowded 2.4GHz channels (1, 6, 11 recommended)
 - Use WiFi analyzer to find least congested channel
 - Industrial environments: hardwire if possible
 
 **Security:**
+
 - Always use WPA2 or WPA3 encryption
 - Use strong passwords (min 12 characters)
 - Change default SSID and password
@@ -102,6 +111,7 @@ This guide provides recommended configurations, design patterns, and best practi
 #### 1. Use Meaningful Device Names
 
 **Good:**
+
 ```json
 {
   "device_id": "DEVICE_001",
@@ -111,6 +121,7 @@ This guide provides recommended configurations, design patterns, and best practi
 ```
 
 **Bad:**
+
 ```json
 {
   "device_id": "DEVICE_001",
@@ -122,6 +133,7 @@ This guide provides recommended configurations, design patterns, and best practi
 #### 2. Organize Devices Logically
 
 **Recommended Device Naming Pattern:**
+
 - `[Type] - [Location] - [Function]`
 - Examples:
   - "Temp Sensor - Warehouse Zone A"
@@ -130,15 +142,16 @@ This guide provides recommended configurations, design patterns, and best practi
 
 #### 3. Set Appropriate Polling Intervals
 
-| Device Type | Recommended Interval | Reason |
-|-------------|---------------------|---------|
-| **Critical Sensors** | 1000-2000ms (1-2s) | Fast response to changes |
-| **Temperature Sensors** | 5000-10000ms (5-10s) | Slow-changing values |
-| **Power Meters** | 2000-5000ms (2-5s) | Balance accuracy & load |
-| **Status Indicators** | 1000ms (1s) | Quick state detection |
-| **Historical Data** | 30000-60000ms (30-60s) | Reduce load, save bandwidth |
+| Device Type             | Recommended Interval   | Reason                      |
+| ----------------------- | ---------------------- | --------------------------- |
+| **Critical Sensors**    | 1000-2000ms (1-2s)     | Fast response to changes    |
+| **Temperature Sensors** | 5000-10000ms (5-10s)   | Slow-changing values        |
+| **Power Meters**        | 2000-5000ms (2-5s)     | Balance accuracy & load     |
+| **Status Indicators**   | 1000ms (1s)            | Quick state detection       |
+| **Historical Data**     | 30000-60000ms (30-60s) | Reduce load, save bandwidth |
 
 **Example:**
+
 ```json
 {
   "device_id": "DEVICE_001",
@@ -154,6 +167,7 @@ This guide provides recommended configurations, design patterns, and best practi
 #### 1. Use Meaningful Register IDs
 
 **Good:**
+
 ```json
 {
   "register_id": "temp_server_room_1",
@@ -164,6 +178,7 @@ This guide provides recommended configurations, design patterns, and best practi
 ```
 
 **Bad:**
+
 ```json
 {
   "register_id": "reg1",
@@ -187,6 +202,7 @@ This guide provides recommended configurations, design patterns, and best practi
 #### 3. Use Calibration When Needed
 
 **Example: Voltage Divider**
+
 ```json
 {
   "register_name": "DC Voltage",
@@ -195,9 +211,11 @@ This guide provides recommended configurations, design patterns, and best practi
   "unit": "V"
 }
 ```
+
 Raw: 2500 → Displayed: 25.0 V
 
 **Example: Offset Correction**
+
 ```json
 {
   "register_name": "Room Temperature",
@@ -206,31 +224,37 @@ Raw: 2500 → Displayed: 25.0 V
   "unit": "°C"
 }
 ```
+
 Raw: 27.5°C → Displayed: 25.0°C
 
 #### 4. Choose Correct Data Type
 
 **Common Mistakes:**
+
 - Using `INT16` for float values (loses decimal precision)
 - Wrong endianness (ABCD vs CDAB)
 - Wrong word order for 32-bit values
 
 **Test Your Data Type:**
+
 1. Read raw value from device manual
 2. Try different data types
 3. Verify displayed value matches expected
 4. Document the correct type for future reference
 
-See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete list.
+See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete
+list.
 
 ### Modbus RTU/TCP Guidelines
 
 **Baud Rate Selection:**
+
 - **9600 baud**: Most compatible, use as default
 - **19200 baud**: Faster, good if all devices support it
 - **115200 baud**: Very fast, test thoroughly for stability
 
 **Timeout & Retry Settings:**
+
 ```json
 {
   "modbus_rtu": {
@@ -242,6 +266,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ```
 
 **Recommendations:**
+
 - Start with 1000ms timeout, adjust if needed
 - Use 3 retries (balance reliability vs latency)
 - Inter-frame delay: 100ms minimum for slower devices
@@ -255,11 +280,13 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 #### Default Mode (Recommended for Most Cases)
 
 **Use when:**
+
 - Sending all data to single platform (ThingsBoard, AWS IoT, etc.)
 - Simplicity is priority
 - All data has same update frequency
 
 **Configuration:**
+
 ```json
 {
   "mqtt": {
@@ -284,6 +311,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ```
 
 **Benefits:**
+
 - Single message per interval (efficient)
 - All data in one payload
 - Easy backend integration
@@ -291,11 +319,13 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 #### Customize Mode (Advanced)
 
 **Use when:**
+
 - Different consumers need different data
 - Different update frequencies needed per sensor type
 - Topic-based access control required
 
 **Example: Multi-Consumer Architecture**
+
 ```json
 {
   "publish_mode": "customize",
@@ -327,27 +357,30 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 
 ### MQTT Connection Settings
 
-| Setting | Production | Development | Notes |
-|---------|-----------|-------------|-------|
-| **TLS/SSL** | Enabled | Optional | Always enable for production |
-| **QoS** | 1 | 0 or 1 | QoS 1 ensures delivery |
-| **Keep-Alive** | 60s | 60s | Standard value |
-| **Clean Session** | false | true | Persist session in production |
-| **Client ID** | Unique | Any | Use gateway serial/MAC |
+| Setting           | Production | Development | Notes                         |
+| ----------------- | ---------- | ----------- | ----------------------------- |
+| **TLS/SSL**       | Enabled    | Optional    | Always enable for production  |
+| **QoS**           | 1          | 0 or 1      | QoS 1 ensures delivery        |
+| **Keep-Alive**    | 60s        | 60s         | Standard value                |
+| **Clean Session** | false      | true        | Persist session in production |
+| **Client ID**     | Unique     | Any         | Use gateway serial/MAC        |
 
 ### MQTT Topics Naming Convention
 
 **Recommended Pattern:**
+
 ```
 [company]/[location]/[line]/[device_type]/[metric]
 ```
 
 **Examples:**
+
 - `acme/factory1/line2/temperature/zone_a`
 - `acme/warehouse/zone_b/humidity/sensor_1`
 - `acme/building_a/floor_3/power/meter_main`
 
 **Benefits:**
+
 - Clear hierarchy
 - Easy filtering
 - Logical access control
@@ -380,22 +413,26 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### HTTP Best Practices
 
 **Interval Selection:**
+
 - **High-frequency**: 1-5 seconds (real-time monitoring)
 - **Medium-frequency**: 10-30 seconds (general monitoring)
 - **Low-frequency**: 60+ seconds (historical data)
 
 **Error Handling:**
+
 - Set retry_count to 3 minimum
 - Use reasonable timeout (10-15 seconds)
 - Monitor HTTP errors in logs
 
 **Security:**
+
 - Always use HTTPS in production
 - Use authentication tokens
 - Rotate tokens regularly
 - Don't hardcode credentials
 
 **Bandwidth Optimization:**
+
 - Use HTTP for data posting, MQTT for commands
 - Combine with MQTT Default Mode for efficient payloads
 - Adjust interval based on data change frequency
@@ -407,12 +444,14 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Network Security
 
 **WiFi:**
+
 - Use WPA2-Personal minimum (WPA3 preferred)
 - Strong passwords (12+ characters, mixed case, numbers, symbols)
 - Change default credentials immediately
 - Use hidden SSID in sensitive environments
 
 **Ethernet:**
+
 - Use VLANs to isolate IoT devices
 - Implement network segmentation
 - Firewall rules to restrict traffic
@@ -420,18 +459,21 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### API Security
 
 **BLE Security:**
+
 - Enable BLE pairing if supported
 - Limit physical access to device
 - Disconnect BLE when not in use
 - Monitor unauthorized connection attempts
 
 **MQTT Security:**
+
 - Always use TLS/SSL in production (port 8883)
 - Use strong username/password or certificates
 - Implement client certificate auth for critical deployments
 - Rotate credentials regularly
 
 **HTTP Security:**
+
 - Use HTTPS only (never HTTP)
 - API tokens instead of passwords
 - Implement token expiration
@@ -440,6 +482,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Data Security
 
 **Sensitive Data:**
+
 - Don't log passwords or tokens
 - Use environment variables for credentials
 - Encrypt stored configurations
@@ -452,12 +495,14 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Polling Interval Optimization
 
 **Rule of Thumb:**
+
 - Match polling interval to data change rate
 - Temperature: 5-10s (slow changing)
 - Pressure/Flow: 2-5s (medium changing)
 - Alarms/Status: 1s (fast changing)
 
 **Example Configuration:**
+
 ```json
 {
   "devices": [
@@ -480,26 +525,29 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Modbus Performance
 
 **Multiple Devices:**
+
 - Stagger polling times
 - Avoid all devices polling simultaneously
 - Use sequential polling (device 1, then 2, then 3...)
 
 **Register Grouping:**
+
 - Read consecutive registers together when possible
 - Reduces Modbus transactions
 - Faster overall read time
 
 **Bandwidth Considerations:**
 
-| Scenario | Registers | Interval | Bandwidth |
-|----------|-----------|----------|-----------|
-| Low | 10 | 10s | ~1 KB/min |
-| Medium | 50 | 5s | ~10 KB/min |
-| High | 100 | 2s | ~50 KB/min |
+| Scenario | Registers | Interval | Bandwidth  |
+| -------- | --------- | -------- | ---------- |
+| Low      | 10        | 10s      | ~1 KB/min  |
+| Medium   | 50        | 5s       | ~10 KB/min |
+| High     | 100       | 2s       | ~50 KB/min |
 
 ### Memory Management
 
 **PSRAM Usage:**
+
 - Gateway has 8MB PSRAM
 - JsonDocument uses PSRAM for large payloads
 - Monitor memory via logs
@@ -508,12 +556,14 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Network Optimization
 
 **Reduce MQTT Bandwidth:**
+
 1. Use Default Mode (batch publishing)
 2. Increase publish interval for slow-changing data
 3. Use QoS 0 for non-critical data
 4. Implement payload compression if supported
 
 **Reduce HTTP Bandwidth:**
+
 1. Increase posting interval
 2. Only send changed values
 3. Use efficient JSON structure
@@ -582,17 +632,20 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Regular Monitoring
 
 **Daily:**
+
 - Check gateway online status
 - Verify data is being received
 - Monitor for network drops
 
 **Weekly:**
+
 - Review error logs
 - Check memory usage
 - Verify all devices responding
 - Test failover (if applicable)
 
 **Monthly:**
+
 - Update firmware if available
 - Review and optimize polling intervals
 - Clean physical connections
@@ -601,6 +654,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ### Log Levels
 
 **Production:**
+
 ```json
 {
   "log_level": "INFO"
@@ -608,6 +662,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ```
 
 **Troubleshooting:**
+
 ```json
 {
   "log_level": "DEBUG"
@@ -615,6 +670,7 @@ See [MODBUS_DATATYPES.md](Technical_Guides/MODBUS_DATATYPES.md) for complete lis
 ```
 
 **Log Analysis:**
+
 - Look for repeated errors
 - Monitor memory warnings
 - Track network disconnections
@@ -625,6 +681,7 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 ### Performance Monitoring
 
 **Key Metrics:**
+
 - Network uptime %
 - MQTT connection stability
 - Modbus read success rate
@@ -632,6 +689,7 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 - CPU usage
 
 **Thresholds:**
+
 - Network uptime: > 99%
 - MQTT connection: Should reconnect within 30s
 - Modbus success: > 95%
@@ -644,86 +702,104 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 ### Configuration Errors
 
 **❌ Mistake 1: Wrong Data Type**
+
 ```json
 {
-  "data_type": "INT16"  // For a float value
+  "data_type": "INT16" // For a float value
 }
 ```
+
 **✅ Solution:**
+
 ```json
 {
-  "data_type": "FLOAT32_ABCD"  // Correct for 32-bit float
+  "data_type": "FLOAT32_ABCD" // Correct for 32-bit float
 }
 ```
 
 **❌ Mistake 2: Polling Too Fast**
+
 ```json
 {
-  "refresh_rate_ms": 100  // 100ms for temperature sensor
+  "refresh_rate_ms": 100 // 100ms for temperature sensor
 }
 ```
+
 **✅ Solution:**
+
 ```json
 {
-  "refresh_rate_ms": 5000  // 5s appropriate for temperature
+  "refresh_rate_ms": 5000 // 5s appropriate for temperature
 }
 ```
 
 **❌ Mistake 3: No Network Redundancy**
+
 ```json
 {
-  "wifi": {"enabled": false},
-  "ethernet": {"enabled": true}
+  "wifi": { "enabled": false },
+  "ethernet": { "enabled": true }
 }
 ```
+
 **✅ Solution:**
+
 ```json
 {
-  "wifi": {"enabled": true},
-  "ethernet": {"enabled": true},
-  "communication": {"mode": "auto"}
+  "wifi": { "enabled": true },
+  "ethernet": { "enabled": true },
+  "communication": { "mode": "auto" }
 }
 ```
 
 ### Network Issues
 
 **❌ Weak WiFi Signal**
+
 - Problem: Gateway too far from router
 - Solution: Move closer, use external antenna, or use Ethernet
 
 **❌ Network Congestion**
+
 - Problem: Too many devices on 2.4GHz
 - Solution: Use less crowded channel or switch to Ethernet
 
 **❌ No Failover**
+
 - Problem: Single point of failure
 - Solution: Enable dual network with auto failover
 
 ### Modbus Issues
 
 **❌ Wrong Slave ID**
+
 - Symptom: "Modbus timeout" errors
 - Check: Verify slave_id matches device DIP switches/config
 
 **❌ Wrong Baud Rate**
+
 - Symptom: Garbled data or timeouts
 - Check: Match baud_rate to device setting
 
 **❌ Wrong Register Address**
+
 - Symptom: Wrong values displayed
 - Check: Verify address from device manual (watch for 0-based vs 1-based)
 
 ### MQTT Issues
 
 **❌ QoS 0 for Critical Data**
+
 - Problem: Data loss possible
 - Solution: Use QoS 1 for important data
 
 **❌ Very Short Intervals**
+
 - Problem: Bandwidth waste, broker overload
 - Solution: Use appropriate intervals (5s+ for most sensors)
 
 **❌ No TLS in Production**
+
 - Problem: Security vulnerability
 - Solution: Always use TLS/SSL (port 8883)
 
@@ -732,17 +808,18 @@ See [LOGGING.md](Technical_Guides/LOGGING.md) for complete logging guide.
 ## Related Documentation
 
 - [Quick Start Guide](QUICKSTART.md) - Get started in 5 minutes
-- [Network Configuration](Technical_Guides/NETWORK_CONFIGURATION.md) - Detailed network setup
-- [MQTT Publish Modes](Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT configuration guide
-- [Modbus Data Types](Technical_Guides/MODBUS_DATATYPES.md) - Complete data type reference
+- [Network Configuration](Technical_Guides/NETWORK_CONFIGURATION.md) - Detailed
+  network setup
+- [MQTT Publish Modes](Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) -
+  MQTT configuration guide
+- [Modbus Data Types](Technical_Guides/MODBUS_DATATYPES.md) - Complete data type
+  reference
 - [Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md) - Problem solving
 - [API Reference](API_Reference/API.md) - Complete API documentation
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
-**Maintainer:** Kemal
+**Document Version:** 1.1 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md) | [↑ Top](#best-practices-guide)

@@ -1,27 +1,30 @@
 # LOG SYSTEM MIGRATION GUIDE
 
 ## Overview
-This guide shows how to migrate existing logging statements to the new **granular log level system**.
+
+This guide shows how to migrate existing logging statements to the new
+**granular log level system**.
 
 ---
 
 ## Quick Reference Table
 
-| Old Format | New Format | Log Level | When to Use |
-|------------|------------|-----------|-------------|
-| `Serial.printf("[RTU] ERROR: %s\n", msg)` | `LOG_RTU_ERROR("ERROR: %s\n", msg)` | ERROR | Critical failures, crashes |
-| `Serial.printf("[RTU] Warning: %s\n", msg)` | `LOG_RTU_WARN("Warning: %s\n", msg)` | WARN | Potential issues, degraded operation |
-| `Serial.printf("[RTU] Polling device %s\n", id)` | `LOG_RTU_VERBOSE("Polling device %s\n", id)` | VERBOSE | Per-operation details |
-| `Serial.printf("[RTU] Device %s disabled\n", id)` | `LOG_RTU_INFO("Device %s disabled\n", id)` | INFO | State changes, key events |
-| `Serial.printf("[TCP] Connected to %s\n", ip)` | `LOG_TCP_INFO("Connected to %s\n", ip)` | INFO | Connection status |
-| `Serial.printf("[MQTT] Published %d regs\n", n)` | `LOG_MQTT_INFO("Published %d regs\n", n)` | INFO | Data transmission |
-| `Serial.printf("[BATCH] Started tracking...\n")` | `LOG_BATCH_DEBUG("Started tracking...\n")` | DEBUG | Internal state tracking |
+| Old Format                                        | New Format                                   | Log Level | When to Use                          |
+| ------------------------------------------------- | -------------------------------------------- | --------- | ------------------------------------ |
+| `Serial.printf("[RTU] ERROR: %s\n", msg)`         | `LOG_RTU_ERROR("ERROR: %s\n", msg)`          | ERROR     | Critical failures, crashes           |
+| `Serial.printf("[RTU] Warning: %s\n", msg)`       | `LOG_RTU_WARN("Warning: %s\n", msg)`         | WARN      | Potential issues, degraded operation |
+| `Serial.printf("[RTU] Polling device %s\n", id)`  | `LOG_RTU_VERBOSE("Polling device %s\n", id)` | VERBOSE   | Per-operation details                |
+| `Serial.printf("[RTU] Device %s disabled\n", id)` | `LOG_RTU_INFO("Device %s disabled\n", id)`   | INFO      | State changes, key events            |
+| `Serial.printf("[TCP] Connected to %s\n", ip)`    | `LOG_TCP_INFO("Connected to %s\n", ip)`      | INFO      | Connection status                    |
+| `Serial.printf("[MQTT] Published %d regs\n", n)`  | `LOG_MQTT_INFO("Published %d regs\n", n)`    | INFO      | Data transmission                    |
+| `Serial.printf("[BATCH] Started tracking...\n")`  | `LOG_BATCH_DEBUG("Started tracking...\n")`   | DEBUG     | Internal state tracking              |
 
 ---
 
 ## Module-Specific Macros
 
 ### RTU Service
+
 ```cpp
 LOG_RTU_ERROR()    // Modbus read failures, timeout errors
 LOG_RTU_WARN()     // Retry attempts, backoff warnings
@@ -31,6 +34,7 @@ LOG_RTU_VERBOSE()  // Per-device polling, per-register reads
 ```
 
 ### TCP Service
+
 ```cpp
 LOG_TCP_ERROR()    // Connection failures, socket errors
 LOG_TCP_WARN()     // Timeout warnings, retry attempts
@@ -40,6 +44,7 @@ LOG_TCP_VERBOSE()  // Per-register reads, buffer operations
 ```
 
 ### MQTT Manager
+
 ```cpp
 LOG_MQTT_ERROR()   // Publish failures, connection lost
 LOG_MQTT_WARN()    // Large payloads, queue near full
@@ -49,6 +54,7 @@ LOG_MQTT_VERBOSE() // Individual message enqueueing
 ```
 
 ### Batch Manager
+
 ```cpp
 LOG_BATCH_ERROR()  // Mutex failures
 LOG_BATCH_WARN()   // Batch timeout warnings
@@ -63,24 +69,28 @@ LOG_BATCH_DEBUG()  // Increment operations, clear operations
 ### Example 1: ModbusRtuService.cpp
 
 #### BEFORE:
+
 ```cpp
 Serial.printf("[RTU] Polling device %s (Slave:%d Port:%d Baud:%d)\n",
               deviceId.c_str(), slaveId, serialPort, baudRate);
 ```
 
 #### AFTER:
+
 ```cpp
 LOG_RTU_VERBOSE("Polling device %s (Slave:%d Port:%d Baud:%d)\n",
                 deviceId.c_str(), slaveId, serialPort, baudRate);
 ```
 
-**Rationale:** This is per-device polling (happens every ~1s), so it should be VERBOSE level to avoid spam.
+**Rationale:** This is per-device polling (happens every ~1s), so it should be
+VERBOSE level to avoid spam.
 
 ---
 
 ### Example 2: Error Handling (ModbusRtuService.cpp:254-256)
 
 #### BEFORE:
+
 ```cpp
 if (!isDeviceEnabled(deviceId))
 {
@@ -90,6 +100,7 @@ if (!isDeviceEnabled(deviceId))
 ```
 
 #### AFTER:
+
 ```cpp
 if (!isDeviceEnabled(deviceId))
 {
@@ -105,58 +116,68 @@ if (!isDeviceEnabled(deviceId))
 ### Example 3: Retry Backoff (ModbusRtuService.cpp:265)
 
 #### BEFORE:
+
 ```cpp
 Serial.printf("[RTU] Device %s retry backoff not elapsed, skipping\n", deviceId.c_str());
 ```
 
 #### AFTER:
+
 ```cpp
 LOG_RTU_DEBUG("Device %s retry backoff not elapsed, skipping\n", deviceId.c_str());
 ```
 
-**Rationale:** Internal retry logic details (DEBUG level) - not needed in production.
+**Rationale:** Internal retry logic details (DEBUG level) - not needed in
+production.
 
 ---
 
 ### Example 4: Success/Failure Summary (ModbusRtuService.cpp:520-522)
 
 #### BEFORE:
+
 ```cpp
 resetDeviceFailureState(deviceId);
 Serial.printf("[RTU] Device %s: Read successful, failure state reset\n", deviceId.c_str());
 ```
 
 #### AFTER:
+
 ```cpp
 resetDeviceFailureState(deviceId);
 LOG_RTU_INFO("Device %s: Read successful, failure state reset\n", deviceId.c_str());
 ```
 
-**Rationale:** Recovery from failure is important (INFO level) - shows system health.
+**Rationale:** Recovery from failure is important (INFO level) - shows system
+health.
 
 ---
 
 ### Example 5: Critical Error (ModbusRtuService.cpp:535-536)
 
 #### BEFORE:
+
 ```cpp
 // All registers failed - handle read failure
 Serial.printf("[RTU] Device %s: All %d register reads failed\n", deviceId.c_str(), failedRegisterCount);
 ```
 
 #### AFTER:
+
 ```cpp
 // All registers failed - handle read failure
 LOG_RTU_ERROR("Device %s: All %d register reads failed\n", deviceId.c_str(), failedRegisterCount);
 ```
 
-**Rationale:** Complete device failure is critical (ERROR level) - requires attention.
+**Rationale:** Complete device failure is critical (ERROR level) - requires
+attention.
 
 ---
 
 ### Example 6: MQTT Batch Waiting (MqttManager.cpp:478-481)
 
 #### BEFORE:
+
 ```cpp
 static unsigned long lastBatchWarn = 0;
 if (now - lastBatchWarn > 10000) { // Log every 10s to avoid spam
@@ -166,6 +187,7 @@ if (now - lastBatchWarn > 10000) { // Log every 10s to avoid spam
 ```
 
 #### AFTER:
+
 ```cpp
 static LogThrottle batchWaitingThrottle(60000); // Log every 60s
 if (batchWaitingThrottle.shouldLog()) {
@@ -180,11 +202,13 @@ if (batchWaitingThrottle.shouldLog()) {
 ### Example 7: TCP Connection (ModbusTcpService - similar pattern)
 
 #### BEFORE:
+
 ```cpp
 Serial.printf("[TCP] Connected to %s:%d\n", ip.c_str(), port);
 ```
 
 #### AFTER:
+
 ```cpp
 LOG_TCP_INFO("Connected to %s:%d\n", ip.c_str(), port);
 ```
@@ -194,12 +218,14 @@ LOG_TCP_INFO("Connected to %s:%d\n", ip.c_str(), port);
 ### Example 8: Batch Tracking (DeviceBatchManager.h:86-87)
 
 #### BEFORE:
+
 ```cpp
 Serial.printf("[BATCH] Started tracking %s: expecting %d registers\n",
               deviceId.c_str(), registerCount);
 ```
 
 #### AFTER:
+
 ```cpp
 LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
                deviceId.c_str(), registerCount);
@@ -210,6 +236,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 ## Log Level Guidelines
 
 ### ERROR (Production - Always Visible)
+
 - **Use for:** Critical failures, crashes, data loss
 - **Examples:**
   - Device completely offline
@@ -219,6 +246,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 - **Action Required:** User intervention needed
 
 ### WARN (Production - Recommended)
+
 - **Use for:** Degraded operation, potential issues
 - **Examples:**
   - Retry attempts active
@@ -228,6 +256,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 - **Action Required:** Monitor situation
 
 ### INFO (Production - Default)
+
 - **Use for:** Key events, state changes, summaries
 - **Examples:**
   - Connection established/lost
@@ -237,6 +266,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 - **Action Required:** Informational only
 
 ### DEBUG (Development Only)
+
 - **Use for:** Internal state, algorithm details
 - **Examples:**
   - Batch increment operations
@@ -246,6 +276,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 - **Action Required:** Development debugging
 
 ### VERBOSE (Development Only)
+
 - **Use for:** Per-operation details, high-frequency events
 - **Examples:**
   - Per-device polling
@@ -259,6 +290,7 @@ LOG_BATCH_INFO("Started tracking %s: expecting %d registers\n",
 ## Throttling Patterns
 
 ### Pattern 1: Static LogThrottle
+
 ```cpp
 static LogThrottle throttle(60000); // 60s interval
 if (throttle.shouldLog()) {
@@ -267,6 +299,7 @@ if (throttle.shouldLog()) {
 ```
 
 ### Pattern 2: Class Member LogThrottle
+
 ```cpp
 // In .h file
 class MyService {
@@ -288,6 +321,7 @@ if (connectThrottle.shouldLog()) {
 ## Testing Commands
 
 ### In Main.ino setup():
+
 ```cpp
 // Set log level at startup
 setLogLevel(LOG_INFO); // Production default
@@ -307,8 +341,9 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 ```
 
 ### Via BLE CRUD (future enhancement):
+
 ```json
-{"op":"update","type":"config","key":"log_level","value":3}
+{ "op": "update", "type": "config", "key": "log_level", "value": 3 }
 ```
 
 ---
@@ -316,6 +351,7 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 ## Migration Checklist
 
 ### ModbusRtuService.cpp
+
 - [ ] Line 255: Device disabled → `LOG_RTU_INFO`
 - [ ] Line 265: Retry backoff → `LOG_RTU_DEBUG`
 - [ ] Line 280: Polling device → `LOG_RTU_VERBOSE`
@@ -324,12 +360,14 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 - [ ] Line 536: All failed → `LOG_RTU_ERROR`
 
 ### ModbusTcpService.cpp
+
 - [ ] Connection logs → `LOG_TCP_INFO`
 - [ ] Polling device → `LOG_TCP_VERBOSE`
 - [ ] Read errors → `LOG_TCP_ERROR`
 - [ ] Transaction details → `LOG_TCP_DEBUG`
 
 ### MqttManager.cpp
+
 - [ ] Connection status → `LOG_MQTT_INFO`
 - [ ] Publish success → `LOG_MQTT_INFO`
 - [ ] Publish failure → `LOG_MQTT_ERROR`
@@ -337,6 +375,7 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 - [ ] Queue operations → `LOG_MQTT_VERBOSE`
 
 ### DeviceBatchManager.h
+
 - [ ] Batch started → `LOG_BATCH_INFO`
 - [ ] Batch complete → `LOG_BATCH_INFO`
 - [ ] Increment operations → `LOG_BATCH_DEBUG`
@@ -347,6 +386,7 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 ## Expected Output Reduction
 
 ### Before (LOG_VERBOSE):
+
 ```
 [RTU] Polling device D7227b (Slave:1 Port:2 Baud:9600)
 [BATCH] Started tracking D7227b: expecting 48 registers
@@ -359,9 +399,11 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 [MQTT] Default Mode: Published 48 registers from 1 devices to v1/devices/me/telemetry/gwsrt (2.3 KB)
 [BATCH] Cleared batch status for device D7227b
 ```
+
 **Total:** 9 lines per cycle
 
 ### After (LOG_INFO - Production):
+
 ```
 [INFO][BATCH] Started tracking D7227b: expecting 48 registers
 [DATA] D7227b:
@@ -370,13 +412,15 @@ setLogLevel(LOG_VERBOSE); // Enable all logs for testing
 [INFO][BATCH] Device D7227b COMPLETE (48 success, 0 failed, 48/48 total, took 47959 ms)
 [INFO][MQTT] Default Mode: Published 48 registers from 1 devices to v1/devices/me/telemetry/gwsrt (2.3 KB)
 ```
+
 **Total:** 5 lines per cycle (~45% reduction)
 
 ---
 
 ## Backward Compatibility
 
-All existing `Serial.printf()` statements will continue to work. Migration is **optional** and can be done **incrementally**.
+All existing `Serial.printf()` statements will continue to work. Migration is
+**optional** and can be done **incrementally**.
 
 ---
 

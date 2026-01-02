@@ -8,11 +8,13 @@
 **Binary Size:** 2,010,336 bytes (1.92 MB)
 
 **SHA-256 Hash:**
+
 ```
 4d1c08b99303a1bf0bdf6eda9029a40a8ed3ee11fe14697c0e11ae7921526eab
 ```
 
 **ECDSA Signature (DER format):**
+
 ```
 3045022100c24e85a8ef77ecda56d9ea2f6bdb3522717b4ad9411b0e95007603cb8a80734b02202e7416e507cf8f0a45ad7659b1e180160df196933d317e8cc4c253ab06e238cf
 ```
@@ -24,6 +26,7 @@
 ### Step 1: Prepare OTA Repository
 
 Navigate to your OTA repository:
+
 ```bash
 cd /path/to/GatewaySuriotaOTA
 ```
@@ -37,11 +40,13 @@ mkdir -p releases/v2.5.20
 ### Step 3: Copy Firmware Binary
 
 Copy the compiled binary from POC project:
+
 ```bash
 cp /path/to/GatewaySuriotaPOC/Main/build/esp32.esp32.esp32s3/Main.ino.bin releases/v2.5.20/firmware.bin
 ```
 
 **Verify file size:**
+
 ```bash
 ls -lh releases/v2.5.20/firmware.bin
 # Should show: 2010336 bytes (1.92 MB)
@@ -57,7 +62,8 @@ git push origin main
 
 ### Step 5: Update Manifest
 
-Edit `firmware_manifest.json` in the root of OTA repository with the following content:
+Edit `firmware_manifest.json` in the root of OTA repository with the following
+content:
 
 ```json
 {
@@ -111,11 +117,13 @@ Before testing OTA update, verify:
 ### Test 1: Check for Update
 
 Send BLE command:
+
 ```json
-{"op":"ota","type":"check_update"}
+{ "op": "ota", "type": "check_update" }
 ```
 
 **Expected response:**
+
 ```
 Update available: v2.5.20
 ```
@@ -123,11 +131,13 @@ Update available: v2.5.20
 ### Test 2: Start OTA Update
 
 Send BLE command:
+
 ```json
-{"op":"ota","type":"start_update"}
+{ "op": "ota", "type": "start_update" }
 ```
 
 **Expected log output:**
+
 ```
 [OTA] Fetching manifest...
 [OTA] Manifest parsed: v2.5.20 (build 2520), size 2010336
@@ -138,6 +148,7 @@ Send BLE command:
 ```
 
 **Success criteria:**
+
 - ✅ Download reaches 100% completion
 - ✅ No "Connection closed unexpectedly" error
 - ✅ SHA-256 verification passes
@@ -148,18 +159,19 @@ Send BLE command:
 
 ## 🐛 Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| **HTTP 404** | Verify binary is pushed to GitHub and URL uses API format |
+| Issue                | Solution                                                  |
+| -------------------- | --------------------------------------------------------- |
+| **HTTP 404**         | Verify binary is pushed to GitHub and URL uses API format |
 | **Signature Failed** | Ensure binary in GitHub matches the signed binary exactly |
-| **Size Mismatch** | Check manifest size (2010336) matches actual binary size |
-| **Timeout at 97%** | This should be FIXED in v2.5.20 (5s timeout) |
+| **Size Mismatch**    | Check manifest size (2010336) matches actual binary size  |
+| **Timeout at 97%**   | This should be FIXED in v2.5.20 (5s timeout)              |
 
 ---
 
 ## 📝 Changelog
 
 **v2.5.20 Changes:**
+
 - Fixed OTA download timeout at 97% completion
 - Increased "no data" timeout from 1s to 5s
 - Reduced SSL buffer from 16KB to 8KB for stability

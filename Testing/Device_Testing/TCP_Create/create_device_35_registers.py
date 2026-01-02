@@ -30,13 +30,26 @@ import sys
 import os
 
 # Add parent directory to path for shared module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from ble_common import (
-    BLEDeviceClient, check_dependencies,
-    print_header, print_section, print_step, print_success, print_error,
-    print_warning, print_info, print_data, print_progress_bar, print_table,
-    print_box, print_summary, countdown, Fore, Style
+    BLEDeviceClient,
+    check_dependencies,
+    print_header,
+    print_section,
+    print_step,
+    print_success,
+    print_error,
+    print_warning,
+    print_info,
+    print_data,
+    print_progress_bar,
+    print_table,
+    print_box,
+    print_summary,
+    countdown,
+    Fore,
+    Style,
 )
 
 # =============================================================================
@@ -52,7 +65,7 @@ DEVICE_CONFIG = {
     "retry_count": 3,
     "refresh_rate_ms": 2000,
     "ip": "192.168.1.100",
-    "port": 502
+    "port": 502,
 }
 
 # Register definitions (Temperature Zones)
@@ -66,33 +79,164 @@ REGISTERS = [
     {"address": 6, "name": "Temp_Zone_7", "desc": "Temperature Zone 7", "unit": "degC"},
     {"address": 7, "name": "Temp_Zone_8", "desc": "Temperature Zone 8", "unit": "degC"},
     {"address": 8, "name": "Temp_Zone_9", "desc": "Temperature Zone 9", "unit": "degC"},
-    {"address": 9, "name": "Temp_Zone_10", "desc": "Temperature Zone 10", "unit": "degC"},
-    {"address": 10, "name": "Temp_Zone_11", "desc": "Temperature Zone 11", "unit": "degC"},
-    {"address": 11, "name": "Temp_Zone_12", "desc": "Temperature Zone 12", "unit": "degC"},
-    {"address": 12, "name": "Temp_Zone_13", "desc": "Temperature Zone 13", "unit": "degC"},
-    {"address": 13, "name": "Temp_Zone_14", "desc": "Temperature Zone 14", "unit": "degC"},
-    {"address": 14, "name": "Temp_Zone_15", "desc": "Temperature Zone 15", "unit": "degC"},
-    {"address": 15, "name": "Temp_Zone_16", "desc": "Temperature Zone 16", "unit": "degC"},
-    {"address": 16, "name": "Temp_Zone_17", "desc": "Temperature Zone 17", "unit": "degC"},
-    {"address": 17, "name": "Temp_Zone_18", "desc": "Temperature Zone 18", "unit": "degC"},
-    {"address": 18, "name": "Temp_Zone_19", "desc": "Temperature Zone 19", "unit": "degC"},
-    {"address": 19, "name": "Temp_Zone_20", "desc": "Temperature Zone 20", "unit": "degC"},
-    {"address": 20, "name": "Temp_Zone_21", "desc": "Temperature Zone 21", "unit": "degC"},
-    {"address": 21, "name": "Temp_Zone_22", "desc": "Temperature Zone 22", "unit": "degC"},
-    {"address": 22, "name": "Temp_Zone_23", "desc": "Temperature Zone 23", "unit": "degC"},
-    {"address": 23, "name": "Temp_Zone_24", "desc": "Temperature Zone 24", "unit": "degC"},
-    {"address": 24, "name": "Temp_Zone_25", "desc": "Temperature Zone 25", "unit": "degC"},
-    {"address": 25, "name": "Temp_Zone_26", "desc": "Temperature Zone 26", "unit": "degC"},
-    {"address": 26, "name": "Temp_Zone_27", "desc": "Temperature Zone 27", "unit": "degC"},
-    {"address": 27, "name": "Temp_Zone_28", "desc": "Temperature Zone 28", "unit": "degC"},
-    {"address": 28, "name": "Temp_Zone_29", "desc": "Temperature Zone 29", "unit": "degC"},
-    {"address": 29, "name": "Temp_Zone_30", "desc": "Temperature Zone 30", "unit": "degC"},
-    {"address": 30, "name": "Temp_Zone_31", "desc": "Temperature Zone 31", "unit": "degC"},
-    {"address": 31, "name": "Temp_Zone_32", "desc": "Temperature Zone 32", "unit": "degC"},
-    {"address": 32, "name": "Temp_Zone_33", "desc": "Temperature Zone 33", "unit": "degC"},
-    {"address": 33, "name": "Temp_Zone_34", "desc": "Temperature Zone 34", "unit": "degC"},
-    {"address": 34, "name": "Temp_Zone_35", "desc": "Temperature Zone 35", "unit": "degC"}
+    {
+        "address": 9,
+        "name": "Temp_Zone_10",
+        "desc": "Temperature Zone 10",
+        "unit": "degC",
+    },
+    {
+        "address": 10,
+        "name": "Temp_Zone_11",
+        "desc": "Temperature Zone 11",
+        "unit": "degC",
+    },
+    {
+        "address": 11,
+        "name": "Temp_Zone_12",
+        "desc": "Temperature Zone 12",
+        "unit": "degC",
+    },
+    {
+        "address": 12,
+        "name": "Temp_Zone_13",
+        "desc": "Temperature Zone 13",
+        "unit": "degC",
+    },
+    {
+        "address": 13,
+        "name": "Temp_Zone_14",
+        "desc": "Temperature Zone 14",
+        "unit": "degC",
+    },
+    {
+        "address": 14,
+        "name": "Temp_Zone_15",
+        "desc": "Temperature Zone 15",
+        "unit": "degC",
+    },
+    {
+        "address": 15,
+        "name": "Temp_Zone_16",
+        "desc": "Temperature Zone 16",
+        "unit": "degC",
+    },
+    {
+        "address": 16,
+        "name": "Temp_Zone_17",
+        "desc": "Temperature Zone 17",
+        "unit": "degC",
+    },
+    {
+        "address": 17,
+        "name": "Temp_Zone_18",
+        "desc": "Temperature Zone 18",
+        "unit": "degC",
+    },
+    {
+        "address": 18,
+        "name": "Temp_Zone_19",
+        "desc": "Temperature Zone 19",
+        "unit": "degC",
+    },
+    {
+        "address": 19,
+        "name": "Temp_Zone_20",
+        "desc": "Temperature Zone 20",
+        "unit": "degC",
+    },
+    {
+        "address": 20,
+        "name": "Temp_Zone_21",
+        "desc": "Temperature Zone 21",
+        "unit": "degC",
+    },
+    {
+        "address": 21,
+        "name": "Temp_Zone_22",
+        "desc": "Temperature Zone 22",
+        "unit": "degC",
+    },
+    {
+        "address": 22,
+        "name": "Temp_Zone_23",
+        "desc": "Temperature Zone 23",
+        "unit": "degC",
+    },
+    {
+        "address": 23,
+        "name": "Temp_Zone_24",
+        "desc": "Temperature Zone 24",
+        "unit": "degC",
+    },
+    {
+        "address": 24,
+        "name": "Temp_Zone_25",
+        "desc": "Temperature Zone 25",
+        "unit": "degC",
+    },
+    {
+        "address": 25,
+        "name": "Temp_Zone_26",
+        "desc": "Temperature Zone 26",
+        "unit": "degC",
+    },
+    {
+        "address": 26,
+        "name": "Temp_Zone_27",
+        "desc": "Temperature Zone 27",
+        "unit": "degC",
+    },
+    {
+        "address": 27,
+        "name": "Temp_Zone_28",
+        "desc": "Temperature Zone 28",
+        "unit": "degC",
+    },
+    {
+        "address": 28,
+        "name": "Temp_Zone_29",
+        "desc": "Temperature Zone 29",
+        "unit": "degC",
+    },
+    {
+        "address": 29,
+        "name": "Temp_Zone_30",
+        "desc": "Temperature Zone 30",
+        "unit": "degC",
+    },
+    {
+        "address": 30,
+        "name": "Temp_Zone_31",
+        "desc": "Temperature Zone 31",
+        "unit": "degC",
+    },
+    {
+        "address": 31,
+        "name": "Temp_Zone_32",
+        "desc": "Temperature Zone 32",
+        "unit": "degC",
+    },
+    {
+        "address": 32,
+        "name": "Temp_Zone_33",
+        "desc": "Temperature Zone 33",
+        "unit": "degC",
+    },
+    {
+        "address": 33,
+        "name": "Temp_Zone_34",
+        "desc": "Temperature Zone 34",
+        "unit": "degC",
+    },
+    {
+        "address": 34,
+        "name": "Temp_Zone_35",
+        "desc": "Temperature Zone 35",
+        "unit": "degC",
+    },
 ]
+
 
 # =============================================================================
 # Main Program
@@ -102,36 +246,42 @@ async def main():
     if not check_dependencies():
         return
 
-    print_header(
-        "TCP Device Creation",
-        f"{NUM_REGISTERS} Input Registers",
-        "2.0.0"
-    )
+    print_header("TCP Device Creation", f"{NUM_REGISTERS} Input Registers", "2.0.0")
 
     # =========================================================================
     # Pre-flight Check
     # =========================================================================
     print_section("Pre-flight Check", "!")
 
-    print_box("IMPORTANT", [
-        "Before continuing, make sure:",
-        "",
-        "1. Modbus TCP Slave Simulator is RUNNING",
-        f"   Location: Testing/Modbus_Simulators/TCP_Slave/",
-        f"   Command:  python modbus_slave_{NUM_REGISTERS}_registers.py",
-        "",
-        "2. Simulator is configured with:",
-        f"   - IP: {DEVICE_CONFIG['ip']}",
-        f"   - Port: {DEVICE_CONFIG['port']}",
-        "   - Slave ID: 1",
-        "",
-        "3. Gateway can reach the simulator network"
-    ], Fore.YELLOW)
+    print_box(
+        "IMPORTANT",
+        [
+            "Before continuing, make sure:",
+            "",
+            "1. Modbus TCP Slave Simulator is RUNNING",
+            f"   Location: Testing/Modbus_Simulators/TCP_Slave/",
+            f"   Command:  python modbus_slave_{NUM_REGISTERS}_registers.py",
+            "",
+            "2. Simulator is configured with:",
+            f"   - IP: {DEVICE_CONFIG['ip']}",
+            f"   - Port: {DEVICE_CONFIG['port']}",
+            "   - Slave ID: 1",
+            "",
+            "3. Gateway can reach the simulator network",
+        ],
+        Fore.YELLOW,
+    )
 
     print()
     try:
-        response = input(f"  {Fore.WHITE}Have you started the simulator? (yes/no): {Style.RESET_ALL}").strip().lower()
-        if response != 'yes':
+        response = (
+            input(
+                f"  {Fore.WHITE}Have you started the simulator? (yes/no): {Style.RESET_ALL}"
+            )
+            .strip()
+            .lower()
+        )
+        if response != "yes":
             print()
             print_warning("Please start the Modbus TCP Slave Simulator first!")
             print_info(f"Run: python modbus_slave_{NUM_REGISTERS}_registers.py")
@@ -161,15 +311,18 @@ async def main():
         # =====================================================================
         print_section("Step 2: Create TCP Device", "[TCP]")
 
-        print_box("Device Configuration", {
-            "Name": DEVICE_NAME,
-            "Protocol": "Modbus TCP",
-            "IP Address": DEVICE_CONFIG["ip"],
-            "Port": str(DEVICE_CONFIG["port"]),
-            "Slave ID": "1",
-            "Timeout": "3000 ms",
-            "Refresh Rate": "2000 ms"
-        })
+        print_box(
+            "Device Configuration",
+            {
+                "Name": DEVICE_NAME,
+                "Protocol": "Modbus TCP",
+                "IP Address": DEVICE_CONFIG["ip"],
+                "Port": str(DEVICE_CONFIG["port"]),
+                "Slave ID": "1",
+                "Timeout": "3000 ms",
+                "Refresh Rate": "2000 ms",
+            },
+        )
 
         device_id = await client.create_device(DEVICE_CONFIG, DEVICE_NAME)
 
@@ -199,14 +352,16 @@ async def main():
                 "description": reg["desc"],
                 "unit": reg["unit"],
                 "scale": 1.0,
-                "offset": 0.0
+                "offset": 0.0,
             }
 
             # Progress bar
             progress = int((idx / NUM_REGISTERS) * 100)
             print_progress_bar(progress, prefix=f"Register {idx}/{NUM_REGISTERS}")
 
-            result = await client.create_register(device_id, register_config, reg["name"])
+            result = await client.create_register(
+                device_id, register_config, reg["name"]
+            )
 
             if result:
                 success_count += 1
@@ -230,7 +385,15 @@ async def main():
         headers = ["#", "Address", "Name", "Unit", "Status"]
         rows = []
         for idx, reg in enumerate(REGISTERS):
-            rows.append([idx+1, reg["address"], reg["name"][:20], reg["unit"], "OK" if idx < success_count else "FAIL"])
+            rows.append(
+                [
+                    idx + 1,
+                    reg["address"],
+                    reg["name"][:20],
+                    reg["unit"],
+                    "OK" if idx < success_count else "FAIL",
+                ]
+            )
 
         # Only show first 10 and last 5 if too many
         if len(rows) > 20:
@@ -240,14 +403,18 @@ async def main():
 
         print_table(headers, display_rows, "Register Status")
 
-        print_summary("Creation Complete", {
-            "Device ID": device_id,
-            "Device Name": DEVICE_NAME,
-            "Protocol": "Modbus TCP",
-            "Target": f"{DEVICE_CONFIG['ip']}:{DEVICE_CONFIG['port']}",
-            "Registers Created": f"{success_count}/{NUM_REGISTERS}",
-            "Success Rate": f"{(success_count/NUM_REGISTERS)*100:.1f}%"
-        }, all_success)
+        print_summary(
+            "Creation Complete",
+            {
+                "Device ID": device_id,
+                "Device Name": DEVICE_NAME,
+                "Protocol": "Modbus TCP",
+                "Target": f"{DEVICE_CONFIG['ip']}:{DEVICE_CONFIG['port']}",
+                "Registers Created": f"{success_count}/{NUM_REGISTERS}",
+                "Success Rate": f"{(success_count/NUM_REGISTERS)*100:.1f}%",
+            },
+            all_success,
+        )
 
         if all_success:
             print_info("All registers created successfully!")
@@ -267,9 +434,11 @@ async def main():
     except Exception as e:
         print_error(f"Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

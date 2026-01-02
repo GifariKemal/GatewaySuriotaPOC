@@ -1,12 +1,14 @@
 # OTA Update System - SRT-MGATE-1210
 
-**Version:** 1.2.0 | **Updated:** December 10, 2025 | **Author:** Suriota R&D Team
+**Version:** 1.2.0 | **Updated:** December 10, 2025 | **Author:** Suriota R&D
+Team
 
 ---
 
 ## 1. Overview
 
-OTA (Over-The-Air) update memungkinkan firmware gateway di-update tanpa akses fisik ke perangkat. Sistem ini mendukung dua metode update:
+OTA (Over-The-Air) update memungkinkan firmware gateway di-update tanpa akses
+fisik ke perangkat. Sistem ini mendukung dua metode update:
 
 | Method        | Use Case                    | Security                | Speed                |
 | ------------- | --------------------------- | ----------------------- | -------------------- |
@@ -249,12 +251,14 @@ littlefs,  data, spiffs,  0x920000, 0x6E0000,
 ### 4.2 Firmware Signing Process
 
 **IMPORTANT: Signature Format**
+
 - Algorithm: ECDSA P-256 (secp256r1)
 - Format: DER encoded (70-72 bytes, variable length)
 - Encoding: Hexadecimal string (140-144 characters)
 - Hash: SHA-256 of firmware binary
 
 **Common Bug: Double Hashing (v2.5.10 Fix)**
+
 ```python
 # WRONG - causes double hash (Python ecdsa internally hashes):
 firmware_hash = hashlib.sha256(firmware_data).digest()

@@ -1,29 +1,25 @@
-#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "LoggingConfig.h"
 
-const char *LoggingConfig::CONFIG_FILE = "/logging_config.json";
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 
-LoggingConfig::LoggingConfig()
-{
+const char* LoggingConfig::CONFIG_FILE = "/logging_config.json";
+
+LoggingConfig::LoggingConfig() {
   config = new JsonDocument();
   createDefaultConfig();
 }
 
-LoggingConfig::~LoggingConfig()
-{
+LoggingConfig::~LoggingConfig() {
   // FIXED: Delete JsonDocument to prevent memory leak
-  if (config)
-  {
+  if (config) {
     delete config;
     config = nullptr;
   }
   LOG_CONFIG_INFO("[LOGGING] Config destroyed, resources cleaned up");
 }
 
-bool LoggingConfig::begin()
-{
-  if (!loadConfig())
-  {
+bool LoggingConfig::begin() {
+  if (!loadConfig()) {
     Serial.println("No logging config found, using defaults");
     return saveConfig();
   }
@@ -31,35 +27,29 @@ bool LoggingConfig::begin()
   return true;
 }
 
-void LoggingConfig::createDefaultConfig()
-{
+void LoggingConfig::createDefaultConfig() {
   config->clear();
   (*config)["logging_ret"] = "1w";
   (*config)["logging_interval"] = "5m";
 }
 
-bool LoggingConfig::saveConfig()
-{
+bool LoggingConfig::saveConfig() {
   File file = LittleFS.open(CONFIG_FILE, "w");
-  if (!file)
-    return false;
+  if (!file) return false;
 
   serializeJson(*config, file);
   file.close();
   return true;
 }
 
-bool LoggingConfig::loadConfig()
-{
+bool LoggingConfig::loadConfig() {
   File file = LittleFS.open(CONFIG_FILE, "r");
-  if (!file)
-    return false;
+  if (!file) return false;
 
   DeserializationError error = deserializeJson(*config, file);
   file.close();
 
-  if (error)
-  {
+  if (error) {
     Serial.println("Failed to parse logging config");
     return false;
   }
@@ -67,48 +57,40 @@ bool LoggingConfig::loadConfig()
   return validateConfig(*config);
 }
 
-bool LoggingConfig::validateConfig(const JsonDocument &cfg)
-{
+bool LoggingConfig::validateConfig(const JsonDocument& cfg) {
   // Check if required keys exist by accessing them directly
-  if (!cfg["logging_ret"] || !cfg["logging_interval"])
-  {
+  if (!cfg["logging_ret"] || !cfg["logging_interval"]) {
     return false;
   }
 
   // Validate retention values
   String ret = cfg["logging_ret"];
-  if (ret != "1w" && ret != "1m" && ret != "3m")
-  {
+  if (ret != "1w" && ret != "1m" && ret != "3m") {
     return false;
   }
 
   // Validate interval values
   String interval = cfg["logging_interval"];
-  if (interval != "5m" && interval != "10m" && interval != "30m")
-  {
+  if (interval != "5m" && interval != "10m" && interval != "30m") {
     return false;
   }
 
   return true;
 }
 
-bool LoggingConfig::getConfig(JsonObject &result)
-{
-  for (JsonPair kv : config->as<JsonObject>())
-  {
+bool LoggingConfig::getConfig(JsonObject& result) {
+  for (JsonPair kv : config->as<JsonObject>()) {
     result[kv.key()] = kv.value();
   }
   return true;
 }
 
-bool LoggingConfig::updateConfig(JsonObjectConst newConfig)
-{
+bool LoggingConfig::updateConfig(JsonObjectConst newConfig) {
   // Create temporary config for validation
   JsonDocument tempConfig;
   tempConfig.set(newConfig);
 
-  if (!validateConfig(tempConfig))
-  {
+  if (!validateConfig(tempConfig)) {
     return false;
   }
 
@@ -117,27 +99,21 @@ bool LoggingConfig::updateConfig(JsonObjectConst newConfig)
   return saveConfig();
 }
 
-String LoggingConfig::getLoggingRetention()
-{
+String LoggingConfig::getLoggingRetention() {
   return (*config)["logging_ret"] | "1w";
 }
 
-String LoggingConfig::getLoggingInterval()
-{
+String LoggingConfig::getLoggingInterval() {
   return (*config)["logging_interval"] | "5m";
 }
 
-void LoggingConfig::setProductionMode(uint8_t mode)
-{
+void LoggingConfig::setProductionMode(uint8_t mode) {
   (*config)["production_mode"] = mode;
 }
 
-uint8_t LoggingConfig::getProductionMode()
-{
-  return (*config)["production_mode"] | PRODUCTION_MODE; // Default to compile-time value
+uint8_t LoggingConfig::getProductionMode() {
+  return (*config)["production_mode"] |
+         PRODUCTION_MODE;  // Default to compile-time value
 }
 
-bool LoggingConfig::save()
-{
-  return saveConfig();
-}
+bool LoggingConfig::save() { return saveConfig(); }

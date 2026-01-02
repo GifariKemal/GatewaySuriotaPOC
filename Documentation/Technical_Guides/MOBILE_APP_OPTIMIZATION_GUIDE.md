@@ -6,9 +6,12 @@
 
 ## Overview
 
-This document outlines all optimization points for the Suriota Mobile App to ensure full compatibility with the latest firmware features and optimal performance.
+This document outlines all optimization points for the Suriota Mobile App to
+ensure full compatibility with the latest firmware features and optimal
+performance.
 
 ### Priority Legend
+
 - **P0** - Critical, must fix immediately
 - **P1** - High priority, should fix soon
 - **P2** - Medium priority, plan for next release
@@ -33,17 +36,18 @@ This document outlines all optimization points for the Suriota Mobile App to ens
 
 ## 1. P0: MTU Negotiation (25x Speed Boost)
 
-**Status:** Separate document available
-**Document:** `BLE_MTU_OPTIMIZATION.md`
+**Status:** Separate document available **Document:** `BLE_MTU_OPTIMIZATION.md`
 
 ### Summary
-Current BLE transfer is very slow (18 bytes/chunk, 100ms delay). Implementing MTU negotiation can achieve ~25x faster transfers.
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Chunk Size | 18 bytes | 200 bytes |
-| Chunk Delay | 100ms | 15ms |
-| 1KB Transfer | ~7.7 sec | ~0.3 sec |
+Current BLE transfer is very slow (18 bytes/chunk, 100ms delay). Implementing
+MTU negotiation can achieve ~25x faster transfers.
+
+| Metric       | Before   | After     |
+| ------------ | -------- | --------- |
+| Chunk Size   | 18 bytes | 200 bytes |
+| Chunk Delay  | 100ms    | 15ms      |
+| 1KB Transfer | ~7.7 sec | ~0.3 sec  |
 
 **See `BLE_MTU_OPTIMIZATION.md` for complete implementation guide.**
 
@@ -54,16 +58,19 @@ Current BLE transfer is very slow (18 bytes/chunk, 100ms delay). Implementing MT
 ### Problem
 
 Firmware v2.5.32 changed BLE advertising name format:
+
 - **Old format:** `SURIOTA-XXXXXX`
 - **New format:** `MGate-1210(P)-XXXX` or `MGate-1210-XXXX`
 
 Current mobile app filter only matches `mgate`:
+
 ```dart
 // ble_controller.dart line 54
 static const String deviceNameFilter = 'mgate';
 ```
 
-This works for new format but would miss old devices still running older firmware.
+This works for new format but would miss old devices still running older
+firmware.
 
 ### Solution
 
@@ -96,6 +103,7 @@ bool _matchesDeviceFilter(String deviceName) {
 ```
 
 ### Testing
+
 - Scan should find devices with names like:
   - `MGate-1210(P)-A716`
   - `MGate-1210-C726`
@@ -107,9 +115,11 @@ bool _matchesDeviceFilter(String deviceName) {
 
 ### Problem
 
-Mobile app form defaults don't match firmware factory reset defaults after v2.5.35 fix.
+Mobile app form defaults don't match firmware factory reset defaults after
+v2.5.35 fix.
 
 **Mobile App defaults (`form_config_server_screen.dart` lines 44-49):**
+
 ```dart
 String communicationSelected = 'ETH';      // Should be 'WIFI'
 String isWifiEnabled = 'true';             // Should be 'false'
@@ -118,6 +128,7 @@ String isEnabledMqtt = 'true';             // Should be 'false'
 ```
 
 **Firmware v2.5.35 factory reset defaults:**
+
 ```cpp
 comm["mode"] = "WIFI";
 wifi["enabled"] = false;
@@ -128,7 +139,8 @@ mqtt["client_id"] = "SRT_MGate1210_XXXX";  // Unique per device
 
 ### Solution
 
-**File:** `lib/presentation/pages/devices/server_config/form_config_server_screen.dart`
+**File:**
+`lib/presentation/pages/devices/server_config/form_config_server_screen.dart`
 
 ```dart
 // BEFORE (lines 44-49):
@@ -150,6 +162,7 @@ String isEnabledHttp = 'false';           // Unchanged
 ```
 
 ### Impact
+
 - New device setup will show correct defaults
 - User won't be confused by mismatched initial values
 - Reduces support tickets about "wrong defaults"
@@ -160,19 +173,21 @@ String isEnabledHttp = 'false';           // Unchanged
 
 ### Problem
 
-Currently, loading operations show generic "Loading..." text without progress indication. Users don't know:
+Currently, loading operations show generic "Loading..." text without progress
+indication. Users don't know:
+
 - How much data has been transferred
 - How long to wait
 - If the app is frozen or working
 
 ### Why This Matters
 
-| Without Progress | With Progress |
-|------------------|---------------|
+| Without Progress                  | With Progress                        |
+| --------------------------------- | ------------------------------------ |
 | "Loading..." (user waits blindly) | "Loading... 45%" (user knows status) |
-| User thinks app is frozen | User sees active progress |
-| No idea how long to wait | Can estimate remaining time |
-| Frustrating UX | Professional UX |
+| User thinks app is frozen         | User sees active progress            |
+| No idea how long to wait          | Can estimate remaining time          |
+| Frustrating UX                    | Professional UX                      |
 
 ### Progress Calculation Formula
 
@@ -501,23 +516,24 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 
 ### Progress for Each Screen/Operation
 
-| Screen | Operation | Progress Stages |
-|--------|-----------|-----------------|
-| **Server Config** | Read config | Preparing (5%) → Sending (20%) → Receiving (70%) → Processing (95%) → Done (100%) |
-| **Server Config** | Save config | Preparing (5%) → Sending (50%) → Confirming (80%) → Done (100%) |
-| **Modbus Devices** | Load list | Preparing (5%) → Fetching (60%) → Processing (90%) → Done (100%) |
-| **Device Detail** | Load device | Preparing (5%) → Fetching (70%) → Processing (95%) → Done (100%) |
-| **Device Detail** | Save device | Preparing (5%) → Validating (15%) → Sending (60%) → Confirming (90%) → Done (100%) |
-| **Backup** | Create backup | Preparing (5%) → Fetching configs (50%) → Packaging (80%) → Saving (95%) → Done (100%) |
-| **Restore** | Restore backup | Preparing (5%) → Validating (15%) → Sending (70%) → Applying (90%) → Done (100%) |
-| **OTA Update** | Check update | Checking (50%) → Done (100%) |
-| **OTA Update** | Download | Preparing (5%) → Downloading (5-90%) → Validating (95%) → Done (100%) |
-| **OTA Update** | Apply | Applying (50%) → Rebooting (100%) |
-| **Factory Reset** | Reset | Confirming (10%) → Clearing (50%) → Resetting (80%) → Restarting (100%) |
+| Screen             | Operation      | Progress Stages                                                                        |
+| ------------------ | -------------- | -------------------------------------------------------------------------------------- |
+| **Server Config**  | Read config    | Preparing (5%) → Sending (20%) → Receiving (70%) → Processing (95%) → Done (100%)      |
+| **Server Config**  | Save config    | Preparing (5%) → Sending (50%) → Confirming (80%) → Done (100%)                        |
+| **Modbus Devices** | Load list      | Preparing (5%) → Fetching (60%) → Processing (90%) → Done (100%)                       |
+| **Device Detail**  | Load device    | Preparing (5%) → Fetching (70%) → Processing (95%) → Done (100%)                       |
+| **Device Detail**  | Save device    | Preparing (5%) → Validating (15%) → Sending (60%) → Confirming (90%) → Done (100%)     |
+| **Backup**         | Create backup  | Preparing (5%) → Fetching configs (50%) → Packaging (80%) → Saving (95%) → Done (100%) |
+| **Restore**        | Restore backup | Preparing (5%) → Validating (15%) → Sending (70%) → Applying (90%) → Done (100%)       |
+| **OTA Update**     | Check update   | Checking (50%) → Done (100%)                                                           |
+| **OTA Update**     | Download       | Preparing (5%) → Downloading (5-90%) → Validating (95%) → Done (100%)                  |
+| **OTA Update**     | Apply          | Applying (50%) → Rebooting (100%)                                                      |
+| **Factory Reset**  | Reset          | Confirming (10%) → Clearing (50%) → Resetting (80%) → Restarting (100%)                |
 
 ### UI Display Examples
 
 **Simple Command:**
+
 ```
 ┌─────────────────────────────────────┐
 │       Loading Server Config         │
@@ -531,6 +547,7 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 ```
 
 **Multi-Device Loading:**
+
 ```
 ┌─────────────────────────────────────┐
 │       Loading Modbus Devices        │
@@ -545,6 +562,7 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 ```
 
 **OTA Download:**
+
 ```
 ┌─────────────────────────────────────┐
 │        Firmware Update              │
@@ -563,6 +581,7 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 ### Best Practices
 
 **DO:**
+
 - Always show percentage for operations > 1 second
 - Update progress smoothly (not jumping)
 - Show meaningful status text alongside percentage
@@ -570,6 +589,7 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 - Show estimated time remaining for known-size operations
 
 **DON'T:**
+
 - Don't show indeterminate spinner for operations with known progress
 - Don't update progress too frequently (max 10-20 updates/second)
 - Don't show fake progress that doesn't reflect actual state
@@ -593,7 +613,8 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 
 ### Problem
 
-`update_firmware_screen.dart` only shows "Coming Soon" placeholder, but firmware fully supports OTA.
+`update_firmware_screen.dart` only shows "Coming Soon" placeholder, but firmware
+fully supports OTA.
 
 ### Firmware OTA Commands Available
 
@@ -634,15 +655,15 @@ class LoadingOverlayWithProgress extends StatelessWidget {
 
 ### OTA States
 
-| State | Value | Description |
-|-------|-------|-------------|
-| IDLE | 0 | No OTA in progress |
-| CHECKING | 1 | Checking for updates |
-| DOWNLOADING | 2 | Downloading firmware |
-| VALIDATING | 3 | Verifying signature |
-| APPLYING | 4 | Writing to flash |
-| REBOOTING | 5 | About to reboot |
-| ERROR | 6 | Error occurred |
+| State       | Value | Description          |
+| ----------- | ----- | -------------------- |
+| IDLE        | 0     | No OTA in progress   |
+| CHECKING    | 1     | Checking for updates |
+| DOWNLOADING | 2     | Downloading firmware |
+| VALIDATING  | 3     | Verifying signature  |
+| APPLYING    | 4     | Writing to flash     |
+| REBOOTING   | 5     | About to reboot      |
+| ERROR       | 6     | Error occurred       |
 
 ### Suggested UI Flow
 
@@ -831,7 +852,8 @@ class _UpdateFirmwareScreenState extends State<UpdateFirmwareScreen> {
 
 ### Problem
 
-Firmware v2.5.31 added gateway identity management, but mobile app has no UI for it.
+Firmware v2.5.31 added gateway identity management, but mobile app has no UI for
+it.
 
 ### Firmware Commands
 
@@ -893,7 +915,8 @@ Add to **Settings Device Screen** or create new **Gateway Info Screen**:
 
 ### Problem
 
-Firmware supports enabling/disabling individual Modbus devices, but mobile app lacks UI for this.
+Firmware supports enabling/disabling individual Modbus devices, but mobile app
+lacks UI for this.
 
 ### Firmware Commands
 
@@ -951,9 +974,11 @@ Firmware supports production/development mode toggle via BLE, but no UI exists.
 
 ### IMPORTANT: Password Protection Required
 
-This feature should be **hidden from regular users** and only accessible by developers/technicians.
+This feature should be **hidden from regular users** and only accessible by
+developers/technicians.
 
 **Implementation Requirement:**
+
 - This menu should be placed in a **hidden/developer section**
 - Access requires a **developer password** before showing the toggle
 - Suggested password: Use a fixed developer PIN or company-specific code
@@ -973,20 +998,22 @@ This feature should be **hidden from regular users** and only accessible by deve
 
 ### Mode Differences
 
-| Aspect | Development Mode | Production Mode |
-|--------|------------------|-----------------|
-| Log Level | INFO/DEBUG | ERROR only |
-| BLE Access | Always on | Button-activated |
-| Serial Output | Verbose | Minimal JSON |
-| Memory Usage | Higher | Optimized |
+| Aspect        | Development Mode | Production Mode  |
+| ------------- | ---------------- | ---------------- |
+| Log Level     | INFO/DEBUG       | ERROR only       |
+| BLE Access    | Always on        | Button-activated |
+| Serial Output | Verbose          | Minimal JSON     |
+| Memory Usage  | Higher           | Optimized        |
 
 ### Suggested UI Flow
 
 **Step 1: Hidden Access Point**
+
 - Add hidden tap gesture (e.g., tap version number 5 times in About screen)
 - Or add hidden menu item only visible in debug builds
 
 **Step 2: Password Dialog**
+
 ```
 ┌─────────────────────────────────────┐
 │         Developer Access            │
@@ -1002,6 +1029,7 @@ This feature should be **hidden from regular users** and only accessible by deve
 ```
 
 **Step 3: Developer Menu (after authentication)**
+
 ```
 ┌─────────────────────────────────────┐
 │      Developer Settings             │
@@ -1085,7 +1113,8 @@ void _onVersionTap(BuildContext context) {
 
 ### Problem
 
-After MTU optimization, BLE transfers will be much faster, but timeouts are still set for slow transfers.
+After MTU optimization, BLE transfers will be much faster, but timeouts are
+still set for slow transfers.
 
 ### Current Values (`ble_controller.dart`)
 
@@ -1114,6 +1143,7 @@ static const Duration timeoutLargeDataFull = Duration(seconds: 180);       // Re
 ```
 
 ### Impact
+
 - Better UX - errors shown faster instead of waiting 15 minutes
 - More responsive app behavior
 - User knows sooner if something went wrong
@@ -1124,7 +1154,8 @@ static const Duration timeoutLargeDataFull = Duration(seconds: 180);       // Re
 
 ### Problem
 
-Streaming methods use hardcoded delays that could be optimized after MTU negotiation.
+Streaming methods use hardcoded delays that could be optimized after MTU
+negotiation.
 
 ### Current Values
 
@@ -1143,6 +1174,7 @@ await Future.delayed(_currentChunkDelay);  // 15ms with high MTU, 50ms fallback
 ```
 
 ### Files to Update
+
 - `startDataStream()` - around line 2254
 - `startEnhancedStreaming()` - around line 2593
 - `_sendCommandManually()` - around line 2313
@@ -1153,26 +1185,26 @@ await Future.delayed(_currentChunkDelay);  // 15ms with high MTU, 50ms fallback
 
 ### Quick Wins (< 1 hour each)
 
-| Item | File | Lines to Change |
-|------|------|-----------------|
-| Device name filter | `ble_controller.dart` | ~5 lines |
-| Factory reset defaults | `form_config_server_screen.dart` | ~5 lines |
-| Timeout reduction | `ble_controller.dart` | ~8 lines |
-| Streaming delay | `ble_controller.dart` | ~3 locations |
+| Item                   | File                             | Lines to Change |
+| ---------------------- | -------------------------------- | --------------- |
+| Device name filter     | `ble_controller.dart`            | ~5 lines        |
+| Factory reset defaults | `form_config_server_screen.dart` | ~5 lines        |
+| Timeout reduction      | `ble_controller.dart`            | ~8 lines        |
+| Streaming delay        | `ble_controller.dart`            | ~3 locations    |
 
 ### Medium Effort (1-4 hours each)
 
-| Item | Effort |
-|------|--------|
-| MTU Negotiation | 2-3 hours (see separate guide) |
-| Gateway Info UI | 2-3 hours |
-| Production Mode Toggle | 1-2 hours |
+| Item                   | Effort                         |
+| ---------------------- | ------------------------------ |
+| MTU Negotiation        | 2-3 hours (see separate guide) |
+| Gateway Info UI        | 2-3 hours                      |
+| Production Mode Toggle | 1-2 hours                      |
 
 ### Major Features (1+ days)
 
-| Item | Effort |
-|------|--------|
-| OTA Firmware Update UI | 2-3 days |
+| Item                     | Effort   |
+| ------------------------ | -------- |
+| OTA Firmware Update UI   | 2-3 days |
 | Device Enable/Disable UI | 1-2 days |
 
 ---
@@ -1193,27 +1225,29 @@ After implementing optimizations:
 
 ## Firmware Compatibility Matrix
 
-| Mobile App Feature | Min Firmware | Status |
-|--------------------|--------------|--------|
-| Basic CRUD | 2.0.0+ | ✅ Supported |
-| MQTT Modes | 2.2.0+ | ✅ Supported |
-| Backup/Restore | 2.3.0+ | ✅ Supported |
-| Device Enable/Disable | 2.3.0+ | ⚠️ No UI |
-| Gateway Identity | 2.5.31+ | ⚠️ No UI |
-| OTA via BLE | 2.5.0+ | ⚠️ No UI |
-| New BLE Name Format | 2.5.32+ | ⚠️ Filter needs update |
-| Factory Reset Defaults | 2.5.35+ | ⚠️ Defaults mismatch |
+| Mobile App Feature     | Min Firmware | Status                 |
+| ---------------------- | ------------ | ---------------------- |
+| Basic CRUD             | 2.0.0+       | ✅ Supported           |
+| MQTT Modes             | 2.2.0+       | ✅ Supported           |
+| Backup/Restore         | 2.3.0+       | ✅ Supported           |
+| Device Enable/Disable  | 2.3.0+       | ⚠️ No UI               |
+| Gateway Identity       | 2.5.31+      | ⚠️ No UI               |
+| OTA via BLE            | 2.5.0+       | ⚠️ No UI               |
+| New BLE Name Format    | 2.5.32+      | ⚠️ Filter needs update |
+| Factory Reset Defaults | 2.5.35+      | ⚠️ Defaults mismatch   |
 
 ---
 
 ## Contact & Resources
 
 **Firmware Documentation:**
+
 - `Documentation/API_Reference/API.md` - Complete BLE CRUD API
 - `Documentation/API_Reference/BLE_DEVICE_CONTROL.md` - Enable/Disable API
 - `Documentation/Technical_Guides/BLE_MTU_OPTIMIZATION.md` - MTU Guide
 
 **Firmware Source:**
+
 - `Main/CRUDHandler.cpp` - Command processing
 - `Main/BLEManager.cpp` - BLE handling
 - `Main/OTACrudBridge.cpp` - OTA commands

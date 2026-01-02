@@ -1,10 +1,8 @@
 # 📊 SRT-MGATE-1210 Configuration Calculator & Optimization Guide
 
-**Version:** 2.5.34
-**Last Updated:** December 10, 2025
-**Author:** Kemal (SURIOTA R&D Team)
-**AI Assistant:** Claude Code (Anthropic)
-**Document Status:** ✅ Production Ready
+**Version:** 2.5.34 **Last Updated:** December 10, 2025 **Author:** Kemal
+(SURIOTA R&D Team) **AI Assistant:** Claude Code (Anthropic) **Document
+Status:** ✅ Production Ready
 
 ---
 
@@ -112,7 +110,8 @@
 
 ## 🎯 Introduction
 
-This document provides **comprehensive calculation guidelines** for configuring the SRT-MGATE-1210 ESP32-S3 Industrial IoT Gateway. It covers:
+This document provides **comprehensive calculation guidelines** for configuring
+the SRT-MGATE-1210 ESP32-S3 Industrial IoT Gateway. It covers:
 
 - ✅ **Timing calculations** for Modbus RTU and TCP devices
 - ✅ **MQTT publish interval optimization**
@@ -225,7 +224,8 @@ By the end of this guide, you'll be able to:
 
 #### 1. **Timeout** (ms)
 
-**Purpose:** Maximum time to wait for Modbus device response before declaring timeout.
+**Purpose:** Maximum time to wait for Modbus device response before declaring
+timeout.
 
 **Calculation:**
 
@@ -252,7 +252,8 @@ For TCP:
 | TCP         | N/A       | 1-25      | 2000 ms             |
 | TCP         | N/A       | 26-50     | 3000 ms             |
 
-**⚠️ Warning:** Setting timeout too low causes false timeouts. Setting too high delays error detection.
+**⚠️ Warning:** Setting timeout too low causes false timeouts. Setting too high
+delays error detection.
 
 ---
 
@@ -321,7 +322,8 @@ Examples:
 
 - ✅ Refresh Rate **MUST** be ≥ (Timeout + 500ms)
 - ✅ Refresh Rate **SHOULD** be ≥ MQTT Publish Interval / Number of Devices
-- ✅ Refresh Rate × Total Devices **SHOULD** be ≤ 60 seconds (avoid queue overflow)
+- ✅ Refresh Rate × Total Devices **SHOULD** be ≤ 60 seconds (avoid queue
+  overflow)
 
 ---
 
@@ -384,13 +386,15 @@ Recommended: 5000ms (5 seconds) for most scenarios
 }
 ```
 
-**⚠️ Warning:** Customize mode increases complexity. Only use when default mode insufficient.
+**⚠️ Warning:** Customize mode increases complexity. Only use when default mode
+insufficient.
 
 ---
 
 ### Register Settings
 
-Registers inherit timing from device-level settings unless explicitly overridden.
+Registers inherit timing from device-level settings unless explicitly
+overridden.
 
 **Register-Level Refresh Rate Override:**
 
@@ -659,7 +663,8 @@ Publish Interval = 1000ms × 1.5 = 1500ms
 
 ### Scenario C: 1 Device, 10 Registers (RTU)
 
-**Use Case:** Energy meter monitoring (1× power meter with 10 electrical parameters)
+**Use Case:** Energy meter monitoring (1× power meter with 10 electrical
+parameters)
 
 #### Configuration
 
@@ -853,7 +858,8 @@ Queue Full In = 1000 / 4.17 = 240 seconds (4 minutes)
 
 ### Scenario E: 1 Device, 50 Registers (RTU)
 
-**Use Case:** Comprehensive SCADA monitoring (single device with maximum registers)
+**Use Case:** Comprehensive SCADA monitoring (single device with maximum
+registers)
 
 #### Configuration
 
@@ -914,7 +920,8 @@ Publish Interval = 8000ms × 1.5 = 12000ms (12 seconds)
 
 **4. Critical Consideration:**
 
-⚠️ **Warning:** 50 registers is near the practical limit for single-device RTU polling.
+⚠️ **Warning:** 50 registers is near the practical limit for single-device RTU
+polling.
 
 **Recommendations:**
 
@@ -1201,7 +1208,8 @@ Queue Full In = 1000 / 11.67 = 85.7 seconds (1.4 minutes)
 }
 ```
 
-Result: Queue consumption = 16.67 items/sec, Fill Rate = 3.33 items/sec → Full in 5 minutes ✅
+Result: Queue consumption = 16.67 items/sec, Fill Rate = 3.33 items/sec → Full
+in 5 minutes ✅
 
 **Option 2: Reduce register count per device**
 
@@ -1398,7 +1406,8 @@ Size: ~600 bytes (60 bytes/register)
 | **1** | Moderate (ACK)   | Standard monitoring (recommended) |
 | **2** | High (handshake) | Critical alarms, commands         |
 
-**Recommendation:** Use **QoS 1** for production (balance reliability vs overhead).
+**Recommendation:** Use **QoS 1** for production (balance reliability vs
+overhead).
 
 ---
 
@@ -1972,20 +1981,17 @@ If still slow:
 ### Official Documentation
 
 1. **Firmware Documentation**
-
    - [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) - Complete changelog
    - [API.md](../API_Reference/API.md) - BLE CRUD API reference
    - [MODBUS_DATATYPES.md](MODBUS_DATATYPES.md) - 40+ Modbus data types
    - [CLAUDE.md](../../CLAUDE.md) - Comprehensive firmware guide
 
 2. **Modbus Protocol**
-
    - [Modbus Application Protocol V1.1b3](https://modbus.org/docs/Modbus_Application_Protocol_V1_1b3.pdf)
    - [Modbus over Serial Line V1.02](https://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
    - [Modbus FAQ](https://modbus.org/faq.php)
 
 3. **MQTT Protocol**
-
    - [MQTT Version 3.1.1](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
    - [HiveMQ MQTT Essentials](https://www.hivemq.com/mqtt-essentials/)
    - [MQTT QoS Explained](https://www.hivemq.com/blog/mqtt-essentials-part-6-mqtt-quality-of-service-levels/)
@@ -1998,9 +2004,10 @@ If still slow:
 ### Related Tools
 
 1. **Testing & Simulation**
-
-   - [Testing/Device_Testing/](../../Testing/Device_Testing/) - Python test scripts
-   - [Testing/Modbus_Simulators/](../../Testing/Modbus_Simulators/) - RTU/TCP simulators
+   - [Testing/Device_Testing/](../../Testing/Device_Testing/) - Python test
+     scripts
+   - [Testing/Modbus_Simulators/](../../Testing/Modbus_Simulators/) - RTU/TCP
+     simulators
 
 2. **Configuration Examples**
    - [Testing/Server_Config/](../../Testing/Server_Config/) - MQTT/HTTP examples
@@ -2008,11 +2015,9 @@ If still slow:
 ### Online Calculators
 
 1. **Modbus RTU Timing Calculator**
-
    - [Modbus RTU Frame Calculator](https://www.modbustools.com/modbus.html)
 
 2. **Network Bandwidth Calculator**
-
    - [MQTT Bandwidth Estimator](https://www.hivemq.com/mqtt-bandwidth-calculator/)
 
 3. **Serial Communication Calculator**
@@ -2032,7 +2037,8 @@ If still slow:
 
 **For Technical Issues:**
 
-- 🐛 GitHub Issues: [SRT-MGATE-1210 Issues](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues)
+- 🐛 GitHub Issues:
+  [SRT-MGATE-1210 Issues](https://github.com/suriota/SRT-MGATE-1210-Firmware/issues)
 - 📖 Documentation: [Complete Guide](../../README.md)
 
 **For Firmware Updates:**
@@ -2044,12 +2050,13 @@ If still slow:
 
 ## 📄 Copyright & License
 
-**Copyright © 2025 SURIOTA (PT. Suryakencana Inti Teknik)**
-**All Rights Reserved.**
+**Copyright © 2025 SURIOTA (PT. Suryakencana Inti Teknik)** **All Rights
+Reserved.**
 
 **License:** Proprietary - Internal Use Only
 
-**AI Assistant:** This document was created with assistance from **Claude Code (Anthropic)** to ensure technical accuracy and comprehensive coverage.
+**AI Assistant:** This document was created with assistance from **Claude Code
+(Anthropic)** to ensure technical accuracy and comprehensive coverage.
 
 **Acknowledgments:**
 
@@ -2060,11 +2067,9 @@ If still slow:
 
 ---
 
-**Document Version:** 1.0.0
-**Last Updated:** November 23, 2025
-**Next Review:** December 23, 2025
+**Document Version:** 1.0.0 **Last Updated:** November 23, 2025 **Next Review:**
+December 23, 2025
 
 ---
 
-_Made with ❤️ by SURIOTA R&D Team_
-_Empowering Industrial IoT Solutions_
+_Made with ❤️ by SURIOTA R&D Team_ _Empowering Industrial IoT Solutions_

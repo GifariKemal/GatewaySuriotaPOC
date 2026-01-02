@@ -1,11 +1,10 @@
 # MCP Gateway Development Guide
 
-**Panduan Lengkap Penggunaan MCP Servers untuk Pengembangan SRT-MGATE-1210 Gateway**
+**Panduan Lengkap Penggunaan MCP Servers untuk Pengembangan SRT-MGATE-1210
+Gateway**
 
-**Version:** 1.0.0
-**Last Updated:** November 24, 2025
-**Project:** SRT-MGATE-1210 Industrial IoT Gateway
-**Developer:** SURIOTA R&D Team
+**Version:** 1.0.0 **Last Updated:** November 24, 2025 **Project:**
+SRT-MGATE-1210 Industrial IoT Gateway **Developer:** SURIOTA R&D Team
 
 ---
 
@@ -28,17 +27,19 @@
 
 ### Apa itu MCP (Model Context Protocol)?
 
-**Model Context Protocol (MCP)** adalah protokol standar terbuka yang memungkinkan Large Language Models (LLMs) seperti Claude untuk berinteraksi dengan tools eksternal, data sources, dan services.
+**Model Context Protocol (MCP)** adalah protokol standar terbuka yang
+memungkinkan Large Language Models (LLMs) seperti Claude untuk berinteraksi
+dengan tools eksternal, data sources, dan services.
 
 ### Mengapa MCP Penting untuk Gateway Development?
 
-| Masalah Tradisional | Solusi dengan MCP |
-|---------------------|-------------------|
-| Manual build & upload firmware | ✅ Automated build dengan Arduino MCP |
-| Dokumentasi library outdated | ✅ Real-time docs dengan Context7 |
-| Manual testing web dashboard | ✅ Automated testing dengan Playwright |
-| Context switching (IDE ↔ Browser ↔ Docs) | ✅ Everything in one place (Claude) |
-| Knowledge cutoff limitation | ✅ Up-to-date information |
+| Masalah Tradisional                      | Solusi dengan MCP                      |
+| ---------------------------------------- | -------------------------------------- |
+| Manual build & upload firmware           | ✅ Automated build dengan Arduino MCP  |
+| Dokumentasi library outdated             | ✅ Real-time docs dengan Context7      |
+| Manual testing web dashboard             | ✅ Automated testing dengan Playwright |
+| Context switching (IDE ↔ Browser ↔ Docs) | ✅ Everything in one place (Claude)    |
+| Knowledge cutoff limitation              | ✅ Up-to-date information              |
 
 ### Arsitektur MCP untuk Gateway Suriota
 
@@ -75,11 +76,11 @@
 
 Untuk project Gateway Suriota, kita menggunakan **3 MCP servers**:
 
-| MCP Server | Fungsi Utama | Use Case Gateway |
-|------------|--------------|------------------|
+| MCP Server      | Fungsi Utama                    | Use Case Gateway                    |
+| --------------- | ------------------------------- | ----------------------------------- |
 | **Arduino MCP** | Build, upload, monitor firmware | Automate ESP32 development workflow |
-| **Context7** | Real-time documentation | Get latest ESP32/Arduino docs |
-| **Playwright** | Browser automation | Test web dashboard & MQTT broker UI |
+| **Context7**    | Real-time documentation         | Get latest ESP32/Arduino docs       |
+| **Playwright**  | Browser automation              | Test web dashboard & MQTT broker UI |
 
 ### Melihat Status MCP Servers
 
@@ -128,15 +129,17 @@ claude mcp list
 
 ### Apa itu Context7?
 
-**Context7** adalah MCP server yang menyediakan **dokumentasi up-to-date** untuk libraries dan frameworks. Mengatasi masalah LLM yang training data-nya sudah outdated.
+**Context7** adalah MCP server yang menyediakan **dokumentasi up-to-date** untuk
+libraries dan frameworks. Mengatasi masalah LLM yang training data-nya sudah
+outdated.
 
 ### Fitur Context7
 
-✅ **Real-time Documentation** - Fetch dokumentasi terbaru dari source
-✅ **Version-Specific** - Dokumentasi sesuai versi library yang Anda gunakan
-✅ **Code Examples** - Contoh kode yang accurate dan tested
-✅ **Multi-Language** - Support berbagai bahasa pemrograman
-✅ **Framework Coverage** - ESP32, Arduino, React, Next.js, dll
+✅ **Real-time Documentation** - Fetch dokumentasi terbaru dari source ✅
+**Version-Specific** - Dokumentasi sesuai versi library yang Anda gunakan ✅
+**Code Examples** - Contoh kode yang accurate dan tested ✅ **Multi-Language** -
+Support berbagai bahasa pemrograman ✅ **Framework Coverage** - ESP32, Arduino,
+React, Next.js, dll
 
 ### Cara Menggunakan Context7
 
@@ -160,6 +163,7 @@ use context7
 ```
 
 **Output:**
+
 - Latest ESP32 Arduino Core documentation
 - PSRAM allocation best practices
 - Code examples dengan MALLOC_CAP_SPIRAM
@@ -176,6 +180,7 @@ use context7
 ```
 
 **Output:**
+
 - ArduinoJson 7.x specific APIs
 - SpiRamJsonDocument usage
 - Memory optimization techniques
@@ -192,6 +197,7 @@ use context7
 ```
 
 **Output:**
+
 - FreeRTOS semaphore patterns
 - Task priority guidelines
 - Mutex vs binary semaphore
@@ -206,6 +212,7 @@ use context7
 ```
 
 **Output:**
+
 - PubSubClient latest API
 - QoS implementation details
 - Reconnection strategies
@@ -222,6 +229,7 @@ use context7
 ```
 
 **Output:**
+
 - ModbusMaster current API
 - Exception handling codes
 - Timeout best practices
@@ -234,20 +242,24 @@ Context7 membantu development Gateway dengan:
 #### 1. **Mengatasi Knowledge Cutoff**
 
 **Masalah:**
+
 - Claude training data: January 2025
 - ESP32 Arduino Core terus update
 - ArduinoJson 7.x baru release
 - API changes di library dependencies
 
 **Solusi:**
+
 ```
 use context7
 ```
+
 → Fetch dokumentasi **terbaru** dari official source
 
 #### 2. **Mengurangi Trial & Error**
 
 **Tanpa Context7:**
+
 ```
 Developer: "How to use ArduinoJson?"
 Claude: [Provides ArduinoJson 6.x API - outdated]
@@ -257,6 +269,7 @@ Developer: [Rewrites code with correct API]
 ```
 
 **Dengan Context7:**
+
 ```
 Developer: "How to use ArduinoJson 7.x? use context7"
 Claude: [Fetches ArduinoJson 7.x docs]
@@ -276,6 +289,7 @@ ModbusMaster @ 2.0.1
 ```
 
 **Query dengan Context7:**
+
 ```
 Using ArduinoJson 7.4.2, show me how to handle 100KB JSON config files
 with PSRAM on ESP32-S3 with memory recovery.
@@ -290,29 +304,30 @@ use context7
 
 ### Apa itu Playwright MCP?
 
-**Playwright MCP** adalah MCP server dari **Microsoft** yang menyediakan kemampuan **browser automation** menggunakan Playwright. Claude bisa interact dengan web pages seperti manusia.
+**Playwright MCP** adalah MCP server dari **Microsoft** yang menyediakan
+kemampuan **browser automation** menggunakan Playwright. Claude bisa interact
+dengan web pages seperti manusia.
 
 ### Fitur Playwright MCP
 
-✅ **Navigate Web Pages** - Buka URL, klik link, fill form
-✅ **Extract Data** - Scrape content, parse tables, extract metrics
-✅ **Take Screenshots** - Visual verification, bug reporting
-✅ **Test Web Apps** - Automated UI testing, regression testing
-✅ **Execute JavaScript** - Run custom scripts di browser
-✅ **Wait for Elements** - Smart waiting for dynamic content
-✅ **Multi-Browser** - Chromium, Firefox, WebKit support
+✅ **Navigate Web Pages** - Buka URL, klik link, fill form ✅ **Extract Data** -
+Scrape content, parse tables, extract metrics ✅ **Take Screenshots** - Visual
+verification, bug reporting ✅ **Test Web Apps** - Automated UI testing,
+regression testing ✅ **Execute JavaScript** - Run custom scripts di browser ✅
+**Wait for Elements** - Smart waiting for dynamic content ✅ **Multi-Browser** -
+Chromium, Firefox, WebKit support
 
 ### Teknologi Playwright
 
 **Keunggulan dibanding scraping tradisional:**
 
-| Traditional Scraping | Playwright MCP |
-|---------------------|----------------|
-| HTML parsing only | ✅ Full browser execution |
-| No JavaScript support | ✅ JavaScript execution |
-| No dynamic content | ✅ Waits for dynamic loads |
-| Brittle selectors | ✅ Accessibility tree-based |
-| Manual screenshots | ✅ Automated visual testing |
+| Traditional Scraping  | Playwright MCP              |
+| --------------------- | --------------------------- |
+| HTML parsing only     | ✅ Full browser execution   |
+| No JavaScript support | ✅ JavaScript execution     |
+| No dynamic content    | ✅ Waits for dynamic loads  |
+| Brittle selectors     | ✅ Accessibility tree-based |
+| Manual screenshots    | ✅ Automated visual testing |
 
 ### Cara Menggunakan Playwright MCP
 
@@ -370,6 +385,7 @@ Open http://broker.hivemq.com:8080 and verify:
 ```
 
 **Use Case:**
+
 - Verify MQTT publishing works
 - Debug message format issues
 - Monitor broker health
@@ -390,6 +406,7 @@ Test our gateway status dashboard:
 ```
 
 **Use Case:**
+
 - Automated dashboard testing
 - Regression testing after firmware updates
 - Visual verification (screenshots)
@@ -409,6 +426,7 @@ Open http://localhost:8080/modbus-simulator and:
 ```
 
 **Use Case:**
+
 - Setup test environment
 - Verify simulator configuration
 - Automated test data injection
@@ -424,6 +442,7 @@ Go to https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/ and extract
 ```
 
 **Use Case:**
+
 - Research optimization techniques
 - Get latest API documentation
 - Find code examples
@@ -446,6 +465,7 @@ Test BLE configuration web interface at http://localhost:3000:
 ```
 
 **Use Case:**
+
 - Mobile app testing
 - BLE integration verification
 - UI/UX validation
@@ -457,17 +477,17 @@ Test BLE configuration web interface at http://localhost:3000:
 
 ### Apa itu Arduino MCP?
 
-**Arduino MCP** adalah custom MCP server yang dibuat khusus untuk project Gateway Suriota. Menyediakan automation untuk Arduino CLI operations.
+**Arduino MCP** adalah custom MCP server yang dibuat khusus untuk project
+Gateway Suriota. Menyediakan automation untuk Arduino CLI operations.
 
 ### Fitur Arduino MCP
 
-✅ **Build Firmware** - Compile ESP32 projects
-✅ **Upload to Board** - Flash firmware ke ESP32-S3
-✅ **Serial Monitor** - Real-time log monitoring
-✅ **Library Management** - Install/update Arduino libraries
-✅ **Board Detection** - Auto-detect connected boards
-✅ **Error Analysis** - Parse dan suggest fixes untuk compilation errors
-✅ **Clean Builds** - Remove build artifacts
+✅ **Build Firmware** - Compile ESP32 projects ✅ **Upload to Board** - Flash
+firmware ke ESP32-S3 ✅ **Serial Monitor** - Real-time log monitoring ✅
+**Library Management** - Install/update Arduino libraries ✅ **Board
+Detection** - Auto-detect connected boards ✅ **Error Analysis** - Parse dan
+suggest fixes untuk compilation errors ✅ **Clean Builds** - Remove build
+artifacts
 
 ### Cara Menggunakan Arduino MCP
 
@@ -478,6 +498,7 @@ Build the Main project at C:/Users/Administrator/Music/GatewaySuriotaPOC/Main
 ```
 
 **Output:**
+
 - Compilation status
 - Binary size
 - Memory usage (Flash/SRAM)
@@ -490,6 +511,7 @@ Upload the firmware to the connected ESP32-S3 board
 ```
 
 **Output:**
+
 - Auto-detect COM port
 - Upload progress
 - Verification status
@@ -502,6 +524,7 @@ Monitor COM3 at 115200 baud for 30 seconds and show me the boot logs
 ```
 
 **Output:**
+
 - Real-time serial logs
 - System initialization messages
 - Error messages (if any)
@@ -513,6 +536,7 @@ Install ArduinoJson library version 7.4.2
 ```
 
 **Output:**
+
 - Download progress
 - Installation status
 - Dependencies (if any)
@@ -872,11 +896,11 @@ claude /cost
 
 #### Model Comparison
 
-| Model | Speed | Cost | Best For | Gateway Use Case |
-|-------|-------|------|----------|------------------|
-| **Haiku 4.5** | ⚡⚡⚡ Fast | $ Low | Quick tasks, code review | Monitor logs, quick fixes |
-| **Sonnet 4.5** | ⚡⚡ Medium | $$ Medium | Balanced performance | Most development tasks |
-| **Opus 4** | ⚡ Slower | $$$ High | Complex reasoning | Architecture design, debugging |
+| Model          | Speed       | Cost      | Best For                 | Gateway Use Case               |
+| -------------- | ----------- | --------- | ------------------------ | ------------------------------ |
+| **Haiku 4.5**  | ⚡⚡⚡ Fast | $ Low     | Quick tasks, code review | Monitor logs, quick fixes      |
+| **Sonnet 4.5** | ⚡⚡ Medium | $$ Medium | Balanced performance     | Most development tasks         |
+| **Opus 4**     | ⚡ Slower   | $$$ High  | Complex reasoning        | Architecture design, debugging |
 
 #### When to Use Each Model
 
@@ -894,9 +918,8 @@ Examples:
 - "Take screenshot of dashboard"
 ```
 
-**Cost:** ~$0.25 per million input tokens
-**Speed:** ~50 tokens/second
-**Sweet Spot:** Repetitive tasks, quick queries
+**Cost:** ~$0.25 per million input tokens **Speed:** ~50 tokens/second **Sweet
+Spot:** Repetitive tasks, quick queries
 
 **Sonnet 4.5** - Development Workhorse (DEFAULT)
 
@@ -912,9 +935,8 @@ Examples:
 - "Implement MQTT reconnection logic"
 ```
 
-**Cost:** ~$3 per million input tokens
-**Speed:** ~30 tokens/second
-**Sweet Spot:** 90% of development tasks
+**Cost:** ~$3 per million input tokens **Speed:** ~30 tokens/second **Sweet
+Spot:** 90% of development tasks
 
 **Opus 4** - Complex Problem Solving
 
@@ -930,9 +952,8 @@ Examples:
 - "Design security strategy for BLE authentication"
 ```
 
-**Cost:** ~$15 per million input tokens
-**Speed:** ~15 tokens/second
-**Sweet Spot:** Critical design decisions, complex debugging
+**Cost:** ~$15 per million input tokens **Speed:** ~15 tokens/second **Sweet
+Spot:** Critical design decisions, complex debugging
 
 #### Plan Mode (OpusPlan / SonnetPlan)
 
@@ -1217,6 +1238,7 @@ Then build and test on ESP32-S3."
 ```
 
 **Why Good:**
+
 - Specifies exact version (ArduinoJson 7.x)
 - Invokes Context7 explicitly
 - Clear goal (100 devices)
@@ -1229,6 +1251,7 @@ Then build and test on ESP32-S3."
 ```
 
 **Why Bad:**
+
 - Vague goal
 - No context
 - No testing criteria
@@ -1313,11 +1336,13 @@ claude "Add new feature"
 ### MCP Server Not Responding
 
 **Symptom:**
+
 ```
 Error: MCP server 'context7' not responding
 ```
 
 **Solution:**
+
 ```bash
 # Check MCP server status
 claude mcp list
@@ -1333,11 +1358,13 @@ claude mcp list
 ### Playwright Browser Not Launching
 
 **Symptom:**
+
 ```
 Error: Failed to launch browser
 ```
 
 **Solution:**
+
 ```bash
 # Install Playwright browsers
 npx playwright install
@@ -1350,11 +1377,13 @@ claude mcp add playwright -- npx @playwright/mcp@latest
 ### Arduino MCP Build Failures
 
 **Symptom:**
+
 ```
 Error: arduino-cli not found
 ```
 
 **Solution:**
+
 ```bash
 # Check arduino-cli installation
 arduino-cli version
@@ -1369,11 +1398,13 @@ where arduino-cli
 ### Context7 Rate Limiting
 
 **Symptom:**
+
 ```
 Error: Rate limit exceeded
 ```
 
 **Solution:**
+
 ```bash
 # Get API key from https://context7.com/dashboard
 # Then update configuration
@@ -1384,9 +1415,11 @@ claude mcp add context7 -- npx -y @upstash/context7-mcp --api-key YOUR_API_KEY
 ### High Claude Usage Costs
 
 **Symptom:**
+
 - Monthly bill too high
 
 **Solution:**
+
 1. Use Haiku for simple tasks
 2. Batch related tasks in one session
 3. Use --continue to reuse context
@@ -1400,12 +1433,14 @@ claude mcp add context7 -- npx -y @upstash/context7-mcp --api-key YOUR_API_KEY
 ### Development Velocity
 
 **Before MCP:**
+
 - Feature implementation: 4-8 hours
 - Bug fixing: 2-4 hours
 - Documentation: 1-2 hours
 - **Total:** 7-14 hours per feature
 
 **After MCP:**
+
 - Feature implementation: 1-2 hours (Context7 + Arduino MCP)
 - Bug fixing: 30 minutes - 1 hour (Playwright + logs)
 - Documentation: 15-30 minutes (automated)
@@ -1416,6 +1451,7 @@ claude mcp add context7 -- npx -y @upstash/context7-mcp --api-key YOUR_API_KEY
 ### Code Quality
 
 **Metrics:**
+
 - ✅ Up-to-date APIs (Context7)
 - ✅ Fewer compilation errors
 - ✅ Better error handling
@@ -1425,6 +1461,7 @@ claude mcp add context7 -- npx -y @upstash/context7-mcp --api-key YOUR_API_KEY
 ### Time to Production
 
 **Target:**
+
 - Current: Phase 2 (Reliability) - ~60% complete
 - Goal: Production-ready firmware in **2-3 months**
 - Commercialization: **Q2 2026**
@@ -1444,6 +1481,7 @@ Tasks:
 ```
 
 **Use:**
+
 - Sonnet for implementation
 - Haiku for builds & tests
 - Playwright for automated testing
@@ -1459,6 +1497,7 @@ Tasks:
 ```
 
 **Use:**
+
 - Context7 for best practices research
 - Opus for architecture decisions
 - Arduino MCP for rapid iteration
@@ -1474,6 +1513,7 @@ Tasks:
 ```
 
 **Use:**
+
 - Context7 for security guidelines
 - Opus for security architecture
 - Playwright for penetration testing
@@ -1489,6 +1529,7 @@ Tasks:
 ```
 
 **Use:**
+
 - Haiku for test execution
 - Playwright for automated testing
 - Sonnet for test implementation
@@ -1523,14 +1564,15 @@ Tasks:
 
 ## 🎉 Conclusion
 
-Dengan **3 MCP servers** (Arduino, Context7, Playwright), development workflow Gateway Suriota menjadi:
+Dengan **3 MCP servers** (Arduino, Context7, Playwright), development workflow
+Gateway Suriota menjadi:
 
-✅ **Faster** - 4x productivity gain
-✅ **Better** - Up-to-date documentation, fewer errors
-✅ **Smarter** - Automated testing, comprehensive validation
-✅ **Production-Ready** - Following industry best practices
+✅ **Faster** - 4x productivity gain ✅ **Better** - Up-to-date documentation,
+fewer errors ✅ **Smarter** - Automated testing, comprehensive validation ✅
+**Production-Ready** - Following industry best practices
 
-**Goal:** Firmware yang **handal, optimal, dan siap produksi** untuk **komersialisasi** 🚀
+**Goal:** Firmware yang **handal, optimal, dan siap produksi** untuk
+**komersialisasi** 🚀
 
 **Timeline:** Production-ready dalam **2-3 bulan**
 
@@ -1538,6 +1580,5 @@ Dengan **3 MCP servers** (Arduino, Context7, Playwright), development workflow G
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-**Powered by Claude Code + MCP Servers**
+**Made with ❤️ by SURIOTA R&D Team** **Powered by Claude Code + MCP Servers**
 **Version 1.0.0 | Last Updated: November 24, 2025**

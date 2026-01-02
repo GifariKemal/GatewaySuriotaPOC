@@ -1,9 +1,9 @@
 # 📡 Protocol Specifications
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Communication Protocol Reference
+**SRT-MGATE-1210 Modbus IIoT Gateway** Communication Protocol Reference
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Protocol Specifications
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Protocol Specifications
 
 ---
 
@@ -23,21 +23,23 @@ Communication Protocol Reference
 
 ### Overview
 
-The gateway uses **Bluetooth Low Energy (BLE) 5.0** for configuration and real-time data streaming via a custom GATT service.
+The gateway uses **Bluetooth Low Energy (BLE) 5.0** for configuration and
+real-time data streaming via a custom GATT service.
 
 ### Service Characteristics
 
-| Property                 | Value                                            |
-| ------------------------ | ------------------------------------------------ |
-| **Service UUID**         | `12345678-1234-1234-1234-123456789abc`           |
+| Property                 | Value                                                            |
+| ------------------------ | ---------------------------------------------------------------- |
+| **Service UUID**         | `12345678-1234-1234-1234-123456789abc`                           |
 | **Service Name**         | `MGate-1210(P)-XXXX` or `MGate-1210-XXXX` (4 hex chars from MAC) |
-| **MTU Size**             | 23 bytes (minimum), up to 512 bytes (negotiable) |
-| **Connection Interval**  | 7.5ms - 4000ms                                   |
-| **Advertising Interval** | 100ms                                            |
+| **MTU Size**             | 23 bytes (minimum), up to 512 bytes (negotiable)                 |
+| **Connection Interval**  | 7.5ms - 4000ms                                                   |
+| **Advertising Interval** | 100ms                                                            |
 
 ### GATT Characteristics
 
 #### 1. Command Characteristic
+
 ```
 UUID: 12345678-1234-1234-1234-123456789abd
 Properties: WRITE
@@ -46,6 +48,7 @@ Purpose: Receive JSON commands from BLE client
 ```
 
 **Supported Operations:**
+
 - Device CRUD (create, read, update, delete)
 - Server configuration
 - Logging configuration
@@ -53,6 +56,7 @@ Purpose: Receive JSON commands from BLE client
 - System status queries
 
 #### 2. Response Characteristic
+
 ```
 UUID: 12345678-1234-1234-1234-123456789abe
 Properties: NOTIFY
@@ -61,6 +65,7 @@ Purpose: Send JSON responses to BLE client
 ```
 
 **Response Types:**
+
 - Success/error acknowledgments
 - Configuration data
 - Real-time sensor data
@@ -71,6 +76,7 @@ Purpose: Send JSON responses to BLE client
 Due to BLE MTU limitations, large JSON payloads are fragmented.
 
 **Fragment Structure:**
+
 ```
 ┌──────────────────────────────────────────────────┐
 │ Byte 0     │ Byte 1-2   │ Byte 3-4    │ Payload  │
@@ -81,12 +87,14 @@ Due to BLE MTU limitations, large JSON payloads are fragmented.
 ```
 
 **Header Fields:**
+
 - **Fragment Number** (1 byte): Current fragment (0-255)
 - **Total Fragments** (2 bytes): Total number of fragments (LE)
 - **Payload Length** (2 bytes): Length of payload in this fragment (LE)
 - **Payload** (18 bytes): Actual JSON data chunk
 
 **Example:**
+
 ```cpp
 // Sending "Hello World" in 1 fragment
 Fragment: [0x00] [0x01, 0x00] [0x0B, 0x00] "Hello World"
@@ -95,6 +103,7 @@ Fragment: [0x00] [0x01, 0x00] [0x0B, 0x00] "Hello World"
 ```
 
 **Reassembly Process:**
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -119,11 +128,12 @@ All commands are JSON-based with a consistent structure:
   "op": "create|read|update|delete|batch",
   "type": "device|server|logging",
   "device_id": "string (optional)",
-  "config": { }
+  "config": {}
 }
 ```
 
 **Timing Constraints:**
+
 - **Inter-fragment delay**: 50ms (prevents buffer overflow)
 - **Command timeout**: 30 seconds (no activity → disconnect)
 - **Response timeout**: 10 seconds (after command sent)
@@ -150,6 +160,7 @@ stateDiagram-v2
 Real-time sensor data can be streamed over BLE for monitoring.
 
 **Start Streaming:**
+
 ```json
 {
   "op": "read",
@@ -159,6 +170,7 @@ Real-time sensor data can be streamed over BLE for monitoring.
 ```
 
 **Streaming Response (continuous):**
+
 ```json
 {
   "status": "data",
@@ -174,6 +186,7 @@ Real-time sensor data can be streamed over BLE for monitoring.
 ```
 
 **Stop Streaming:**
+
 ```json
 {
   "op": "read",
@@ -183,6 +196,7 @@ Real-time sensor data can be streamed over BLE for monitoring.
 ```
 
 **Race Condition Prevention:**
+
 - Streaming task checks flag before AND after dequeue
 - Transmission mutex protects `sendFragmented()`
 - Atomic counter tracks in-flight transmissions
@@ -196,7 +210,8 @@ Real-time sensor data can be streamed over BLE for monitoring.
 
 Modbus RTU is a serial communication protocol running over RS-485.
 
-**Standard:** [Modbus over Serial Line V1.02](https://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
+**Standard:**
+[Modbus over Serial Line V1.02](https://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
 
 ### Physical Layer
 
@@ -221,6 +236,7 @@ const uint32_t validBaudrates[] = {
 ```
 
 **Dynamic Switching:**
+
 - Per-device baudrate configuration
 - Smart caching (only reconfigure if changed)
 - 50ms stabilization delay after switch
@@ -252,6 +268,7 @@ const uint32_t validBaudrates[] = {
 | **0x10** | Write Multiple Registers | Write N registers     | 123           |
 
 **Function Code Mapping:**
+
 ```cpp
 uint8_t getFunctionCode(const String& type) {
   if (type == "holding") return 0x03;
@@ -265,6 +282,7 @@ uint8_t getFunctionCode(const String& type) {
 ### Read Request Example (FC 0x03)
 
 **Request:** Read 2 holding registers from address 0x0000
+
 ```
 ┌────┬────┬─────────┬─────────┬──────┬──────┐
 │ 01 │ 03 │ 00  00  │ 00  02  │ CRC  │ CRC  │
@@ -274,6 +292,7 @@ Slave 1, FC 3, Addr 0, Count 2
 ```
 
 **Response:** Return 2 registers (4 bytes of data)
+
 ```
 ┌────┬────┬────────┬────────────────────┬──────┬──────┐
 │ 01 │ 03 │ 04     │ 12  34  56  78     │ CRC  │ CRC  │
@@ -294,6 +313,7 @@ Exception 02 = Illegal Data Address
 ```
 
 **Common Exception Codes:**
+
 - **0x01**: Illegal Function
 - **0x02**: Illegal Data Address
 - **0x03**: Illegal Data Value
@@ -303,15 +323,17 @@ Exception 02 = Illegal Data Address
 ### Timeout and Retry
 
 **Per-Device Configuration:**
+
 ```json
 {
-  "timeout": 3000,        // 3 seconds per request
-  "retry_count": 3,       // Retry 3 times on failure
+  "timeout": 3000, // 3 seconds per request
+  "retry_count": 3, // Retry 3 times on failure
   "refresh_rate_ms": 1000 // Poll every 1 second
 }
 ```
 
 **Exponential Backoff:**
+
 ```cpp
 unsigned long calculateBackoffTime(uint8_t retryCount) {
   return min(1000UL * (1 << retryCount), 60000UL); // Max 60s
@@ -319,6 +341,7 @@ unsigned long calculateBackoffTime(uint8_t retryCount) {
 ```
 
 **Failure States:**
+
 - **Consecutive failures > 5**: Device disabled temporarily
 - **Timeout counter > 3**: Device skipped from polling
 - **Recovery**: Automatic retry after backoff period
@@ -328,6 +351,7 @@ unsigned long calculateBackoffTime(uint8_t retryCount) {
 For data types requiring multiple registers (e.g., FLOAT32, INT64):
 
 **Sequential Read:**
+
 ```cpp
 // FLOAT32 requires 2 registers
 readMultipleRegisters(modbus, 0x03, 0x0000, 2, values);
@@ -336,6 +360,7 @@ readMultipleRegisters(modbus, 0x03, 0x0000, 2, values);
 ```
 
 **Endianness Variants:**
+
 - `ABCD`: Big-endian (most common)
 - `CDAB`: Little-endian
 - `BADC`: Mid-big-endian
@@ -349,7 +374,8 @@ readMultipleRegisters(modbus, 0x03, 0x0000, 2, values);
 
 Modbus TCP encapsulates Modbus protocol in TCP/IP packets.
 
-**Standard:** [Modbus Messaging on TCP/IP](https://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
+**Standard:**
+[Modbus Messaging on TCP/IP](https://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
 
 ### Connection Parameters
 
@@ -375,6 +401,7 @@ Modbus Application Protocol (MBAP) header prepends each message:
 ```
 
 **Fields:**
+
 - **Transaction ID**: Client-generated identifier (0-65535)
 - **Protocol ID**: Always 0x0000 for Modbus
 - **Length**: Number of bytes following (unit ID + PDU)
@@ -395,6 +422,7 @@ Modbus Application Protocol (MBAP) header prepends each message:
 **Example:** Read 10 holding registers from address 0x0064
 
 **Request:**
+
 ```
 Transaction ID: 0x0001
 Protocol ID:    0x0000
@@ -408,6 +436,7 @@ Hex: 00 01 00 00 00 06 01 03 00 64 00 0A
 ```
 
 **Response:**
+
 ```
 Transaction ID: 0x0001
 Protocol ID:    0x0000
@@ -430,6 +459,7 @@ uint8_t tcpClientIds[MAX_TCP_CLIENTS];  // Assigned slave IDs
 ```
 
 **Client Assignment Strategy:**
+
 1. Check existing client with matching slave ID
 2. Reuse disconnected client
 3. Evict least recently used client if pool full
@@ -459,13 +489,12 @@ stateDiagram-v2
 
 MQTT (Message Queuing Telemetry Transport) is used for cloud data transmission.
 
-**Version:** MQTT 3.1.1
-**Transport:** TCP over WiFi/Ethernet
+**Version:** MQTT 3.1.1 **Transport:** TCP over WiFi/Ethernet
 
 ### Broker Connection
 
-| Parameter         | Default            | Configurable      |
-| ----------------- | ------------------ | ----------------- |
+| Parameter         | Default            | Configurable       |
+| ----------------- | ------------------ | ------------------ |
 | **Broker**        | `mqtt.suriota.com` | ✅ Yes             |
 | **Port**          | 1883 (non-TLS)     | ✅ Yes (1883/8883) |
 | **Client ID**     | Auto-generated     | ✅ Yes             |
@@ -478,6 +507,7 @@ MQTT (Message Queuing Telemetry Transport) is used for cloud data transmission.
 ### Topic Structure
 
 **Data Publish Topic:**
+
 ```
 {prefix}/{device_id}/{register_name}
 
@@ -487,6 +517,7 @@ suriota/devices/D12345/humidity
 ```
 
 **Status Topic:**
+
 ```
 {prefix}/status/{gateway_id}
 
@@ -495,6 +526,7 @@ suriota/status/GW-ESP32-ABCD
 ```
 
 **Configuration Topic (subscribe):**
+
 ```
 {prefix}/config/{gateway_id}
 
@@ -505,6 +537,7 @@ suriota/config/GW-ESP32-ABCD
 ### Payload Format
 
 **Single Data Point (JSON):**
+
 ```json
 {
   "device_id": "D12345",
@@ -516,6 +549,7 @@ suriota/config/GW-ESP32-ABCD
 ```
 
 **Batch Data (JSON Array):**
+
 ```json
 {
   "gateway_id": "GW-ESP32-ABCD",
@@ -538,6 +572,7 @@ suriota/config/GW-ESP32-ABCD
 ### Connection State Management
 
 **Reconnection Logic:**
+
 ```cpp
 if (!mqttClient.connected()) {
   if (millis() - lastReconnectAttempt > 5000) {
@@ -551,6 +586,7 @@ if (!mqttClient.connected()) {
 ```
 
 **Persistent Queue:**
+
 - Failed messages stored in PSRAM queue
 - Max queue size: 1000 messages
 - Automatic retry on reconnection
@@ -579,22 +615,22 @@ LEDManager::getInstance()->setMqttConnectionStatus(false);
 
 HTTP/HTTPS is used for RESTful API communication with cloud servers.
 
-**Version:** HTTP/1.1
-**Transport:** TCP over WiFi/Ethernet
+**Version:** HTTP/1.1 **Transport:** TCP over WiFi/Ethernet
 
 ### Endpoint Configuration
 
 | Parameter         | Default                   | Configurable |
 | ----------------- | ------------------------- | ------------ |
-| **Base URL**      | `https://api.suriota.com` | ✅ Yes        |
-| **Port**          | 443 (HTTPS) / 80 (HTTP)   | ✅ Yes        |
-| **Timeout**       | 10 seconds                | ✅ Yes        |
-| **Max Redirects** | 3                         | ❌ No         |
-| **User-Agent**    | `SRT-MGATE-1210/1.0`      | ❌ No         |
+| **Base URL**      | `https://api.suriota.com` | ✅ Yes       |
+| **Port**          | 443 (HTTPS) / 80 (HTTP)   | ✅ Yes       |
+| **Timeout**       | 10 seconds                | ✅ Yes       |
+| **Max Redirects** | 3                         | ❌ No        |
+| **User-Agent**    | `SRT-MGATE-1210/1.0`      | ❌ No        |
 
 ### API Endpoints
 
 **1. Data Upload (POST)**
+
 ```
 POST /api/v1/data
 Content-Type: application/json
@@ -623,6 +659,7 @@ Response:
 ```
 
 **2. Configuration Sync (GET)**
+
 ```
 GET /api/v1/config/{gateway_id}
 Authorization: Bearer {token}
@@ -641,6 +678,7 @@ Response:
 ```
 
 **3. Status Heartbeat (POST)**
+
 ```
 POST /api/v1/status
 Content-Type: application/json
@@ -689,11 +727,13 @@ sequenceDiagram
 ### Authentication
 
 **Bearer Token:**
+
 ```cpp
 httpClient.addHeader("Authorization", "Bearer " + serverConfig->getApiToken());
 ```
 
 **Token Storage:** Stored in `server_config.json`
+
 ```json
 {
   "api_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -717,6 +757,7 @@ The gateway supports **40+ data types** with endianness variants.
 | **BOOL**   | 16-bit | 0 or 1          | Boolean (coil)   |
 
 **Encoding:**
+
 ```cpp
 int16_t value = (int16_t)rawValue;
 uint16_t value = rawValue;
@@ -740,6 +781,7 @@ uint16_t value = rawValue;
 | **FLOAT32_LE_BS** | 32-bit | Little-endian with word swap (CDAB) | IEEE 754 float          |
 
 **Endianness Diagram:**
+
 ```
 ABCD (Big-endian):
 Register 0: [A][B]  Register 1: [C][D]
@@ -759,6 +801,7 @@ Memory: D C B A
 ```
 
 **Float32 Encoding (ABCD):**
+
 ```cpp
 // Example: 25.6°C
 uint16_t values[2] = {0x41CC, 0xCCCD};
@@ -791,6 +834,7 @@ memcpy(&result, &combined, sizeof(float));
 | **DOUBLE64_LE_BS** | 64-bit | Little-endian with word swap (CDABGHEF) | IEEE 754 double         |
 
 **Double64 Encoding (ABCDEFGH):**
+
 ```cpp
 uint16_t values[4];
 uint64_t combined = ((uint64_t)values[0] << 48) |
@@ -816,6 +860,7 @@ Apply linear transformation to raw values:
 ```
 
 **Formula:**
+
 ```cpp
 double finalValue = (rawValue * scale) + offset;
 // Example: rawValue = 256
@@ -863,6 +908,7 @@ double finalValue = (rawValue * scale) + offset;
 | `ERR_TIMEOUT`            | Operation timeout         | Command took too long   |
 
 **Error Response Format:**
+
 ```json
 {
   "status": "error",
@@ -878,6 +924,7 @@ double finalValue = (rawValue * scale) + offset;
 ### Modbus Error Handling
 
 **Exception Responses:**
+
 ```cpp
 uint8_t result = modbus->readHoldingRegisters(address, count);
 switch (result) {
@@ -901,6 +948,7 @@ switch (result) {
 ```
 
 **Timeout Handling:**
+
 ```cpp
 // Device-specific timeout
 if (millis() - startTime > deviceTimeout->timeoutMs) {
@@ -916,6 +964,7 @@ if (millis() - startTime > deviceTimeout->timeoutMs) {
 ### Network Error Handling
 
 **MQTT Reconnection:**
+
 ```cpp
 bool MqttManager::reconnect() {
   for (int i = 0; i < 3; i++) {
@@ -930,6 +979,7 @@ bool MqttManager::reconnect() {
 ```
 
 **HTTP Retry Logic:**
+
 ```cpp
 int retryCount = 0;
 while (retryCount < 3) {
@@ -951,10 +1001,14 @@ while (retryCount < 3) {
 
 ### Standards
 
-- **Modbus RTU**: [Modbus over Serial Line V1.02](https://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
-- **Modbus TCP**: [Modbus Messaging on TCP/IP](https://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
-- **MQTT 3.1.1**: [OASIS MQTT Specification](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
-- **BLE 5.0**: [Bluetooth Core Specification v5.0](https://www.bluetooth.com/specifications/specs/)
+- **Modbus RTU**:
+  [Modbus over Serial Line V1.02](https://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf)
+- **Modbus TCP**:
+  [Modbus Messaging on TCP/IP](https://modbus.org/docs/Modbus_Messaging_Implementation_Guide_V1_0b.pdf)
+- **MQTT 3.1.1**:
+  [OASIS MQTT Specification](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
+- **BLE 5.0**:
+  [Bluetooth Core Specification v5.0](https://www.bluetooth.com/specifications/specs/)
 - **HTTP/1.1**: [RFC 7230-7235](https://tools.ietf.org/html/rfc7230)
 
 ### Libraries Used
@@ -971,20 +1025,21 @@ while (retryCount < 3) {
 
 - **[API Reference](../API_Reference/API.md)** - Complete BLE API reference
 - **[MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)** - Modbus data type encoding
-- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
-- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network configuration guide
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** -
+  MQTT publishing modes
+- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network
+  configuration guide
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Protocol troubleshooting
 - **[LIBRARIES.md](LIBRARIES.md)** - Library dependencies and versions
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.1 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-protocol-specifications)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

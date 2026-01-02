@@ -1,13 +1,12 @@
 # 🔧 Troubleshooting Guide
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Common Issues and Solutions
+**SRT-MGATE-1210 Modbus IIoT Gateway** Common Issues and Solutions
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Troubleshooting Guide
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Troubleshooting Guide
 
-**Current Version:** v2.5.34
-**Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Current Version:** v2.5.34 **Developer:** Kemal **Last Updated:** December 10,
+2025
 
 ---
 
@@ -33,6 +32,7 @@ Common Issues and Solutions
 Run these commands to quickly assess system status:
 
 **1. Get System Status**
+
 ```json
 {
   "op": "read",
@@ -41,6 +41,7 @@ Run these commands to quickly assess system status:
 ```
 
 **2. Get BLE Metrics**
+
 ```json
 {
   "op": "read",
@@ -51,6 +52,7 @@ Run these commands to quickly assess system status:
 **3. Check Error Statistics**
 
 View serial output:
+
 ```
 [ERROR_HANDLER] Total Errors: 127
 [ERROR_HANDLER] Most Frequent Domain: MODBUS_RTU
@@ -74,10 +76,13 @@ View serial output:
 ### Issue: Gateway not discoverable
 
 **Symptoms:**
-- BLE device "MGate-1210(P)-XXXX" (v2.5.32+) or "SURIOTA-XXXXXX" (legacy) not appearing in scan
+
+- BLE device "MGate-1210(P)-XXXX" (v2.5.32+) or "SURIOTA-XXXXXX" (legacy) not
+  appearing in scan
 - Mobile app can't find gateway
 
 **Diagnosis:**
+
 ```
 Check serial output:
 [BLE] Already running, skipping initialization
@@ -87,12 +92,15 @@ Check serial output:
 **Solutions:**
 
 1. **Check production mode:**
+
    ```cpp
    #define PRODUCTION_MODE 1  // BLE controlled by button
    ```
+
    - In production mode, long-press button to enable BLE
 
 2. **Verify BLE is advertising:**
+
    ```
    [BLE] Advertising started  // Should appear in logs
    ```
@@ -115,11 +123,13 @@ Check serial output:
 ### Issue: BLE connection drops frequently
 
 **Symptoms:**
+
 - Frequent disconnections
 - Commands timeout
 - Data streaming interrupted
 
 **Diagnosis:**
+
 ```
 [BLE] Disconnected from client
 [BLE] Device connected, MAC: XX:XX:XX:XX:XX:XX
@@ -139,9 +149,11 @@ Check serial output:
    - Close other Bluetooth apps
 
 3. **Check gateway load:**
+
    ```
    [SYSTEM] Free heap: 102400 bytes (check if critically low)
    ```
+
    - If heap < 50KB, reduce device/register count
 
 4. **Update connection parameters:**
@@ -153,12 +165,14 @@ Check serial output:
 ### Issue: BLE transmission timeout / slow response
 
 **Symptoms:**
+
 - Mobile app shows timeout error (30+ seconds)
 - Large API responses take very long time
 - `devices_with_registers` with 100+ registers timeout
 - UI freezes during data loading
 
 **Diagnosis:**
+
 ```
 // Check Serial Monitor for processing time:
 [CRUD] devices_with_registers returned 100 devices, 2600 total registers in 87 ms
@@ -177,6 +191,7 @@ Firmware v2.1.1: ✅ FAST (2.1 seconds for 21KB payload)
    - Completely eliminates timeout issues
 
    **What changed in v2.1.1:**
+
    ```cpp
    // BLEManager.h
    #define CHUNK_SIZE 244          // Was 18 (1356% improvement)
@@ -184,13 +199,15 @@ Firmware v2.1.1: ✅ FAST (2.1 seconds for 21KB payload)
    ```
 
 2. **Use minimal mode** (if on v2.1.0+):
+
    ```json
    {
      "op": "read",
      "type": "devices_with_registers",
-     "minimal": true  // 71% smaller payload
+     "minimal": true // 71% smaller payload
    }
    ```
+
    - Full mode: 21KB → 2.1s
    - Minimal mode: 6KB → 0.6s
 
@@ -205,22 +222,24 @@ Firmware v2.1.1: ✅ FAST (2.1 seconds for 21KB payload)
 
 **Performance Comparison:**
 
-| Version | Payload | Transmission Time | Status |
-|---------|---------|-------------------|--------|
-| v2.0 | 21 KB | 58.4 sec | ❌ Timeout |
-| v2.1.0 | 21 KB | 58.4 sec | ❌ Timeout |
-| v2.1.1 | 21 KB (full) | 2.1 sec | ✅ Fast |
-| v2.1.1 | 6 KB (minimal) | 0.6 sec | ✅ Very fast |
+| Version | Payload        | Transmission Time | Status       |
+| ------- | -------------- | ----------------- | ------------ |
+| v2.0    | 21 KB          | 58.4 sec          | ❌ Timeout   |
+| v2.1.0  | 21 KB          | 58.4 sec          | ❌ Timeout   |
+| v2.1.1  | 21 KB (full)   | 2.1 sec           | ✅ Fast      |
+| v2.1.1  | 6 KB (minimal) | 0.6 sec           | ✅ Very fast |
 
 **Root Cause Explained:**
 
 Old firmware used very small chunk size (18 bytes) with slow delay (50ms):
+
 ```
 21,000 bytes ÷ 18 bytes/chunk = 1,167 chunks
 1,167 chunks × 50ms delay = 58,350ms ≈ 58 seconds
 ```
 
 New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
+
 ```
 21,000 bytes ÷ 244 bytes/chunk = 86 chunks
 86 chunks × 10ms delay = 860ms ≈ 0.86 seconds
@@ -234,11 +253,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Commands return errors
 
 **Symptoms:**
+
 - `ERR_INVALID_JSON` errors
 - `ERR_MISSING_FIELD` errors
 - Commands not executed
 
 **Diagnosis:**
+
 ```
 [BLE CMD] Raw JSON: {"op":"create","type":"device"...
 [CRUD] ERROR: Invalid operation
@@ -252,11 +273,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    - Use JSON validator online
 
 2. **Check required fields:**
+
    ```json
    {
-     "op": "create",        // Required
-     "type": "device",      // Required
-     "config": { }          // Required for create/update
+     "op": "create", // Required
+     "type": "device", // Required
+     "config": {} // Required for create/update
    }
    ```
 
@@ -273,11 +295,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Response fragmentation errors
 
 **Symptoms:**
+
 - Incomplete responses
 - "Malformed JSON structure" errors
 - Response timeout
 
 **Diagnosis:**
+
 ```
 [BLE] Sent fragment 0/11
 [BLE] Sent fragment 1/11
@@ -306,11 +330,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Device not responding
 
 **Symptoms:**
+
 - `[RTU] Device timeout` errors
 - No data from device
 - Device disabled after retries
 
 **Diagnosis:**
+
 ```
 [RTU] Device D7A3F2 timeout (3000ms exceeded)
 [RTU] Exception: Slave device failure
@@ -325,31 +351,36 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    - Ensure common ground (if required)
 
 2. **Check slave ID:**
+
    ```json
    {
-     "slave_id": 1  // Must match device DIP switch/config
+     "slave_id": 1 // Must match device DIP switch/config
    }
    ```
 
 3. **Check baudrate:**
+
    ```json
    {
-     "baud_rate": 9600  // Must match device setting
+     "baud_rate": 9600 // Must match device setting
    }
    ```
+
    - Supported: 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200
 
 4. **Check timeout:**
+
    ```json
    {
-     "timeout": 5000  // Increase for slow devices
+     "timeout": 5000 // Increase for slow devices
    }
    ```
 
 5. **Check serial port:**
+
    ```json
    {
-     "serial_port": 1  // Port 1 (GPIO 15/16) or 2 (GPIO 17/18)
+     "serial_port": 1 // Port 1 (GPIO 15/16) or 2 (GPIO 17/18)
    }
    ```
 
@@ -370,11 +401,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Wrong data values
 
 **Symptoms:**
+
 - Data values incorrect
 - NaN or Inf values
 - Values don't match device display
 
 **Diagnosis:**
+
 ```
 [RTU] Register 'temperature' = NaN (raw: 0xFFFFFFFF)
 [RTU] Register 'pressure' = 65535 (expected: 100.5)
@@ -383,36 +416,43 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check data type:**
+
    ```json
    {
-     "data_type": "FLOAT32_ABCD"  // Try other endianness
+     "data_type": "FLOAT32_ABCD" // Try other endianness
    }
    ```
+
    - Try: `FLOAT32_CDAB`, `FLOAT32_BADC`, `FLOAT32_DCBA`
    - Check device manual for endianness
 
 2. **Check register address:**
+
    ```json
    {
-     "address": 0  // 0-based or 1-based? Check manual
+     "address": 0 // 0-based or 1-based? Check manual
    }
    ```
+
    - Some devices use 1-based addressing (subtract 1)
 
 3. **Check function code:**
+
    ```json
    {
-     "function_code": "holding"  // Try "input" if not working
+     "function_code": "holding" // Try "input" if not working
    }
    ```
 
 4. **Check scale and offset:**
+
    ```json
    {
-     "scale": 0.1,    // Multiply raw value
-     "offset": -40.0  // Add after scaling
+     "scale": 0.1, // Multiply raw value
+     "offset": -40.0 // Add after scaling
    }
    ```
+
    - Formula: `final = (raw * scale) + offset`
 
 5. **Read raw value:**
@@ -425,10 +465,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Baudrate switching fails
 
 **Symptoms:**
+
 - Device works at 9600 but not at higher baudrates
 - "Invalid baudrate" errors
 
 **Diagnosis:**
+
 ```
 [RTU] ERROR: Invalid baudrate 7200
 [RTU] Reconfiguring Serial1 from 9600 to 19200 baud
@@ -459,10 +501,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Cannot connect to TCP device
 
 **Symptoms:**
+
 - `[TCP] Connection timeout` errors
 - No data from TCP devices
 
 **Diagnosis:**
+
 ```
 [TCP] Connecting to 192.168.1.10:502 (slave: 1)
 [TCP] Connection timeout (30s)
@@ -475,11 +519,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    - Check device IP configuration
 
 2. **Check port:**
+
    ```json
    {
-     "port": 502  // Standard Modbus TCP port
+     "port": 502 // Standard Modbus TCP port
    }
    ```
+
    - Some devices use non-standard ports
 
 3. **Check network:**
@@ -494,7 +540,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 5. **Check slave ID:**
    ```json
    {
-     "slave_id": 1  // Modbus unit ID (usually 1 or 255)
+     "slave_id": 1 // Modbus unit ID (usually 1 or 255)
    }
    ```
 
@@ -503,10 +549,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Client pool exhausted
 
 **Symptoms:**
+
 - `[TCP] No available client slots` error
 - Some devices not polled
 
 **Diagnosis:**
+
 ```
 [TCP] Client pool status: 0=Active, 1=Active, 2=Active, 3=Active
 [TCP] No available client slots
@@ -519,9 +567,10 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    - Use RTU for additional devices
 
 2. **Increase polling interval:**
+
    ```json
    {
-     "refresh_rate_ms": 5000  // Slower polling = fewer connections
+     "refresh_rate_ms": 5000 // Slower polling = fewer connections
    }
    ```
 
@@ -535,10 +584,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: WiFi won't connect
 
 **Symptoms:**
+
 - `[NETWORK] WiFi connection timeout` error
 - No IP address assigned
 
 **Diagnosis:**
+
 ```
 [NETWORK] Connecting to WiFi: MyNetwork
 [NETWORK] WiFi connection timeout (30s)
@@ -547,6 +598,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check credentials:**
+
    ```json
    {
      "wifi_ssid": "MyNetwork",
@@ -575,10 +627,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Ethernet not working
 
 **Symptoms:**
+
 - `[NETWORK] Ethernet hardware not found` error
 - No Ethernet connection
 
 **Diagnosis:**
+
 ```
 [NETWORK] Initializing Ethernet (W5500)
 [NETWORK] Ethernet hardware not found
@@ -608,10 +662,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Network flapping
 
 **Symptoms:**
+
 - Frequent connect/disconnect cycles
 - LED NET rapid blinking
 
 **Diagnosis:**
+
 ```
 [NETWORK] WiFi connected
 [NETWORK] WiFi disconnected (10s later)
@@ -622,9 +678,11 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check signal strength:**
+
    ```
    [NETWORK] WiFi RSSI: -82 dBm  // Too weak (< -80 dBm)
    ```
+
    - Move gateway closer to AP
    - Use external antenna
    - Reduce obstacles
@@ -646,16 +704,19 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: MQTT connection fails
 
 **Symptoms:**
+
 - `[MQTT] Connection failed` error
 - No data reaching cloud
 
 **Diagnosis:**
+
 ```
 [MQTT] Connecting to mqtt.suriota.com:1883
 [MQTT] Connection failed (code: -2)
 ```
 
 **Error Codes:**
+
 - `-2`: Network error
 - `-4`: Connection timeout
 - `5`: Authentication failed
@@ -663,6 +724,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check broker address:**
+
    ```json
    {
      "broker": "mqtt.suriota.com",
@@ -671,6 +733,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    ```
 
 2. **Check authentication:**
+
    ```json
    {
      "username": "gateway",
@@ -684,9 +747,10 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    - Check firewall (port 1883)
 
 4. **Try alternative port:**
+
    ```json
    {
-     "port": 8883  // TLS port (if supported)
+     "port": 8883 // TLS port (if supported)
    }
    ```
 
@@ -699,10 +763,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: MQTT messages not received by server
 
 **Symptoms:**
+
 - Gateway shows publish success
 - Server doesn't receive data
 
 **Diagnosis:**
+
 ```
 [MQTT] Published successfully (QoS: 1)
 [MQTT] No acknowledgment received
@@ -711,20 +777,24 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check topic format:**
+
    ```json
    {
      "topic_prefix": "suriota/devices"
    }
    ```
+
    - Verify server expects this format
    - Check for typos
 
 2. **Check QoS:**
+
    ```json
    {
-     "qos": 1  // At least once delivery
+     "qos": 1 // At least once delivery
    }
    ```
+
    - QoS 0: No guarantee
    - QoS 1: Acknowledged delivery
 
@@ -741,10 +811,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: HTTP requests timeout
 
 **Symptoms:**
+
 - `[HTTP] Connection timeout` error
 - Data not reaching server
 
 **Diagnosis:**
+
 ```
 [HTTP] POST https://api.suriota.com/api/v1/data
 [HTTP] Connection timeout (10s)
@@ -753,18 +825,21 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Check endpoint:**
+
    ```json
    {
      "endpoint": "https://api.suriota.com"
    }
    ```
+
    - Verify URL correct
    - Test with curl/Postman
 
 2. **Increase timeout:**
+
    ```json
    {
-     "timeout": 30000  // 30 seconds
+     "timeout": 30000 // 30 seconds
    }
    ```
 
@@ -778,6 +853,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
      "api_token": "your_valid_token"
    }
    ```
+
    - Verify token not expired
    - Check Authorization header
 
@@ -788,10 +864,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Gateway reboots randomly
 
 **Symptoms:**
+
 - Unexpected restarts
 - Watchdog resets
 
 **Diagnosis:**
+
 ```
 [SYSTEM] Watchdog timeout on task: MODBUS_RTU_TASK
 [SYSTEM] System reset triggered
@@ -816,6 +894,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    ```
    [SYSTEM] Free heap: 5120 bytes  // Critical low
    ```
+
    - Reduce device/register count
    - Increase PSRAM usage
 
@@ -824,10 +903,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: RS485 communication errors
 
 **Symptoms:**
+
 - Intermittent Modbus failures
 - Corrupted data
 
 **Diagnosis:**
+
 ```
 [RTU] CRC error
 [RTU] Exception: Illegal data value
@@ -860,10 +941,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Slow data polling
 
 **Symptoms:**
+
 - Data updates delayed
 - Long intervals between readings
 
 **Diagnosis:**
+
 ```
 [RTU] Polling device D7A3F2 (refresh: 10000ms)
 ```
@@ -871,16 +954,18 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **Reduce refresh rate:**
+
    ```json
    {
-     "refresh_rate_ms": 1000  // Poll every 1 second
+     "refresh_rate_ms": 1000 // Poll every 1 second
    }
    ```
 
 2. **Check device timeout:**
+
    ```json
    {
-     "timeout": 3000  // Reduce if device responds fast
+     "timeout": 3000 // Reduce if device responds fast
    }
    ```
 
@@ -897,10 +982,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: High memory usage
 
 **Symptoms:**
+
 - Out of memory errors
 - System instability
 
 **Diagnosis:**
+
 ```
 [SYSTEM] Free heap: 20480 bytes  // Low
 [SYSTEM] Free PSRAM: 1048576 bytes  // Available
@@ -939,10 +1026,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Configuration not saved
 
 **Symptoms:**
+
 - Changes revert after reboot
 - `ERR_CONFIG_SAVE_FAILED` error
 
 **Diagnosis:**
+
 ```
 [CONFIG] Failed to save configuration
 [CONFIG] SPIFFS write error
@@ -971,10 +1060,12 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Issue: Device ID conflicts
 
 **Symptoms:**
+
 - Duplicate device IDs
 - Configuration overwritten
 
 **Diagnosis:**
+
 ```
 [CONFIG] Device D7A3F2 already exists
 ```
@@ -982,6 +1073,7 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 **Solutions:**
 
 1. **List devices first:**
+
    ```json
    {
      "op": "read",
@@ -990,12 +1082,13 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
    ```
 
 2. **Use update instead of create:**
+
    ```json
    {
-     "op": "update",  // Not "create"
+     "op": "update", // Not "create"
      "type": "device",
      "device_id": "D7A3F2",
-     "config": { }
+     "config": {}
    }
    ```
 
@@ -1015,22 +1108,26 @@ New firmware uses optimal chunk size (244 bytes) with fast delay (10ms):
 ### Serial Monitor Commands
 
 **1. Enable diagnostic mode:**
+
 ```cpp
 // Via firmware modification
 errorHandler->setDiagnosticMode(true);
 ```
 
 **2. View error history:**
+
 ```cpp
 errorHandler->printErrorHistory(10);  // Last 10 errors
 ```
 
 **3. View BLE metrics:**
+
 ```cpp
 bleMetrics->printDetailedReport();
 ```
 
 **4. View memory:**
+
 ```cpp
 Serial.printf("Free heap: %d\n", ESP.getFreeHeap());
 Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
@@ -1041,6 +1138,7 @@ Serial.printf("Free PSRAM: %d\n", ESP.getFreePsram());
 ### Log Analysis
 
 **1. Capture logs:**
+
 ```bash
 # Linux/Mac
 screen /dev/ttyUSB0 115200 | tee gateway.log
@@ -1050,6 +1148,7 @@ screen /dev/ttyUSB0 115200 | tee gateway.log
 ```
 
 **2. Analyze patterns:**
+
 ```bash
 # Count errors by type
 grep "ERROR" gateway.log | cut -d']' -f3 | sort | uniq -c
@@ -1062,6 +1161,7 @@ grep "Free heap" gateway.log
 ```
 
 **3. Share logs:**
+
 - Copy relevant section (50-100 lines around issue)
 - Include timestamp
 - Include system status output
@@ -1071,6 +1171,7 @@ grep "Free heap" gateway.log
 ### Factory Reset
 
 **Via BLE:**
+
 ```json
 {
   "op": "delete",
@@ -1078,15 +1179,18 @@ grep "Free heap" gateway.log
   "device_id": "D7A3F2"
 }
 ```
+
 Repeat for all devices.
 
 **Via Serial:**
+
 ```cpp
 // Uncomment in Main.ino setup():
 configManager->clearAllConfigurations();
 ```
 
 **Via SPIFFS:**
+
 - Delete `/devices.json`
 - Delete `/server_config.json`
 - Delete `/logging_config.json`
@@ -1155,18 +1259,18 @@ When requesting support, include:
 - **[PROTOCOL.md](PROTOCOL.md)** - Protocol specifications
 - **[HARDWARE.md](HARDWARE.md)** - Hardware specifications
 - **[LOGGING.md](LOGGING.md)** - Log system reference
-- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network configuration guide
+- **[NETWORK_CONFIGURATION.md](NETWORK_CONFIGURATION.md)** - Network
+  configuration guide
 - **[Best Practices](../BEST_PRACTICES.md)** - Production deployment guidelines
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.0 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-troubleshooting-guide)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

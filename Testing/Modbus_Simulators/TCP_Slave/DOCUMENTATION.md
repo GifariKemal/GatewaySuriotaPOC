@@ -6,9 +6,12 @@
 
 ## 📌 Overview
 
-Folder khusus untuk Modbus TCP slave simulator yang mensimulasikan perangkat Modbus nyata. Simulator ini **match** dengan konfigurasi yang dibuat di `Device_Testing/create_device_5_registers.py`.
+Folder khusus untuk Modbus TCP slave simulator yang mensimulasikan perangkat
+Modbus nyata. Simulator ini **match** dengan konfigurasi yang dibuat di
+`Device_Testing/create_device_5_registers.py`.
 
 ### Purpose
+
 - ✅ Test gateway WITHOUT physical Modbus devices
 - ✅ Simulate 5 Input Registers dengan data realistis
 - ✅ Auto-update nilai register setiap 5 detik
@@ -39,6 +42,7 @@ pip install -r requirements.txt
 ```
 
 Or manually:
+
 ```bash
 pip install pymodbus
 ```
@@ -54,6 +58,7 @@ Press Enter when prompted to start the server.
 ### 3. Test with Gateway
 
 In another terminal:
+
 ```bash
 cd ../Device_Testing
 python create_device_5_registers.py
@@ -78,13 +83,13 @@ Data Type:       INT16 (0-65535)
 
 ### Register Mapping (5 Registers)
 
-| Address | Name | Unit | Range | Initial | Description |
-|---------|------|------|-------|---------|-------------|
-| 0 | Temperature | °C | 20-35 | 25 | Temperature sensor |
-| 1 | Humidity | % | 40-80 | 60 | Humidity sensor |
-| 2 | Pressure | Pa | 900-1100 | 1000 | Pressure sensor |
-| 3 | Voltage | V | 220-240 | 230 | Voltage measurement |
-| 4 | Current | A | 1-10 | 5 | Current measurement |
+| Address | Name        | Unit | Range    | Initial | Description         |
+| ------- | ----------- | ---- | -------- | ------- | ------------------- |
+| 0       | Temperature | °C   | 20-35    | 25      | Temperature sensor  |
+| 1       | Humidity    | %    | 40-80    | 60      | Humidity sensor     |
+| 2       | Pressure    | Pa   | 900-1100 | 1000    | Pressure sensor     |
+| 3       | Voltage     | V    | 220-240  | 230     | Voltage measurement |
+| 4       | Current     | A    | 1-10     | 5       | Current measurement |
 
 ### Auto-Update Behavior
 
@@ -103,6 +108,7 @@ Data Type:       INT16 (0-65535)
 Use these settings in `Device_Testing/create_device_5_registers.py`:
 
 ### Device Config
+
 ```json
 {
   "op": "create",
@@ -122,6 +128,7 @@ Use these settings in `Device_Testing/create_device_5_registers.py`:
 ```
 
 ### Register Config (for each register)
+
 ```json
 {
   "op": "create",
@@ -207,6 +214,7 @@ Use these settings in `Device_Testing/create_device_5_registers.py`:
 **Cause:** Port 502 is already being used by another program
 
 **Solutions:**
+
 1. Check if another Modbus simulator is running
 2. Close other programs using port 502
 3. Change `SERVER_PORT` in the script to 5020
@@ -215,11 +223,13 @@ Use these settings in `Device_Testing/create_device_5_registers.py`:
 ### Issue: `pymodbus not found`
 
 **Solution:**
+
 ```bash
 pip install pymodbus
 ```
 
 Or:
+
 ```bash
 pip3 install pymodbus
 ```
@@ -227,6 +237,7 @@ pip3 install pymodbus
 ### Issue: Gateway cannot connect to simulator
 
 **Checklist:**
+
 - ✅ Simulator is running (check console output)
 - ✅ IP address is 192.168.1.8 (or configured correctly)
 - ✅ Port 502 is not blocked by firewall
@@ -234,6 +245,7 @@ pip3 install pymodbus
 - ✅ Try ping from gateway: `ping 192.168.1.8`
 
 **Windows Firewall:**
+
 ```
 1. Windows Defender Firewall
 2. Allow an app through firewall
@@ -243,6 +255,7 @@ pip3 install pymodbus
 ### Issue: Register values don't change
 
 **Check:**
+
 - Auto-update is enabled (default: True)
 - Check console for update logs
 - UPDATE_INTERVAL is set (default: 5 seconds)
@@ -252,6 +265,7 @@ pip3 install pymodbus
 **Cause:** Port 502 requires administrator privileges
 
 **Solutions:**
+
 1. Run as administrator (Windows)
 2. Use sudo (Linux/Mac): `sudo python modbus_slave_5_registers.py`
 3. Change port to >1024 (e.g., 5020)
@@ -263,6 +277,7 @@ pip3 install pymodbus
 ### Setting IP Address 192.168.1.8
 
 **Windows:**
+
 ```
 1. Control Panel → Network and Sharing Center
 2. Change adapter settings
@@ -276,11 +291,13 @@ pip3 install pymodbus
 ```
 
 **Linux:**
+
 ```bash
 sudo ifconfig eth0 192.168.1.8 netmask 255.255.255.0
 ```
 
 **Mac:**
+
 ```
 System Preferences → Network
 → Select adapter → Configure IPv4 → Manually
@@ -290,11 +307,13 @@ System Preferences → Network
 ### Verify IP Configuration
 
 **Windows:**
+
 ```bash
 ipconfig
 ```
 
 **Linux/Mac:**
+
 ```bash
 ifconfig
 ```
@@ -361,7 +380,8 @@ Compatible with **pymodbus 3.x** (tested with 3.6.0+)
 
 ## 🔗 Related Documentation
 
-- [Device_Testing/DOCUMENTATION.md](../Device_Testing/DOCUMENTATION.md) - Gateway testing
+- [Device_Testing/DOCUMENTATION.md](../Device_Testing/DOCUMENTATION.md) -
+  Gateway testing
 - [../Docs/API.md](../Docs/API.md) - BLE CRUD API
 - [../Docs/MODBUS_DATATYPES.md](../Docs/MODBUS_DATATYPES.md) - Modbus data types
 
@@ -369,9 +389,7 @@ Compatible with **pymodbus 3.x** (tested with 3.6.0+)
 
 ## 📞 Support
 
-**PT Surya Inovasi Prioritas (SURIOTA)**
-R&D Team
-📧 Email: support@suriota.com
+**PT Surya Inovasi Prioritas (SURIOTA)** R&D Team 📧 Email: support@suriota.com
 🌐 Website: https://suriota.com
 
 ---

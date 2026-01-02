@@ -2,9 +2,11 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-Comprehensive reference for all supported Modbus data types, endianness variants, and byte order configurations.
+Comprehensive reference for all supported Modbus data types, endianness
+variants, and byte order configurations.
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Modbus Data Types
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Modbus Data Types
 
 ---
 
@@ -24,7 +26,11 @@ Comprehensive reference for all supported Modbus data types, endianness variants
 
 ## Overview
 
-The SRT-MGATE-1210 firmware supports **40+ Modbus data types** with multiple endianness variants to ensure compatibility with virtually any Modbus device in industrial environments. This comprehensive support eliminates the need for external data conversion and provides seamless integration with PLCs, sensors, meters, and other industrial equipment.
+The SRT-MGATE-1210 firmware supports **40+ Modbus data types** with multiple
+endianness variants to ensure compatibility with virtually any Modbus device in
+industrial environments. This comprehensive support eliminates the need for
+external data conversion and provides seamless integration with PLCs, sensors,
+meters, and other industrial equipment.
 
 ### Key Features
 
@@ -201,23 +207,26 @@ DOUBLE64_BE     → 64-bit double precision float, Big-Endian (ABCDEFGH)
 
 ### What is Endianness?
 
-**Endianness** refers to the order in which bytes are arranged in multi-byte data types. Different manufacturers use different byte ordering conventions, requiring the gateway to convert between formats.
+**Endianness** refers to the order in which bytes are arranged in multi-byte
+data types. Different manufacturers use different byte ordering conventions,
+requiring the gateway to convert between formats.
 
 ### Byte Order Notation
 
-For a 32-bit value with bytes **A B C D** (most significant to least significant):
+For a 32-bit value with bytes **A B C D** (most significant to least
+significant):
 
 ```
 Original Value: [A] [B] [C] [D]
                 MSB ←——————→ LSB
 ```
 
-| Suffix     | Name                         | Byte Order | Description                                 |
-| ---------- | ---------------------------- | ---------- | ------------------------------------------- |
-| **_BE**    | Big-Endian                   | ABCD       | Standard, MSB first (network byte order)    |
-| **_LE**    | Little-Endian                | DCBA       | Completely reversed byte order              |
-| **_BE_BS** | Big-Endian with Byte Swap    | BADC       | Word order unchanged, bytes swapped within  |
-| **_LE_BS** | Little-Endian with Word Swap | CDAB       | Word order reversed, bytes within unchanged |
+| Suffix      | Name                         | Byte Order | Description                                 |
+| ----------- | ---------------------------- | ---------- | ------------------------------------------- |
+| **\_BE**    | Big-Endian                   | ABCD       | Standard, MSB first (network byte order)    |
+| **\_LE**    | Little-Endian                | DCBA       | Completely reversed byte order              |
+| **\_BE_BS** | Big-Endian with Byte Swap    | BADC       | Word order unchanged, bytes swapped within  |
+| **\_LE_BS** | Little-Endian with Word Swap | CDAB       | Word order reversed, bytes within unchanged |
 
 ### Visual Example: 32-bit Value `0x12345678`
 
@@ -239,23 +248,26 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
                 MSB ←———————————————————————→ LSB
 ```
 
-| Suffix     | Byte Order | Register Layout                     |
-| ---------- | ---------- | ----------------------------------- |
-| **_BE**    | ABCDEFGH   | [R1: AB] [R2: CD] [R3: EF] [R4: GH] |
-| **_LE**    | HGFEDCBA   | [R1: HG] [R2: FE] [R3: DC] [R4: BA] |
-| **_BE_BS** | BADCFEHG   | [R1: BA] [R2: DC] [R3: FE] [R4: HG] |
-| **_LE_BS** | CDABGHEF   | [R1: CD] [R2: AB] [R3: GH] [R4: EF] |
+| Suffix      | Byte Order | Register Layout                     |
+| ----------- | ---------- | ----------------------------------- |
+| **\_BE**    | ABCDEFGH   | [R1: AB] [R2: CD] [R3: EF] [R4: GH] |
+| **\_LE**    | HGFEDCBA   | [R1: HG] [R2: FE] [R3: DC] [R4: BA] |
+| **\_BE_BS** | BADCFEHG   | [R1: BA] [R2: DC] [R3: FE] [R4: HG] |
+| **\_LE_BS** | CDABGHEF   | [R1: CD] [R2: AB] [R3: GH] [R4: EF] |
 
 ### How to Determine Correct Endianness
 
-1. **Check Device Documentation**: Most manufacturers specify byte order in Modbus register maps
-2. **Test Known Values**: Write a known value (e.g., `1234.56`) and read it back with different endianness
+1. **Check Device Documentation**: Most manufacturers specify byte order in
+   Modbus register maps
+2. **Test Known Values**: Write a known value (e.g., `1234.56`) and read it back
+   with different endianness
 3. **Common Patterns**:
    - **Siemens PLCs**: Often use `_BE` (ABCD)
    - **Schneider Electric**: Often use `_LE_BS` (CDAB)
    - **ABB Devices**: Often use `_BE_BS` (BADC)
    - **Chinese Meters**: Often use `_LE_BS` (CDAB)
-4. **Trial and Error**: If undocumented, try all 4 variants until correct value appears
+4. **Trial and Error**: If undocumented, try all 4 variants until correct value
+   appears
 
 ---
 
@@ -263,9 +275,8 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
 
 ### Example 1: Temperature Sensor (16-bit)
 
-**Device**: DHT22 Temperature/Humidity Sensor
-**Register**: 40001 (Temperature in 0.1°C units)
-**Value Range**: -400 to 800 (-40.0°C to 80.0°C)
+**Device**: DHT22 Temperature/Humidity Sensor **Register**: 40001 (Temperature
+in 0.1°C units) **Value Range**: -400 to 800 (-40.0°C to 80.0°C)
 
 ```json
 {
@@ -293,8 +304,7 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
 
 ### Example 2: Power Meter (32-bit Float)
 
-**Device**: Schneider PM5560 Power Meter
-**Register**: 3000 (Active Power)
+**Device**: Schneider PM5560 Power Meter **Register**: 3000 (Active Power)
 **Endianness**: Little-Endian with Word Swap (CDAB)
 
 ```json
@@ -323,8 +333,7 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
 
 ### Example 3: Energy Meter (64-bit Double)
 
-**Device**: Carlo Gavazzi EM340 Energy Meter
-**Register**: 40100 (Total Energy)
+**Device**: Carlo Gavazzi EM340 Energy Meter **Register**: 40100 (Total Energy)
 **Endianness**: Big-Endian (ABCDEFGH)
 
 ```json
@@ -353,8 +362,7 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
 
 ### Example 4: Solar Inverter (Mixed Types)
 
-**Device**: SMA Sunny Tripower Inverter
-**Registers**: Multiple types
+**Device**: SMA Sunny Tripower Inverter **Registers**: Multiple types
 
 ```json
 {
@@ -431,6 +439,7 @@ Original Value: [A] [B] [C] [D] [E] [F] [G] [H]
 **Solutions**:
 
 1. **Wrong Endianness**: Try all 4 variants (`_BE`, `_LE`, `_BE_BS`, `_LE_BS`)
+
    ```bash
    # Test script example
    FLOAT32_BE      → 123.45
@@ -494,13 +503,14 @@ Use this BLE command to test all 4 endianness variants:
 ```
 
 **Response**:
+
 ```json
 {
   "results": [
-    {"data_type": "FLOAT32_BE", "value": 123.45, "valid": true},
-    {"data_type": "FLOAT32_LE", "value": 1.234e+38, "valid": false},
-    {"data_type": "FLOAT32_BE_BS", "value": 3.456e-12, "valid": false},
-    {"data_type": "FLOAT32_LE_BS", "value": 123.45, "valid": true}
+    { "data_type": "FLOAT32_BE", "value": 123.45, "valid": true },
+    { "data_type": "FLOAT32_LE", "value": 1.234e38, "valid": false },
+    { "data_type": "FLOAT32_BE_BS", "value": 3.456e-12, "valid": false },
+    { "data_type": "FLOAT32_LE_BS", "value": 123.45, "valid": true }
   ],
   "recommendation": "FLOAT32_BE or FLOAT32_LE_BS"
 }
@@ -558,18 +568,19 @@ Use this BLE command to test all 4 endianness variants:
 - **[PROTOCOL.md](PROTOCOL.md)** - Protocol specifications
 - **[HARDWARE.md](HARDWARE.md)** - Hardware specifications and GPIO pinout
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Data type troubleshooting
-- **[REGISTER_CALIBRATION_DOCUMENTATION.md](REGISTER_CALIBRATION_DOCUMENTATION.md)** - Register calibration guide
-- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
+- **[REGISTER_CALIBRATION_DOCUMENTATION.md](REGISTER_CALIBRATION_DOCUMENTATION.md)** -
+  Register calibration guide
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** -
+  MQTT publishing modes
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.1 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-modbus-data-types-reference)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

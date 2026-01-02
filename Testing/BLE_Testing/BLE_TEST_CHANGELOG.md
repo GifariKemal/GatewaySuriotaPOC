@@ -7,12 +7,14 @@
 **User Feedback:** "kenapa ada device number, bisa dibuat sederhana saja gk"
 
 **Changes:**
+
 - ✅ Removed device numbering and selection menu
 - ✅ Auto-connects to first SURIOTA GW device found
 - ✅ Simplified scan output (just show name and address)
 - ✅ Streamlined user flow - scan → connect → test
 
 **Before (Manual Selection):**
+
 ```
 Found 2 SURIOTA Gateway(s):
 
@@ -27,6 +29,7 @@ Found 2 SURIOTA Gateway(s):
 ```
 
 **After (Auto-Connect):**
+
 ```
 ✓ Found SURIOTA Gateway
   Name: SURIOTA GW
@@ -35,7 +38,8 @@ Found 2 SURIOTA Gateway(s):
 [CONNECT] Connecting to AA:BB:CC:DD:EE:FF...
 ```
 
-**Impact:** Faster workflow - tool automatically connects to first device, perfect for single-device testing scenarios
+**Impact:** Faster workflow - tool automatically connects to first device,
+perfect for single-device testing scenarios
 
 ---
 
@@ -43,18 +47,23 @@ Found 2 SURIOTA Gateway(s):
 
 ### 🔧 Fixed - RSSI Attribute Error
 
-**Issue:** `'BLEDevice' object has no attribute 'rssi'` error when scanning devices
+**Issue:** `'BLEDevice' object has no attribute 'rssi'` error when scanning
+devices
 
-**Root Cause:** bleak library's `BLEDevice` object doesn't provide RSSI attribute in scan results
+**Root Cause:** bleak library's `BLEDevice` object doesn't provide RSSI
+attribute in scan results
 
-**User Requirement:** Only need command and response checking, not signal strength or network details
+**User Requirement:** Only need command and response checking, not signal
+strength or network details
 
 **Changes:**
+
 - ✅ Removed RSSI display from device scan output (lines 83, 93)
 - ✅ Simplified device listing to show only Name and Address
 - ✅ Cleaner, more focused output for device selection
 
 **Before:**
+
 ```python
 for i, device in enumerate(suriota_devices, 1):
     print(f"{i}. Name: {device.name}")
@@ -64,6 +73,7 @@ for i, device in enumerate(suriota_devices, 1):
 ```
 
 **After:**
+
 ```python
 for i, device in enumerate(suriota_devices, 1):
     print(f"{i}. Name: {device.name}")
@@ -71,7 +81,8 @@ for i, device in enumerate(suriota_devices, 1):
     print()
 ```
 
-**Impact:** Tool now runs without errors and displays only essential device information for connection
+**Impact:** Tool now runs without errors and displays only essential device
+information for connection
 
 ---
 
@@ -82,12 +93,14 @@ for i, device in enumerate(suriota_devices, 1):
 **Issue:** UUIDs in `ble_test.py` didn't match firmware configuration
 
 **Changes:**
+
 - ✅ Updated `SERVICE_UUID` to `00001830-0000-1000-8000-00805f9b34fb`
 - ✅ Updated `COMMAND_CHAR_UUID` to `11111111-1111-1111-1111-111111111101`
 - ✅ Updated `RESPONSE_CHAR_UUID` to `11111111-1111-1111-1111-111111111102`
 - ✅ Added `SERVICE_NAME = "SURIOTA GW"`
 
-**Reference:** Based on working implementation in `Device_Testing/TCP/create_device_5_registers.py`
+**Reference:** Based on working implementation in
+`Device_Testing/TCP/create_device_5_registers.py`
 
 ---
 
@@ -96,18 +109,21 @@ for i, device in enumerate(suriota_devices, 1):
 **Issue:** Commands were sent as single packet instead of fragmented chunks
 
 **Changes:**
+
 - ✅ Implemented 18-byte chunk fragmentation
 - ✅ Added `<END>` marker after command transmission
 - ✅ Added chunk progress logging
 - ✅ Added 0.1s delay between chunks for stability
 
 **Before:**
+
 ```python
 # Single packet transmission
 await client.write_gatt_char(COMMAND_CHAR_UUID, command_bytes, response=True)
 ```
 
 **After:**
+
 ```python
 # Fragmented transmission (18 bytes/chunk)
 chunk_size = 18
@@ -127,17 +143,20 @@ await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
 **Issue:** Tool scanned all BLE devices without filtering
 
 **Changes:**
+
 - ✅ Filter for `SERVICE_NAME = "SURIOTA GW"` devices first
 - ✅ Show all devices if no SURIOTA GW found (fallback)
 - ✅ Improved scan timeout from 5s to 10s
 - ✅ Better user feedback during scan
 
 **Before:**
+
 ```python
 devices = await BleakScanner.discover(timeout=5.0)
 ```
 
 **After:**
+
 ```python
 devices = await BleakScanner.discover(timeout=10.0)
 suriota_devices = [d for d in devices if d.name == SERVICE_NAME]
@@ -152,6 +171,7 @@ else:
 ### 📝 Updated - Documentation
 
 **Files Updated:**
+
 1. `BLE_TESTING_README.md`
    - Added BLE configuration details (UUIDs, Service Name)
    - Updated troubleshooting section with UUID verification
@@ -167,6 +187,7 @@ else:
 ### ✨ Initial Release
 
 **Features:**
+
 - Interactive BLE testing tool
 - CRUD operations support
 - Command examples
@@ -174,6 +195,7 @@ else:
 - Fragmented response handling
 
 **Files Created:**
+
 - `ble_test.py` - Main testing tool
 - `requirements.txt` - Python dependencies
 - `BLE_TESTING_README.md` - User guide
@@ -185,20 +207,19 @@ else:
 ## Comparison with Device Testing Tools
 
 ### Similarities
-✅ Both use same UUIDs
-✅ Both use 18-byte fragmentation
-✅ Both use `<END>` marker
-✅ Both handle fragmented responses
+
+✅ Both use same UUIDs ✅ Both use 18-byte fragmentation ✅ Both use `<END>`
+marker ✅ Both handle fragmented responses
 
 ### Differences
 
-| Feature | ble_test.py | create_device_5_registers.py |
-|---------|-------------|------------------------------|
-| Purpose | Interactive testing | Automated device creation |
-| Commands | All CRUD ops | Create device + registers only |
-| Mode | Interactive + Quick Test | Automated only |
-| User Input | Manual JSON input | Hardcoded config |
-| Response Display | Pretty print JSON | Simple JSON dump |
+| Feature          | ble_test.py              | create_device_5_registers.py   |
+| ---------------- | ------------------------ | ------------------------------ |
+| Purpose          | Interactive testing      | Automated device creation      |
+| Commands         | All CRUD ops             | Create device + registers only |
+| Mode             | Interactive + Quick Test | Automated only                 |
+| User Input       | Manual JSON input        | Hardcoded config               |
+| Response Display | Pretty print JSON        | Simple JSON dump               |
 
 ---
 
@@ -224,24 +245,27 @@ SERVICE_NAME = "SURIOTA GW"
 ## Known Issues
 
 ### Issue #1: Response Buffer Overflow for Large Payloads
-**Status:** MITIGATED
-**Description:** Devices with >50 registers in full mode may exceed 10KB payload limit
-**Workaround:** Use `minimal: true` parameter to reduce payload size
-**Example:**
+
+**Status:** MITIGATED **Description:** Devices with >50 registers in full mode
+may exceed 10KB payload limit **Workaround:** Use `minimal: true` parameter to
+reduce payload size **Example:**
+
 ```json
-{"op":"read","type":"device","device_id":"device_1","minimal":true}
+{ "op": "read", "type": "device", "device_id": "device_1", "minimal": true }
 ```
 
 ### Issue #2: Bluetooth Adapter Compatibility
-**Status:** KNOWN
-**Description:** Some Bluetooth 4.0 adapters may have connection stability issues
-**Workaround:** Use Bluetooth 4.2+ adapter or built-in Bluetooth on modern laptops
+
+**Status:** KNOWN **Description:** Some Bluetooth 4.0 adapters may have
+connection stability issues **Workaround:** Use Bluetooth 4.2+ adapter or
+built-in Bluetooth on modern laptops
 
 ---
 
 ## Future Enhancements
 
 ### Planned for v1.1.0
+
 - [ ] Support for batch operations in quick test mode
 - [ ] JSON command history (up arrow to recall)
 - [ ] Export test results to JSON/CSV
@@ -249,6 +273,7 @@ SERVICE_NAME = "SURIOTA GW"
 - [ ] Configurable chunk size (18/32/64 bytes)
 
 ### Planned for v1.2.0
+
 - [ ] GUI interface using tkinter
 - [ ] Real-time data streaming visualization
 - [ ] Performance benchmarking mode
@@ -256,5 +281,4 @@ SERVICE_NAME = "SURIOTA GW"
 
 ---
 
-**Last Updated:** 2025-01-16 (v1.0.3)
-**Author:** Claude Code
+**Last Updated:** 2025-01-16 (v1.0.3) **Author:** Claude Code

@@ -1,6 +1,6 @@
 # 🌐 SRT-MGATE-1210 Modbus IIoT Gateway
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.0.5-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-ESP32--S3-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)
 ![Build](https://img.shields.io/badge/build-passing-success.svg)
@@ -8,8 +8,8 @@
 
 **Industrial IoT Gateway for Modbus RTU/TCP Data Acquisition**
 
-Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
-**Last Updated:** December 27, 2025
+Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team **Last
+Updated:** January 2, 2026
 
 ---
 
@@ -23,6 +23,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 - [OTA Firmware Updates](#-ota-firmware-updates)
 - [Documentation](#-documentation)
 - [Contributing](#-contributing)
+- [Code Formatting](#-code-formatting)
 - [Support](#-support)
 - [License](#-license)
 - [Credits](#-credits)
@@ -31,19 +32,25 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 ## 🎯 Overview
 
-**SRT-MGATE-1210** is an advanced Industrial IoT Gateway designed for seamless Modbus RTU/TCP data acquisition and cloud connectivity. Built on ESP32-S3 with 8MB PSRAM, it provides reliable, high-performance data bridging between industrial devices and cloud platforms via MQTT/HTTP protocols.
+**SRT-MGATE-1210** is an advanced Industrial IoT Gateway designed for seamless
+Modbus RTU/TCP data acquisition and cloud connectivity. Built on ESP32-S3 with
+8MB PSRAM, it provides reliable, high-performance data bridging between
+industrial devices and cloud platforms via MQTT/HTTP protocols.
 
 ### 🏭 Use Cases
 
-- **Industrial Automation**: Connect PLCs, sensors, and actuators to cloud platforms
-- **Energy Monitoring**: Monitor power meters, solar inverters, and battery systems
-- **Environmental Monitoring**: Collect data from temperature, humidity, and air quality sensors
+- **Industrial Automation**: Connect PLCs, sensors, and actuators to cloud
+  platforms
+- **Energy Monitoring**: Monitor power meters, solar inverters, and battery
+  systems
+- **Environmental Monitoring**: Collect data from temperature, humidity, and air
+  quality sensors
 - **Building Automation**: Integrate HVAC, lighting, and access control systems
 
 ### ✨ Why Choose SRT-MGATE-1210?
 
-| Feature                            | Benefit                                                  |
-| ---------------------------------- | -------------------------------------------------------- |
+| Feature                             | Benefit                                                  |
+| ----------------------------------- | -------------------------------------------------------- |
 | 🔄 **Dual Modbus Support**          | Simultaneous RTU (2 ports) and TCP connectivity          |
 | 📱 **BLE Configuration**            | Easy setup via smartphone app (no web interface needed)  |
 | 🔐 **Production/Development Modes** | Secure production deployment with debug capabilities     |
@@ -59,7 +66,8 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 ### 🔌 Connectivity
 
-- **Modbus RTU**: 2x RS485 ports with dynamic baudrate switching (1200-115200 baud)
+- **Modbus RTU**: 2x RS485 ports with dynamic baudrate switching (1200-115200
+  baud)
 - **Modbus TCP**: Multiple simultaneous connections
 - **MQTT**: Publish/subscribe with persistent queue and auto-reconnect
 - **HTTP**: RESTful API for data publishing (POST/PUT/PATCH)
@@ -68,12 +76,15 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 ### 🎛️ Configuration Management
 
 - **BLE CRUD Operations**: Create, Read, Update, Delete devices via smartphone
-- **Backup & Restore**: Complete configuration backup/restore system via BLE (up to 200KB)
+- **Backup & Restore**: Complete configuration backup/restore system via BLE (up
+  to 200KB)
 - **Factory Reset**: One-command device reset to factory defaults
-- **Device Control**: Enable/disable devices with health metrics and auto-recovery
+- **Device Control**: Enable/disable devices with health metrics and
+  auto-recovery
 - **Batch Operations**: Sequential, parallel, and atomic batch processing
 - **Priority Queue**: High/normal/low priority command execution
-- **Atomic Updates**: Crash-safe configuration writes with WAL (Write-Ahead Logging)
+- **Atomic Updates**: Crash-safe configuration writes with WAL (Write-Ahead
+  Logging)
 - **Hot Reload**: Configuration changes applied without restart
 
 ### 📡 Data Acquisition
@@ -144,7 +155,9 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 | **GPIO 14, 21, 47, 48** | ETH_SPI    | W5500 SPI3 (MOSI/MISO/SCK/CS)   |
 | **GPIO 10-13**          | SD_SPI     | MicroSD card SPI (optional)     |
 
-**Complete GPIO mapping**: See [Documentation/Technical_Guides/HARDWARE.md](Documentation/Technical_Guides/HARDWARE.md) for all 25 GPIO assignments
+**Complete GPIO mapping**: See
+[Documentation/Technical_Guides/HARDWARE.md](Documentation/Technical_Guides/HARDWARE.md)
+for all 25 GPIO assignments
 
 ### Power Requirements
 
@@ -162,17 +175,20 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 
 - **Arduino IDE** 2.0 or later
 - **ESP32 Board Package** 2.0.11 or later
-- **Required Libraries** (see [LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
+- **Required Libraries** (see
+  [LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md))
 
 ### Installation
 
 1. **Clone Repository**
+
    ```bash
    git clone https://github.com/GifariKemal/GatewaySuriotaPOC.git
    cd GatewaySuriotaPOC
    ```
 
 2. **Install ESP32 Board Support**
+
    ```
    File → Preferences → Additional Boards Manager URLs:
    https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -181,6 +197,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
    ```
 
 3. **Install Required Libraries**
+
    ```
    Tools → Manage Libraries → Search and install:
    - ArduinoJson (v7.4.2+) by Benoit Blanchon
@@ -193,7 +210,9 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
    - OneButton (v2.0+) by Matthias Hertel
    ```
 
-   See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for detailed installation guide
+   See
+   [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md)
+   for detailed installation guide
 
 4. **Configure Mode**
    - Open `Main/Main.ino`
@@ -203,6 +222,7 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
      ```
 
 5. **Board Configuration**
+
    ```
    Tools → Board → ESP32 Arduino → ESP32-S3 Dev Module
    Tools → Flash Size → 16MB (128Mb)
@@ -249,7 +269,8 @@ Developed by **PT Surya Inovasi Prioritas (SURIOTA)** - R&D Team
 }
 ```
 
-See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete CRUD examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for
+complete CRUD examples.
 
 ---
 
@@ -397,13 +418,14 @@ All firmware binaries follow a consistent naming convention:
 
 **Format:** `{MODEL}_{VARIANT}_v{VERSION}.bin`
 
-| Component | Description | Example |
-|-----------|-------------|---------|
-| **MODEL** | Product model code | `MGATE-1210` |
+| Component   | Description                                | Example      |
+| ----------- | ------------------------------------------ | ------------ |
+| **MODEL**   | Product model code                         | `MGATE-1210` |
 | **VARIANT** | Hardware variant (P=POE, omit for non-POE) | `P` or empty |
-| **VERSION** | Semantic version (MAJOR.MINOR.PATCH) | `1.0.0` |
+| **VERSION** | Semantic version (MAJOR.MINOR.PATCH)       | `1.0.0`      |
 
 **Examples:**
+
 ```
 MGATE-1210_P_v1.0.0.bin      # POE variant, version 1.0.0
 MGATE-1210_P_v1.2.5.bin      # POE variant, version 1.2.5
@@ -445,7 +467,8 @@ GatewaySuriotaOTA/
         └── MGATE-1210_P_v1.1.0.bin
 ```
 
-**Note:** OTA updates can be triggered via BLE command. See [API.md](Documentation/API_Reference/API.md) for details.
+**Note:** OTA updates can be triggered via BLE command. See
+[API.md](Documentation/API_Reference/API.md) for details.
 
 ---
 
@@ -454,48 +477,51 @@ GatewaySuriotaOTA/
 Comprehensive documentation is available in the `Documentation/` directory:
 
 > **Version 1.0.0** - First production release
+>
 > - Complete Modbus RTU/TCP support with 40+ data types
 > - BLE configuration with CRUD API
 > - MQTT/HTTP cloud connectivity
 > - Dual network (WiFi + Ethernet) with failover
 > - Comprehensive documentation
 
-**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for complete changelog
+**See:**
+[Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md)
+for complete changelog
 
 ### 📖 Core Documentation
 
-| Document                                                                                                                      | Description                                   |
-| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md)                                                          | Release notes and changelog                   |
-| [**API.md**](Documentation/API_Reference/API.md)                                                                              | Complete BLE CRUD API reference with examples |
-| [**BLE_BACKUP_RESTORE.md**](Documentation/API_Reference/BLE_BACKUP_RESTORE.md) 🆕                                             | Complete configuration backup/restore via BLE |
-| [**BLE_FACTORY_RESET.md**](Documentation/API_Reference/BLE_FACTORY_RESET.md) 🆕                                               | One-command device reset to factory defaults  |
-| [**BLE_DEVICE_CONTROL.md**](Documentation/API_Reference/BLE_DEVICE_CONTROL.md) 🆕                                             | Enable/disable devices with health metrics    |
-| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)                 | MQTT Default & Customize modes                |
-| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)             | Scale & offset calibration guide              |
+| Document                                                                                                          | Description                                   |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| [**VERSION_HISTORY.md**](Documentation/Changelog/VERSION_HISTORY.md)                                              | Release notes and changelog                   |
+| [**API.md**](Documentation/API_Reference/API.md)                                                                  | Complete BLE CRUD API reference with examples |
+| [**BLE_BACKUP_RESTORE.md**](Documentation/API_Reference/BLE_BACKUP_RESTORE.md) 🆕                                 | Complete configuration backup/restore via BLE |
+| [**BLE_FACTORY_RESET.md**](Documentation/API_Reference/BLE_FACTORY_RESET.md) 🆕                                   | One-command device reset to factory defaults  |
+| [**BLE_DEVICE_CONTROL.md**](Documentation/API_Reference/BLE_DEVICE_CONTROL.md) 🆕                                 | Enable/disable devices with health metrics    |
+| [**MQTT_PUBLISH_MODES_DOCUMENTATION.md**](Documentation/Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)     | MQTT Default & Customize modes                |
+| [**REGISTER_CALIBRATION_DOCUMENTATION.md**](Documentation/Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md) | Scale & offset calibration guide              |
 
 ### 🔧 Technical Reference
 
-| Document                                                                         | Description                                    |
-| -------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [**MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md)   | 40+ Modbus data types with endianness variants |
-| [**PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                    | BLE protocol, Modbus implementation details    |
-| [**LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                      | Debug log reference and troubleshooting        |
+| Document                                                                      | Description                                    |
+| ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| [**MODBUS_DATATYPES.md**](Documentation/Technical_Guides/MODBUS_DATATYPES.md) | 40+ Modbus data types with endianness variants |
+| [**PROTOCOL.md**](Documentation/Technical_Guides/PROTOCOL.md)                 | BLE protocol, Modbus implementation details    |
+| [**LOGGING.md**](Documentation/Technical_Guides/LOGGING.md)                   | Debug log reference and troubleshooting        |
 
 ### 🚀 Performance & Troubleshooting
 
-| Document                                                                       | Description                            |
-| ------------------------------------------------------------------------------ | -------------------------------------- |
-| [**BUG_STATUS_REPORT.md**](Documentation/Changelog/BUG_STATUS_REPORT.md) 🆕    | Active bug tracking and analysis (Nov 2025) |
-| [**CAPACITY_ANALYSIS.md**](Documentation/Changelog/CAPACITY_ANALYSIS.md)      | Gateway capacity limits and benchmarks |
-| [**TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md)   | Common issues and solutions            |
+| Document                                                                    | Description                                 |
+| --------------------------------------------------------------------------- | ------------------------------------------- |
+| [**BUG_STATUS_REPORT.md**](Documentation/Changelog/BUG_STATUS_REPORT.md) 🆕 | Active bug tracking and analysis (Nov 2025) |
+| [**CAPACITY_ANALYSIS.md**](Documentation/Changelog/CAPACITY_ANALYSIS.md)    | Gateway capacity limits and benchmarks      |
+| [**TROUBLESHOOTING.md**](Documentation/Technical_Guides/TROUBLESHOOTING.md) | Common issues and solutions                 |
 
 ### 🔌 Hardware & Setup
 
-| Document                                                               | Description                               |
-| ---------------------------------------------------------------------- | ----------------------------------------- |
-| [**HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)          | GPIO pinout, schematics, electrical specs |
-| [**LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md)        | Third-party libraries and dependencies    |
+| Document                                                        | Description                               |
+| --------------------------------------------------------------- | ----------------------------------------- |
+| [**HARDWARE.md**](Documentation/Technical_Guides/HARDWARE.md)   | GPIO pinout, schematics, electrical specs |
+| [**LIBRARIES.md**](Documentation/Technical_Guides/LIBRARIES.md) | Third-party libraries and dependencies    |
 
 ---
 
@@ -529,7 +555,8 @@ Comprehensive documentation is available in the `Documentation/` directory:
 }
 ```
 
-See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for complete examples.
+See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for
+complete examples.
 
 ---
 
@@ -538,11 +565,13 @@ See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for
 ### BLE Not Visible
 
 **Development Mode:**
+
 - Ensure `PRODUCTION_MODE = 0`
 - BLE should start automatically
 - Check Serial Monitor for: `[BLE] Advertising started with name: SURIOTA GW`
 
 **Production Mode:**
+
 - Long-press button (>2 seconds)
 - LED STATUS should blink very slowly (3s interval)
 - Scan for "SURIOTA GW"
@@ -563,25 +592,28 @@ See [Documentation/API_Reference/API.md](Documentation/API_Reference/API.md) for
    [RTU] Polling device XXXXX (Slave:1 Port:1 Baud:9600)
    ```
 
-See [Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_Guides/TROUBLESHOOTING.md) for detailed solutions.
+See
+[Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_Guides/TROUBLESHOOTING.md)
+for detailed solutions.
 
 ---
 
 ## 📊 Performance Metrics
 
-| Metric                        | Typical Value                |
-| ----------------------------- | ---------------------------- |
-| **Modbus RTU Polling**        | 50-100 ms per device         |
-| **Modbus TCP Polling**        | 30-80 ms per device          |
-| **BLE Response Time**         | <200 ms                      |
+| Metric                        | Typical Value                 |
+| ----------------------------- | ----------------------------- |
+| **Modbus RTU Polling**        | 50-100 ms per device          |
+| **Modbus TCP Polling**        | 30-80 ms per device           |
+| **BLE Response Time**         | <200 ms                       |
 | **BLE Transmission (v2.1.1)** | 2.1s for 21KB (28x faster) ⚡ |
-| **MQTT Publish Rate**         | Up to 10 msg/sec             |
-| **HTTP Request Rate**         | Up to 5 req/sec              |
-| **Queue Capacity**            | 100 data points (PSRAM)      |
-| **Config Write Time**         | <100 ms (atomic)             |
-| **Network Failover**          | <5 seconds                   |
+| **MQTT Publish Rate**         | Up to 10 msg/sec              |
+| **HTTP Request Rate**         | Up to 5 req/sec               |
+| **Queue Capacity**            | 100 data points (PSRAM)       |
+| **Config Write Time**         | <100 ms (atomic)              |
+| **Network Failover**          | <5 seconds                    |
 
 **BLE Transmission Benchmark (v2.1.1):**
+
 - 6KB payload: 0.6s (minimal mode, 100 registers)
 - 21KB payload: 2.1s (full mode, 100 registers)
 - **Improvement:** 28x faster than v2.0 (58s → 2.1s)
@@ -619,11 +651,14 @@ See [Documentation/Technical_Guides/TROUBLESHOOTING.md](Documentation/Technical_
 
 - **Email**: support@suriota.com
 - **Website**: [www.suriota.com](https://www.suriota.com)
-- **GitHub Issues**: [Report Bug](https://github.com/GifariKemal/GatewaySuriotaPOC/issues)
+- **GitHub Issues**:
+  [Report Bug](https://github.com/GifariKemal/GatewaySuriotaPOC/issues)
 
 ### Documentation Updates
 
-Documentation is continuously updated. Check the repository for the latest version:
+Documentation is continuously updated. Check the repository for the latest
+version:
+
 ```bash
 git pull origin main
 ```
@@ -632,11 +667,15 @@ git pull origin main
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Whether you're fixing bugs, adding features, improving documentation, or sharing hardware designs, your contributions are valuable.
+We welcome contributions from the community! Whether you're fixing bugs, adding
+features, improving documentation, or sharing hardware designs, your
+contributions are valuable.
 
 ### How to Contribute
 
-Please read our [CONTRIBUTING.md](Documentation/Technical_Guides/CONTRIBUTING.md) for detailed guidelines on:
+Please read our
+[CONTRIBUTING.md](Documentation/Technical_Guides/CONTRIBUTING.md) for detailed
+guidelines on:
 
 - Setting up your development environment
 - Coding standards and conventions
@@ -663,27 +702,94 @@ Please read our [CONTRIBUTING.md](Documentation/Technical_Guides/CONTRIBUTING.md
 
 ### Code of Conduct
 
-We are committed to providing a welcoming and inclusive environment. Please be respectful and constructive in all interactions with the community.
+We are committed to providing a welcoming and inclusive environment. Please be
+respectful and constructive in all interactions with the community.
+
+---
+
+## 🎨 Code Formatting
+
+We use automated code formatters to maintain consistent code style across the
+project.
+
+### Formatters Used
+
+| File Type        | Formatter     | Style   | Install Command           |
+| ---------------- | ------------- | ------- | ------------------------- |
+| C++ (.cpp, .h)   | clang-format  | Google  | `choco install llvm`      |
+| Python (.py)     | black         | PEP 8   | `pip install black`       |
+| Markdown (.md)   | prettier      | Default | `npm install -g prettier` |
+
+### Quick Format Commands
+
+```bash
+# Format all C++ files (Google style)
+clang-format -i --style=Google Main/*.cpp Main/*.h
+
+# Format all Python files
+python -m black .
+
+# Format all Markdown files
+npx prettier --write --prose-wrap always "**/*.md"
+
+# Format everything at once
+clang-format -i --style=Google Main/*.cpp Main/*.h && python -m black . && npx prettier --write "**/*.md"
+```
+
+### VS Code Integration
+
+Install these extensions for automatic formatting:
+
+1. **C/C++** (Microsoft) - For clang-format
+2. **Black Formatter** (Microsoft) - For Python
+3. **Prettier** (Prettier) - For Markdown
+
+Add to your `settings.json`:
+
+```json
+{
+  "C_Cpp.clang_format_style": "Google",
+  "[cpp]": { "editor.formatOnSave": true },
+  "[python]": { "editor.defaultFormatter": "ms-python.black-formatter" },
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+}
+```
+
+**Full documentation:**
+[Documentation/Technical_Guides/CODE_FORMATTING.md](Documentation/Technical_Guides/CODE_FORMATTING.md)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE)
+file for details.
 
 **Copyright © 2025 PT Surya Inovasi Prioritas (SURIOTA)**
 
 ### Summary
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.**
+**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.**
 
 ### Commercial Support
 
-For commercial support, custom development, or enterprise licensing inquiries, contact: **sales@suriota.com**
+For commercial support, custom development, or enterprise licensing inquiries,
+contact: **sales@suriota.com**
 
 ---
 
@@ -700,7 +806,9 @@ For commercial support, custom development, or enterprise licensing inquiries, c
 
 ### Third-Party Libraries
 
-This project uses several open-source libraries. See [Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md) for complete attributions.
+This project uses several open-source libraries. See
+[Documentation/Technical_Guides/LIBRARIES.md](Documentation/Technical_Guides/LIBRARIES.md)
+for complete attributions.
 
 ### Special Thanks
 
@@ -719,6 +827,7 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 **Release Date:** December 27, 2025
 
 #### Core Features
+
 - ✅ **Modbus RTU/TCP** - Dual protocol support with 40+ data types
 - ✅ **BLE Configuration** - Complete CRUD API with backup/restore
 - ✅ **Cloud Connectivity** - MQTT and HTTP with TLS support
@@ -728,14 +837,18 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 - ✅ **Production Mode** - Two-tier logging with minimal footprint
 
 #### Quality Metrics
+
 - **Overall Score:** 91/100 (Production Ready)
 - **Logging System:** 97%
 - **Thread Safety:** 96%
 - **Memory Management:** 95%
 
-**See:** [Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md) for details
+**See:**
+[Documentation/Changelog/VERSION_HISTORY.md](Documentation/Changelog/VERSION_HISTORY.md)
+for details
 
-**Development History:** See `Documentation/Archive/Development_Phase/` for complete development changelog
+**Development History:** See `Documentation/Archive/Development_Phase/` for
+complete development changelog
 
 ---
 
@@ -753,7 +866,9 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 - [x] **Documentation** - Complete technical documentation
 
 ### Planned Features
-- [ ] **Modbus Write Operations**: Support for actuator control (FC 05, 06, 15, 16)
+
+- [ ] **Modbus Write Operations**: Support for actuator control (FC 05, 06,
+      15, 16)
 - [ ] **Local Dashboard**: Web interface for real-time monitoring
 - [ ] **SD Card Logging**: Historical data storage with CSV export
 - [ ] **Alarm System**: Configurable threshold alerts with notifications
@@ -761,15 +876,23 @@ This project uses several open-source libraries. See [Documentation/Technical_Gu
 
 ### Community Requests
 
-Submit feature requests via [GitHub Issues](https://github.com/GifariKemal/GatewaySuriotaPOC/issues) with tag `feature-request`.
+Submit feature requests via
+[GitHub Issues](https://github.com/GifariKemal/GatewaySuriotaPOC/issues) with
+tag `feature-request`.
 
 ---
 
 ## ⚠️ Disclaimer
 
-This firmware is provided "AS IS" without warranty of any kind, express or implied. SURIOTA shall not be liable for any damages arising from the use of this firmware in industrial or commercial applications. Users are responsible for validating the firmware's suitability for their specific applications and ensuring compliance with local regulations.
+This firmware is provided "AS IS" without warranty of any kind, express or
+implied. SURIOTA shall not be liable for any damages arising from the use of
+this firmware in industrial or commercial applications. Users are responsible
+for validating the firmware's suitability for their specific applications and
+ensuring compliance with local regulations.
 
-**Industrial Safety Notice**: This gateway is not certified for safety-critical applications. Do not use in life-support systems, nuclear facilities, aircraft navigation, or any application where failure could result in injury or death.
+**Industrial Safety Notice**: This gateway is not certified for safety-critical
+applications. Do not use in life-support systems, nuclear facilities, aircraft
+navigation, or any application where failure could result in injury or death.
 
 ---
 
@@ -777,7 +900,8 @@ This firmware is provided "AS IS" without warranty of any kind, express or impli
 
 **PT Surya Inovasi Prioritas (SURIOTA)**
 
-- **Address**: Batam Centre, Jl. Legenda Malaka, Baloi Permai, Kec. Batam Kota, Kota Batam, Kepulauan Riau 29431
+- **Address**: Batam Centre, Jl. Legenda Malaka, Baloi Permai, Kec. Batam Kota,
+  Kota Batam, Kepulauan Riau 29431
 - **Phone**: 0858-3567-2476
 - **Email**: admin@suriota.com
 - **Website**: www.suriota.com

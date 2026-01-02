@@ -16,14 +16,16 @@ class ArduinoFlasher:
     def __init__(self):
         self.arduino_cli = "arduino-cli"
 
-    async def _run_command(self, cmd: list[str], cwd: Optional[str] = None) -> Dict[str, Any]:
+    async def _run_command(
+        self, cmd: list[str], cwd: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Run a shell command and return results."""
         try:
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=cwd
+                cwd=cwd,
             )
 
             stdout, stderr = await process.communicate()
@@ -31,8 +33,8 @@ class ArduinoFlasher:
             return {
                 "success": process.returncode == 0,
                 "returncode": process.returncode,
-                "stdout": stdout.decode('utf-8', errors='replace'),
-                "stderr": stderr.decode('utf-8', errors='replace')
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
             }
 
         except FileNotFoundError:
@@ -40,15 +42,10 @@ class ArduinoFlasher:
                 "success": False,
                 "error": "arduino-cli not found. Please install Arduino CLI.",
                 "stdout": "",
-                "stderr": ""
+                "stderr": "",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": ""
-            }
+            return {"success": False, "error": str(e), "stdout": "", "stderr": ""}
 
     async def list_boards(self) -> Dict[str, Any]:
         """
@@ -64,6 +61,7 @@ class ArduinoFlasher:
         if result["success"]:
             try:
                 import json
+
                 boards_data = json.loads(result["stdout"])
 
                 boards = []
@@ -72,16 +70,15 @@ class ArduinoFlasher:
                         "port": board.get("port", {}).get("address", ""),
                         "protocol": board.get("port", {}).get("protocol", ""),
                         "label": board.get("port", {}).get("label", ""),
-                        "boards": []
+                        "boards": [],
                     }
 
                     # Get matching boards
                     matching_boards = board.get("matching_boards", [])
                     for b in matching_boards:
-                        port_info["boards"].append({
-                            "name": b.get("name", ""),
-                            "fqbn": b.get("fqbn", "")
-                        })
+                        port_info["boards"].append(
+                            {"name": b.get("name", ""), "fqbn": b.get("fqbn", "")}
+                        )
 
                     boards.append(port_info)
 
@@ -89,7 +86,7 @@ class ArduinoFlasher:
                     "success": True,
                     "boards": boards,
                     "count": len(boards),
-                    "message": f"Found {len(boards)} connected board(s)"
+                    "message": f"Found {len(boards)} connected board(s)",
                 }
 
             except json.JSONDecodeError:
@@ -99,35 +96,41 @@ class ArduinoFlasher:
             return {
                 "success": False,
                 "error": "Failed to list boards",
-                "details": result.get("stderr", "")
+                "details": result.get("stderr", ""),
             }
 
     def _parse_board_list_text(self, output: str) -> Dict[str, Any]:
         """Parse board list from text output (fallback)."""
         boards = []
-        lines = output.strip().split('\n')
+        lines = output.strip().split("\n")
 
         for line in lines[1:]:  # Skip header
             if line.strip():
-                parts = re.split(r'\s{2,}', line.strip())
+                parts = re.split(r"\s{2,}", line.strip())
                 if len(parts) >= 2:
-                    boards.append({
-                        "port": parts[0],
-                        "protocol": parts[1] if len(parts) > 1 else "",
-                        "type": parts[2] if len(parts) > 2 else "",
-                        "boards": []
-                    })
+                    boards.append(
+                        {
+                            "port": parts[0],
+                            "protocol": parts[1] if len(parts) > 1 else "",
+                            "type": parts[2] if len(parts) > 2 else "",
+                            "boards": [],
+                        }
+                    )
 
         return {
             "success": True,
             "boards": boards,
             "count": len(boards),
-            "message": f"Found {len(boards)} connected port(s)"
+            "message": f"Found {len(boards)} connected port(s)",
         }
 
-    async def upload(self, project_path: str, port: str = "",
-                     fqbn: str = "esp32:esp32:esp32s3",
-                     verify: bool = True) -> Dict[str, Any]:
+    async def upload(
+        self,
+        project_path: str,
+        port: str = "",
+        fqbn: str = "esp32:esp32:esp32s3",
+        verify: bool = True,
+    ) -> Dict[str, Any]:
         """
         Upload firmware to connected board.
 
@@ -145,16 +148,13 @@ class ArduinoFlasher:
         if not os.path.isdir(project_path):
             return {
                 "success": False,
-                "error": f"Project directory not found: {project_path}"
+                "error": f"Project directory not found: {project_path}",
             }
 
         # Find .ino file
         ino_files = list(Path(project_path).glob("*.ino"))
         if not ino_files:
-            return {
-                "success": False,
-                "error": f"No .ino file found in {project_path}"
-            }
+            return {"success": False, "error": f"No .ino file found in {project_path}"}
 
         sketch_path = str(ino_files[0])
 
@@ -167,15 +167,11 @@ class ArduinoFlasher:
             else:
                 return {
                     "success": False,
-                    "error": "No boards detected. Please connect a board or specify port manually."
+                    "error": "No boards detected. Please connect a board or specify port manually.",
                 }
 
         # Build upload command
-        cmd = [
-            self.arduino_cli, "upload",
-            "--fqbn", fqbn,
-            "--port", port
-        ]
+        cmd = [self.arduino_cli, "upload", "--fqbn", fqbn, "--port", port]
 
         if verify:
             cmd.append("--verify")
@@ -192,16 +188,18 @@ class ArduinoFlasher:
             output = result["stdout"] + result["stderr"]
 
             # Extract upload info
-            size_match = re.search(r'(\d+) bytes', output)
+            size_match = re.search(r"(\d+) bytes", output)
             upload_size = int(size_match.group(1)) if size_match else 0
 
-            result.update({
-                "message": "Upload successful",
-                "port": port,
-                "fqbn": fqbn,
-                "upload_size": upload_size,
-                "verified": verify
-            })
+            result.update(
+                {
+                    "message": "Upload successful",
+                    "port": port,
+                    "fqbn": fqbn,
+                    "upload_size": upload_size,
+                    "verified": verify,
+                }
+            )
         else:
             # Parse error messages
             error_output = result["stderr"]
@@ -209,9 +207,13 @@ class ArduinoFlasher:
             if "No such file or directory" in error_output:
                 result["error"] = f"Port {port} not found. Check connection."
             elif "Permission denied" in error_output:
-                result["error"] = f"Permission denied on {port}. Try running as administrator or check port permissions."
+                result["error"] = (
+                    f"Permission denied on {port}. Try running as administrator or check port permissions."
+                )
             elif "Device or resource busy" in error_output:
-                result["error"] = f"Port {port} is busy. Close other programs using this port."
+                result["error"] = (
+                    f"Port {port} is busy. Close other programs using this port."
+                )
             else:
                 result["error"] = "Upload failed. Check error details."
 

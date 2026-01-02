@@ -1,19 +1,19 @@
 #ifndef CONFIG_MANAGER_H
 #define CONFIG_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <esp_heap_caps.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
-#include "AtomicFileOps.h" // Atomic file operations
 
-class ConfigManager
-{
-private:
-  static const char *DEVICES_FILE;
-  static const char *REGISTERS_FILE;
+#include "AtomicFileOps.h"      // Atomic file operations
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+
+class ConfigManager {
+ private:
+  static const char* DEVICES_FILE;
+  static const char* REGISTERS_FILE;
 
   // Thread safety primitives
   SemaphoreHandle_t cacheMutex;
@@ -23,10 +23,10 @@ private:
   // Dual-buffer pattern for lock-free reads
   // - Primary cache: Used for writes (protected by cacheMutex)
   // - Shadow cache: Read-only copy for runtime access (minimal locking)
-  JsonDocument *devicesCache;        // Primary cache (write operations)
-  JsonDocument *devicesShadowCache;  // Shadow copy (read operations)
-  JsonDocument *registersCache;      // Primary cache (write operations)
-  JsonDocument *registersShadowCache; // Shadow copy (read operations)
+  JsonDocument* devicesCache;          // Primary cache (write operations)
+  JsonDocument* devicesShadowCache;    // Shadow copy (read operations)
+  JsonDocument* registersCache;        // Primary cache (write operations)
+  JsonDocument* registersShadowCache;  // Shadow copy (read operations)
 
   bool devicesCacheValid;
   bool registersCacheValid;
@@ -34,7 +34,7 @@ private:
   // Cache TTL tracking
   unsigned long lastDevicesCacheTime = 0;
   unsigned long lastRegistersCacheTime = 0;
-  static const unsigned long CACHE_TTL_MS = 600000; // 10 minutes
+  static const unsigned long CACHE_TTL_MS = 600000;  // 10 minutes
 
   // Private helper for TTL check
   bool isCacheExpired(unsigned long lastUpdateTime);
@@ -43,11 +43,11 @@ private:
   size_t getAvailablePsramSize() const;
   bool shouldUsePsram(size_t dataSize) const;
   bool hasEnoughPsramFor(size_t requiredSize) const;
-  void logMemoryStats(const String &context) const;
+  void logMemoryStats(const String& context) const;
 
-  String generateId(const String &prefix);
-  bool saveJson(const String &filename, const JsonDocument &doc);
-  bool loadJson(const String &filename, JsonDocument &doc);
+  String generateId(const String& prefix);
+  bool saveJson(const String& filename, const JsonDocument& doc);
+  bool loadJson(const String& filename, JsonDocument& doc);
   void invalidateDevicesCache();
   void invalidateRegistersCache();
   bool loadDevicesCache();
@@ -58,9 +58,9 @@ private:
   void updateRegistersShadowCopy();
 
   // Atomic file operations pointer
-  AtomicFileOps *atomicFileOps = nullptr;
+  AtomicFileOps* atomicFileOps = nullptr;
 
-public:
+ public:
   ConfigManager();
   ~ConfigManager();
 
@@ -68,29 +68,35 @@ public:
 
   // Device operations
   String createDevice(JsonObjectConst config);
-  bool readDevice(const String &deviceId, JsonObject &result, bool minimal = false);
-  bool updateDevice(const String &deviceId, JsonObjectConst config);
-  bool deleteDevice(const String &deviceId);
-  void listDevices(JsonArray &devices);
-  void getDevicesSummary(JsonArray &summary);
-  void getAllDevicesWithRegisters(JsonArray &result, bool minimalFields = false); // New: Get all devices with their registers
+  bool readDevice(const String& deviceId, JsonObject& result,
+                  bool minimal = false);
+  bool updateDevice(const String& deviceId, JsonObjectConst config);
+  bool deleteDevice(const String& deviceId);
+  void listDevices(JsonArray& devices);
+  void getDevicesSummary(JsonArray& summary);
+  void getAllDevicesWithRegisters(
+      JsonArray& result,
+      bool minimalFields = false);  // New: Get all devices with their registers
 
   // Clear all configurations
   void clearAllConfigurations();
 
   // Cache management
   void refreshCache();
-  void clearCache(); // v2.3.6: Clear caches without reload (for DRAM optimization)
+  void
+  clearCache();  // v2.3.6: Clear caches without reload (for DRAM optimization)
   void debugDevicesFile();
   void fixCorruptDeviceIds();
   void removeCorruptKeys();
 
   // Register operations
-  String createRegister(const String &deviceId, JsonObjectConst config, String *errorMsg = nullptr);
-  bool listRegisters(const String &deviceId, JsonArray &registers);
-  bool getRegistersSummary(const String &deviceId, JsonArray &summary);
-  bool updateRegister(const String &deviceId, const String &registerId, JsonObjectConst config);
-  bool deleteRegister(const String &deviceId, const String &registerId);
+  String createRegister(const String& deviceId, JsonObjectConst config,
+                        String* errorMsg = nullptr);
+  bool listRegisters(const String& deviceId, JsonArray& registers);
+  bool getRegistersSummary(const String& deviceId, JsonArray& summary);
+  bool updateRegister(const String& deviceId, const String& registerId,
+                      JsonObjectConst config);
+  bool deleteRegister(const String& deviceId, const String& registerId);
 };
 
 #endif

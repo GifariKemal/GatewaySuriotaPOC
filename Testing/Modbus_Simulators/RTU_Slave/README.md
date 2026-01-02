@@ -6,9 +6,13 @@
 
 ## Overview
 
-This simulator creates a **Modbus RTU Slave (Server)** that emulates a device with **5 Input Registers**, designed to test the SRT-MGATE-1210 gateway's RTU polling capabilities over serial communication (RS-485/RS-232).
+This simulator creates a **Modbus RTU Slave (Server)** that emulates a device
+with **5 Input Registers**, designed to test the SRT-MGATE-1210 gateway's RTU
+polling capabilities over serial communication (RS-485/RS-232).
 
-The simulator **exactly matches** the configuration used in `Device_Testing/RTU/create_device_5_registers.py`, ensuring seamless integration testing.
+The simulator **exactly matches** the configuration used in
+`Device_Testing/RTU/create_device_5_registers.py`, ensuring seamless integration
+testing.
 
 ---
 
@@ -33,20 +37,24 @@ The simulator **exactly matches** the configuration used in `Device_Testing/RTU/
 
 ### USB-to-RS485 Adapter
 
-You need a **USB-to-RS485** or **USB-to-RS232** adapter to connect your PC to the SRT-MGATE-1210 gateway.
+You need a **USB-to-RS485** or **USB-to-RS232** adapter to connect your PC to
+the SRT-MGATE-1210 gateway.
 
 **Recommended adapters:**
+
 - FTDI USB-to-RS485 converter (stable drivers)
 - CH340/CH341 USB-to-RS485 (budget-friendly)
 - CP2102 USB-to-TTL with RS485 module
 
 **Connection Diagram:**
+
 ```
 PC (COM8)  <--USB-->  [USB-to-RS485 Adapter]  <--RS485-->  ESP32-S3 (Serial2: RX=17, TX=18)
                            A/B Terminals              A/B Terminals on gateway
 ```
 
 **Wiring:**
+
 - **A+ (Adapter)** → **A+ (Gateway Serial2)**
 - **B- (Adapter)** → **B- (Gateway Serial2)**
 - **GND** → **GND** (common ground recommended)
@@ -57,17 +65,17 @@ PC (COM8)  <--USB-->  [USB-to-RS485 Adapter]  <--RS485-->  ESP32-S3 (Serial2: RX
 
 This simulator is **synchronized** with the gateway device configuration:
 
-| Parameter        | Simulator Value | Gateway Config (create_device_5_registers.py) |
-|------------------|-----------------|-----------------------------------------------|
-| **Serial Port**  | COM8            | Serial Port 2 (serial_port: 2)                |
-| **Baud Rate**    | 9600            | 9600                                          |
-| **Data Bits**    | 8               | 8                                             |
-| **Parity**       | None            | None                                          |
-| **Stop Bits**    | 1               | 1                                             |
-| **Frame Format** | RTU             | RTU                                           |
-| **Slave ID**     | 1               | 1                                             |
-| **Function Code**| 4 (Read IR)     | 4 (Read Input Registers)                      |
-| **Registers**    | 5 (Address 0-4) | 5 Input Registers (INT16)                     |
+| Parameter         | Simulator Value | Gateway Config (create_device_5_registers.py) |
+| ----------------- | --------------- | --------------------------------------------- |
+| **Serial Port**   | COM8            | Serial Port 2 (serial_port: 2)                |
+| **Baud Rate**     | 9600            | 9600                                          |
+| **Data Bits**     | 8               | 8                                             |
+| **Parity**        | None            | None                                          |
+| **Stop Bits**     | 1               | 1                                             |
+| **Frame Format**  | RTU             | RTU                                           |
+| **Slave ID**      | 1               | 1                                             |
+| **Function Code** | 4 (Read IR)     | 4 (Read Input Registers)                      |
+| **Registers**     | 5 (Address 0-4) | 5 Input Registers (INT16)                     |
 
 ---
 
@@ -106,6 +114,7 @@ python -c "import pymodbus; import serial; print('pymodbus:', pymodbus.__version
 ```
 
 Expected output:
+
 ```
 pymodbus: 3.x.x
 pyserial: 3.5
@@ -119,7 +128,8 @@ pyserial: 3.5
 
 **Windows:**
 
-Open **Device Manager** → **Ports (COM & LPT)** and verify your USB-to-RS485 adapter COM port (e.g., COM8).
+Open **Device Manager** → **Ports (COM & LPT)** and verify your USB-to-RS485
+adapter COM port (e.g., COM8).
 
 If it's **not COM8**, edit `modbus_slave_5_registers.py`:
 
@@ -257,7 +267,8 @@ The simulator is now **listening** for Modbus RTU requests from the gateway!
 ### Step 4: Test with Gateway
 
 1. **Upload firmware** to SRT-MGATE-1210 (if not already done)
-2. **Connect gateway Serial2** (RX=17, TX=18) to USB-to-RS485 adapter via RS485 A/B wires
+2. **Connect gateway Serial2** (RX=17, TX=18) to USB-to-RS485 adapter via RS485
+   A/B wires
 3. **Run device creation script** from `Device_Testing/RTU/`:
 
 ```bash
@@ -274,12 +285,14 @@ python create_device_5_registers.py
 ### Error: "Could not open port COM8"
 
 **Causes:**
+
 - Port is already in use by another program
 - USB adapter not connected
 - Incorrect COM port number
 - Insufficient permissions
 
 **Solutions:**
+
 1. Close any program using COM8 (Arduino IDE, PuTTY, etc.)
 2. Check Device Manager for correct COM port
 3. Run Command Prompt/PowerShell as **Administrator**
@@ -308,6 +321,7 @@ The script auto-detects available ports. If your port is different:
 ### No Data Received by Gateway
 
 **Check:**
+
 1. **Wiring:** A+ to A+, B- to B-, GND to GND
 2. **Baud rate match:** Both simulator and gateway set to 9600
 3. **Slave ID match:** Both set to 1
@@ -317,6 +331,7 @@ The script auto-detects available ports. If your port is different:
 **Test with Modbus Poll:**
 
 Use **Modbus Poll** software (Windows) to manually test the simulator:
+
 - Connection: COM8, 9600, 8N1, RTU
 - Slave ID: 1
 - Function: 04 Read Input Registers
@@ -328,13 +343,13 @@ You should see live register values updating.
 
 ## Register Details
 
-| Address | Name        | Unit | Data Type | Range       | Initial Value | Description                |
-|---------|-------------|------|-----------|-------------|---------------|----------------------------|
-| 0       | Temperature | °C   | INT16     | 20-35       | 25            | Temperature sensor reading |
-| 1       | Humidity    | %    | INT16     | 40-80       | 60            | Humidity sensor reading    |
-| 2       | Pressure    | Pa   | INT16     | 900-1100    | 1000          | Pressure sensor reading    |
-| 3       | Voltage     | V    | INT16     | 220-240     | 230           | Voltage measurement        |
-| 4       | Current     | A    | INT16     | 1-10        | 5             | Current measurement        |
+| Address | Name        | Unit | Data Type | Range    | Initial Value | Description                |
+| ------- | ----------- | ---- | --------- | -------- | ------------- | -------------------------- |
+| 0       | Temperature | °C   | INT16     | 20-35    | 25            | Temperature sensor reading |
+| 1       | Humidity    | %    | INT16     | 40-80    | 60            | Humidity sensor reading    |
+| 2       | Pressure    | Pa   | INT16     | 900-1100 | 1000          | Pressure sensor reading    |
+| 3       | Voltage     | V    | INT16     | 220-240  | 230           | Voltage measurement        |
+| 4       | Current     | A    | INT16     | 1-10     | 5             | Current measurement        |
 
 **Note:** All registers are **Input Registers** (Read-Only, Function Code 4).
 
@@ -342,7 +357,8 @@ You should see live register values updating.
 
 ## Auto-Update Behavior
 
-The simulator automatically updates register values every **5 seconds** to simulate realistic sensor behavior:
+The simulator automatically updates register values every **5 seconds** to
+simulate realistic sensor behavior:
 
 - **Temperature:** Slow changes (±1°C)
 - **Humidity:** Moderate changes (±2%)
@@ -350,7 +366,8 @@ The simulator automatically updates register values every **5 seconds** to simul
 - **Voltage:** Very stable (±1V)
 - **Current:** Changes (±1A)
 
-Values are **clamped** to their defined min/max ranges to prevent unrealistic data.
+Values are **clamped** to their defined min/max ranges to prevent unrealistic
+data.
 
 ---
 
@@ -384,7 +401,8 @@ device_config = {
 ### Expected Gateway Behavior
 
 1. Gateway polls simulator every **2 seconds** (refresh_rate_ms: 2000)
-2. Sends **Modbus RTU request** (Function Code 4, Slave ID 1, Start Address 0, Count 5)
+2. Sends **Modbus RTU request** (Function Code 4, Slave ID 1, Start Address 0,
+   Count 5)
 3. Simulator **responds** with 5 register values (10 bytes total)
 4. Gateway **parses** response and stores in queue for MQTT/HTTP transmission
 5. **LED indicators** on USB-to-RS485 adapter blink during communication
@@ -410,11 +428,13 @@ SERIAL_PORT = '/dev/ttyUSB0'
 Edit both simulator **and** gateway device config:
 
 **Simulator:**
+
 ```python
 BAUD_RATE = 19200  # Example: 19200 baud
 ```
 
 **Gateway (via BLE):**
+
 ```python
 "baud_rate": 19200
 ```
@@ -440,6 +460,7 @@ UPDATE_INTERVAL = 10.0  # Update every 10 seconds
 ### Complete Testing Procedure
 
 1. **Start Simulator:**
+
    ```bash
    python modbus_slave_5_registers.py
    ```
@@ -449,6 +470,7 @@ UPDATE_INTERVAL = 10.0  # Update every 10 seconds
 3. **Power on SRT-MGATE-1210 Gateway**
 
 4. **Configure gateway** via BLE using `create_device_5_registers.py`:
+
    ```bash
    python create_device_5_registers.py
    ```
@@ -456,6 +478,7 @@ UPDATE_INTERVAL = 10.0  # Update every 10 seconds
 5. **Monitor simulator output** for incoming Modbus requests
 
 6. **Check gateway serial output** (if connected) for RTU polling logs:
+
    ```
    [RTU] Reading device: RTU_Device_Test (Slave ID: 1)
    [RTU] Read 5 registers from address 0
@@ -484,12 +507,14 @@ RTU/
 ### Modbus RTU Frame Format
 
 **Request from Gateway (Function Code 4):**
+
 ```
 [Slave ID] [Function Code] [Start Address High] [Start Address Low] [Count High] [Count Low] [CRC Low] [CRC High]
    0x01        0x04             0x00                0x00              0x00         0x05       [CRC]    [CRC]
 ```
 
 **Response from Simulator:**
+
 ```
 [Slave ID] [Function Code] [Byte Count] [Reg0 High] [Reg0 Low] [Reg1 High] [Reg1 Low] ... [CRC Low] [CRC High]
    0x01        0x04            0x0A         Data        Data       Data        Data            [CRC]    [CRC]
@@ -527,14 +552,14 @@ For issues or questions:
 
 ## License
 
-Part of SRT-MGATE-1210 Firmware Testing Suite
-Copyright © 2025 SURIOTA R&D Team
+Part of SRT-MGATE-1210 Firmware Testing Suite Copyright © 2025 SURIOTA R&D Team
 
 ---
 
 ## Changelog
 
 ### v1.0.0 (2025-11-17)
+
 - Initial release
 - Support for 5 Input Registers (INT16)
 - Auto-update simulation

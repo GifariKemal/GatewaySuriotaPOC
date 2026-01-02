@@ -2,7 +2,8 @@
 
 **Model Context Protocol (MCP) server for Arduino CLI operations**
 
-Build, upload, and monitor Arduino/ESP32 projects through LLM communication using the Model Context Protocol.
+Build, upload, and monitor Arduino/ESP32 projects through LLM communication
+using the Model Context Protocol.
 
 ---
 
@@ -13,8 +14,10 @@ Build, upload, and monitor Arduino/ESP32 projects through LLM communication usin
 - ✅ **Serial Monitor**: Capture serial output from boards
 - ✅ **Library Management**: Install, search, and manage Arduino libraries
 - ✅ **Board Detection**: Auto-detect connected Arduino/ESP32 boards
-- ✅ **Auto-Fix Suggestions**: Get intelligent suggestions for common compilation errors
-- ✅ **ESP32-S3 Support**: Optimized for ESP32-S3 boards (configurable for other boards)
+- ✅ **Auto-Fix Suggestions**: Get intelligent suggestions for common
+  compilation errors
+- ✅ **ESP32-S3 Support**: Optimized for ESP32-S3 boards (configurable for other
+  boards)
 
 ---
 
@@ -23,6 +26,7 @@ Build, upload, and monitor Arduino/ESP32 projects through LLM communication usin
 ### 1. Python 3.10 or higher
 
 Check your Python version:
+
 ```bash
 python --version
 ```
@@ -31,9 +35,11 @@ If not installed, download from [python.org](https://www.python.org/downloads/)
 
 ### 2. Arduino CLI
 
-Install Arduino CLI from [arduino.github.io/arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/)
+Install Arduino CLI from
+[arduino.github.io/arduino-cli](https://arduino.github.io/arduino-cli/latest/installation/)
 
 **Windows:**
+
 ```powershell
 # Using winget
 winget install ArduinoSA.CLI
@@ -43,11 +49,13 @@ choco install arduino-cli
 ```
 
 **Linux/macOS:**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
 ```
 
 Verify installation:
+
 ```bash
 arduino-cli version
 ```
@@ -55,6 +63,7 @@ arduino-cli version
 ### 3. ESP32 Board Support (for ESP32-S3 projects)
 
 Install ESP32 board support:
+
 ```bash
 arduino-cli core update-index
 arduino-cli core install esp32:esp32
@@ -77,6 +86,7 @@ pip install -r requirements.txt
 ```
 
 Or with virtual environment (recommended):
+
 ```bash
 python -m venv venv
 venv\Scripts\activate  # Windows
@@ -99,9 +109,9 @@ arduino-cli version
 
 Add this configuration to your Claude Desktop config file:
 
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Linux:** `~/.config/Claude/claude_desktop_config.json`
+**Windows:** `%APPDATA%\Claude\claude_desktop_config.json` **macOS:**
+`~/Library/Application Support/Claude/claude_desktop_config.json` **Linux:**
+`~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -134,11 +144,13 @@ Use the `mcp_config_example.json` as a template and adjust paths accordingly.
 Compile an Arduino project.
 
 **Parameters:**
+
 - `project_path` (required): Path to project directory containing .ino file
 - `fqbn` (optional): Fully Qualified Board Name (default: `esp32:esp32:esp32s3`)
 - `verbose` (optional): Enable verbose build output (default: `false`)
 
 **Example:**
+
 ```
 Build the project at C:/Users/Administrator/Music/GatewaySuriotaPOC/Main
 ```
@@ -148,12 +160,14 @@ Build the project at C:/Users/Administrator/Music/GatewaySuriotaPOC/Main
 Upload compiled firmware to connected board.
 
 **Parameters:**
+
 - `project_path` (required): Path to project directory
 - `port` (optional): Serial port (auto-detect if not specified)
 - `fqbn` (optional): Fully Qualified Board Name (default: `esp32:esp32:esp32s3`)
 - `verify` (optional): Verify upload after writing (default: `true`)
 
 **Example:**
+
 ```
 Upload the firmware from Main directory to the connected ESP32-S3 board
 ```
@@ -163,11 +177,14 @@ Upload the firmware from Main directory to the connected ESP32-S3 board
 Open serial monitor to view board output.
 
 **Parameters:**
+
 - `port` (required): Serial port to monitor
 - `baudrate` (optional): Baud rate (default: `115200`)
-- `duration` (optional): Duration in seconds (default: `10`, `0` = instructions only)
+- `duration` (optional): Duration in seconds (default: `10`, `0` = instructions
+  only)
 
 **Example:**
+
 ```
 Monitor serial output from COM3 at 115200 baud for 20 seconds
 ```
@@ -177,6 +194,7 @@ Monitor serial output from COM3 at 115200 baud for 20 seconds
 List all connected Arduino boards and their ports.
 
 **Example:**
+
 ```
 List all connected Arduino boards
 ```
@@ -186,10 +204,12 @@ List all connected Arduino boards
 Install Arduino library.
 
 **Parameters:**
+
 - `library_name` (required): Name of library to install
 - `version` (optional): Specific version (default: latest)
 
 **Example:**
+
 ```
 Install ArduinoJson library version 7.4.2
 ```
@@ -199,9 +219,11 @@ Install ArduinoJson library version 7.4.2
 Search for Arduino libraries.
 
 **Parameters:**
+
 - `query` (required): Search query
 
 **Example:**
+
 ```
 Search for MQTT libraries
 ```
@@ -211,9 +233,11 @@ Search for MQTT libraries
 Clean build artifacts from project.
 
 **Parameters:**
+
 - `project_path` (required): Path to project directory
 
 **Example:**
+
 ```
 Clean the build directory for the Main project
 ```
@@ -223,10 +247,12 @@ Clean the build directory for the Main project
 Attempt to automatically fix compilation errors.
 
 **Parameters:**
+
 - `project_path` (required): Path to project directory
 - `error_log` (required): Compilation error log from previous build
 
 **Example:**
+
 ```
 Analyze and suggest fixes for the compilation errors in the build log
 ```
@@ -237,9 +263,11 @@ Analyze and suggest fixes for the compilation errors in the build log
 
 ### Example 1: Build and Upload
 
-**You:** *"Build the SRT-MGATE-1210 project and upload it to the connected ESP32-S3"*
+**You:** _"Build the SRT-MGATE-1210 project and upload it to the connected
+ESP32-S3"_
 
 **LLM will:**
+
 1. Use `arduino_build` to compile the project
 2. Check for compilation errors
 3. If successful, use `arduino_upload` to flash firmware
@@ -247,27 +275,30 @@ Analyze and suggest fixes for the compilation errors in the build log
 
 ### Example 2: Debug Serial Output
 
-**You:** *"Monitor the serial output from my ESP32 board on COM3"*
+**You:** _"Monitor the serial output from my ESP32 board on COM3"_
 
 **LLM will:**
+
 1. Use `arduino_board_list` to verify port
 2. Use `arduino_monitor` to capture serial output
 3. Display the captured logs
 
 ### Example 3: Install Missing Library
 
-**You:** *"The build failed because ArduinoJson is missing. Install it."*
+**You:** _"The build failed because ArduinoJson is missing. Install it."_
 
 **LLM will:**
+
 1. Use `arduino_lib_install` to install ArduinoJson
 2. Verify installation
 3. Suggest rebuilding the project
 
 ### Example 4: Auto-Fix Compilation Errors
 
-**You:** *"The build failed with errors. Can you help fix it?"*
+**You:** _"The build failed with errors. Can you help fix it?"_
 
 **LLM will:**
+
 1. Analyze the error log
 2. Use `arduino_compile_fix` to suggest fixes
 3. Implement fixes if possible
@@ -282,12 +313,14 @@ Analyze and suggest fixes for the compilation errors in the build log
 **Solution:** Ensure Arduino CLI is installed and in your PATH.
 
 **Windows:**
+
 ```powershell
 # Add to PATH or use full path
 where arduino-cli
 ```
 
 **Linux/macOS:**
+
 ```bash
 which arduino-cli
 ```
@@ -295,6 +328,7 @@ which arduino-cli
 ### Issue: "No boards detected"
 
 **Solution:**
+
 1. Connect your ESP32-S3 board via USB
 2. Install USB-to-Serial drivers (CP210x or CH340)
 3. Check Device Manager (Windows) or `ls /dev/tty*` (Linux/macOS)
@@ -307,6 +341,7 @@ which arduino-cli
 **Windows:** Run as Administrator or close other programs using the port
 
 **Linux:** Add user to dialout group:
+
 ```bash
 sudo usermod -a -G dialout $USER
 # Logout and login again
@@ -317,6 +352,7 @@ sudo usermod -a -G dialout $USER
 ### Issue: "Compilation failed with unknown errors"
 
 **Solution:**
+
 1. Use `arduino_build` with `verbose: true` for detailed errors
 2. Check that all required libraries are installed
 3. Verify ESP32 board support is installed: `arduino-cli core list`
@@ -325,6 +361,7 @@ sudo usermod -a -G dialout $USER
 ### Issue: "MCP server not responding in Claude Desktop"
 
 **Solution:**
+
 1. Check that paths in `claude_desktop_config.json` are absolute paths
 2. Restart Claude Desktop after configuration changes
 3. Check Claude Desktop logs for errors
@@ -352,16 +389,19 @@ arduino-mcp/
 
 ## 🔗 Integration with SRT-MGATE-1210 Gateway
 
-This MCP server is specifically designed for the **SRT-MGATE-1210 Industrial IoT Gateway** project.
+This MCP server is specifically designed for the **SRT-MGATE-1210 Industrial IoT
+Gateway** project.
 
 ### Quick Start for Gateway Project
 
 1. **Build the firmware:**
+
    ```
    Build the Main project at C:/Users/Administrator/Music/GatewaySuriotaPOC/Main
    ```
 
 2. **Upload to ESP32-S3:**
+
    ```
    Upload the firmware to the connected ESP32-S3 board
    ```
@@ -387,6 +427,7 @@ ArduinoHttpClient @ 0.6.1
 ```
 
 **Install all at once:**
+
 ```
 Install these libraries: ArduinoJson, RTClib, NTPClient, Ethernet, TBPubSubClient, ModbusMaster, OneButton, ArduinoHttpClient
 ```
@@ -429,16 +470,20 @@ asyncio.run(test())
 
 ## 📚 Additional Resources
 
-- **Arduino CLI Documentation:** [arduino.github.io/arduino-cli](https://arduino.github.io/arduino-cli/)
-- **Model Context Protocol:** [modelcontextprotocol.io](https://modelcontextprotocol.io/)
-- **ESP32-S3 Documentation:** [docs.espressif.com](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/)
+- **Arduino CLI Documentation:**
+  [arduino.github.io/arduino-cli](https://arduino.github.io/arduino-cli/)
+- **Model Context Protocol:**
+  [modelcontextprotocol.io](https://modelcontextprotocol.io/)
+- **ESP32-S3 Documentation:**
+  [docs.espressif.com](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/)
 - **Gateway Project Docs:** `../Documentation/`
 
 ---
 
 ## 🤝 Contributing
 
-This MCP server is part of the SRT-MGATE-1210 Gateway project. For issues or improvements:
+This MCP server is part of the SRT-MGATE-1210 Gateway project. For issues or
+improvements:
 
 1. Check existing documentation in `../Documentation/`
 2. Follow the coding conventions in `../CLAUDE.md`
@@ -449,13 +494,15 @@ This MCP server is part of the SRT-MGATE-1210 Gateway project. For issues or imp
 
 ## 📄 License
 
-This MCP server follows the same license as the SRT-MGATE-1210 Gateway project (MIT License).
+This MCP server follows the same license as the SRT-MGATE-1210 Gateway project
+(MIT License).
 
 ---
 
 ## 👨‍💻 Author
 
 **SURIOTA R&D Team**
+
 - **Developer:** Kemal
 - **Project:** SRT-MGATE-1210 Industrial IoT Gateway
 - **Version:** 1.0.0

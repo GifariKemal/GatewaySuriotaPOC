@@ -2,18 +2,23 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Register Calibration
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Register Calibration
 
-**Current Version:** v2.5.34
-**Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Current Version:** v2.5.34 **Developer:** Kemal **Last Updated:** December 10,
+2025
 
 ## Overview
 
-SRT-MGATE-1210 Firmware v2.5.34 supports **automatic calibration** for Modbus register values using the **scale & offset** formula. This feature enables conversion of raw Modbus values to appropriate measurement units without requiring post-processing on the subscriber side.
+SRT-MGATE-1210 Firmware v2.5.34 supports **automatic calibration** for Modbus
+register values using the **scale & offset** formula. This feature enables
+conversion of raw Modbus values to appropriate measurement units without
+requiring post-processing on the subscriber side.
 
 **Key Features:**
-- ✅ Automatic calibration with formula: `final_value = (raw_value × scale) + offset`
+
+- ✅ Automatic calibration with formula:
+  `final_value = (raw_value × scale) + offset`
 - ✅ Support for custom measurement units (°C, V, A, PSI, bar, etc.)
 - ✅ Negative values allowed for scale & offset
 - ✅ Default values for backward compatibility
@@ -46,7 +51,8 @@ SRT-MGATE-1210 Firmware v2.5.34 supports **automatic calibration** for Modbus re
 
 ### Default Values
 
-If fields are not provided when creating a register, the firmware will use default values:
+If fields are not provided when creating a register, the firmware will use
+default values:
 
 ```json
 {
@@ -57,6 +63,7 @@ If fields are not provided when creating a register, the firmware will use defau
 ```
 
 With these default values:
+
 - `final_value = (raw_value × 1.0) + 0.0 = raw_value`
 - No value change (backward compatible)
 
@@ -117,8 +124,10 @@ Register without calibration (using default values):
 ```
 
 **Result:**
+
 - Raw Modbus: 65 → Final value: **65** (no unit)
 - MQTT payload:
+
 ```json
 {
   "time": 1699123456,
@@ -153,8 +162,10 @@ Voltage sensor with 1:100 voltage divider (raw value in centivolts):
 ```
 
 **Result:**
+
 - Raw Modbus: 2456 → Calibrated: (2456 × 0.01) + 0 = **24.56 V**
 - MQTT payload:
+
 ```json
 {
   "time": 1699123456,
@@ -189,6 +200,7 @@ Current sensor requiring offset correction:
 ```
 
 **Result:**
+
 - Raw Modbus: 5.35 A → Calibrated: (5.35 × 1.0) - 0.15 = **5.20 A**
 
 ### Example 4: Temperature Sensor (Offset Correction)
@@ -214,6 +226,7 @@ Temperature sensor needing calibration due to +2.5°C bias:
 ```
 
 **Result:**
+
 - Raw Modbus: 27.5°C → Calibrated: (27.5 × 1.0) - 2.5 = **25.0°C**
 
 ### Example 5: Fahrenheit to Celsius Conversion
@@ -241,6 +254,7 @@ Temperature sensor in Fahrenheit to be converted to Celsius:
 ```
 
 **Result:**
+
 - Raw Modbus: 77°F → Calibrated: (77 × 0.5556) - 17.778 ≈ **25.0°C**
 
 ### Example 6: Pressure Sensor (PSI to Bar)
@@ -268,6 +282,7 @@ Pressure sensor in PSI to be converted to bar:
 ```
 
 **Result:**
+
 - Raw Modbus: 100 PSI → Calibrated: (100 × 0.06895) + 0 = **6.895 bar**
 
 ### Example 7: Percentage with Divider
@@ -293,6 +308,7 @@ Sensor providing 0-10000 values representing 0-100%:
 ```
 
 **Result:**
+
 - Raw Modbus: 8550 → Calibrated: (8550 × 0.01) + 0 = **85.50%**
 
 ### Example 8: Negative Scale (Inverting)
@@ -318,6 +334,7 @@ Sensor with values that need to be inverted:
 ```
 
 **Result:**
+
 - Raw Modbus: 50 → Calibrated: (50 × -1.0) + 0 = **-50 m/s**
 
 ---
@@ -326,15 +343,18 @@ Sensor with values that need to be inverted:
 
 ### Use Case 1: Industrial Monitoring - Mixed Units
 
-**Scenario:** Factory with sensors in various units (V, A, PSI, °F) that need to be standardized to SI units.
+**Scenario:** Factory with sensors in various units (V, A, PSI, °F) that need to
+be standardized to SI units.
 
 **Solution:** Use scale & offset for automatic conversion:
+
 - Voltage: Raw centivolt → Volt (scale: 0.01)
 - Current: Raw milliampere → Ampere (scale: 0.001)
 - Pressure: Raw PSI → bar (scale: 0.06895)
 - Temperature: Raw Fahrenheit → Celsius (scale: 0.5556, offset: -17.778)
 
 **Benefits:**
+
 - Subscribers don't need manual conversion
 - Data is immediately ready for analysis
 - Unit consistency across the entire system
@@ -344,6 +364,7 @@ Sensor with values that need to be inverted:
 **Scenario:** Aging temperature sensor with +3°C bias.
 
 **Solution:** Use offset for correction:
+
 ```json
 {
   "scale": 1.0,
@@ -353,6 +374,7 @@ Sensor with values that need to be inverted:
 ```
 
 **Benefits:**
+
 - No need to replace sensor
 - Calibration can be updated from mobile app
 - Historical data remains valid
@@ -364,6 +386,7 @@ Sensor with values that need to be inverted:
 **Solution:** Configure 2 registers with different calibrations:
 
 **Register 1 - Raw Voltage:**
+
 ```json
 {
   "register_name": "Sensor Voltage",
@@ -374,6 +397,7 @@ Sensor with values that need to be inverted:
 ```
 
 **Register 2 - Converted Temperature:**
+
 ```json
 {
   "register_name": "Temperature from Voltage",
@@ -383,6 +407,7 @@ Sensor with values that need to be inverted:
   "unit": "°C"
 }
 ```
+
 Formula: 5V = 100°C → scale = 100/5 = 20
 
 ### Use Case 4: Legacy System Integration
@@ -390,6 +415,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 **Scenario:** Integration with old PLC sending values in proprietary format.
 
 **Solution:** Reverse-engineer PLC formula and apply at gateway:
+
 ```json
 {
   "scale": 0.0625,
@@ -399,6 +425,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Benefits:**
+
 - No need to update PLC programming
 - Gateway acts as translator
 - Easy calibration updates without downtime
@@ -412,6 +439,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 **Endpoint:** BLE GATT Characteristic Write
 
 **JSON Format:**
+
 ```json
 {
   "op": "create",
@@ -431,6 +459,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Required Fields:**
+
 - `op`: "create"
 - `type`: "register"
 - `device_id`: Previously created device ID
@@ -440,6 +469,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 - `config.data_type`: "int16", "uint16", "int32", "uint32", "float"
 
 **Optional Calibration Fields:**
+
 - `config.scale`: Default 1.0
 - `config.offset`: Default 0.0
 - `config.unit`: Default ""
@@ -448,6 +478,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ### Update Register Calibration
 
 **JSON Format:**
+
 ```json
 {
   "op": "update",
@@ -463,6 +494,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Notes:**
+
 - Only fields to be updated need to be sent
 - `register_id` format: `{device_id}_{address}`
 - Update will be applied immediately on next polling cycle
@@ -470,6 +502,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ### List Registers (Check Current Calibration)
 
 **JSON Format:**
+
 ```json
 {
   "op": "list",
@@ -479,6 +512,7 @@ Formula: 5V = 100°C → scale = 100/5 = 20
 ```
 
 **Response Example:**
+
 ```json
 {
   "status": "success",
@@ -509,7 +543,8 @@ Firmware automatically performs migration on boot for existing registers:
 
 #### Migration 1: Add Default Calibration Values
 
-If a register does not have `scale`, `offset`, or `unit` fields, firmware will add them:
+If a register does not have `scale`, `offset`, or `unit` fields, firmware will
+add them:
 
 ```
 [MIGRATION] Added scale=1.0 to register DEVICE_001_40001
@@ -519,7 +554,8 @@ If a register does not have `scale`, `offset`, or `unit` fields, firmware will a
 
 #### Migration 2: Remove Old `refresh_rate_ms`
 
-The `refresh_rate_ms` per-register field has been deprecated and is automatically removed:
+The `refresh_rate_ms` per-register field has been deprecated and is
+automatically removed:
 
 ```
 [MIGRATION] Removed refresh_rate_ms from register DEVICE_001_40001 (now using device-level polling)
@@ -535,7 +571,8 @@ After migration, `devices.json` is automatically saved:
 
 ### Backward Compatibility
 
-- ✅ Old registers without calibration will continue to work (scale=1.0, offset=0.0)
+- ✅ Old registers without calibration will continue to work (scale=1.0,
+  offset=0.0)
 - ✅ Published values remain unchanged for registers without calibration
 - ✅ MQTT payload format remains consistent (6 fields)
 
@@ -544,11 +581,13 @@ After migration, `devices.json` is automatically saved:
 To update calibration for existing registers:
 
 1. **List existing registers:**
+
 ```json
-{"op": "list", "type": "register", "device_id": "DEVICE_001"}
+{ "op": "list", "type": "register", "device_id": "DEVICE_001" }
 ```
 
 2. **Update each register with appropriate calibration:**
+
 ```json
 {
   "op": "update",
@@ -569,7 +608,8 @@ To update calibration for existing registers:
 
 ### Overview
 
-**IMPORTANT:** Polling interval now uses **device-level** `refresh_rate_ms`, not per-register.
+**IMPORTANT:** Polling interval now uses **device-level** `refresh_rate_ms`, not
+per-register.
 
 ### Configuration
 
@@ -587,6 +627,7 @@ Set polling interval in device config:
 ```
 
 **Effect:**
+
 - All registers in `DEVICE_001` will be polled every 1000ms (1 second)
 - No individual polling interval per-register
 
@@ -611,6 +652,7 @@ Set polling interval in device config:
 ### Example Configuration
 
 **Full Device Config:**
+
 ```json
 {
   "op": "update",
@@ -630,6 +672,7 @@ Set polling interval in device config:
 ```
 
 **Register Config (No refresh_rate_ms):**
+
 ```json
 {
   "op": "create",
@@ -650,6 +693,7 @@ Set polling interval in device config:
 ### Default Refresh Rate
 
 If `refresh_rate_ms` is not set, firmware uses defaults:
+
 - **TCP:** 1000ms (1 second)
 - **RTU:** 1000ms (1 second)
 
@@ -674,23 +718,24 @@ Each data point published to MQTT has the following format:
 
 ### Field Details
 
-| Field         | Type      | Source           | Description                             |
-| ------------- | --------- | ---------------- | --------------------------------------- |
-| `time`        | integer   | RTC              | Unix timestamp when data was read       |
-| `name`        | string    | `register_name`  | Register name from configuration        |
-| `device_id`   | string    | Device config    | Modbus device ID                        |
-| `value`       | float/int | Calibrated value | Value AFTER scale & offset calibration  |
-| `description` | string    | Register config  | Optional description from BLE config    |
+| Field         | Type      | Source           | Description                                 |
+| ------------- | --------- | ---------------- | ------------------------------------------- |
+| `time`        | integer   | RTC              | Unix timestamp when data was read           |
+| `name`        | string    | `register_name`  | Register name from configuration            |
+| `device_id`   | string    | Device config    | Modbus device ID                            |
+| `value`       | float/int | Calibrated value | Value AFTER scale & offset calibration      |
+| `description` | string    | Register config  | Optional description from BLE config        |
 | `unit`        | string    | Register config  | Measurement unit (°C, V, A, PSI, bar, etc.) |
 
 ### Internal Fields (Not Published)
 
-These fields are used internally for deduplication and routing, NOT published to MQTT:
+These fields are used internally for deduplication and routing, NOT published to
+MQTT:
 
-| Field            | Type    | Purpose                                    |
-| ---------------- | ------- | ------------------------------------------ |
-| `register_id`    | string  | Unique identifier for deduplication        |
-| `register_index` | integer | Index for customize mode topic filtering   |
+| Field            | Type    | Purpose                                  |
+| ---------------- | ------- | ---------------------------------------- |
+| `register_id`    | string  | Unique identifier for deduplication      |
+| `register_index` | integer | Index for customize mode topic filtering |
 
 ---
 
@@ -699,6 +744,7 @@ These fields are used internally for deduplication and routing, NOT published to
 ### Test Scenario 1: Voltage Sensor
 
 **Setup:**
+
 ```json
 {
   "register_name": "Test Voltage",
@@ -722,6 +768,7 @@ These fields are used internally for deduplication and routing, NOT published to
 ### Test Scenario 2: Temperature with Offset
 
 **Setup:**
+
 ```json
 {
   "register_name": "Test Temperature",
@@ -745,6 +792,7 @@ These fields are used internally for deduplication and routing, NOT published to
 ### Test Scenario 3: PSI to Bar Conversion
 
 **Setup:**
+
 ```json
 {
   "register_name": "Test Pressure",
@@ -787,6 +835,7 @@ When a register is read, firmware will log:
 ### Temperature Conversions
 
 **Fahrenheit to Celsius:**
+
 ```
 °C = (°F - 32) × 5/9
 °C = (°F × 0.5556) - 17.778
@@ -796,6 +845,7 @@ offset: -17.778
 ```
 
 **Celsius to Fahrenheit:**
+
 ```
 °F = (°C × 9/5) + 32
 °F = (°C × 1.8) + 32
@@ -805,6 +855,7 @@ offset: 32
 ```
 
 **Kelvin to Celsius:**
+
 ```
 °C = K - 273.15
 
@@ -815,6 +866,7 @@ offset: -273.15
 ### Pressure Conversions
 
 **PSI to Bar:**
+
 ```
 bar = PSI × 0.06895
 
@@ -823,6 +875,7 @@ offset: 0.0
 ```
 
 **Bar to PSI:**
+
 ```
 PSI = bar × 14.5038
 
@@ -831,6 +884,7 @@ offset: 0.0
 ```
 
 **kPa to Bar:**
+
 ```
 bar = kPa × 0.01
 
@@ -841,6 +895,7 @@ offset: 0.0
 ### Voltage/Current Scaling
 
 **Centivolt to Volt:**
+
 ```
 V = cV × 0.01
 
@@ -849,6 +904,7 @@ offset: 0.0
 ```
 
 **Millivolt to Volt:**
+
 ```
 V = mV × 0.001
 
@@ -857,6 +913,7 @@ offset: 0.0
 ```
 
 **Milliampere to Ampere:**
+
 ```
 A = mA × 0.001
 
@@ -867,6 +924,7 @@ offset: 0.0
 ### Percentage Scaling
 
 **0-10000 to 0-100%:**
+
 ```
 % = raw × 0.01
 
@@ -875,6 +933,7 @@ offset: 0.0
 ```
 
 **0-1000 to 0-100%:**
+
 ```
 % = raw × 0.1
 
@@ -888,13 +947,16 @@ offset: 0.0
 
 ### Issue 1: Value Not Changing After Setting Calibration
 
-**Symptoms:** After updating scale/offset, MQTT values remain the same as raw values.
+**Symptoms:** After updating scale/offset, MQTT values remain the same as raw
+values.
 
 **Causes:**
+
 - Config not saved to `devices.json`
 - Cache not refreshed
 
 **Solution:**
+
 1. Restart gateway to force config reload
 2. Check `devices.json` to verify scale/offset are saved
 3. Ensure no errors in Serial Monitor during update
@@ -904,11 +966,13 @@ offset: 0.0
 **Symptoms:** Calibration results differ from expected values.
 
 **Causes:**
+
 - Incorrect formula
 - Data type conversion not correct
 - Offset sign reversed (positive/negative)
 
 **Solution:**
+
 1. Check formula using manual calculator
 2. Ensure data type matches sensor
 3. Try with scale=1.0, offset=0.0 to view raw value
@@ -919,11 +983,14 @@ offset: 0.0
 **Symptoms:** `unit` field is empty or missing.
 
 **Causes:**
+
 - Register created before firmware update
 - `unit` field not set during creation
 
 **Solution:**
+
 1. Update register with `unit` field:
+
 ```json
 {
   "op": "update",
@@ -941,10 +1008,12 @@ offset: 0.0
 **Symptoms:** Old registers not receiving default calibration values.
 
 **Causes:**
+
 - Corrupted `devices.json` file
 - SPIFFS/LittleFS full
 
 **Solution:**
+
 1. Check Serial Monitor for migration logs
 2. Check SPIFFS usage: `/info` endpoint
 3. Backup and reset `devices.json` if necessary
@@ -956,22 +1025,25 @@ offset: 0.0
 ### 1. Set Units Consistently
 
 Always set units for every register:
+
 ```json
 {
-  "unit": "V"  // GOOD
+  "unit": "V" // GOOD
 }
 ```
 
 Don't leave empty:
+
 ```json
 {
-  "unit": ""  // BAD - difficult to distinguish in dashboard
+  "unit": "" // BAD - difficult to distinguish in dashboard
 }
 ```
 
 ### 2. Document Formulas
 
 Use `description` field to document formulas:
+
 ```json
 {
   "register_name": "Voltage L1",
@@ -991,6 +1063,7 @@ Use `description` field to document formulas:
 ### 4. Backup Config Before Updates
 
 Before updating calibration values:
+
 1. Export `devices.json` via BLE
 2. Save backup
 3. Then perform update
@@ -998,10 +1071,11 @@ Before updating calibration values:
 ### 5. Use High Precision Values
 
 For small scales, use high precision:
+
 ```json
 {
-  "scale": 0.06895,  // GOOD - 5 decimal places
-  "scale": 0.07      // BAD - insufficient precision
+  "scale": 0.06895, // GOOD - 5 decimal places
+  "scale": 0.07 // BAD - insufficient precision
 }
 ```
 
@@ -1012,6 +1086,7 @@ For small scales, use high precision:
 ### Scenario: Power Meter with 8 Registers
 
 **Device Configuration:**
+
 ```json
 {
   "op": "create",
@@ -1033,6 +1108,7 @@ For small scales, use high precision:
 **Register Configurations:**
 
 **1. Voltage L1 (centivolt to volt):**
+
 ```json
 {
   "op": "create",
@@ -1052,6 +1128,7 @@ For small scales, use high precision:
 ```
 
 **2. Current L1 (milliampere to ampere):**
+
 ```json
 {
   "op": "create",
@@ -1071,6 +1148,7 @@ For small scales, use high precision:
 ```
 
 **3. Active Power (watt):**
+
 ```json
 {
   "op": "create",
@@ -1090,6 +1168,7 @@ For small scales, use high precision:
 ```
 
 **4. Power Factor (0-1000 to 0-1.0):**
+
 ```json
 {
   "op": "create",
@@ -1109,6 +1188,7 @@ For small scales, use high precision:
 ```
 
 **5. Frequency (Hz × 100):**
+
 ```json
 {
   "op": "create",
@@ -1128,6 +1208,7 @@ For small scales, use high precision:
 ```
 
 **6. Energy (kWh):**
+
 ```json
 {
   "op": "create",
@@ -1147,6 +1228,7 @@ For small scales, use high precision:
 ```
 
 **7. Temperature (with offset correction):**
+
 ```json
 {
   "op": "create",
@@ -1166,6 +1248,7 @@ For small scales, use high precision:
 ```
 
 **8. Status (no calibration):**
+
 ```json
 {
   "op": "create",
@@ -1402,20 +1485,20 @@ For questions or issues related to register calibration:
 - **[PROTOCOL.md](PROTOCOL.md)** - Communication protocols
 - **[MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)** - Modbus data type reference
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Troubleshooting guide
-- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - MQTT publishing modes
+- **[MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)** -
+  MQTT publishing modes
 - **[Best Practices](../BEST_PRACTICES.md)** - Production deployment guidelines
 - **[FAQ](../FAQ.md)** - Frequently asked questions
 
 ---
 
-**Document Version:** 1.3 (Updated)
-**Firmware Version:** v2.5.34
-**Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Document Version:** 1.3 (Updated) **Firmware Version:** v2.5.34 **Developer:**
+Kemal **Last Updated:** December 10, 2025
 
-[← Back to Technical Guides](README.md) | [↑ Top](#register-calibration---documentation)
+[← Back to Technical Guides](README.md) |
+[↑ Top](#register-calibration---documentation)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

@@ -8,9 +8,11 @@
 
 ## 📋 Summary
 
-Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah perbaikan yang perlu dilakukan:
+Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah
+perbaikan yang perlu dilakukan:
 
 ### ✅ Status
+
 - **Total Changes:** 3 files
 - **Estimated Time:** 2-3 hours
 - **Breaking Changes:** None (backward compatible)
@@ -26,6 +28,7 @@ Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah perba
 **Lines:** 198-201
 
 **BEFORE:**
+
 ```cpp
   // Response methods
   void sendResponse(const JsonDocument &data);
@@ -34,6 +37,7 @@ Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah perba
 ```
 
 **AFTER:**
+
 ```cpp
   // Response methods
   void sendResponse(const JsonDocument &data);
@@ -41,7 +45,8 @@ Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah perba
   void sendSuccess(const String &type = "unknown");
 ```
 
-**Reason:** Mobile app expects all responses to have `type` field. Adding default parameter maintains backward compatibility.
+**Reason:** Mobile app expects all responses to have `type` field. Adding
+default parameter maintains backward compatibility.
 
 ---
 
@@ -51,6 +56,7 @@ Berdasarkan analisis di `MOBILE_APP_FIRMWARE_ALIGNMENT.md`, berikut adalah perba
 **Lines:** 599-605
 
 **BEFORE:**
+
 ```cpp
 void BLEManager::sendError(const String &message)
 {
@@ -62,6 +68,7 @@ void BLEManager::sendError(const String &message)
 ```
 
 **AFTER:**
+
 ```cpp
 void BLEManager::sendError(const String &message, const String &type)
 {
@@ -74,7 +81,8 @@ void BLEManager::sendError(const String &message, const String &type)
 }
 ```
 
-**Reason:** Ensures error responses include `type` and `config` fields expected by mobile app.
+**Reason:** Ensures error responses include `type` and `config` fields expected
+by mobile app.
 
 ---
 
@@ -84,6 +92,7 @@ void BLEManager::sendError(const String &message, const String &type)
 **Lines:** 607-612
 
 **BEFORE:**
+
 ```cpp
 void BLEManager::sendSuccess()
 {
@@ -95,6 +104,7 @@ void BLEManager::sendSuccess()
 ```
 
 **AFTER:**
+
 ```cpp
 void BLEManager::sendSuccess(const String &type)
 {
@@ -115,19 +125,21 @@ void BLEManager::sendSuccess(const String &type)
 
 **File:** `Main/CRUDHandler.cpp`
 
-Cari dan ganti semua pemanggilan `sendError()` untuk menambahkan parameter `type`:
+Cari dan ganti semua pemanggilan `sendError()` untuk menambahkan parameter
+`type`:
 
-| Line | OLD | NEW |
-|------|-----|-----|
-| 326 | `manager->sendError("Device not found");` | `manager->sendError("Device not found", "device");` |
-| 403 | `manager->sendError("No registers found");` | `manager->sendError("No registers found", "registers");` |
-| 419 | `manager->sendError("No registers found");` | `manager->sendError("No registers found", "registers_summary");` |
-| 434 | `manager->sendError("Failed to get server config");` | `manager->sendError("Failed to get server config", "server_config");` |
-| 449 | `manager->sendError("Failed to get logging config");` | `manager->sendError("Failed to get logging config", "logging_config");` |
-| 747 | `manager->sendError("Empty device ID");` | `manager->sendError("Empty device ID", "data");` |
-| 772 | `manager->sendError("Device creation failed");` | `manager->sendError("Device creation failed", "device");` |
+| Line | OLD                                                   | NEW                                                                     |
+| ---- | ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| 326  | `manager->sendError("Device not found");`             | `manager->sendError("Device not found", "device");`                     |
+| 403  | `manager->sendError("No registers found");`           | `manager->sendError("No registers found", "registers");`                |
+| 419  | `manager->sendError("No registers found");`           | `manager->sendError("No registers found", "registers_summary");`        |
+| 434  | `manager->sendError("Failed to get server config");`  | `manager->sendError("Failed to get server config", "server_config");`   |
+| 449  | `manager->sendError("Failed to get logging config");` | `manager->sendError("Failed to get logging config", "logging_config");` |
+| 747  | `manager->sendError("Empty device ID");`              | `manager->sendError("Empty device ID", "data");`                        |
+| 772  | `manager->sendError("Device creation failed");`       | `manager->sendError("Device creation failed", "device");`               |
 
 **Cara cepat:** Gunakan Find & Replace di editor:
+
 1. Find: `manager->sendError\("([^"]+)"\);`
 2. Replace: Sesuaikan dengan type yang tepat berdasarkan context
 
@@ -144,6 +156,7 @@ Tambahkan `(*response)["type"] = "xxx";` di setiap read handler:
 #### Example - devices handler (Line 99-106):
 
 **BEFORE:**
+
 ```cpp
 readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &command)
 {
@@ -156,6 +169,7 @@ readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &comman
 ```
 
 **AFTER:**
+
 ```cpp
 readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &command)
 {
@@ -169,6 +183,7 @@ readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &comman
 ```
 
 **Apply to these handlers:**
+
 - `devices` (Line 99) → type: "devices"
 - `devices_summary` (Line 108) → type: "devices_summary"
 - `devices_with_registers` (Line 117) → type: "devices_with_registers"
@@ -187,11 +202,13 @@ readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &comman
 
 **File:** `Main/CRUDHandler.cpp`
 
-Mobile app expects `config` field, tapi firmware menggunakan berbagai nama (`devices`, `data`, dll). Tambahkan alias untuk compatibility.
+Mobile app expects `config` field, tapi firmware menggunakan berbagai nama
+(`devices`, `data`, dll). Tambahkan alias untuk compatibility.
 
 #### Example - devices handler:
 
 **AFTER Fix 5, ADD:**
+
 ```cpp
 readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &command)
 {
@@ -200,40 +217,47 @@ readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &comman
   (*response)["type"] = "devices";
   JsonArray devices = (*response)["devices"].to<JsonArray>();
   configManager->listDevices(devices);
-  
+
   // ✅ ADD: Create alias for mobile app compatibility
   (*response)["config"] = (*response)["devices"];
-  
+
   manager->sendResponse(*response);
 };
 ```
 
-**Note:** Ini optional karena mobile app sudah punya fallback mechanism, tapi menambahkan ini membuat komunikasi lebih robust.
+**Note:** Ini optional karena mobile app sudah punya fallback mechanism, tapi
+menambahkan ini membuat komunikasi lebih robust.
 
 ---
 
 ## 📝 Implementation Checklist
 
 ### Phase 1: Critical Fixes (30 min)
-- [ ] Update `BLEManager.h` - Add type parameter to sendError() and sendSuccess()
+
+- [ ] Update `BLEManager.h` - Add type parameter to sendError() and
+      sendSuccess()
 - [ ] Update `BLEManager.cpp` - Implement new sendError() with type field
 - [ ] Update `BLEManager.cpp` - Implement new sendSuccess() with type field
 - [ ] Compile and verify no syntax errors
 
 ### Phase 2: Update Error Calls (30 min)
+
 - [ ] Find all `sendError()` calls in `CRUDHandler.cpp`
 - [ ] Add appropriate type parameter to each call
 - [ ] Compile and verify
 
 ### Phase 3: Add Type Fields (45 min)
+
 - [ ] Add type field to all 11 read handlers in `CRUDHandler.cpp`
 - [ ] Compile and verify
 
 ### Phase 4: Add Config Aliases (Optional - 30 min)
+
 - [ ] Add config alias to read handlers
 - [ ] Compile and verify
 
 ### Phase 5: Testing (30 min)
+
 - [ ] Upload firmware to device
 - [ ] Test with mobile app:
   - [ ] READ devices
@@ -251,11 +275,13 @@ readHandlers["devices"] = [this](BLEManager *manager, const JsonDocument &comman
 Test dengan mobile app atau BLE terminal:
 
 ### Test 1: READ devices (should return type field)
+
 ```json
-{"op":"read","type":"devices"}
+{ "op": "read", "type": "devices" }
 ```
 
 **Expected Response:**
+
 ```json
 {
   "status": "ok",
@@ -266,11 +292,13 @@ Test dengan mobile app atau BLE terminal:
 ```
 
 ### Test 2: Error scenario (should return type field)
+
 ```json
-{"op":"read","type":"device","device_id":"INVALID_ID"}
+{ "op": "read", "type": "device", "device_id": "INVALID_ID" }
 ```
 
 **Expected Response:**
+
 ```json
 {
   "status": "error",
@@ -304,12 +332,14 @@ grep -n 'sendError.*".*".*"' Main/CRUDHandler.cpp | wc -l
 ## 📊 Impact Analysis
 
 ### Before Fixes:
+
 - ❌ Error responses missing `type` field → Mobile app uses fallback
 - ❌ Success responses missing `type` field → Mobile app uses fallback
 - ⚠️ Read responses missing `type` field → Mobile app injects from command
 - ⚠️ Responses use different field names → Mobile app maps to `config`
 
 ### After Fixes:
+
 - ✅ All responses have `type` field
 - ✅ All responses have `config` field (or alias)
 - ✅ Mobile app doesn't need fallback mechanism
@@ -321,18 +351,21 @@ grep -n 'sendError.*".*".*"' Main/CRUDHandler.cpp | wc -l
 ## 🚀 Quick Implementation Guide
 
 ### Option 1: Manual Edit (Recommended for Learning)
+
 1. Open each file in editor
 2. Apply changes one by one
 3. Compile after each major change
 4. Test incrementally
 
 ### Option 2: Automated (Faster but Riskier)
+
 1. Create backup: `git commit -am "Backup before mobile app fixes"`
 2. Use sed/awk scripts to apply changes
 3. Review diff: `git diff`
 4. Test thoroughly
 
 ### Option 3: Hybrid (Best Practice)
+
 1. Apply Critical Fixes manually (Phase 1-2)
 2. Test basic functionality
 3. Apply High Priority Fixes (Phase 3-4)
@@ -344,6 +377,7 @@ grep -n 'sendError.*".*".*"' Main/CRUDHandler.cpp | wc -l
 ## 📞 Support
 
 Jika ada masalah saat implementasi:
+
 1. Check compilation errors first
 2. Verify syntax dengan example di atas
 3. Test dengan simple command dulu (READ devices)

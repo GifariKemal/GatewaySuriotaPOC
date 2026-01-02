@@ -1,6 +1,7 @@
 # Contributing to Suriota Gateway Modbus IIoT
 
-Thank you for your interest in contributing to the Suriota Gateway Modbus IIoT project! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to the Suriota Gateway Modbus IIoT
+project! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -12,9 +13,12 @@ Thank you for your interest in contributing to the Suriota Gateway Modbus IIoT p
 
 ### 1. Reporting Bugs
 
-Before creating a bug report, please check the [Issues](https://github.com/suriota/srt-mgate-1210/issues) page to ensure the bug hasn't already been reported.
+Before creating a bug report, please check the
+[Issues](https://github.com/suriota/srt-mgate-1210/issues) page to ensure the
+bug hasn't already been reported.
 
 **When reporting a bug, include:**
+
 - Clear, descriptive title
 - Detailed description of the issue
 - Steps to reproduce the problem
@@ -26,7 +30,8 @@ Before creating a bug report, please check the [Issues](https://github.com/surio
 
 ### 2. Suggesting Enhancements
 
-Enhancement suggestions are tracked as GitHub Issues. When creating an enhancement suggestion:
+Enhancement suggestions are tracked as GitHub Issues. When creating an
+enhancement suggestion:
 
 - Use a clear, descriptive title
 - Provide a detailed description of the suggested enhancement
@@ -39,12 +44,14 @@ Enhancement suggestions are tracked as GitHub Issues. When creating an enhanceme
 We welcome contributions to our testing infrastructure:
 
 **Python Testing Scripts:**
+
 - BLE communication test utilities
 - Modbus slave simulators with various configurations
 - Server configuration automation tools
 - Network testing and validation scripts
 
 **When contributing Python scripts:**
+
 - Place in appropriate directory (Device_Testing, Modbus_Slave_Simulator, etc.)
 - Include `requirements.txt` with pinned versions
 - Add comprehensive docstrings and comments
@@ -54,12 +61,14 @@ We welcome contributions to our testing infrastructure:
 - Follow PEP 8 style guidelines
 
 **Hardware Testing Samples:**
+
 - Add to `Sample Code Test HW Related/` directory
 - Include wiring diagrams or pin configurations
 - Document expected behavior and output
 - Test on actual hardware before submission
 
 **UI/UX Contributions:**
+
 - Mockup files go in `Mockup UI/` directory
 - Include screenshots of rendered output
 - Document interaction flows
@@ -106,6 +115,7 @@ We welcome contributions to our testing infrastructure:
    - Limit commit titles to 50 characters
    - Reference issues and pull requests (e.g., "Fixes #123")
    - Example:
+
      ```
      Fix NTP synchronization timeout issue
 
@@ -151,6 +161,7 @@ We welcome contributions to our testing infrastructure:
 #### Push and Create Pull Request
 
 1. Push to your fork:
+
    ```bash
    git push origin feature/your-feature-name
    ```
@@ -167,6 +178,7 @@ We welcome contributions to our testing infrastructure:
 ### Prerequisites
 
 **Firmware Development:**
+
 - Arduino IDE 2.0+ or PlatformIO Core
 - ESP32-S3 board package installed
 - Required libraries:
@@ -181,6 +193,7 @@ We welcome contributions to our testing infrastructure:
   - See [Docs/LIBRARIES.md](Docs/LIBRARIES.md) for complete list
 
 **Python Testing & Development:**
+
 - Python 3.8 or higher
 - pip package manager
 - Virtual environment tool (venv or virtualenv)
@@ -190,6 +203,7 @@ We welcome contributions to our testing infrastructure:
 ### Building and Testing
 
 **Using PlatformIO:**
+
 ```bash
 # Build firmware
 platformio run
@@ -202,6 +216,7 @@ platformio device monitor
 ```
 
 **Using Arduino IDE:**
+
 1. Open the main sketch file
 2. Select ESP32-S3 board and COM port
 3. Click Upload
@@ -209,14 +224,17 @@ platformio device monitor
 
 ### Python Testing Environment
 
-The project includes Python scripts for testing BLE functionality, Modbus simulation, and server configuration. To set up the testing environment:
+The project includes Python scripts for testing BLE functionality, Modbus
+simulation, and server configuration. To set up the testing environment:
 
 **Prerequisites:**
+
 - Python 3.8 or higher
 - pip package manager
 - Bluetooth adapter (for BLE testing)
 
 **Setup Virtual Environment:**
+
 ```bash
 # Create virtual environment
 python -m venv .venv
@@ -239,18 +257,21 @@ pip install -r requirements.txt
 **Running Tests:**
 
 1. **Device Testing (BLE CRUD Operations):**
+
    ```bash
    cd Device_Testing
    python create_device_10_registers.py  # Creates device with 10 registers via BLE
    ```
 
 2. **Modbus Slave Simulator:**
+
    ```bash
    cd Modbus_Slave_Simulator
    python modbus_slave_10_registers.py   # Starts Modbus RTU slave with 10 registers
    ```
 
 3. **Server Configuration:**
+
    ```bash
    cd Server_Config_Testing
    python update_server_config.py        # Updates server config via BLE
@@ -263,6 +284,7 @@ pip install -r requirements.txt
    ```
 
 **Testing Guidelines:**
+
 - Always activate virtual environment before running tests
 - Read `00_START_HERE.txt` in each testing directory
 - Check `DOCUMENTATION.md` for detailed test descriptions
@@ -354,7 +376,8 @@ Pull requests will be reviewed for:
 
 ## Licensing
 
-By contributing to this project, you agree that your contributions will be licensed under its MIT License.
+By contributing to this project, you agree that your contributions will be
+licensed under its MIT License.
 
 ## Questions?
 
@@ -365,6 +388,7 @@ By contributing to this project, you agree that your contributions will be licen
 ## Recognition
 
 Contributors will be:
+
 - Listed in the project README.md CONTRIBUTORS section
 - Credited in the CHANGELOG.md for their contributions
 - Acknowledged in release notes

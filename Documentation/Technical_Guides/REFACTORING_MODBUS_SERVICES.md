@@ -1,10 +1,8 @@
 # Panduan Refactoring: ModbusRtuService & ModbusTcpService
 
-**Versi Dokumen:** 1.1
-**Tanggal:** 27 Desember 2025
-**Status:** Draft - Menunggu Review
-**Penulis:** Claude AI Assistant
-**Update v1.1:** Rekomendasi diubah ke PSRAMString unified berdasarkan riset Espressif
+**Versi Dokumen:** 1.1 **Tanggal:** 27 Desember 2025 **Status:** Draft -
+Menunggu Review **Penulis:** Claude AI Assistant **Update v1.1:** Rekomendasi
+diubah ke PSRAMString unified berdasarkan riset Espressif
 
 ---
 
@@ -29,38 +27,44 @@
 
 ### 1.1 Masalah Utama
 
-Ditemukan **~1.074 baris kode duplikat** antara `ModbusRtuService` dan `ModbusTcpService`, yang mencakup:
+Ditemukan **~1.074 baris kode duplikat** antara `ModbusRtuService` dan
+`ModbusTcpService`, yang mencakup:
+
 - 5 struct dengan definisi hampir identik
 - 35 method dengan logika yang sama
 - Perbedaan utama hanya pada tipe string (`PSRAMString` vs `String`)
 
 ### 1.2 Dampak Duplikasi
 
-| Aspek | Dampak |
-|-------|--------|
-| **Maintainability** | Bug fix harus dilakukan di 2 tempat |
-| **Konsistensi** | Risiko implementasi yang berbeda untuk fitur yang sama |
-| **Code Review** | Waktu review bertambah karena kode berulang |
-| **Binary Size** | ~2-3KB tambahan pada firmware |
+| Aspek               | Dampak                                                 |
+| ------------------- | ------------------------------------------------------ |
+| **Maintainability** | Bug fix harus dilakukan di 2 tempat                    |
+| **Konsistensi**     | Risiko implementasi yang berbeda untuk fitur yang sama |
+| **Code Review**     | Waktu review bertambah karena kode berulang            |
+| **Binary Size**     | ~2-3KB tambahan pada firmware                          |
 
 ### 1.3 Solusi yang Direkomendasikan
 
-Menggunakan **Composition Pattern dengan PSRAMString Unified** untuk mengekstrak kode duplikat ke dalam:
+Menggunakan **Composition Pattern dengan PSRAMString Unified** untuk mengekstrak
+kode duplikat ke dalam:
+
 - `ModbusDeviceTypes.h` - Definisi struct bersama (PSRAMString untuk semua)
 - `ModbusDeviceManager.h` - Template class untuk logika device management
 
-**Keputusan String Type:** Menggunakan `PSRAMString` untuk KEDUA service (RTU dan TCP) berdasarkan riset teknis Espressif yang membuktikan:
+**Keputusan String Type:** Menggunakan `PSRAMString` untuk KEDUA service (RTU
+dan TCP) berdasarkan riset teknis Espressif yang membuktikan:
+
 - PSRAM cache membuat string kecil (<16KB) memiliki performa identik dengan DRAM
 - Arduino String mengkonsumsi DRAM yang terbatas (512KB)
 - PSRAMString dengan fallback ke DRAM adalah solusi paling optimal
 
 ### 1.4 Hasil yang Diharapkan
 
-| Metrik | Sebelum | Sesudah | Perubahan |
-|--------|---------|---------|-----------|
-| Total LOC duplikat | 1.074 | 569 | **-505 (47%)** |
-| File yang perlu di-maintain | 4 | 6 | +2 (tapi lebih terstruktur) |
-| Risiko inkonsistensi | Tinggi | Rendah | Signifikan |
+| Metrik                      | Sebelum | Sesudah | Perubahan                   |
+| --------------------------- | ------- | ------- | --------------------------- |
+| Total LOC duplikat          | 1.074   | 569     | **-505 (47%)**              |
+| File yang perlu di-maintain | 4       | 6       | +2 (tapi lebih terstruktur) |
+| Risiko inkonsistensi        | Tinggi  | Rendah  | Signifikan                  |
 
 ---
 
@@ -91,13 +95,13 @@ Firmware SRT-MGATE-1210 memiliki dua service untuk komunikasi Modbus:
 
 Duplikasi ini terjadi secara organik selama pengembangan:
 
-| Versi | Perubahan | Dampak Duplikasi |
-|-------|-----------|------------------|
-| v2.3.8 | Device failure tracking ditambahkan ke RTU | - |
-| v2.3.9 | Fitur yang sama di-copy ke TCP | +200 lines duplikat |
-| v2.3.11 | Health metrics ditambahkan | +100 lines duplikat |
-| v2.3.12 | BLE device control API | +150 lines duplikat |
-| v2.5.39 | Atomic config flag | Ditambahkan terpisah di kedua service |
+| Versi   | Perubahan                                  | Dampak Duplikasi                      |
+| ------- | ------------------------------------------ | ------------------------------------- |
+| v2.3.8  | Device failure tracking ditambahkan ke RTU | -                                     |
+| v2.3.9  | Fitur yang sama di-copy ke TCP             | +200 lines duplikat                   |
+| v2.3.11 | Health metrics ditambahkan                 | +100 lines duplikat                   |
+| v2.3.12 | BLE device control API                     | +150 lines duplikat                   |
+| v2.5.39 | Atomic config flag                         | Ditambahkan terpisah di kedua service |
 
 ### 2.3 Mengapa Ini Menjadi Technical Debt
 
@@ -108,7 +112,8 @@ Duplikasi ini terjadi secara organik selama pengembangan:
    - Contoh: Auto-recovery task di-copy dari RTU ke TCP
 
 3. **Risiko Inkonsistensi**: Implementasi bisa berbeda tanpa disengaja
-   - Contoh: `calculateBackoffTime()` memiliki base delay berbeda (100ms vs 2000ms)
+   - Contoh: `calculateBackoffTime()` memiliki base delay berbeda (100ms vs
+     2000ms)
 
 ---
 
@@ -116,20 +121,21 @@ Duplikasi ini terjadi secara organik selama pengembangan:
 
 ### 3.1 Ringkasan Temuan
 
-| Kategori | Jumlah Item | LOC Duplikat | Persentase Identik |
-|----------|-------------|--------------|-------------------|
-| Struct Definitions | 5 | 180 | 95-100% |
-| Device Management Methods | 14 | 498 | 90-100% |
-| BLE Command API | 4 | 212 | 95-98% |
-| Polling/Timer Methods | 6 | 103 | 100% |
-| Auto-Recovery | 2 | 81 | 95% |
-| **TOTAL** | **31** | **1.074** | **~95%** |
+| Kategori                  | Jumlah Item | LOC Duplikat | Persentase Identik |
+| ------------------------- | ----------- | ------------ | ------------------ |
+| Struct Definitions        | 5           | 180          | 95-100%            |
+| Device Management Methods | 14          | 498          | 90-100%            |
+| BLE Command API           | 4           | 212          | 95-98%             |
+| Polling/Timer Methods     | 6           | 103          | 100%               |
+| Auto-Recovery             | 2           | 81           | 95%                |
+| **TOTAL**                 | **31**      | **1.074**    | **~95%**           |
 
 ### 3.2 Detail Struct Duplikasi
 
 #### 3.2.1 DeviceTimer
 
 **Lokasi:**
+
 - RTU: `ModbusRtuService.h` baris 37-43
 - TCP: `ModbusTcpService.h` baris 41-46
 
@@ -156,6 +162,7 @@ struct DeviceTimer {
 ```
 
 **Analisis:**
+
 - Struktur identik 100%
 - Perbedaan hanya pada tipe string
 - Dapat di-unify dengan template
@@ -163,6 +170,7 @@ struct DeviceTimer {
 #### 3.2.2 DeviceFailureState
 
 **Lokasi:**
+
 - RTU: `ModbusRtuService.h` baris 60-83
 - TCP: `ModbusTcpService.h` baris 64-86
 
@@ -221,6 +229,7 @@ struct DeviceFailureState {
 ```
 
 **Analisis:**
+
 - 95% identik
 - RTU memiliki field tambahan `baudRate` (spesifik untuk serial communication)
 - Dapat di-unify dengan template + optional field
@@ -228,6 +237,7 @@ struct DeviceFailureState {
 #### 3.2.3 DeviceReadTimeout
 
 **Lokasi:**
+
 - RTU: `ModbusRtuService.h` baris 87-95
 - TCP: `ModbusTcpService.h` baris 90-98
 
@@ -236,20 +246,22 @@ struct DeviceFailureState {
 #### 3.2.4 DeviceHealthMetrics
 
 **Lokasi:**
+
 - RTU: `ModbusRtuService.h` baris 98-147
 - TCP: `ModbusTcpService.h` baris 101-146
 
-**Status:** 100% identik termasuk method `getSuccessRate()`, `getAvgResponseTimeMs()`, dan `recordRead()`
+**Status:** 100% identik termasuk method `getSuccessRate()`,
+`getAvgResponseTimeMs()`, dan `recordRead()`
 
 ### 3.3 Detail Method Duplikasi
 
 #### 3.3.1 Initialization Methods
 
-| Method | RTU LOC | TCP LOC | Identik |
-|--------|---------|---------|---------|
-| `initializeDeviceFailureTracking()` | 22 | 22 | 95% |
-| `initializeDeviceTimeouts()` | 18 | 18 | 95% |
-| `initializeDeviceMetrics()` | 20 | 20 | 95% |
+| Method                              | RTU LOC | TCP LOC | Identik |
+| ----------------------------------- | ------- | ------- | ------- |
+| `initializeDeviceFailureTracking()` | 22      | 22      | 95%     |
+| `initializeDeviceTimeouts()`        | 18      | 18      | 95%     |
+| `initializeDeviceMetrics()`         | 20      | 20      | 95%     |
 
 **Contoh Duplikasi:**
 
@@ -299,12 +311,12 @@ void ModbusTcpService::initializeDeviceMetrics() {
 
 #### 3.3.2 Getter Methods
 
-| Method | RTU LOC | TCP LOC | Identik |
-|--------|---------|---------|---------|
-| `getDeviceFailureState()` | 12 | 12 | 100% |
-| `getDeviceTimeout()` | 12 | 12 | 100% |
-| `getDeviceMetrics()` | 12 | 12 | 100% |
-| `getDeviceTimer()` | 12 | 12 | 100% |
+| Method                    | RTU LOC | TCP LOC | Identik |
+| ------------------------- | ------- | ------- | ------- |
+| `getDeviceFailureState()` | 12      | 12      | 100%    |
+| `getDeviceTimeout()`      | 12      | 12      | 100%    |
+| `getDeviceMetrics()`      | 12      | 12      | 100%    |
+| `getDeviceTimer()`        | 12      | 12      | 100%    |
 
 **Contoh Duplikasi (100% identik kecuali parameter type):**
 
@@ -332,13 +344,13 @@ DeviceFailureState *ModbusTcpService::getDeviceFailureState(const String &device
 
 #### 3.3.3 Backoff & Retry Logic
 
-| Method | RTU LOC | TCP LOC | Perbedaan |
-|--------|---------|---------|-----------|
-| `handleReadFailure()` | 25 | 25 | Log prefix saja |
-| `shouldRetryDevice()` | 10 | 10 | Identik |
-| `calculateBackoffTime()` | 10 | 10 | **Base delay berbeda** |
-| `resetDeviceFailureState()` | 12 | 12 | Identik |
-| `handleReadTimeout()` | 20 | 20 | Log prefix saja |
+| Method                      | RTU LOC | TCP LOC | Perbedaan              |
+| --------------------------- | ------- | ------- | ---------------------- |
+| `handleReadFailure()`       | 25      | 25      | Log prefix saja        |
+| `shouldRetryDevice()`       | 10      | 10      | Identik                |
+| `calculateBackoffTime()`    | 10      | 10      | **Base delay berbeda** |
+| `resetDeviceFailureState()` | 12      | 12      | Identik                |
+| `handleReadTimeout()`       | 20      | 20      | Log prefix saja        |
 
 **Perbedaan Signifikan pada `calculateBackoffTime()`:**
 
@@ -369,25 +381,26 @@ unsigned long ModbusTcpService::calculateBackoffTime(uint8_t retryCount) {
 ```
 
 **Alasan Perbedaan:**
+
 - RTU menggunakan serial yang responsif (baseDelay=100ms cukup)
 - TCP perlu waktu untuk TCP handshake & reconnection (baseDelay=2000ms)
 
 #### 3.3.4 Enable/Disable Device
 
-| Method | RTU LOC | TCP LOC | Identik |
-|--------|---------|---------|---------|
-| `enableDevice()` | 35 | 37 | 95% |
-| `disableDevice()` | 32 | 32 | 95% |
-| `isDeviceEnabled()` | 8 | 8 | 100% |
+| Method              | RTU LOC | TCP LOC | Identik |
+| ------------------- | ------- | ------- | ------- |
+| `enableDevice()`    | 35      | 37      | 95%     |
+| `disableDevice()`   | 32      | 32      | 95%     |
+| `isDeviceEnabled()` | 8       | 8       | 100%    |
 
 #### 3.3.5 BLE Command API
 
-| Method | RTU LOC | TCP LOC | Identik |
-|--------|---------|---------|---------|
-| `enableDeviceByCommand()` | 15 | 15 | 98% |
-| `disableDeviceByCommand()` | 15 | 15 | 98% |
-| `getDeviceStatusInfo()` | 62 | 63 | 98% |
-| `getAllDevicesStatus()` | 14 | 13 | 98% |
+| Method                     | RTU LOC | TCP LOC | Identik |
+| -------------------------- | ------- | ------- | ------- |
+| `enableDeviceByCommand()`  | 15      | 15      | 98%     |
+| `disableDeviceByCommand()` | 15      | 15      | 98%     |
+| `getDeviceStatusInfo()`    | 62      | 63      | 98%     |
+| `getAllDevicesStatus()`    | 14      | 13      | 98%     |
 
 **Contoh `getDeviceStatusInfo()` - 62 baris hampir identik:**
 
@@ -415,10 +428,10 @@ bool ModbusRtuService::getDeviceStatusInfo(const char *deviceId, JsonObject &sta
 
 #### 3.3.6 Auto-Recovery Task
 
-| Method | RTU LOC | TCP LOC | Identik |
-|--------|---------|---------|---------|
-| `autoRecoveryTask()` | 5 | 5 | 100% |
-| `autoRecoveryLoop()` | 35 | 36 | 95% |
+| Method               | RTU LOC | TCP LOC | Identik |
+| -------------------- | ------- | ------- | ------- |
+| `autoRecoveryTask()` | 5       | 5       | 100%    |
+| `autoRecoveryLoop()` | 35      | 36      | 95%     |
 
 ---
 
@@ -426,9 +439,11 @@ bool ModbusRtuService::getDeviceStatusInfo(const char *deviceId, JsonObject &sta
 
 ### 4.1 Pendekatan: Composition dengan Template
 
-Alih-alih menggunakan inheritance (yang memiliki overhead virtual function), kita akan menggunakan:
+Alih-alih menggunakan inheritance (yang memiliki overhead virtual function),
+kita akan menggunakan:
 
-1. **Template Struct** untuk definisi data yang bisa menerima tipe string berbeda
+1. **Template Struct** untuk definisi data yang bisa menerima tipe string
+   berbeda
 2. **Template Class** untuk logika device management yang shared
 3. **Composition** dimana RTU/TCP service memiliki instance dari shared manager
 
@@ -477,28 +492,29 @@ Alih-alih menggunakan inheritance (yang memiliki overhead virtual function), kit
 
 ### 4.3 Keuntungan Pendekatan Ini
 
-| Aspek | Keuntungan |
-|-------|------------|
-| **Type Safety** | Template menjaga type safety tanpa casting |
-| **No Virtual Overhead** | Tidak ada vtable lookup (penting untuk embedded) |
-| **Compile-time Resolution** | Semua resolved saat compile, bukan runtime |
-| **Backward Compatible** | Public API tidak berubah |
-| **Testable** | Shared code bisa di-unit test terpisah |
+| Aspek                       | Keuntungan                                       |
+| --------------------------- | ------------------------------------------------ |
+| **Type Safety**             | Template menjaga type safety tanpa casting       |
+| **No Virtual Overhead**     | Tidak ada vtable lookup (penting untuk embedded) |
+| **Compile-time Resolution** | Semua resolved saat compile, bukan runtime       |
+| **Backward Compatible**     | Public API tidak berubah                         |
+| **Testable**                | Shared code bisa di-unit test terpisah           |
 
 ### 4.4 Handling Perbedaan
 
-| Perbedaan | Solusi |
-|-----------|--------|
-| ~~String type (`PSRAMString` vs `String`)~~ | **UNIFIED:** Semua menggunakan `PSRAMString` |
-| Base backoff delay (100ms vs 2000ms) | Parameter pada `calculateBackoffTime(baseDelay)` |
-| Log prefix (`[RTU]` vs `[TCP]`) | Parameter string pada method yang log |
-| RTU-specific `baudRate` field | Optional field atau separate struct |
+| Perbedaan                                   | Solusi                                           |
+| ------------------------------------------- | ------------------------------------------------ |
+| ~~String type (`PSRAMString` vs `String`)~~ | **UNIFIED:** Semua menggunakan `PSRAMString`     |
+| Base backoff delay (100ms vs 2000ms)        | Parameter pada `calculateBackoffTime(baseDelay)` |
+| Log prefix (`[RTU]` vs `[TCP]`)             | Parameter string pada method yang log            |
+| RTU-specific `baudRate` field               | Optional field atau separate struct              |
 
 ### 4.5 Justifikasi Teknis: Mengapa PSRAMString untuk Semua?
 
 Berdasarkan riset dokumentasi resmi Espressif dan ESP32 Forum:
 
 #### 4.5.1 PSRAM Cache Behavior
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     ESP32-S3 Memory Architecture                 │
@@ -512,16 +528,21 @@ Berdasarkan riset dokumentasi resmi Espressif dan ESP32 Forum:
 ```
 
 **Fakta Kunci:**
+
 1. String kecil (<16KB) yang sering diakses → masuk CPU cache → performa = DRAM
 2. DRAM adalah resource terbatas (512KB) yang harus dibagi dengan WiFi/BLE stack
 3. PSRAMString dengan fallback ke DRAM = strategi paling aman
 
 #### 4.5.2 Referensi Espressif Official
-- **ESP-IDF Heap Allocator:** `heap_caps_malloc(MALLOC_CAP_SPIRAM)` dengan fallback
-- **Recommended Pattern:** "Use PSRAM for large allocations, let cache handle frequently accessed data"
+
+- **ESP-IDF Heap Allocator:** `heap_caps_malloc(MALLOC_CAP_SPIRAM)` dengan
+  fallback
+- **Recommended Pattern:** "Use PSRAM for large allocations, let cache handle
+  frequently accessed data"
 - **Source:** Espressif Programming Guide - External RAM
 
 #### 4.5.3 Implementasi PSRAMString
+
 ```cpp
 // PSRAMString::allocate() di Main/PSRAMString.h
 void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -531,6 +552,7 @@ if (!ptr) {
 ```
 
 **Keuntungan:**
+
 - PSRAM priority → menjaga DRAM untuk operasi kritikal
 - Automatic DRAM fallback → tidak pernah gagal alokasi
 - Cache-friendly → string yang sering diakses tetap cepat
@@ -541,75 +563,75 @@ if (!ptr) {
 
 ### 5.1 Struct Definitions
 
-| Struct | BEFORE (LOC) | AFTER (LOC) | Pengurangan |
-|--------|-------------|-------------|-------------|
-| `DeviceTimer` | 7 + 6 = 13 | 10 | -3 (23%) |
-| `DeviceFailureState` | 24 + 23 = 47 | 28 | -19 (40%) |
-| `DeviceReadTimeout` | 9 + 9 = 18 | 10 | -8 (44%) |
-| `DeviceHealthMetrics` | 50 + 47 = 97 | 52 | -45 (46%) |
-| `DataTransmissionInterval` | 5 + 5 = 10 | 6 | -4 (40%) |
-| **TOTAL STRUCT** | **185** | **106** | **-79 (43%)** |
+| Struct                     | BEFORE (LOC) | AFTER (LOC) | Pengurangan   |
+| -------------------------- | ------------ | ----------- | ------------- |
+| `DeviceTimer`              | 7 + 6 = 13   | 10          | -3 (23%)      |
+| `DeviceFailureState`       | 24 + 23 = 47 | 28          | -19 (40%)     |
+| `DeviceReadTimeout`        | 9 + 9 = 18   | 10          | -8 (44%)      |
+| `DeviceHealthMetrics`      | 50 + 47 = 97 | 52          | -45 (46%)     |
+| `DataTransmissionInterval` | 5 + 5 = 10   | 6           | -4 (40%)      |
+| **TOTAL STRUCT**           | **185**      | **106**     | **-79 (43%)** |
 
 ### 5.2 Device Management Methods
 
-| Method | BEFORE | AFTER | Pengurangan |
-|--------|--------|-------|-------------|
-| `initializeDeviceFailureTracking()` | 44 | 25 | -19 |
-| `initializeDeviceTimeouts()` | 36 | 20 | -16 |
-| `initializeDeviceMetrics()` | 40 | 22 | -18 |
-| `getDeviceFailureState()` | 24 | 12 | -12 |
-| `getDeviceTimeout()` | 24 | 12 | -12 |
-| `getDeviceMetrics()` | 24 | 12 | -12 |
-| `handleReadFailure()` | 50 | 28 | -22 |
-| `shouldRetryDevice()` | 20 | 10 | -10 |
-| `calculateBackoffTime()` | 20 | 12 | -8 |
-| `resetDeviceFailureState()` | 24 | 12 | -12 |
-| `handleReadTimeout()` | 40 | 22 | -18 |
-| `isDeviceEnabled()` | 16 | 8 | -8 |
-| `enableDevice()` | 72 | 38 | -34 |
-| `disableDevice()` | 64 | 34 | -30 |
-| **TOTAL** | **498** | **267** | **-231 (46%)** |
+| Method                              | BEFORE  | AFTER   | Pengurangan    |
+| ----------------------------------- | ------- | ------- | -------------- |
+| `initializeDeviceFailureTracking()` | 44      | 25      | -19            |
+| `initializeDeviceTimeouts()`        | 36      | 20      | -16            |
+| `initializeDeviceMetrics()`         | 40      | 22      | -18            |
+| `getDeviceFailureState()`           | 24      | 12      | -12            |
+| `getDeviceTimeout()`                | 24      | 12      | -12            |
+| `getDeviceMetrics()`                | 24      | 12      | -12            |
+| `handleReadFailure()`               | 50      | 28      | -22            |
+| `shouldRetryDevice()`               | 20      | 10      | -10            |
+| `calculateBackoffTime()`            | 20      | 12      | -8             |
+| `resetDeviceFailureState()`         | 24      | 12      | -12            |
+| `handleReadTimeout()`               | 40      | 22      | -18            |
+| `isDeviceEnabled()`                 | 16      | 8       | -8             |
+| `enableDevice()`                    | 72      | 38      | -34            |
+| `disableDevice()`                   | 64      | 34      | -30            |
+| **TOTAL**                           | **498** | **267** | **-231 (46%)** |
 
 ### 5.3 BLE Command API
 
-| Method | BEFORE | AFTER | Pengurangan |
-|--------|--------|-------|-------------|
-| `enableDeviceByCommand()` | 30 | 16 | -14 |
-| `disableDeviceByCommand()` | 30 | 16 | -14 |
-| `getDeviceStatusInfo()` | 125 | 65 | -60 |
-| `getAllDevicesStatus()` | 27 | 15 | -12 |
-| **TOTAL** | **212** | **112** | **-100 (47%)** |
+| Method                     | BEFORE  | AFTER   | Pengurangan    |
+| -------------------------- | ------- | ------- | -------------- |
+| `enableDeviceByCommand()`  | 30      | 16      | -14            |
+| `disableDeviceByCommand()` | 30      | 16      | -14            |
+| `getDeviceStatusInfo()`    | 125     | 65      | -60            |
+| `getAllDevicesStatus()`    | 27      | 15      | -12            |
+| **TOTAL**                  | **212** | **112** | **-100 (47%)** |
 
 ### 5.4 Polling/Timer Methods
 
-| Method | BEFORE | AFTER | Pengurangan |
-|--------|--------|-------|-------------|
-| `getDeviceTimer()` | 24 | 12 | -12 |
-| `shouldPollDevice()` | 35 | 18 | -17 |
-| `updateDeviceLastRead()` | 16 | 8 | -8 |
-| `shouldTransmitData()` | 10 | 5 | -5 |
-| `updateDataTransmissionTime()` | 8 | 4 | -4 |
-| `setDataTransmissionInterval()` | 10 | 6 | -4 |
-| **TOTAL** | **103** | **53** | **-50 (49%)** |
+| Method                          | BEFORE  | AFTER  | Pengurangan   |
+| ------------------------------- | ------- | ------ | ------------- |
+| `getDeviceTimer()`              | 24      | 12     | -12           |
+| `shouldPollDevice()`            | 35      | 18     | -17           |
+| `updateDeviceLastRead()`        | 16      | 8      | -8            |
+| `shouldTransmitData()`          | 10      | 5      | -5            |
+| `updateDataTransmissionTime()`  | 8       | 4      | -4            |
+| `setDataTransmissionInterval()` | 10      | 6      | -4            |
+| **TOTAL**                       | **103** | **53** | **-50 (49%)** |
 
 ### 5.5 Auto-Recovery
 
-| Method | BEFORE | AFTER | Pengurangan |
-|--------|--------|-------|-------------|
-| `autoRecoveryTask()` | 10 | 5 | -5 |
-| `autoRecoveryLoop()` | 71 | 38 | -33 |
-| **TOTAL** | **81** | **43** | **-38 (47%)** |
+| Method               | BEFORE | AFTER  | Pengurangan   |
+| -------------------- | ------ | ------ | ------------- |
+| `autoRecoveryTask()` | 10     | 5      | -5            |
+| `autoRecoveryLoop()` | 71     | 38     | -33           |
+| **TOTAL**            | **81** | **43** | **-38 (47%)** |
 
 ### 5.6 Ringkasan Total
 
-| Kategori | BEFORE | AFTER | Pengurangan |
-|----------|--------|-------|-------------|
-| Struct Definitions | 185 | 106 | -79 (43%) |
-| Device Management | 498 | 267 | -231 (46%) |
-| BLE Command API | 212 | 112 | -100 (47%) |
-| Polling/Timer | 103 | 53 | -50 (49%) |
-| Auto-Recovery | 81 | 43 | -38 (47%) |
-| **GRAND TOTAL** | **1.079** | **581** | **-498 (46%)** |
+| Kategori           | BEFORE    | AFTER   | Pengurangan    |
+| ------------------ | --------- | ------- | -------------- |
+| Struct Definitions | 185       | 106     | -79 (43%)      |
+| Device Management  | 498       | 267     | -231 (46%)     |
+| BLE Command API    | 212       | 112     | -100 (47%)     |
+| Polling/Timer      | 103       | 53      | -50 (49%)      |
+| Auto-Recovery      | 81        | 43      | -38 (47%)      |
+| **GRAND TOTAL**    | **1.079** | **581** | **-498 (46%)** |
 
 ---
 
@@ -620,6 +642,7 @@ if (!ptr) {
 **Tujuan:** Membuat `ModbusDeviceTypes.h` dengan semua struct template
 
 **Langkah:**
+
 1. Buat file baru `Main/ModbusDeviceTypes.h`
 2. Definisikan template struct untuk semua tipe data
 3. Update `ModbusRtuService.h` untuk menggunakan type alias
@@ -629,6 +652,7 @@ if (!ptr) {
 **Risiko:** Rendah - hanya memindahkan definisi, tidak mengubah logika
 
 **Deliverable:**
+
 ```cpp
 // ModbusDeviceTypes.h
 template<typename StringT>
@@ -645,6 +669,7 @@ struct DeviceFailureState { ... };
 **Tujuan:** Membuat `ModbusDeviceManager.h` dengan semua shared logic
 
 **Langkah:**
+
 1. Buat file baru `Main/ModbusDeviceManager.h`
 2. Implementasi template class dengan semua method
 3. Tambahkan parameter untuk perbedaan (backoff delay, log prefix)
@@ -655,6 +680,7 @@ struct DeviceFailureState { ... };
 **Risiko:** Medium - perubahan signifikan pada internal struktur
 
 **Deliverable:**
+
 ```cpp
 // ModbusDeviceManager.h
 template<typename StringT, typename DeviceConfigT>
@@ -671,6 +697,7 @@ public:
 **Tujuan:** Migrasi semua BLE command API dan auto-recovery ke shared manager
 
 **Langkah:**
+
 1. Pindahkan `enableDeviceByCommand()`, `disableDeviceByCommand()` ke manager
 2. Pindahkan `getDeviceStatusInfo()`, `getAllDevicesStatus()` ke manager
 3. Pindahkan `autoRecoveryLoop()` ke manager
@@ -684,6 +711,7 @@ public:
 **Tujuan:** Memastikan semua fungsionalitas bekerja seperti sebelumnya
 
 **Test Scenarios:**
+
 1. Device polling RTU dan TCP
 2. Device failure dan auto-recovery
 3. BLE commands: enable/disable device
@@ -692,6 +720,7 @@ public:
 6. Config change notification
 
 **Acceptance Criteria:**
+
 - Semua existing functionality berfungsi sama
 - Tidak ada regresi pada log output
 - Memory usage tidak meningkat signifikan
@@ -754,15 +783,15 @@ Main/
 
 ### 7.3 Perbandingan Size
 
-| File | BEFORE (LOC) | AFTER (LOC) | Delta |
-|------|-------------|-------------|-------|
-| ModbusDeviceTypes.h | 0 (baru) | ~100 | +100 |
-| ModbusDeviceManager.h | 0 (baru) | ~450 | +450 |
-| ModbusRtuService.h | 247 | ~130 | -117 |
-| ModbusRtuService.cpp | ~1600 | ~1220 | -380 |
-| ModbusTcpService.h | 267 | ~150 | -117 |
-| ModbusTcpService.cpp | 2119 | ~1740 | -379 |
-| **TOTAL** | **4233** | **3790** | **-443** |
+| File                  | BEFORE (LOC) | AFTER (LOC) | Delta    |
+| --------------------- | ------------ | ----------- | -------- |
+| ModbusDeviceTypes.h   | 0 (baru)     | ~100        | +100     |
+| ModbusDeviceManager.h | 0 (baru)     | ~450        | +450     |
+| ModbusRtuService.h    | 247          | ~130        | -117     |
+| ModbusRtuService.cpp  | ~1600        | ~1220       | -380     |
+| ModbusTcpService.h    | 267          | ~150        | -117     |
+| ModbusTcpService.cpp  | 2119         | ~1740       | -379     |
+| **TOTAL**             | **4233**     | **3790**    | **-443** |
 
 ---
 
@@ -836,6 +865,7 @@ public:
 ```
 
 **Catatan Migrasi TCP ke PSRAMString:**
+
 1. Tambahkan `#include "PSRAMString.h"` di header
 2. Ubah semua internal string dari `String` ke `PSRAMString`
 3. Public API bisa tetap menerima `const String&` untuk backward compatibility
@@ -882,22 +912,22 @@ class ModbusTcpService {
 
 #### 9.1.1 Unit Tests (Jika Ditambahkan)
 
-| Test Case | Deskripsi |
-|-----------|-----------|
-| `test_calculateBackoffTime` | Verify exponential backoff formula |
-| `test_deviceFailureTracking` | Verify failure counter increment |
-| `test_deviceEnableDisable` | Verify enable/disable state changes |
-| `test_healthMetricsRecording` | Verify metrics calculation |
+| Test Case                     | Deskripsi                           |
+| ----------------------------- | ----------------------------------- |
+| `test_calculateBackoffTime`   | Verify exponential backoff formula  |
+| `test_deviceFailureTracking`  | Verify failure counter increment    |
+| `test_deviceEnableDisable`    | Verify enable/disable state changes |
+| `test_healthMetricsRecording` | Verify metrics calculation          |
 
 #### 9.1.2 Integration Tests
 
-| Test Case | Langkah | Expected Result |
-|-----------|---------|-----------------|
-| RTU Polling | 1. Start RTU service<br>2. Poll device<br>3. Check metrics | Metrics updated correctly |
-| TCP Polling | 1. Start TCP service<br>2. Poll device<br>3. Check metrics | Metrics updated correctly |
+| Test Case          | Langkah                                                                                           | Expected Result                |
+| ------------------ | ------------------------------------------------------------------------------------------------- | ------------------------------ |
+| RTU Polling        | 1. Start RTU service<br>2. Poll device<br>3. Check metrics                                        | Metrics updated correctly      |
+| TCP Polling        | 1. Start TCP service<br>2. Poll device<br>3. Check metrics                                        | Metrics updated correctly      |
 | BLE Enable/Disable | 1. Send disable command<br>2. Verify polling stops<br>3. Send enable<br>4. Verify polling resumes | Device state changes correctly |
-| Auto-Recovery | 1. Simulate max retries<br>2. Wait 5 minutes<br>3. Verify device re-enabled | Auto-recovery works |
-| Config Change | 1. Change config via BLE<br>2. Verify both services refresh | Config propagates correctly |
+| Auto-Recovery      | 1. Simulate max retries<br>2. Wait 5 minutes<br>3. Verify device re-enabled                       | Auto-recovery works            |
+| Config Change      | 1. Change config via BLE<br>2. Verify both services refresh                                       | Config propagates correctly    |
 
 ### 9.2 Regression Testing Checklist
 
@@ -921,27 +951,29 @@ class ModbusTcpService {
 
 ### 10.1 Risiko Teknis
 
-| Risiko | Probabilitas | Dampak | Mitigasi |
-|--------|--------------|--------|----------|
-| Template bloat (binary size increase) | Medium | Low | Monitor build size, use explicit instantiation jika perlu |
-| Compile time increase | Low | Low | Template di header, but minimal nesting |
-| Runtime behavior change | Low | High | Extensive testing, gradual rollout |
-| Memory layout difference | Low | Medium | Verify sizeof() struct sama |
+| Risiko                                | Probabilitas | Dampak | Mitigasi                                                  |
+| ------------------------------------- | ------------ | ------ | --------------------------------------------------------- |
+| Template bloat (binary size increase) | Medium       | Low    | Monitor build size, use explicit instantiation jika perlu |
+| Compile time increase                 | Low          | Low    | Template di header, but minimal nesting                   |
+| Runtime behavior change               | Low          | High   | Extensive testing, gradual rollout                        |
+| Memory layout difference              | Low          | Medium | Verify sizeof() struct sama                               |
 
 ### 10.2 Risiko Proses
 
-| Risiko | Probabilitas | Dampak | Mitigasi |
-|--------|--------------|--------|----------|
-| Refactoring memakan waktu lebih lama | Medium | Medium | Phase-based approach, dapat dihentikan setiap phase |
-| Bug introduced during refactoring | Medium | High | Comprehensive testing, code review |
-| Merge conflicts dengan development lain | Low | Medium | Koordinasi dengan tim, refactor di branch terpisah |
+| Risiko                                  | Probabilitas | Dampak | Mitigasi                                            |
+| --------------------------------------- | ------------ | ------ | --------------------------------------------------- |
+| Refactoring memakan waktu lebih lama    | Medium       | Medium | Phase-based approach, dapat dihentikan setiap phase |
+| Bug introduced during refactoring       | Medium       | High   | Comprehensive testing, code review                  |
+| Merge conflicts dengan development lain | Low          | Medium | Koordinasi dengan tim, refactor di branch terpisah  |
 
 ### 10.3 Rollback Plan
 
 Jika ditemukan masalah kritis setelah refactoring:
 
-1. **Phase 1 Rollback:** Revert `ModbusDeviceTypes.h` dan restore original structs
-2. **Phase 2 Rollback:** Revert `ModbusDeviceManager.h` dan restore original methods
+1. **Phase 1 Rollback:** Revert `ModbusDeviceTypes.h` dan restore original
+   structs
+2. **Phase 2 Rollback:** Revert `ModbusDeviceManager.h` dan restore original
+   methods
 3. **Full Rollback:** Git revert ke commit sebelum refactoring dimulai
 
 ---
@@ -952,11 +984,11 @@ Sebelum memulai implementasi, diperlukan keputusan untuk:
 
 ### 11.1 String Type Strategy
 
-| Opsi | Deskripsi | Pro | Con |
-|------|-----------|-----|-----|
-| **A** | Keep both via template | Backward compatible | Template complexity, inconsistensi |
-| **B** | Unify ke PSRAMString | Better memory efficiency, konsisten | Sedikit refactoring di TCP |
-| **C** | Unify ke Arduino String | Simpler code | Buruk untuk memory - TIDAK DIREKOMENDASIKAN |
+| Opsi  | Deskripsi               | Pro                                 | Con                                         |
+| ----- | ----------------------- | ----------------------------------- | ------------------------------------------- |
+| **A** | Keep both via template  | Backward compatible                 | Template complexity, inconsistensi          |
+| **B** | Unify ke PSRAMString    | Better memory efficiency, konsisten | Sedikit refactoring di TCP                  |
+| **C** | Unify ke Arduino String | Simpler code                        | Buruk untuk memory - TIDAK DIREKOMENDASIKAN |
 
 **~~Rekomendasi Lama:~~ ~~Opsi A (Keep both via template)~~**
 
@@ -964,41 +996,48 @@ Sebelum memulai implementasi, diperlukan keputusan untuk:
 
 #### Justifikasi Keputusan:
 
-Berdasarkan riset dokumentasi Espressif dan ESP32 Forum, diputuskan untuk menggunakan **PSRAMString untuk kedua service** karena:
+Berdasarkan riset dokumentasi Espressif dan ESP32 Forum, diputuskan untuk
+menggunakan **PSRAMString untuk kedua service** karena:
 
-| Aspek | Arduino String | PSRAMString | Pemenang |
-|-------|---------------|-------------|----------|
-| Alokasi memori | DRAM only | PSRAM + DRAM fallback | PSRAMString |
-| DRAM consumption | Tinggi | Rendah | PSRAMString |
-| Performa string kecil | Cepat | Sama (cache) | Seri |
-| Performa string besar | Cepat | Sedikit lambat | String |
-| Fragmentasi heap | Tinggi | Rendah (PSRAM besar) | PSRAMString |
-| WiFi/BLE stability | Dapat terganggu | Aman | PSRAMString |
+| Aspek                 | Arduino String  | PSRAMString           | Pemenang    |
+| --------------------- | --------------- | --------------------- | ----------- |
+| Alokasi memori        | DRAM only       | PSRAM + DRAM fallback | PSRAMString |
+| DRAM consumption      | Tinggi          | Rendah                | PSRAMString |
+| Performa string kecil | Cepat           | Sama (cache)          | Seri        |
+| Performa string besar | Cepat           | Sedikit lambat        | String      |
+| Fragmentasi heap      | Tinggi          | Rendah (PSRAM besar)  | PSRAMString |
+| WiFi/BLE stability    | Dapat terganggu | Aman                  | PSRAMString |
 
 **Fakta Teknis:**
-1. **PSRAM Cache:** String kecil (<16KB) yang sering diakses masuk CPU cache → performa identik dengan DRAM
-2. **DRAM Limited:** ESP32-S3 hanya punya 512KB DRAM yang harus dibagi dengan WiFi/BLE stack
-3. **Fallback Aman:** PSRAMString otomatis fallback ke DRAM jika PSRAM gagal
-4. **Best Practice Espressif:** "Use PSRAM for large allocations, let cache handle frequently accessed data"
 
-**Kesimpulan:** Tidak ada alasan teknis untuk menggunakan Arduino String di TCP service. PSRAMString unified memberikan konsistensi dan efisiensi memori yang lebih baik.
+1. **PSRAM Cache:** String kecil (<16KB) yang sering diakses masuk CPU cache →
+   performa identik dengan DRAM
+2. **DRAM Limited:** ESP32-S3 hanya punya 512KB DRAM yang harus dibagi dengan
+   WiFi/BLE stack
+3. **Fallback Aman:** PSRAMString otomatis fallback ke DRAM jika PSRAM gagal
+4. **Best Practice Espressif:** "Use PSRAM for large allocations, let cache
+   handle frequently accessed data"
+
+**Kesimpulan:** Tidak ada alasan teknis untuk menggunakan Arduino String di TCP
+service. PSRAMString unified memberikan konsistensi dan efisiensi memori yang
+lebih baik.
 
 ### 11.2 Implementation Priority
 
-| Opsi | Deskripsi |
-|------|-----------|
-| **A** | Full refactoring (Phase 1-4) |
+| Opsi  | Deskripsi                            |
+| ----- | ------------------------------------ |
+| **A** | Full refactoring (Phase 1-4)         |
 | **B** | Partial refactoring (Phase 1-2 saja) |
-| **C** | Postpone sampai next major version |
+| **C** | Postpone sampai next major version   |
 
 **Rekomendasi:** Opsi A atau B tergantung timeline proyek
 
 ### 11.3 Testing Approach
 
-| Opsi | Deskripsi |
-|------|-----------|
-| **A** | Manual testing saja |
-| **B** | Add unit tests untuk shared code |
+| Opsi  | Deskripsi                          |
+| ----- | ---------------------------------- |
+| **A** | Manual testing saja                |
+| **B** | Add unit tests untuk shared code   |
 | **C** | Add unit tests + integration tests |
 
 **Rekomendasi:** Opsi B (minimal unit tests untuk shared logic)
@@ -1009,14 +1048,14 @@ Berdasarkan riset dokumentasi Espressif dan ESP32 Forum, diputuskan untuk menggu
 
 ### 12.1 File Locations Reference
 
-| File | Path | LOC |
-|------|------|-----|
-| ModbusRtuService.h | `Main/ModbusRtuService.h` | 247 |
+| File                 | Path                        | LOC   |
+| -------------------- | --------------------------- | ----- |
+| ModbusRtuService.h   | `Main/ModbusRtuService.h`   | 247   |
 | ModbusRtuService.cpp | `Main/ModbusRtuService.cpp` | ~1600 |
-| ModbusTcpService.h | `Main/ModbusTcpService.h` | 267 |
-| ModbusTcpService.cpp | `Main/ModbusTcpService.cpp` | 2119 |
-| ModbusUtils.h | `Main/ModbusUtils.h` | 76 |
-| ModbusUtils.cpp | `Main/ModbusUtils.cpp` | 186 |
+| ModbusTcpService.h   | `Main/ModbusTcpService.h`   | 267   |
+| ModbusTcpService.cpp | `Main/ModbusTcpService.cpp` | 2119  |
+| ModbusUtils.h        | `Main/ModbusUtils.h`        | 76    |
+| ModbusUtils.cpp      | `Main/ModbusUtils.cpp`      | 186   |
 
 ### 12.2 Related Documentation
 
@@ -1026,30 +1065,38 @@ Berdasarkan riset dokumentasi Espressif dan ESP32 Forum, diputuskan untuk menggu
 
 ### 12.3 Version History Dokumen Ini
 
-| Versi | Tanggal | Perubahan |
-|-------|---------|-----------|
-| 1.0 | 27 Des 2025 | Initial draft |
-| 1.1 | 27 Des 2025 | **UPDATE:** Rekomendasi diubah dari Hybrid (Opsi A) ke PSRAMString Unified (Opsi B) berdasarkan riset Espressif. Ditambahkan Section 4.5 tentang justifikasi teknis PSRAM cache behavior. Updated architecture diagram dan code examples. |
+| Versi | Tanggal     | Perubahan                                                                                                                                                                                                                                 |
+| ----- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0   | 27 Des 2025 | Initial draft                                                                                                                                                                                                                             |
+| 1.1   | 27 Des 2025 | **UPDATE:** Rekomendasi diubah dari Hybrid (Opsi A) ke PSRAMString Unified (Opsi B) berdasarkan riset Espressif. Ditambahkan Section 4.5 tentang justifikasi teknis PSRAM cache behavior. Updated architecture diagram dan code examples. |
 
 ---
 
 ## Catatan Penutup
 
-Refactoring ini adalah **technical debt cleanup** yang akan meningkatkan maintainability codebase. Meskipun membutuhkan effort signifikan, manfaat jangka panjang berupa:
+Refactoring ini adalah **technical debt cleanup** yang akan meningkatkan
+maintainability codebase. Meskipun membutuhkan effort signifikan, manfaat jangka
+panjang berupa:
 
 1. **Single source of truth** untuk device management logic
 2. **Easier bug fixes** - perbaiki di satu tempat, berlaku untuk RTU dan TCP
 3. **Consistent behavior** - tidak ada risiko implementasi berbeda
 4. **Better testability** - shared code bisa di-unit test
-5. **Unified memory strategy** - PSRAMString untuk semua, menjaga DRAM untuk WiFi/BLE
+5. **Unified memory strategy** - PSRAMString untuk semua, menjaga DRAM untuk
+   WiFi/BLE
 
-**Update v1.1:** Keputusan untuk menggunakan PSRAMString secara konsisten di kedua service didasarkan pada riset teknis yang membuktikan:
+**Update v1.1:** Keputusan untuk menggunakan PSRAMString secara konsisten di
+kedua service didasarkan pada riset teknis yang membuktikan:
+
 - PSRAM cache membuat string kecil berperforma identik dengan DRAM
-- Arduino String mengkonsumsi DRAM yang terbatas dan shared dengan WiFi/BLE stack
-- PSRAMString dengan fallback ke DRAM adalah strategi paling optimal untuk ESP32-S3
+- Arduino String mengkonsumsi DRAM yang terbatas dan shared dengan WiFi/BLE
+  stack
+- PSRAMString dengan fallback ke DRAM adalah strategi paling optimal untuk
+  ESP32-S3
 
 Dokumen ini akan di-update setelah menerima feedback dari review.
 
 ---
 
-*Dokumen ini dibuat oleh Claude AI Assistant sebagai bagian dari analisis firmware SRT-MGATE-1210.*
+_Dokumen ini dibuat oleh Claude AI Assistant sebagai bagian dari analisis
+firmware SRT-MGATE-1210._

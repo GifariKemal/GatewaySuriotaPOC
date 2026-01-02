@@ -1,13 +1,12 @@
 # BLE Gateway Identity API
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Multi-Gateway Support & Device Identification
+**SRT-MGATE-1210 Modbus IIoT Gateway** Multi-Gateway Support & Device
+Identification
 
-[Home](../../README.md) > [Documentation](../README.md) > [API Reference](API.md) > Gateway Identity
+[Home](../../README.md) > [Documentation](../README.md) >
+[API Reference](API.md) > Gateway Identity
 
-**Version:** 2.5.34
-**Release Date:** December 10, 2025
-**Developer:** Kemal
+**Version:** 2.5.34 **Release Date:** December 10, 2025 **Developer:** Kemal
 
 ---
 
@@ -33,19 +32,22 @@ Multi-Gateway Support & Device Identification
 
 ## Overview
 
-Starting from firmware **v2.5.32**, the SRT-MGATE-1210 gateway uses a **product-based BLE naming convention**. Each gateway automatically generates a **unique BLE name** with product model and variant information, plus a unique identifier from its MAC address.
+Starting from firmware **v2.5.32**, the SRT-MGATE-1210 gateway uses a
+**product-based BLE naming convention**. Each gateway automatically generates a
+**unique BLE name** with product model and variant information, plus a unique
+identifier from its MAC address.
 
 ### Key Features
 
-| Feature                | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| **Product BLE Name**   | Auto-generated: `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)|
-| **Serial Number**      | Auto-generated: `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)            |
-| **Friendly Name**      | User-configurable custom name (max 32 chars)                             |
-| **Location**           | Optional location info (max 64 chars)                                    |
-| **Persistent Storage** | Config saved to `/gateway_config.json` on LittleFS                       |
-| **Zero Configuration** | Works out-of-box, no manual setup required                               |
-| **Variant Support**    | POE (P) and Non-POE variants configurable in `ProductConfig.h`           |
+| Feature                | Description                                                               |
+| ---------------------- | ------------------------------------------------------------------------- |
+| **Product BLE Name**   | Auto-generated: `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE) |
+| **Serial Number**      | Auto-generated: `SRT-MGATE1210P-YYYYMMDD-XXXXXX` (18+ digits)             |
+| **Friendly Name**      | User-configurable custom name (max 32 chars)                              |
+| **Location**           | Optional location info (max 64 chars)                                     |
+| **Persistent Storage** | Config saved to `/gateway_config.json` on LittleFS                        |
+| **Zero Configuration** | Works out-of-box, no manual setup required                                |
+| **Variant Support**    | POE (P) and Non-POE variants configurable in `ProductConfig.h`            |
 
 ---
 
@@ -126,7 +128,8 @@ Starting from firmware **v2.5.32**, the SRT-MGATE-1210 gateway uses a **product-
 
 ## BLE Name Format
 
-Each gateway automatically generates a unique BLE advertising name based on product model and variant:
+Each gateway automatically generates a unique BLE advertising name based on
+product model and variant:
 
 ### v2.5.32+ Format (Current)
 
@@ -138,11 +141,11 @@ MGate-1210-XXXX       ← Non-POE Variant
 
 ### Examples (v2.5.32+)
 
-| Variant  | Full MAC Address    | BLE Name              |
-| -------- | ------------------- | --------------------- |
-| POE      | `AA:BB:CC:DD:A7:16` | `MGate-1210(P)-A716`  |
-| POE      | `11:22:33:44:B2:13` | `MGate-1210(P)-B213`  |
-| Non-POE  | `FF:EE:DD:CC:C7:26` | `MGate-1210-C726`     |
+| Variant | Full MAC Address    | BLE Name             |
+| ------- | ------------------- | -------------------- |
+| POE     | `AA:BB:CC:DD:A7:16` | `MGate-1210(P)-A716` |
+| POE     | `11:22:33:44:B2:13` | `MGate-1210(P)-B213` |
+| Non-POE | `FF:EE:DD:CC:C7:26` | `MGate-1210-C726`    |
 
 ### Legacy Format (v2.5.31)
 
@@ -207,21 +210,21 @@ Retrieve complete gateway identification information.
 
 #### Response Fields
 
-| Field            | Type    | Description                                    |
-| ---------------- | ------- | ---------------------------------------------- |
-| `ble_name`       | string  | Auto-generated BLE advertising name            |
-| `mac`            | string  | Full Bluetooth MAC address                     |
-| `uid`            | string  | Unique ID (last 4 hex chars of MAC)            |
-| `short_mac`      | string  | Last 6 hex chars (for compatibility)           |
-| `serial_number`  | string  | Full serial number                             |
-| `friendly_name`  | string  | User-set custom name (empty if not set)        |
-| `location`       | string  | User-set location (empty if not set)           |
-| `firmware`       | string  | Current firmware version                       |
-| `build_number`   | number  | Firmware build number for OTA comparison       |
-| `model`          | string  | Full product model (e.g., "MGate-1210(P)")     |
-| `variant`        | string  | Product variant ("P" for POE, "" for Non-POE)  |
-| `is_poe`         | boolean | Whether this is POE variant                    |
-| `manufacturer`   | string  | Manufacturer name                              |
+| Field           | Type    | Description                                   |
+| --------------- | ------- | --------------------------------------------- |
+| `ble_name`      | string  | Auto-generated BLE advertising name           |
+| `mac`           | string  | Full Bluetooth MAC address                    |
+| `uid`           | string  | Unique ID (last 4 hex chars of MAC)           |
+| `short_mac`     | string  | Last 6 hex chars (for compatibility)          |
+| `serial_number` | string  | Full serial number                            |
+| `friendly_name` | string  | User-set custom name (empty if not set)       |
+| `location`      | string  | User-set location (empty if not set)          |
+| `firmware`      | string  | Current firmware version                      |
+| `build_number`  | number  | Firmware build number for OTA comparison      |
+| `model`         | string  | Full product model (e.g., "MGate-1210(P)")    |
+| `variant`       | string  | Product variant ("P" for POE, "" for Non-POE) |
+| `is_poe`        | boolean | Whether this is POE variant                   |
+| `manufacturer`  | string  | Manufacturer name                             |
 
 ---
 
@@ -930,31 +933,42 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 ### Q: Can I change the BLE name prefix from "MGate-1210"?
 
-**A:** Starting from v2.5.32, the BLE name format is defined in `ProductConfig.h`. To change it, modify `BLE_NAME_PREFIX` and recompile the firmware.
+**A:** Starting from v2.5.32, the BLE name format is defined in
+`ProductConfig.h`. To change it, modify `BLE_NAME_PREFIX` and recompile the
+firmware.
 
 ### Q: What happens if two gateways have the same last 2 MAC bytes?
 
-**A:** This is unlikely (1 in 65,536). If it happens, both devices will have the same BLE name suffix but different full MAC addresses. Use the full MAC for identification.
+**A:** This is unlikely (1 in 65,536). If it happens, both devices will have the
+same BLE name suffix but different full MAC addresses. Use the full MAC for
+identification.
 
 ### Q: How do I support both old and new BLE name formats?
 
-**A:** Scan for devices starting with "MGate-1210" (v2.5.32+) or "SURIOTA-" (legacy). The Python test scripts and mobile app examples in this document show how to handle both formats.
+**A:** Scan for devices starting with "MGate-1210" (v2.5.32+) or "SURIOTA-"
+(legacy). The Python test scripts and mobile app examples in this document show
+how to handle both formats.
 
 ### Q: Is the friendly_name synced to the cloud?
 
-**A:** No, friendly_name is stored locally on the gateway's LittleFS. The mobile app should maintain its own gateway registry for offline access.
+**A:** No, friendly_name is stored locally on the gateway's LittleFS. The mobile
+app should maintain its own gateway registry for offline access.
 
 ### Q: Can I set friendly_name via MQTT?
 
-**A:** Currently, gateway identity commands are only available via BLE. MQTT support can be added in future versions.
+**A:** Currently, gateway identity commands are only available via BLE. MQTT
+support can be added in future versions.
 
 ### Q: What if the gateway is factory reset?
 
-**A:** Factory reset clears `/gateway_config.json`, so friendly_name and location will be empty. The BLE name (MAC-based) remains unchanged.
+**A:** Factory reset clears `/gateway_config.json`, so friendly_name and
+location will be empty. The BLE name (MAC-based) remains unchanged.
 
 ### Q: What's the difference between `uid` and `short_mac`?
 
-**A:** In v2.5.32+, `uid` is the last 4 hex chars of MAC (2 bytes), used in the BLE name. `short_mac` is the last 6 hex chars (3 bytes), kept for backward compatibility with legacy systems.
+**A:** In v2.5.32+, `uid` is the last 4 hex chars of MAC (2 bytes), used in the
+BLE name. `short_mac` is the last 6 hex chars (3 bytes), kept for backward
+compatibility with legacy systems.
 
 ---
 
@@ -967,6 +981,5 @@ func parseGatewayInfo(jsonData: Data) -> GatewayInfo? {
 
 ---
 
-**Document Version:** 2.1
-**Last Updated:** December 10, 2025
-**Author:** Kemal (with Claude Code)
+**Document Version:** 2.1 **Last Updated:** December 10, 2025 **Author:** Kemal
+(with Claude Code)

@@ -40,10 +40,10 @@ import io
 from datetime import datetime
 
 # Fix Windows console encoding for Unicode characters
-if sys.platform == 'win32':
+if sys.platform == "win32":
     # Set UTF-8 encoding for stdout/stderr
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 try:
     from bleak import BleakClient, BleakScanner
@@ -54,17 +54,22 @@ except ImportError:
 
 try:
     from colorama import init, Fore, Back, Style
+
     init(autoreset=True)
     COLORAMA_AVAILABLE = True
 except ImportError:
     COLORAMA_AVAILABLE = False
+
     # Fallback - empty strings if colorama not available
     class Fore:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Back:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Style:
         BRIGHT = DIM = RESET_ALL = ""
+
 
 # ============================================================================
 # BLE Configuration
@@ -83,13 +88,13 @@ SERVICE_NAME_LEGACY = "SURIOTA GW"  # Older firmware format
 SCAN_TIMEOUT = 10.0
 CONNECT_TIMEOUT = 15.0
 RESPONSE_TIMEOUT = 120  # 2 minutes for OTA operations
-CHUNK_DELAY = 0.1       # Delay between BLE chunks
-COMMAND_DELAY = 3.0     # Delay between OTA commands
+CHUNK_DELAY = 0.1  # Delay between BLE chunks
+COMMAND_DELAY = 3.0  # Delay between OTA commands
 
 # GitHub Token for Private Repository Access
 # Set this ONLY if repository is PRIVATE. Leave empty for public repos.
 # Note: Token can cause 404 errors on public repos!
-GITHUB_TOKEN = "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1"  # Set your GitHub Personal Access Token here for private repos
+GITHUB_TOKEN = "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"  # Set your GitHub Personal Access Token here for private repos
 
 # ============================================================================
 # Global Variables
@@ -109,9 +114,10 @@ ota_progress_data = {
     "state": "IDLE",
     "retry_count": 0,
     "max_retries": 3,
-    "last_update": 0
+    "last_update": 0,
 }
 ota_progress_callback = None  # Optional callback for progress updates
+
 
 # ============================================================================
 # Terminal UI Helpers
@@ -120,16 +126,20 @@ def clear_line():
     """Clear current line"""
     print("\r" + " " * 80 + "\r", end="")
 
+
 def print_header():
     """Print beautiful header"""
     print()
     print(f"{Fore.CYAN}{'═' * 70}")
     print(f"{Fore.CYAN}║{' ' * 68}║")
-    print(f"{Fore.CYAN}║{Fore.WHITE}  🚀  OTA FIRMWARE UPDATE TOOL  -  SRT-MGATE-1210{' ' * 19}║")
+    print(
+        f"{Fore.CYAN}║{Fore.WHITE}  🚀  OTA FIRMWARE UPDATE TOOL  -  SRT-MGATE-1210{' ' * 19}║"
+    )
     print(f"{Fore.CYAN}║{' ' * 68}║")
     print(f"{Fore.CYAN}{'═' * 70}")
     print(f"{Fore.WHITE}  Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
+
 
 def print_step(step_num, total_steps, title, status="running"):
     """Print step indicator"""
@@ -138,24 +148,30 @@ def print_step(step_num, total_steps, title, status="running"):
         "success": f"{Fore.GREEN}✅",
         "error": f"{Fore.RED}❌",
         "skip": f"{Fore.CYAN}⏭️",
-        "wait": f"{Fore.MAGENTA}⏱️"
+        "wait": f"{Fore.MAGENTA}⏱️",
     }
     icon = icons.get(status, "▶️")
     print(f"\n{Fore.CYAN}{'─' * 70}")
     print(f"{icon} {Fore.WHITE}[Step {step_num}/{total_steps}] {Style.BRIGHT}{title}")
     print(f"{Fore.CYAN}{'─' * 70}")
 
+
 def print_progress_bar(progress, width=50, prefix="Progress"):
     """Print progress bar"""
     filled = int(width * progress / 100)
     bar = "█" * filled + "░" * (width - filled)
     color = Fore.GREEN if progress >= 100 else Fore.YELLOW
-    print(f"\r  {prefix}: {color}[{bar}] {progress}%{Style.RESET_ALL}", end="", flush=True)
+    print(
+        f"\r  {prefix}: {color}[{bar}] {progress}%{Style.RESET_ALL}", end="", flush=True
+    )
+
 
 def print_box(title, content, color=Fore.WHITE):
     """Print content in a box"""
     print(f"\n  {color}┌{'─' * 64}┐")
-    print(f"  {color}│ {Style.BRIGHT}{title}{Style.RESET_ALL}{color}{' ' * (63 - len(title))}│")
+    print(
+        f"  {color}│ {Style.BRIGHT}{title}{Style.RESET_ALL}{color}{' ' * (63 - len(title))}│"
+    )
     print(f"  {color}├{'─' * 64}┤")
 
     if isinstance(content, dict):
@@ -164,26 +180,32 @@ def print_box(title, content, color=Fore.WHITE):
             padding = 63 - len(line)
             print(f"  {color}│{Fore.WHITE}{line}{' ' * max(0, padding)}{color}│")
     else:
-        for line in str(content).split('\n')[:10]:  # Max 10 lines
+        for line in str(content).split("\n")[:10]:  # Max 10 lines
             padding = 63 - len(line)
             print(f"  {color}│{Fore.WHITE} {line[:62]}{' ' * max(0, padding)}{color}│")
 
     print(f"  {color}└{'─' * 64}┘")
 
+
 def print_success(message):
     print(f"\n  {Fore.GREEN}✅ {message}{Style.RESET_ALL}")
+
 
 def print_error(message):
     print(f"\n  {Fore.RED}❌ {message}{Style.RESET_ALL}")
 
+
 def print_warning(message):
     print(f"\n  {Fore.YELLOW}⚠️  {message}{Style.RESET_ALL}")
+
 
 def print_info(message):
     print(f"  {Fore.CYAN}ℹ️  {message}{Style.RESET_ALL}")
 
+
 def print_waiting(message):
     print(f"  {Fore.MAGENTA}⏱️  {message}{Style.RESET_ALL}")
+
 
 # ============================================================================
 # Animation Helpers
@@ -197,18 +219,28 @@ async def animate_waiting(message, duration):
     while time.time() < end_time:
         remaining = int(end_time - time.time())
         frame = frames[frame_idx % len(frames)]
-        print(f"\r  {Fore.MAGENTA}{frame} {message} ({remaining}s remaining)...{Style.RESET_ALL}    ", end="", flush=True)
+        print(
+            f"\r  {Fore.MAGENTA}{frame} {message} ({remaining}s remaining)...{Style.RESET_ALL}    ",
+            end="",
+            flush=True,
+        )
         frame_idx += 1
         await asyncio.sleep(0.1)
 
     print()
 
+
 async def countdown(seconds, message="Starting in"):
     """Show countdown"""
     for i in range(seconds, 0, -1):
-        print(f"\r  {Fore.YELLOW}⏳ {message} {i}...{Style.RESET_ALL}  ", end="", flush=True)
+        print(
+            f"\r  {Fore.YELLOW}⏳ {message} {i}...{Style.RESET_ALL}  ",
+            end="",
+            flush=True,
+        )
         await asyncio.sleep(1)
     print()
+
 
 # ============================================================================
 # BLE Functions
@@ -218,7 +250,7 @@ def notification_handler(sender, data):
     global response_buffer, response_complete, ota_progress_data, ota_progress_callback
 
     try:
-        chunk = data.decode('utf-8')
+        chunk = data.decode("utf-8")
 
         if chunk == "<END>":
             response_complete = True
@@ -354,16 +386,22 @@ async def scan_for_device():
             # Check new format: MGate-1210(P)XXXX or MGate-1210XXXX (v2.5.33+)
             if device.name.startswith(SERVICE_NAME_PREFIX):
                 suriota_devices.append(device)
-                print(f"  {Fore.GREEN}✓ Found: {device.name} ({device.address}){Style.RESET_ALL}")
+                print(
+                    f"  {Fore.GREEN}✓ Found: {device.name} ({device.address}){Style.RESET_ALL}"
+                )
             # Check v2.5.31 format: SURIOTA-XXXXXX
             elif device.name.startswith(SERVICE_NAME_LEGACY_PREFIX):
                 suriota_devices.append(device)
-                print(f"  {Fore.GREEN}✓ Found (v2.5.31): {device.name} ({device.address}){Style.RESET_ALL}")
+                print(
+                    f"  {Fore.GREEN}✓ Found (v2.5.31): {device.name} ({device.address}){Style.RESET_ALL}"
+                )
             # Check legacy format: SURIOTA GW (older firmware)
             elif device.name == SERVICE_NAME_LEGACY:
                 suriota_devices.append(device)
-                print(f"  {Fore.GREEN}✓ Found (legacy): {device.name} ({device.address}){Style.RESET_ALL}")
-    
+                print(
+                    f"  {Fore.GREEN}✓ Found (legacy): {device.name} ({device.address}){Style.RESET_ALL}"
+                )
+
     if len(suriota_devices) == 0:
         return None
     elif len(suriota_devices) == 1:
@@ -374,7 +412,9 @@ async def scan_for_device():
         for i, dev in enumerate(suriota_devices):
             print(f"    {i+1}. {dev.name} ({dev.address})")
         try:
-            choice = input(f"  {Fore.WHITE}Select device (1-{len(suriota_devices)}): {Style.RESET_ALL}").strip()
+            choice = input(
+                f"  {Fore.WHITE}Select device (1-{len(suriota_devices)}): {Style.RESET_ALL}"
+            ).strip()
             idx = int(choice) - 1
             if 0 <= idx < len(suriota_devices):
                 return suriota_devices[idx]
@@ -408,7 +448,7 @@ async def send_ota_command(client, command_type, wait_time=None):
 
     # Build command
     command = {"op": "ota", "type": command_type}
-    command_str = json.dumps(command, separators=(',', ':'))
+    command_str = json.dumps(command, separators=(",", ":"))
 
     print(f"\n  {Fore.CYAN}📤 Sending: {Fore.WHITE}{command_str}{Style.RESET_ALL}")
     print(f"  {Fore.CYAN}📥 Receiving: ", end="", flush=True)
@@ -416,12 +456,12 @@ async def send_ota_command(client, command_type, wait_time=None):
     # Fragment and send
     chunk_size = 18
     for i in range(0, len(command_str), chunk_size):
-        chunk = command_str[i:i+chunk_size]
-        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        chunk = command_str[i : i + chunk_size]
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode("utf-8"))
         await asyncio.sleep(CHUNK_DELAY)
 
     # Send end marker
-    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode("utf-8"))
 
     # Wait for response
     timeout = wait_time or RESPONSE_TIMEOUT
@@ -432,13 +472,17 @@ async def send_ota_command(client, command_type, wait_time=None):
         elapsed += 0.1
 
         # Show progress for long waits
-        if elapsed > 0 and int(elapsed) % 10 == 0 and int(elapsed) != int(elapsed - 0.1):
+        if (
+            elapsed > 0
+            and int(elapsed) % 10 == 0
+            and int(elapsed) != int(elapsed - 0.1)
+        ):
             print(f"{Fore.YELLOW}({int(elapsed)}s){Fore.CYAN}", end="", flush=True)
 
     print()  # New line after dots
 
     if response_complete:
-        full_response = ''.join(response_buffer)
+        full_response = "".join(response_buffer)
         return full_response
     else:
         return None
@@ -450,6 +494,7 @@ def parse_response(response_str):
         return json.loads(response_str)
     except:
         return {"raw": response_str}
+
 
 # ============================================================================
 # OTA Process Functions
@@ -467,7 +512,11 @@ async def step_check_update(client):
     data = parse_response(response)
 
     # Display response
-    print_box("📋 Server Response", response[:500] if len(response) > 500 else response, Fore.CYAN)
+    print_box(
+        "📋 Server Response",
+        response[:500] if len(response) > 500 else response,
+        Fore.CYAN,
+    )
 
     # Check status
     if data.get("status") != "ok":
@@ -492,7 +541,9 @@ async def step_check_update(client):
     # Get firmware size from manifest object
     manifest = data.get("manifest", {})
     firmware_size = manifest.get("size", 0)
-    available_build = manifest.get("version", available)  # Use version as build identifier
+    available_build = manifest.get(
+        "version", available
+    )  # Use version as build identifier
     release_notes = manifest.get("release_notes", "")
 
     # Build info display
@@ -500,12 +551,14 @@ async def step_check_update(client):
         "Current Version": current,
         "Target Version": available,
         "Firmware Size": f"{firmware_size:,} bytes" if firmware_size else "Unknown",
-        "Mandatory": "Yes" if mandatory else "No"
+        "Mandatory": "Yes" if mandatory else "No",
     }
 
     # Add release notes if available
     if release_notes:
-        info["Release Notes"] = release_notes[:50] + "..." if len(release_notes) > 50 else release_notes
+        info["Release Notes"] = (
+            release_notes[:50] + "..." if len(release_notes) > 50 else release_notes
+        )
 
     if update_available:
         print_success(f"Update available: {current} → {available}")
@@ -517,11 +570,13 @@ async def step_check_update(client):
         print_box("📦 Firmware Information", info, Fore.YELLOW)
 
         print()
-        print(f"  {Fore.YELLOW}Do you want to re-flash the same firmware anyway? (y/n){Style.RESET_ALL}")
+        print(
+            f"  {Fore.YELLOW}Do you want to re-flash the same firmware anyway? (y/n){Style.RESET_ALL}"
+        )
 
         try:
             choice = input(f"  {Fore.WHITE}> {Style.RESET_ALL}").strip().lower()
-            if choice in ['y', 'yes']:
+            if choice in ["y", "yes"]:
                 print_info("Proceeding with re-flash...")
                 return data  # Return data to continue with update
             else:
@@ -553,7 +608,9 @@ async def step_start_update(client):
     # Track download start time
     download_start = time.time()
 
-    response = await send_ota_command(client, "start_update", wait_time=360)  # 6 minutes timeout
+    response = await send_ota_command(
+        client, "start_update", wait_time=360
+    )  # 6 minutes timeout
 
     download_time = time.time() - download_start
 
@@ -569,7 +626,11 @@ async def step_start_update(client):
     data = parse_response(response)
 
     # Display response
-    print_box("📋 Server Response", response[:500] if len(response) > 500 else response, Fore.CYAN)
+    print_box(
+        "📋 Server Response",
+        response[:500] if len(response) > 500 else response,
+        Fore.CYAN,
+    )
 
     if data.get("status") == "ok":
         # Get final stats from progress data
@@ -579,16 +640,24 @@ async def step_start_update(client):
 
         avg_speed = total_bytes / download_time if download_time > 0 else 0
 
-        print_success(f"Firmware downloaded and verified in {download_time:.1f} seconds!")
+        print_success(
+            f"Firmware downloaded and verified in {download_time:.1f} seconds!"
+        )
 
         # Show verification details if available
         info = {
             "Download Time": f"{download_time:.1f} seconds",
-            "Total Size": f"{total_bytes:,} bytes ({total_bytes/(1024*1024):.2f} MB)" if total_bytes else "Unknown",
-            "Average Speed": f"{avg_speed/1024:.1f} KB/s" if avg_speed > 0 else "Unknown",
+            "Total Size": (
+                f"{total_bytes:,} bytes ({total_bytes/(1024*1024):.2f} MB)"
+                if total_bytes
+                else "Unknown"
+            ),
+            "Average Speed": (
+                f"{avg_speed/1024:.1f} KB/s" if avg_speed > 0 else "Unknown"
+            ),
             "Network Mode": final_network,
             "Status": data.get("message", "Success"),
-            "State": data.get("state", "VALIDATING")
+            "State": data.get("state", "VALIDATING"),
         }
         print_box("✅ Download Complete", info, Fore.GREEN)
         return True
@@ -604,16 +673,20 @@ async def step_confirm_apply(client):
     print()
     print(f"  {Fore.YELLOW}{'═' * 60}")
     print(f"  {Fore.YELLOW}║{' ' * 58}║")
-    print(f"  {Fore.YELLOW}║  {Fore.WHITE}⚠️  WARNING: Device will REBOOT after applying update!{Fore.YELLOW}  ║")
+    print(
+        f"  {Fore.YELLOW}║  {Fore.WHITE}⚠️  WARNING: Device will REBOOT after applying update!{Fore.YELLOW}  ║"
+    )
     print(f"  {Fore.YELLOW}║{' ' * 58}║")
     print(f"  {Fore.YELLOW}{'═' * 60}")
     print()
 
-    print(f"  {Fore.CYAN}Do you want to apply the update and reboot? (y/n){Style.RESET_ALL}")
+    print(
+        f"  {Fore.CYAN}Do you want to apply the update and reboot? (y/n){Style.RESET_ALL}"
+    )
 
     try:
         choice = input(f"  {Fore.WHITE}> {Style.RESET_ALL}").strip().lower()
-        return choice in ['y', 'yes']
+        return choice in ["y", "yes"]
     except KeyboardInterrupt:
         return False
 
@@ -629,13 +702,19 @@ async def step_apply_update(client):
 
     if response:
         data = parse_response(response)
-        print_box("📋 Final Response", response[:300] if len(response) > 300 else response, Fore.CYAN)
+        print_box(
+            "📋 Final Response",
+            response[:300] if len(response) > 300 else response,
+            Fore.CYAN,
+        )
 
     # Device will reboot, so connection will be lost
     print()
     print(f"  {Fore.GREEN}{'═' * 60}")
     print(f"  {Fore.GREEN}║{' ' * 58}║")
-    print(f"  {Fore.GREEN}║  {Fore.WHITE}🔄  Device is rebooting with new firmware...{' ' * 13}║")
+    print(
+        f"  {Fore.GREEN}║  {Fore.WHITE}🔄  Device is rebooting with new firmware...{' ' * 13}║"
+    )
     print(f"  {Fore.GREEN}║{' ' * 58}║")
     print(f"  {Fore.GREEN}{'═' * 60}")
 
@@ -652,19 +731,21 @@ async def step_set_github_token(client, token):
 
     # Build command
     command = {"op": "ota", "type": "set_github_token", "token": token}
-    command_str = json.dumps(command, separators=(',', ':'))
+    command_str = json.dumps(command, separators=(",", ":"))
 
-    print(f"\n  {Fore.CYAN}📤 Sending: set_github_token (token: {token[:10]}...{token[-4:]}){Style.RESET_ALL}")
+    print(
+        f"\n  {Fore.CYAN}📤 Sending: set_github_token (token: {token[:10]}...{token[-4:]}){Style.RESET_ALL}"
+    )
     print(f"  {Fore.CYAN}📥 Receiving: ", end="", flush=True)
 
     # Fragment and send
     chunk_size = 18
     for i in range(0, len(command_str), chunk_size):
-        chunk = command_str[i:i+chunk_size]
-        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        chunk = command_str[i : i + chunk_size]
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode("utf-8"))
         await asyncio.sleep(CHUNK_DELAY)
 
-    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode("utf-8"))
 
     # Wait for response
     elapsed = 0
@@ -675,13 +756,15 @@ async def step_set_github_token(client, token):
     print()
 
     if response_complete:
-        full_response = ''.join(response_buffer)
+        full_response = "".join(response_buffer)
         data = parse_response(full_response)
 
         print_box("📋 Response", full_response[:300], Fore.CYAN)
 
         if data.get("status") == "ok":
-            print_success(f"GitHub token configured! (Length: {data.get('token_length', len(token))} chars)")
+            print_success(
+                f"GitHub token configured! (Length: {data.get('token_length', len(token))} chars)"
+            )
             return True
         else:
             print_error(f"Failed: {data.get('message', 'Unknown error')}")
@@ -712,7 +795,7 @@ async def step_get_config(client):
             "GitHub Repo": config.get("github_repo", "Not set"),
             "Branch": config.get("github_branch", "main"),
             "Verify Signature": "Yes" if config.get("verify_signature") else "No",
-            "Auto Update": "Yes" if config.get("auto_update") else "No"
+            "Auto Update": "Yes" if config.get("auto_update") else "No",
         }
         print_box("⚙️ Current Settings", info, Fore.GREEN)
         return config
@@ -781,12 +864,14 @@ async def step_get_status(client):
             "Retries": f"{retry_count} / {max_retries}",
             "Current Version": current_version,
             "Target Version": target_version if target_version else "N/A",
-            "Update Available": "Yes" if update_available else "No"
+            "Update Available": "Yes" if update_available else "No",
         }
 
         # Add error info if present
         if data.get("last_error"):
-            info["Last Error"] = f"[{data.get('last_error')}] {data.get('last_error_message', '')}"
+            info["Last Error"] = (
+                f"[{data.get('last_error')}] {data.get('last_error_message', '')}"
+            )
 
         # Color based on state
         state_colors = {
@@ -796,7 +881,7 @@ async def step_get_status(client):
             "VALIDATING": Fore.MAGENTA,
             "APPLYING": Fore.BLUE,
             "REBOOTING": Fore.GREEN,
-            "ERROR": Fore.RED
+            "ERROR": Fore.RED,
         }
         color = state_colors.get(state_name, Fore.WHITE)
 
@@ -805,16 +890,18 @@ async def step_get_status(client):
         # If downloading, show progress bar
         if state_name == "DOWNLOADING" and total_bytes > 0:
             print()
-            display_ota_progress({
-                "progress": progress,
-                "bytes_downloaded": bytes_downloaded,
-                "total_bytes": total_bytes,
-                "bytes_per_second": bytes_per_second,
-                "eta_seconds": eta_seconds,
-                "network_mode": network_mode,
-                "retry_count": retry_count,
-                "max_retries": max_retries
-            })
+            display_ota_progress(
+                {
+                    "progress": progress,
+                    "bytes_downloaded": bytes_downloaded,
+                    "total_bytes": total_bytes,
+                    "bytes_per_second": bytes_per_second,
+                    "eta_seconds": eta_seconds,
+                    "network_mode": network_mode,
+                    "retry_count": retry_count,
+                    "max_retries": max_retries,
+                }
+            )
             print()
 
         return data
@@ -841,15 +928,15 @@ async def step_monitor_status(client, interval=2.0, max_polls=60):
 
             # Send status command
             command = {"op": "ota", "type": "ota_status"}
-            command_str = json.dumps(command, separators=(',', ':'))
+            command_str = json.dumps(command, separators=(",", ":"))
 
             chunk_size = 18
             for i in range(0, len(command_str), chunk_size):
-                chunk = command_str[i:i+chunk_size]
-                await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+                chunk = command_str[i : i + chunk_size]
+                await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode("utf-8"))
                 await asyncio.sleep(0.05)
 
-            await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+            await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode("utf-8"))
 
             # Wait for response
             elapsed = 0
@@ -858,7 +945,7 @@ async def step_monitor_status(client, interval=2.0, max_polls=60):
                 elapsed += 0.1
 
             if response_complete:
-                response = ''.join(response_buffer)
+                response = "".join(response_buffer)
                 data = parse_response(response)
 
                 if data.get("status") == "ok":
@@ -869,21 +956,25 @@ async def step_monitor_status(client, interval=2.0, max_polls=60):
                     network = data.get("network_mode", "Unknown")
 
                     # Update display
-                    display_ota_progress({
-                        "progress": progress,
-                        "bytes_downloaded": data.get("bytes_downloaded", 0),
-                        "total_bytes": data.get("total_bytes", 0),
-                        "bytes_per_second": speed,
-                        "eta_seconds": eta,
-                        "network_mode": network,
-                        "retry_count": data.get("retry_count", 0),
-                        "max_retries": data.get("max_retries", 3)
-                    })
+                    display_ota_progress(
+                        {
+                            "progress": progress,
+                            "bytes_downloaded": data.get("bytes_downloaded", 0),
+                            "total_bytes": data.get("total_bytes", 0),
+                            "bytes_per_second": speed,
+                            "eta_seconds": eta,
+                            "network_mode": network,
+                            "retry_count": data.get("retry_count", 0),
+                            "max_retries": data.get("max_retries", 3),
+                        }
+                    )
 
                     # Check for state change
                     if state != last_state:
                         print()
-                        print(f"  {Fore.CYAN}State changed: {last_state} → {state}{Style.RESET_ALL}")
+                        print(
+                            f"  {Fore.CYAN}State changed: {last_state} → {state}{Style.RESET_ALL}"
+                        )
                         last_state = state
 
                     # Check for completion
@@ -896,7 +987,9 @@ async def step_monitor_status(client, interval=2.0, max_polls=60):
                     # Check for error
                     if state == "ERROR":
                         print()
-                        print_error(f"OTA Error: {data.get('last_error_message', 'Unknown')}")
+                        print_error(
+                            f"OTA Error: {data.get('last_error_message', 'Unknown')}"
+                        )
                         return False
 
             polls += 1
@@ -919,10 +1012,16 @@ async def show_menu():
     print(f"  {Fore.WHITE}{Style.BRIGHT}Select an option:{Style.RESET_ALL}")
     print(f"  {Fore.CYAN}{'─' * 50}")
     print(f"  {Fore.WHITE}  1. {Fore.GREEN}Check for updates{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}  2. {Fore.YELLOW}Set GitHub token (for private repos){Style.RESET_ALL}")
+    print(
+        f"  {Fore.WHITE}  2. {Fore.YELLOW}Set GitHub token (for private repos){Style.RESET_ALL}"
+    )
     print(f"  {Fore.WHITE}  3. {Fore.CYAN}Get OTA configuration{Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}  4. {Fore.BLUE}Get OTA status (enhanced v2.0){Style.RESET_ALL}")
-    print(f"  {Fore.WHITE}  5. {Fore.MAGENTA}Monitor OTA progress (real-time){Style.RESET_ALL}")
+    print(
+        f"  {Fore.WHITE}  4. {Fore.BLUE}Get OTA status (enhanced v2.0){Style.RESET_ALL}"
+    )
+    print(
+        f"  {Fore.WHITE}  5. {Fore.MAGENTA}Monitor OTA progress (real-time){Style.RESET_ALL}"
+    )
     print(f"  {Fore.WHITE}  6. {Fore.WHITE}Full OTA update{Style.RESET_ALL}")
     print(f"  {Fore.WHITE}  7. {Fore.RED}Exit{Style.RESET_ALL}")
     print(f"  {Fore.CYAN}{'─' * 50}")
@@ -950,8 +1049,12 @@ async def show_final_summary(success, update_info=None):
         print(r"                                           |_|                     ")
         print(f"{Style.RESET_ALL}")
         print(f"  {Fore.GREEN}✅ OTA Update completed successfully!{Style.RESET_ALL}")
-        print(f"  {Fore.WHITE}   Device is rebooting with the new firmware.{Style.RESET_ALL}")
-        print(f"  {Fore.WHITE}   Please wait ~30 seconds for device to restart.{Style.RESET_ALL}")
+        print(
+            f"  {Fore.WHITE}   Device is rebooting with the new firmware.{Style.RESET_ALL}"
+        )
+        print(
+            f"  {Fore.WHITE}   Please wait ~30 seconds for device to restart.{Style.RESET_ALL}"
+        )
     else:
         print(f"{Fore.RED}")
         print(r"   ____  _____   _       _____     _ _          _ ")
@@ -967,6 +1070,7 @@ async def show_final_summary(success, update_info=None):
     print(f"{Fore.WHITE}  Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{Fore.CYAN}{'═' * 70}")
     print()
+
 
 # ============================================================================
 # Main OTA Process
@@ -987,7 +1091,9 @@ async def run_ota_update():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
+            print_error(
+                f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')"
+            )
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -1013,7 +1119,9 @@ async def run_ota_update():
             # User skipped or check failed - just exit cleanly
             print()
             print(f"{Fore.CYAN}{'═' * 70}")
-            print(f"{Fore.WHITE}  Session ended: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(
+                f"{Fore.WHITE}  Session ended: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
             print(f"{Fore.CYAN}{'═' * 70}")
             return False
 
@@ -1082,23 +1190,25 @@ async def auto_set_token(client):
     if not GITHUB_TOKEN:
         return True
 
-    print_info(f"Auto-configuring GitHub token ({GITHUB_TOKEN[:10]}...{GITHUB_TOKEN[-4:]})")
+    print_info(
+        f"Auto-configuring GitHub token ({GITHUB_TOKEN[:10]}...{GITHUB_TOKEN[-4:]})"
+    )
 
     global response_buffer, response_complete
     response_buffer = []
     response_complete = False
 
     command = {"op": "ota", "type": "set_github_token", "token": GITHUB_TOKEN}
-    command_str = json.dumps(command, separators=(',', ':'))
+    command_str = json.dumps(command, separators=(",", ":"))
 
     # Fragment and send
     chunk_size = 18
     for i in range(0, len(command_str), chunk_size):
-        chunk = command_str[i:i+chunk_size]
-        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+        chunk = command_str[i : i + chunk_size]
+        await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode("utf-8"))
         await asyncio.sleep(CHUNK_DELAY)
 
-    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+    await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode("utf-8"))
 
     # Wait for response
     elapsed = 0
@@ -1107,7 +1217,7 @@ async def auto_set_token(client):
         elapsed += 0.1
 
     if response_complete:
-        full_response = ''.join(response_buffer)
+        full_response = "".join(response_buffer)
         data = parse_response(full_response)
         if data.get("status") == "ok":
             print_success("GitHub token configured automatically!")
@@ -1129,7 +1239,9 @@ async def run_interactive_menu():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
+            print_error(
+                f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')"
+            )
             print_info("Make sure device is powered on and BLE is enabled")
             return False
 
@@ -1157,8 +1269,12 @@ async def run_interactive_menu():
             elif choice == "2":
                 # Set GitHub token
                 print()
-                print(f"  {Fore.YELLOW}Enter GitHub Personal Access Token:{Style.RESET_ALL}")
-                print(f"  {Fore.WHITE}(Format: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx){Style.RESET_ALL}")
+                print(
+                    f"  {Fore.YELLOW}Enter GitHub Personal Access Token:{Style.RESET_ALL}"
+                )
+                print(
+                    f"  {Fore.WHITE}(Format: ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx){Style.RESET_ALL}"
+                )
                 try:
                     token = input(f"  {Fore.WHITE}> {Style.RESET_ALL}").strip()
                     if token and token.startswith("ghp_"):
@@ -1243,7 +1359,9 @@ async def run_set_token(token):
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
+            print_error(
+                f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')"
+            )
             return False
 
         client = await connect_device(device.address)
@@ -1277,7 +1395,9 @@ async def run_check_only():
 
         device = await scan_for_device()
         if not device:
-            print_error(f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')")
+            print_error(
+                f"No MGate device found (looking for '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}')"
+            )
             return False
 
         client = await connect_device(device.address)
@@ -1327,22 +1447,35 @@ v2.0.0 Features:
   - Download speed and ETA display
   - Network mode indicator (WiFi/Ethernet)
   - Retry count monitoring
-        """
+        """,
     )
-    parser.add_argument("--set-token", metavar="TOKEN",
-                        help="Set GitHub Personal Access Token for private repos")
-    parser.add_argument("--check", action="store_true",
-                        help="Check for updates only (no download)")
-    parser.add_argument("--status", action="store_true",
-                        help="Get OTA status with enhanced progress info (v2.0.0)")
-    parser.add_argument("--monitor", action="store_true",
-                        help="Monitor OTA progress in real-time (v2.0.0)")
-    parser.add_argument("--update", action="store_true",
-                        help="Run full OTA update flow")
-    parser.add_argument("--auto", action="store_true",
-                        help="Auto update without prompts (dangerous!)")
-    parser.add_argument("--menu", action="store_true",
-                        help="Interactive menu mode (default)")
+    parser.add_argument(
+        "--set-token",
+        metavar="TOKEN",
+        help="Set GitHub Personal Access Token for private repos",
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="Check for updates only (no download)"
+    )
+    parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Get OTA status with enhanced progress info (v2.0.0)",
+    )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help="Monitor OTA progress in real-time (v2.0.0)",
+    )
+    parser.add_argument(
+        "--update", action="store_true", help="Run full OTA update flow"
+    )
+    parser.add_argument(
+        "--auto", action="store_true", help="Auto update without prompts (dangerous!)"
+    )
+    parser.add_argument(
+        "--menu", action="store_true", help="Interactive menu mode (default)"
+    )
 
     return parser.parse_args()
 
@@ -1423,7 +1556,9 @@ def main():
         if args.set_token:
             # Set token mode
             if not args.set_token.startswith("ghp_"):
-                print(f"{Fore.RED}❌ Invalid token format. Should start with 'ghp_'{Style.RESET_ALL}")
+                print(
+                    f"{Fore.RED}❌ Invalid token format. Should start with 'ghp_'{Style.RESET_ALL}"
+                )
                 sys.exit(1)
             result = asyncio.run(run_set_token(args.set_token))
             sys.exit(0 if result else 1)

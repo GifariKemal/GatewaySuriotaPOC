@@ -2,14 +2,13 @@
 
 ## **Comprehensive Failure & Recovery Analysis**
 
-**Versi:** 1.0
-**Tanggal:** 15 November 2025
-**Platform:** ESP32-S3 (OPI PSRAM 8MB)
-**Firmware:** SRT-MGATE-1210
+**Versi:** 1.0 **Tanggal:** 15 November 2025 **Platform:** ESP32-S3 (OPI PSRAM
+8MB) **Firmware:** SRT-MGATE-1210
 
 ---
 
 ## **📋 DAFTAR ISI**
+
 1. [Power Failure Scenarios](#1-power-failure-scenarios)
 2. [Network Failure Scenarios](#2-network-failure-scenarios)
 3. [MQTT Broker Scenarios](#3-mqtt-broker-scenarios)
@@ -29,16 +28,18 @@
 | Aspek                 | Detail                                                                                                                                                                                       |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**          | Gateway sudah dikonfigurasi (device + register), lalu tiba-tiba power mati                                                                                                                   |
-| **Apa yang Terjadi?** | ✅ **Data AMAN** - Semua konfigurasi tersimpan di SPIFFS/LittleFS                                                                                                                             |
+| **Apa yang Terjadi?** | ✅ **Data AMAN** - Semua konfigurasi tersimpan di SPIFFS/LittleFS                                                                                                                            |
 | **Saat Boot Ulang**   | 1. Gateway boot normal<br>2. Load `/devices.json` dari flash<br>3. Load `/registers.json` dari flash<br>4. Semua device & register kembali seperti sebelumnya<br>5. Polling otomatis dimulai |
-| **Data Loss?**        | ❌ **TIDAK** - File JSON persistent di flash memory                                                                                                                                           |
-| **Queue Data?**       | ⚠️ **YA** - Data yang belum di-publish ke MQTT akan hilang (in-memory queue)                                                                                                                  |
+| **Data Loss?**        | ❌ **TIDAK** - File JSON persistent di flash memory                                                                                                                                          |
+| **Queue Data?**       | ⚠️ **YA** - Data yang belum di-publish ke MQTT akan hilang (in-memory queue)                                                                                                                 |
 | **Recovery Time**     | ~10-15 detik (boot + network connect + NTP sync)                                                                                                                                             |
 | **Log Output**        | `Devices cache loaded successfully. Found X devices.`<br>`[TCP] Using Ethernet for Modbus TCP polling (X devices)`                                                                           |
 
-**💡 Kesimpulan:** ✅ **SAFE** - Konfigurasi device & register TIDAK HILANG. Gateway langsung resume polling setelah boot.
+**💡 Kesimpulan:** ✅ **SAFE** - Konfigurasi device & register TIDAK HILANG.
+Gateway langsung resume polling setelah boot.
 
 **Penjelasan Detail:**
+
 ```
 SEBELUM POWER MATI:
 ├─ /devices.json (Flash) ✅ Tersimpan
@@ -62,14 +63,16 @@ SETELAH BOOT:
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**                    | Power hidup kembali → User add device baru via BLE                                                                                                                                                                                                    |
 | **Apa yang Terjadi?**           | 1. Gateway boot dengan config lama (dari flash)<br>2. User connect BLE → add device<br>3. Config baru saved ke `/devices.json`<br>4. `notifyConfigChange()` triggered<br>5. Polling task refresh device list<br>6. Device baru langsung mulai di-poll |
-| **Atomic Write?**               | ✅ **YA** - Menggunakan `AtomicFileOps` (temp file + rename)                                                                                                                                                                                           |
-| **Jika Power Mati saat Write?** | ✅ **SAFE** - Atomic operation memastikan file tidak corrupt:<br>- Write ke `/devices.json.tmp`<br>- Jika sukses → rename ke `/devices.json`<br>- Jika gagal → temp file dihapus, original tetap utuh                                                  |
-| **Recovery Action**             | ❌ **NONE** - Otomatis handled oleh firmware                                                                                                                                                                                                           |
-| **Data Loss?**                  | ❌ **TIDAK** - Kecuali power mati di tengah-tengah write (< 100ms window), tapi atomic write melindungi                                                                                                                                                |
+| **Atomic Write?**               | ✅ **YA** - Menggunakan `AtomicFileOps` (temp file + rename)                                                                                                                                                                                          |
+| **Jika Power Mati saat Write?** | ✅ **SAFE** - Atomic operation memastikan file tidak corrupt:<br>- Write ke `/devices.json.tmp`<br>- Jika sukses → rename ke `/devices.json`<br>- Jika gagal → temp file dihapus, original tetap utuh                                                 |
+| **Recovery Action**             | ❌ **NONE** - Otomatis handled oleh firmware                                                                                                                                                                                                          |
+| **Data Loss?**                  | ❌ **TIDAK** - Kecuali power mati di tengah-tengah write (< 100ms window), tapi atomic write melindungi                                                                                                                                               |
 
-**💡 Kesimpulan:** ✅ **SAFE** - Atomic write protection mencegah file corruption.
+**💡 Kesimpulan:** ✅ **SAFE** - Atomic write protection mencegah file
+corruption.
 
 **Atomic Write Mechanism:**
+
 ```
 NORMAL WRITE (ATOMIC):
 1. Create /devices.json.tmp      ✅
@@ -99,14 +102,16 @@ Scenario B - After rename:
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**         | Gateway dalam mode WiFi only → WiFi terputus (router mati/out of range)                                                                                                                                                                              |
 | **Immediate Effect** | 1. `[MQTT] Connection lost, attempting reconnect...`<br>2. `[MQTT] Waiting for network... Mode: WIFI, IP: 0.0.0.0`<br>3. MQTT disconnect<br>4. **Polling BERHENTI** (TCP/IP device butuh network)<br>5. RTU device tetap jalan (tidak butuh network) |
-| **Queue Behavior**   | ⚠️ Data tetap **di-queue** (memory) sampai penuh (100 items)<br>Setelah penuh → oldest data dropped (FIFO)                                                                                                                                            |
-| **Task Status**      | - BLE: ✅ Tetap running (independen)<br>- Modbus TCP: ⏸️ Paused (`No network available`)<br>- Modbus RTU: ✅ Tetap running (via RS485)<br>- MQTT: ⏸️ Reconnect loop (5s interval)                                                                        |
-| **LED Indicator**    | 🔴 Blinking pattern berubah (MQTT:OFF)                                                                                                                                                                                                                |
+| **Queue Behavior**   | ⚠️ Data tetap **di-queue** (memory) sampai penuh (100 items)<br>Setelah penuh → oldest data dropped (FIFO)                                                                                                                                           |
+| **Task Status**      | - BLE: ✅ Tetap running (independen)<br>- Modbus TCP: ⏸️ Paused (`No network available`)<br>- Modbus RTU: ✅ Tetap running (via RS485)<br>- MQTT: ⏸️ Reconnect loop (5s interval)                                                                    |
+| **LED Indicator**    | 🔴 Blinking pattern berubah (MQTT:OFF)                                                                                                                                                                                                               |
 | **Log Output**       | `[TCP] No network available (Ethernet and WiFi both disabled/disconnected)`<br>`[MQTT] Network disconnected`                                                                                                                                         |
 
-**💡 Kesimpulan:** ⚠️ **DEGRADED** - TCP polling stop, RTU tetap jalan. Data di-queue sampai penuh.
+**💡 Kesimpulan:** ⚠️ **DEGRADED** - TCP polling stop, RTU tetap jalan. Data
+di-queue sampai penuh.
 
 **Impact Timeline:**
+
 ```
 T+0s    WiFi disconnect detected
         └─ MQTT disconnected
@@ -126,18 +131,20 @@ T+300s  5 minutes downtime
 
 ### **Use Case 4: WiFi Hidup Kembali Setelah 1 Jam Terputus**
 
-| Aspek                 | Detail                                                                                                                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Scenario**          | WiFi terputus 1 jam → WiFi hidup kembali                                                                                                                                                                                                    |
-| **Recovery Sequence** | 1. `WiFi.begin()` retry sukses<br>2. `WiFi connected! IP: 192.168.1.X`<br>3. NTP sync (update RTC)<br>4. MQTT reconnect<br>5. TCP polling resume<br>6. **Queue flush:** Publish queued data (max 100 items)                                 |
+| Aspek                 | Detail                                                                                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scenario**          | WiFi terputus 1 jam → WiFi hidup kembali                                                                                                                                                                                                     |
+| **Recovery Sequence** | 1. `WiFi.begin()` retry sukses<br>2. `WiFi connected! IP: 192.168.1.X`<br>3. NTP sync (update RTC)<br>4. MQTT reconnect<br>5. TCP polling resume<br>6. **Queue flush:** Publish queued data (max 100 items)                                  |
 | **Data Loss?**        | ⚠️ **PARTIAL** - Data lebih dari 1 jam (~3600 polls @ 1s interval) hilang<br>Queue hanya menyimpan **100 items terakhir**<br>Example: 5 registers × 3600s = 18,000 data points<br>Yang ter-publish: hanya 100 terakhir = **99.4% data loss** |
 | **MQTT Publish**      | ✅ Persistent queue (19 items from disk) + Memory queue (100 items)<br>Total: ~119 items published setelah reconnect                                                                                                                         |
 | **Timestamp**         | ⚠️ **COULD BE STALE** - Data di-queue 1 jam lalu dengan timestamp lama                                                                                                                                                                       |
-| **Recovery Time**     | ~10-30 detik (WiFi connect + NTP + MQTT)                                                                                                                                                                                                    |
+| **Recovery Time**     | ~10-30 detik (WiFi connect + NTP + MQTT)                                                                                                                                                                                                     |
 
-**💡 Kesimpulan:** ⚠️ **DATA LOSS** significant untuk downtime >2 menit. Queue terbatas 100 items.
+**💡 Kesimpulan:** ⚠️ **DATA LOSS** significant untuk downtime >2 menit. Queue
+terbatas 100 items.
 
 **Data Loss Calculation:**
+
 ```
 Assumptions:
 - Poll interval: 1 second
@@ -159,17 +166,18 @@ RECOMMENDATION:
 
 ### **Use Case 5: Ethernet Terputus**
 
-| Aspek                | Detail                                                                                                                                                                                                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Scenario**         | Gateway dalam dual mode (WiFi + Ethernet) → Ethernet cable dicabut                                                                                                                                                                                                                                     |
+| Aspek                | Detail                                                                                                                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Scenario**         | Gateway dalam dual mode (WiFi + Ethernet) → Ethernet cable dicabut                                                                                                                                                                                                                                      |
 | **Network Failover** | ✅ **AUTOMATIC** - Hysteresis manager detect:<br>1. Ethernet link down detected<br>2. `[HYSTERESIS] Primary network became UNAVAILABLE`<br>3. **Automatic failover to WiFi** (if available)<br>4. `[NetworkMgr] Failover: ETH → WIFI`<br>5. MQTT reconnect via WiFi<br>6. TCP polling continue via WiFi |
-| **Downtime**         | ~1-5 detik (detection + failover)                                                                                                                                                                                                                                                                      |
+| **Downtime**         | ~1-5 detik (detection + failover)                                                                                                                                                                                                                                                                       |
 | **Data Loss?**       | ⚠️ **MINIMAL** - Hanya data selama failover window (~5s)<br>Example: 5 registers × 5s = 25 data points                                                                                                                                                                                                  |
 | **User Visible?**    | 📊 **YES** - Log menunjukkan failover:<br>`[TCP] Using WiFi for Modbus TCP polling (X devices)`                                                                                                                                                                                                         |
 
 **💡 Kesimpulan:** ✅ **RESILIENT** - Automatic failover, minimal data loss.
 
 **Failover Sequence:**
+
 ```
 T+0ms   Ethernet cable unplugged
 T+100ms Link down detected
@@ -187,17 +195,19 @@ Estimated loss: 5 registers × 1.5s = 7-8 data points
 
 ### **Use Case 6: Ethernet Hidup Kembali (Failback)**
 
-| Aspek                     | Detail                                                                                                                                                                                                                                                                                                            |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Scenario**              | Ethernet cable dipasang kembali setelah failover ke WiFi                                                                                                                                                                                                                                                          |
+| Aspek                     | Detail                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Scenario**              | Ethernet cable dipasang kembali setelah failover ke WiFi                                                                                                                                                                                                                                                           |
 | **Failback Behavior**     | ✅ **AUTOMATIC PRIORITY** - Hysteresis manager detect:<br>1. Ethernet link up detected<br>2. Wait for stability (hysteresis delay: 10s)<br>3. `[HYSTERESIS] Primary network became AVAILABLE`<br>4. **Automatic failback to Ethernet**<br>5. `[NetworkMgr] Failback: WIFI → ETH`<br>6. MQTT reconnect via Ethernet |
 | **Hysteresis Protection** | ✅ Prevents **flapping** (rapid switch back-forth)<br>Network must be stable 10s before failback                                                                                                                                                                                                                   |
-| **Downtime**              | ~10-15 detik (stability wait + reconnect)                                                                                                                                                                                                                                                                         |
+| **Downtime**              | ~10-15 detik (stability wait + reconnect)                                                                                                                                                                                                                                                                          |
 | **Data Loss?**            | ⚠️ **MINIMAL** - Data during reconnect (~15s)                                                                                                                                                                                                                                                                      |
 
-**💡 Kesimpulan:** ✅ **SMART** - Automatic failback dengan hysteresis protection.
+**💡 Kesimpulan:** ✅ **SMART** - Automatic failback dengan hysteresis
+protection.
 
 **Hysteresis Explained:**
+
 ```
 PURPOSE: Prevent network flapping (rapid switching)
 
@@ -229,13 +239,15 @@ If Ethernet flaps during 10s window:
 | **Scenario**           | Network OK, tapi MQTT broker tidak bisa diakses (down/firewall/DNS issue)                                                                                                                                           |
 | **Immediate Effect**   | 1. `[MQTT] Connection failed: error -2` (connection refused)<br>2. `[MQTT] Connection lost, attempting reconnect...`<br>3. **Polling TETAP JALAN** (independen dari MQTT)<br>4. Data **tetap di-queue** (in-memory) |
 | **Reconnect Behavior** | - Retry interval: **5 detik**<br>- Infinite retry (tidak give up)<br>- Log debug setiap 30 detik:<br>`[MQTT] Network available - ETH IP: 192.168.1.5`                                                               |
-| **Queue Buildup**      | ⚠️ Data terus di-queue sampai **100 items** (memory limit)<br>⚠️ Persistent queue: **19 items** (disk limit)<br>Setelah penuh: **oldest data dropped**                                                                |
-| **Persistent Queue**   | ✅ **ENABLED** - Failed messages saved to SPIFFS:<br>- Max 19 messages on disk<br>- Survive reboot<br>- Auto-retry on next connect                                                                                   |
-| **Data Loss Risk**     | ⚠️ **HIGH** jika broker down >2 menit:<br>100 memory slots / 5 regs = 20 polling cycles<br>@1s interval = **data loss after 20 seconds**                                                                             |
+| **Queue Buildup**      | ⚠️ Data terus di-queue sampai **100 items** (memory limit)<br>⚠️ Persistent queue: **19 items** (disk limit)<br>Setelah penuh: **oldest data dropped**                                                              |
+| **Persistent Queue**   | ✅ **ENABLED** - Failed messages saved to SPIFFS:<br>- Max 19 messages on disk<br>- Survive reboot<br>- Auto-retry on next connect                                                                                  |
+| **Data Loss Risk**     | ⚠️ **HIGH** jika broker down >2 menit:<br>100 memory slots / 5 regs = 20 polling cycles<br>@1s interval = **data loss after 20 seconds**                                                                            |
 
-**💡 Kesimpulan:** ⚠️ **DEGRADED** - Polling continue, tapi data loss setelah queue penuh.
+**💡 Kesimpulan:** ⚠️ **DEGRADED** - Polling continue, tapi data loss setelah
+queue penuh.
 
 **Queue Management:**
+
 ```
 MQTT BROKER DOWN:
 
@@ -271,13 +283,15 @@ Total: 119 items max before data loss
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**          | MQTT broker down 30 menit → broker hidup kembali                                                                                                                                                                                                                                         |
 | **Recovery Sequence** | 1. Auto-reconnect sukses (retry loop)<br>2. `[MQTT] Connected to broker.hivemq.com:1883 via ETH`<br>3. **Persistent queue processed first:**<br>`[MQTT] Resent 19 persistent messages`<br>4. **Memory queue processed:**<br>Publish up to 100 queued items<br>5. Resume normal operation |
-| **Data Published**    | ✅ Persistent: 19 messages (from disk)<br>⚠️ Memory: Last 100 items only<br>❌ Lost: Data beyond 100 item limit                                                                                                                                                                             |
-| **Timestamp Issue**   | ⚠️ **STALE DATA** - Messages have old timestamps:<br>Example: Current time 10:30, queued data from 10:00<br>Backend might see out-of-order data                                                                                                                                           |
+| **Data Published**    | ✅ Persistent: 19 messages (from disk)<br>⚠️ Memory: Last 100 items only<br>❌ Lost: Data beyond 100 item limit                                                                                                                                                                          |
+| **Timestamp Issue**   | ⚠️ **STALE DATA** - Messages have old timestamps:<br>Example: Current time 10:30, queued data from 10:00<br>Backend might see out-of-order data                                                                                                                                          |
 | **Recovery Time**     | ~5-10 detik (connect + publish queue)                                                                                                                                                                                                                                                    |
 
-**💡 Kesimpulan:** ⚠️ **PARTIAL RECOVERY** - Max 119 items (19 disk + 100 memory) published.
+**💡 Kesimpulan:** ⚠️ **PARTIAL RECOVERY** - Max 119 items (19 disk + 100
+memory) published.
 
 **Publish Sequence:**
+
 ```
 MQTT RECONNECT SUCCESS:
 
@@ -307,15 +321,16 @@ Step 3: Resume Normal Operation
 | Aspek                 | Detail                                                                                                                                                                                                                              |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**          | Device sedang di-poll → User delete via BLE                                                                                                                                                                                         |
-| **Protection Layers** | ✅ **2-Layer Defense:**<br>**Layer 1:** Queue flush (30 items flushed)<br>**Layer 2:** MQTT validation (skip deleted device)                                                                                                         |
+| **Protection Layers** | ✅ **2-Layer Defense:**<br>**Layer 1:** Queue flush (30 items flushed)<br>**Layer 2:** MQTT validation (skip deleted device)                                                                                                        |
 | **Immediate Effect**  | 1. Device deleted from `/devices.json` (atomic write)<br>2. `[QUEUE] Flushed 30 data points for deleted device`<br>3. `notifyConfigChange()` → tasks refresh<br>4. Polling STOP untuk device tersebut<br>5. MQTT skip orphaned data |
-| **Race Condition**    | ✅ **HANDLED** - Data yang masuk di race window (1-5ms) caught by Layer 2:<br>`[MQTT] Skipped 4 registers from 1 deleted device(s)`                                                                                                  |
-| **MQTT Payload**      | ✅ **CLEAN** - No ghost device data:<br>`{"timestamp": "...", "devices": []}`                                                                                                                                                        |
-| **Data Loss?**        | ⚠️ **EXPECTED** - Data from deleted device tidak di-publish (by design)                                                                                                                                                              |
+| **Race Condition**    | ✅ **HANDLED** - Data yang masuk di race window (1-5ms) caught by Layer 2:<br>`[MQTT] Skipped 4 registers from 1 deleted device(s)`                                                                                                 |
+| **MQTT Payload**      | ✅ **CLEAN** - No ghost device data:<br>`{"timestamp": "...", "devices": []}`                                                                                                                                                       |
+| **Data Loss?**        | ⚠️ **EXPECTED** - Data from deleted device tidak di-publish (by design)                                                                                                                                                             |
 
 **💡 Kesimpulan:** ✅ **SAFE** - Defense-in-depth prevents ghost data. No crash.
 
 **Defense Layers Explained:**
+
 ```
 DELETE DEVICE FLOW:
 
@@ -354,13 +369,14 @@ RESULT: Clean MQTT payload, no ghost data ✅
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**          | User update register config via BLE (change address/scale/offset)                                                                                                                                                                                        |
 | **Apa yang Terjadi?** | 1. New config saved to file (atomic write)<br>2. Cache invalidated<br>3. `notifyConfigChange()` triggered<br>4. **Next poll cycle:** Use new config<br>5. Old queued data: **Keep old values** (already calculated)<br>6. New data: Use new scale/offset |
-| **Immediate Apply?**  | ❌ **NO** - Applied on **next poll cycle** (~1-2s delay)<br>Current cycle: Finish with old config                                                                                                                                                         |
-| **Atomic Write?**     | ✅ **YES** - Config update atomic, no corruption                                                                                                                                                                                                          |
-| **Data Consistency**  | ⚠️ **MIXED** - Queue might have mix of old/new calibration:<br>Example: Data polled before update (old scale) + Data polled after (new scale)                                                                                                             |
+| **Immediate Apply?**  | ❌ **NO** - Applied on **next poll cycle** (~1-2s delay)<br>Current cycle: Finish with old config                                                                                                                                                        |
+| **Atomic Write?**     | ✅ **YES** - Config update atomic, no corruption                                                                                                                                                                                                         |
+| **Data Consistency**  | ⚠️ **MIXED** - Queue might have mix of old/new calibration:<br>Example: Data polled before update (old scale) + Data polled after (new scale)                                                                                                            |
 
 **💡 Kesimpulan:** ✅ **SAFE** - Config update smooth, minor delay expected.
 
 **Update Timing:**
+
 ```
 T+0ms   User sends: {"op":"update", "register_id":"R001", "scale":2.0}
 T+10ms  Config saved (atomic write) ✅
@@ -390,10 +406,10 @@ Item 3: Value=100 (NEW scale: 2.0) → Final=200 ← Different!
 
 ### **Use Case 11: PSRAM Penuh**
 
-| Aspek                 | Detail                                                                                                                                                                                                                                                            |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Scenario**          | PSRAM usage mencapai limit (8MB OPI PSRAM)                                                                                                                                                                                                                        |
-| **Saat Ini**          | PSRAM usage: **99.5% free** (~8.3MB free dari 8.4MB)<br>Very unlikely to fill up dalam normal operation                                                                                                                                                           |
+| Aspek                 | Detail                                                                                                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Scenario**          | PSRAM usage mencapai limit (8MB OPI PSRAM)                                                                                                                                                                                                                         |
+| **Saat Ini**          | PSRAM usage: **99.5% free** (~8.3MB free dari 8.4MB)<br>Very unlikely to fill up dalam normal operation                                                                                                                                                            |
 | **Jika PSRAM Penuh?** | ✅ **GRACEFUL DEGRADATION:**<br>1. Allocation failures logged:<br>`[QUEUE] ERROR: PSRAM allocation failed - queue full`<br>2. **Queue stops accepting new data**<br>3. Polling continues (data discarded jika queue penuh)<br>4. No crash (defensive checks exist) |
 | **Recovery**          | 🔄 **AUTO:** MQTT publish → free PSRAM → queue accept data again                                                                                                                                                                                                   |
 | **Memory Leak?**      | ❌ **NO** - Verified during testing:<br>- All heap_caps_free() called<br>- unique_ptr auto-cleanup<br>- No dangling pointers                                                                                                                                       |
@@ -401,6 +417,7 @@ Item 3: Value=100 (NEW scale: 2.0) → Final=200 ← Different!
 **💡 Kesimpulan:** ✅ **PROTECTED** - Defensive programming prevents crash.
 
 **Memory Protection:**
+
 ```cpp
 // Example: Queue enqueue with PSRAM protection
 char *jsonCopy = (char *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
@@ -418,6 +435,7 @@ heap_caps_free(jsonCopy);
 ```
 
 **PSRAM Usage Monitoring:**
+
 ```
 NORMAL OPERATION:
 PSRAM: 8383804/8388608 bytes free (99.9%)
@@ -442,14 +460,15 @@ PSRAM: ~6MB free (75% free)
 | Aspek                   | Detail                                                                                                                                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Scenario**            | FreeRTOS task hang/loop terlalu lama tanpa yield                                                                                                                                                            |
-| **Watchdog Protection** | ✅ **ENABLED** - ESP32 Task Watchdog Timer (TWDT):<br>- Default timeout: 5 seconds<br>- Monitored tasks: All polling tasks                                                                                   |
+| **Watchdog Protection** | ✅ **ENABLED** - ESP32 Task Watchdog Timer (TWDT):<br>- Default timeout: 5 seconds<br>- Monitored tasks: All polling tasks                                                                                  |
 | **Jika Task Hang?**     | 1. **Watchdog trigger**<br>2. `Task watchdog got triggered. The following tasks did not reset the watchdog in time:`<br>3. **ESP32 REBOOT** (automatic recovery)<br>4. Boot ulang → resume normal operation |
-| **Prevention**          | ✅ Code has frequent `vTaskDelay()` calls:<br>- Polling loop: 10ms delay between reads<br>- Network check: 100ms delay<br>- Queue operations: Non-blocking with timeout                                      |
-| **Data Loss**           | ⚠️ **YES** - In-memory queue lost on reboot<br>✅ Config files: SAFE (persistent)                                                                                                                             |
+| **Prevention**          | ✅ Code has frequent `vTaskDelay()` calls:<br>- Polling loop: 10ms delay between reads<br>- Network check: 100ms delay<br>- Queue operations: Non-blocking with timeout                                     |
+| **Data Loss**           | ⚠️ **YES** - In-memory queue lost on reboot<br>✅ Config files: SAFE (persistent)                                                                                                                           |
 
 **💡 Kesimpulan:** ✅ **AUTO-RECOVERY** - Watchdog ensures system stability.
 
 **Watchdog Example Scenario:**
+
 ```
 NORMAL OPERATION:
 Task loop:
@@ -470,10 +489,11 @@ Task stuck:
 
 LOG OUTPUT:
 ```
+
 Task watchdog got triggered. The following tasks did not reset:
-  - TCP_TASK (CPU 0)
-Backtrace: 0x400... 0x400...
-Rebooting...
+
+- TCP_TASK (CPU 0) Backtrace: 0x400... 0x400... Rebooting...
+
 ```
 
 ---
@@ -493,31 +513,33 @@ Rebooting...
 
 **Flash Lifespan Calculation:**
 ```
+
 FLASH SPECS:
+
 - Endurance: 100,000 erase cycles per sector
 - Sector size: 4KB
 - Total sectors: ~1000 (4MB flash)
 
-WRITE FREQUENCY (Conservative):
-Daily writes:
-├─ Device config changes: 2/day (user adds/deletes device)
-├─ Register config changes: 3/day (user updates settings)
-├─ MQTT persistent queue: 5/day (network issues)
-└─ Total: 10 writes/day
+WRITE FREQUENCY (Conservative): Daily writes: ├─ Device config changes: 2/day
+(user adds/deletes device) ├─ Register config changes: 3/day (user updates
+settings) ├─ MQTT persistent queue: 5/day (network issues) └─ Total: 10
+writes/day
 
-LIFESPAN CALCULATION:
-100,000 cycles ÷ 10 writes/day = 10,000 days = 27.4 years
+LIFESPAN CALCULATION: 100,000 cycles ÷ 10 writes/day = 10,000 days = 27.4 years
 
 REALISTIC USAGE:
+
 - Gateway typically deployed for 5-10 years
 - Flash lifespan: 27+ years
 - Conclusion: Flash will NOT be the limiting factor ✅
 
 EARLY WARNING SIGNS:
+
 - File write errors increasing
 - Config load failures
 - Bootloop with SPIFFS mount errors
 - Action: Replace ESP32 module preventively
+
 ```
 
 ---
@@ -536,43 +558,30 @@ EARLY WARNING SIGNS:
 
 **BLE Connection Lifecycle:**
 ```
-1. CLIENT CONNECT
-   ├─ [BLE] Client connected
-   ├─ MTU Negotiation starts
-   └─ Timeout: 60s max
 
-2. MTU NEGOTIATION
-   ├─ Attempt 1 (wait 10s)
-   ├─ Attempt 2 (wait 10s)
-   ├─ Attempt 3 (wait 10s)
-   └─ Success or timeout
+1. CLIENT CONNECT ├─ [BLE] Client connected ├─ MTU Negotiation starts └─
+   Timeout: 60s max
 
-3. COMMAND PROCESSING
-   User: {"op":"create", "type":"device", ...}
-   ├─ Command queued (priority queue)
-   ├─ CRUD processor task handles
-   ├─ Atomic file write
+2. MTU NEGOTIATION ├─ Attempt 1 (wait 10s) ├─ Attempt 2 (wait 10s) ├─ Attempt 3
+   (wait 10s) └─ Success or timeout
+
+3. COMMAND PROCESSING User: {"op":"create", "type":"device", ...} ├─ Command
+   queued (priority queue) ├─ CRUD processor task handles ├─ Atomic file write
    └─ Response sent to BLE
 
 4. CONNECTION DROP SCENARIOS:
 
-   Scenario A - During MTU negotiation:
-   ├─ Connection lost
-   ├─ Log: [BLE MTU] WARNING: Timeout
-   └─ Cleanup, ready for next connection ✅
+   Scenario A - During MTU negotiation: ├─ Connection lost ├─ Log: [BLE MTU]
+   WARNING: Timeout └─ Cleanup, ready for next connection ✅
 
-   Scenario B - During command processing:
-   ├─ Command in queue
-   ├─ Connection lost
-   ├─ Command processing ABORTED
-   ├─ Temp files cleaned up
-   └─ Original config SAFE ✅
+   Scenario B - During command processing: ├─ Command in queue ├─ Connection
+   lost ├─ Command processing ABORTED ├─ Temp files cleaned up └─ Original
+   config SAFE ✅
 
-   Scenario C - After command success:
-   ├─ Config already written (atomic)
-   ├─ Connection lost
-   └─ Config change APPLIED ✅
-```
+   Scenario C - After command success: ├─ Config already written (atomic) ├─
+   Connection lost └─ Config change APPLIED ✅
+
+````
 
 ---
 
@@ -591,45 +600,29 @@ EARLY WARNING SIGNS:
 **💡 Kesimpulan:** ✅ **RESILIENT** - Single device failure tidak affect others.
 
 **Error Handling Flow:**
-```
+````
+
 MODBUS TCP DEVICE POLLING:
 
-Device 1 (OK):
-├─ Connect: SUCCESS ✅
-├─ Read registers: SUCCESS ✅
-├─ Data queued for MQTT ✅
-└─ [DATA] Dev1: Temp:25.0degC | Hum:60% | ...
+Device 1 (OK): ├─ Connect: SUCCESS ✅ ├─ Read registers: SUCCESS ✅ ├─ Data
+queued for MQTT ✅ └─ [DATA] Dev1: Temp:25.0degC | Hum:60% | ...
 
-Device 2 (OFFLINE):
-├─ Connect: TIMEOUT (3000ms)
-├─ Retry 1: TIMEOUT
-├─ Retry 2: TIMEOUT
-├─ Retry 3: TIMEOUT
-├─ Log: [TCP] Failed to connect to 192.168.1.9:502
-├─ Log: Dev2: Temperature = ERROR
-├─ Skip device (NO data queued) ✅
-└─ Continue to next device
+Device 2 (OFFLINE): ├─ Connect: TIMEOUT (3000ms) ├─ Retry 1: TIMEOUT ├─ Retry 2:
+TIMEOUT ├─ Retry 3: TIMEOUT ├─ Log: [TCP] Failed to connect to 192.168.1.9:502
+├─ Log: Dev2: Temperature = ERROR ├─ Skip device (NO data queued) ✅ └─ Continue
+to next device
 
-Device 3 (OK):
-├─ Connect: SUCCESS ✅
-├─ Read registers: SUCCESS ✅
-└─ Data queued for MQTT ✅
+Device 3 (OK): ├─ Connect: SUCCESS ✅ ├─ Read registers: SUCCESS ✅ └─ Data
+queued for MQTT ✅
 
-MQTT PAYLOAD (only valid data):
-{
-  "devices": [
-    {"device_id": "Dev1", "data": [...]},  ← OK
-    // Dev2 NOT included (error)
-    {"device_id": "Dev3", "data": [...]}   ← OK
-  ]
-}
+MQTT PAYLOAD (only valid data): { "devices": [ {"device_id": "Dev1", "data":
+[...]}, ← OK // Dev2 NOT included (error) {"device_id": "Dev3", "data": [...]} ←
+OK ] }
 
-RECOVERY:
-Next poll cycle (1s later):
-├─ Try Device 2 again
-├─ If online: Resume polling ✅
-└─ If still offline: Skip again
-```
+RECOVERY: Next poll cycle (1s later): ├─ Try Device 2 again ├─ If online: Resume
+polling ✅ └─ If still offline: Skip again
+
+````
 
 ---
 
@@ -706,7 +699,7 @@ All others - adequately protected by current firmware design.
        "ethernet": {"enabled": true}
      }
    }
-   ```
+````
 
 2. Set proper **hysteresis delays** (default 10s sudah optimal)
    - Prevents network flapping
@@ -724,6 +717,7 @@ All others - adequately protected by current firmware design.
    - Self-hosted with HA cluster (recommended: 3+ nodes)
 
 2. Enable **persistent queue** (sudah default enabled)
+
    ```cpp
    persistentQueueEnabled = true; // Default
    ```
@@ -741,10 +735,11 @@ All others - adequately protected by current firmware design.
 ### **✅ Modbus Configuration**
 
 1. **Timeout & Retry Settings**
+
    ```json
    {
-     "timeout": 3000,        // 3s (adjust per network latency)
-     "retry_count": 3,       // 3 retries (balance reliability vs delay)
+     "timeout": 3000, // 3s (adjust per network latency)
+     "retry_count": 3, // 3 retries (balance reliability vs delay)
      "refresh_rate_ms": 1000 // 1s (adjust per data criticality)
    }
    ```
@@ -794,6 +789,7 @@ void monitorQueue() {
 #### **Log Analysis**
 
 Weekly review of:
+
 - Network failover frequency
 - MQTT connection stability
 - Device error rates
@@ -855,6 +851,7 @@ Weekly review of:
 #### **For More Devices (50+ devices):**
 
 1. **Increase Queue Size**
+
    ```cpp
    static const int MAX_QUEUE_SIZE = 200; // Was 100
    ```
@@ -870,6 +867,7 @@ Weekly review of:
 #### **For More Registers (100+ registers/publish):**
 
 1. **Increase MQTT Buffer**
+
    ```cpp
    mqttClient.setBufferSize(16384, 16384); // 16KB (was 8KB)
    ```
@@ -896,6 +894,7 @@ Weekly review of:
      ```
 
 2. **Persistent Queue Size**
+
    ```cpp
    static const int MAX_PERSISTENT_QUEUE = 100; // Was 19
    ```
@@ -912,12 +911,14 @@ Weekly review of:
 ### **Problem: Gateway Tidak Polling**
 
 **Symptoms:**
+
 - No `[DATA]` logs
 - No `[TCP/ETH] Polling device...` logs
 
 **Diagnosis Steps:**
 
 1. **Check Network**
+
    ```
    Expected log: [NetworkMgr] Initial active network: ETH. IP: 192.168.1.X
 
@@ -928,6 +929,7 @@ Weekly review of:
    ```
 
 2. **Check Device Configuration**
+
    ```
    BLE Command: {"op":"read", "type":"devices_summary"}
 
@@ -938,6 +940,7 @@ Weekly review of:
    ```
 
 3. **Check Task Status**
+
    ```
    Expected log: [TCP Task] Found X TCP devices. Schedule rebuilt.
 
@@ -948,6 +951,7 @@ Weekly review of:
    ```
 
 4. **Check Modbus Connection**
+
    ```
    Expected log: [TCP/ETH] Polling device D7227b at 192.168.1.8:502
 
@@ -958,6 +962,7 @@ Weekly review of:
    ```
 
 **Resolution:**
+
 - Network issue: Fix WiFi/Ethernet connection
 - Config issue: Add/update device via BLE
 - Modbus issue: Check device IP, port, slave ID
@@ -967,6 +972,7 @@ Weekly review of:
 ### **Problem: MQTT Tidak Publish**
 
 **Symptoms:**
+
 - Polling works (see `[DATA]` logs)
 - No `[MQTT] Default Mode: Published...` logs
 - Or `[MQTT] Connection failed: error X`
@@ -974,6 +980,7 @@ Weekly review of:
 **Diagnosis Steps:**
 
 1. **Check MQTT Connection**
+
    ```
    Expected log: [MQTT] Connected to broker.hivemq.com:1883 via ETH
 
@@ -994,6 +1001,7 @@ Weekly review of:
    ```
 
 2. **Check MQTT Configuration**
+
    ```
    BLE Command: {"op":"read", "type":"config", "config_type":"mqtt"}
 
@@ -1006,6 +1014,7 @@ Weekly review of:
    ```
 
 3. **Check Queue Status**
+
    ```
    Expected log: [MQTT] Default Mode: Published X registers...
 
@@ -1016,6 +1025,7 @@ Weekly review of:
    ```
 
 4. **Check Publish Interval**
+
    ```
    Default: 20 seconds
 
@@ -1026,6 +1036,7 @@ Weekly review of:
    ```
 
 **Resolution:**
+
 - Broker unreachable: Check network, firewall, broker status
 - Auth failed: Verify credentials
 - Config error: Update mqtt.json via BLE
@@ -1036,6 +1047,7 @@ Weekly review of:
 ### **Problem: Data Loss Tinggi**
 
 **Symptoms:**
+
 - Expected 1000 data points
 - Only 100 published to MQTT
 - Frequent `[QUEUE] Queue full` logs
@@ -1043,6 +1055,7 @@ Weekly review of:
 **Diagnosis Steps:**
 
 1. **Check Queue Depth**
+
    ```
    Monitor logs for:
    [QUEUE] Queue full, dropping oldest data
@@ -1052,6 +1065,7 @@ Weekly review of:
    ```
 
 2. **Check Network Stability**
+
    ```
    Look for:
    [MQTT] Connection lost
@@ -1062,6 +1076,7 @@ Weekly review of:
    ```
 
 3. **Check Publish Success Rate**
+
    ```
    Count in logs:
    Success: [MQTT] Default Mode: Published X registers
@@ -1074,6 +1089,7 @@ Weekly review of:
    ```
 
 4. **Check Poll vs Publish Rate**
+
    ```
    Poll rate: Every 1s (5 registers)
    Publish rate: Every 20s
@@ -1086,6 +1102,7 @@ Weekly review of:
    ```
 
 **Resolution:**
+
 - Increase queue size (code change)
 - Decrease poll interval (increase to 2-5s)
 - Increase publish frequency (decrease to 10s)
@@ -1097,6 +1114,7 @@ Weekly review of:
 ### **Problem: Gateway Bootloop**
 
 **Symptoms:**
+
 - ESP32 reboots every few seconds
 - Never reaches stable operation
 - Watchdog trigger logs
@@ -1104,6 +1122,7 @@ Weekly review of:
 **Diagnosis Steps:**
 
 1. **Check Watchdog Logs**
+
    ```
    Task watchdog got triggered. The following tasks did not reset:
      - TCP_TASK (CPU 0)
@@ -1113,6 +1132,7 @@ Weekly review of:
    ```
 
 2. **Check Flash Errors**
+
    ```
    SPIFFS mount failed
    Failed to load /devices.json
@@ -1122,6 +1142,7 @@ Weekly review of:
    ```
 
 3. **Check Memory Errors**
+
    ```
    ERROR: PSRAM allocation failed
    Heap allocation failed
@@ -1131,6 +1152,7 @@ Weekly review of:
    ```
 
 4. **Check Config File Corruption**
+
    ```
    JSON parse error in devices.json
 
@@ -1141,12 +1163,14 @@ Weekly review of:
 **Resolution:**
 
 **For Watchdog Issues:**
+
 ```cpp
 // Emergency recovery: Disable problematic task
 // Requires firmware update
 ```
 
 **For Flash Corruption:**
+
 ```
 1. Erase flash via serial:
    esptool.py --port COM3 erase_flash
@@ -1157,6 +1181,7 @@ Weekly review of:
 ```
 
 **For Memory Issues:**
+
 ```
 1. Review recent config changes
 2. Reduce number of devices/registers
@@ -1164,6 +1189,7 @@ Weekly review of:
 ```
 
 **For Config Corruption:**
+
 ```
 1. Via BLE, delete corrupt config:
    {"op":"delete", "type":"device", "device_id":"CORRUPT_ID"}
@@ -1179,6 +1205,7 @@ Weekly review of:
 ### **Problem: BLE Tidak Connect**
 
 **Symptoms:**
+
 - BLE app cannot find gateway
 - Connection times out
 - MTU negotiation fails
@@ -1186,6 +1213,7 @@ Weekly review of:
 **Diagnosis Steps:**
 
 1. **Check BLE Status**
+
    ```
    Expected log: [BLE] Advertising started with name: MGate-1210(P)-A716
 
@@ -1195,6 +1223,7 @@ Weekly review of:
    ```
 
 2. **Check BLE Name**
+
    ```
    App should see: "MGate-1210(P)-XXXX" (v2.5.32+) or "SURIOTA-XXXXXX" (v2.5.31-)
 
@@ -1204,6 +1233,7 @@ Weekly review of:
    ```
 
 3. **Check MTU Negotiation**
+
    ```
    Expected log: [BLE MTU] Negotiation OK  Actual MTU: 517 bytes
 
@@ -1215,6 +1245,7 @@ Weekly review of:
    ```
 
 4. **Check Connection Stability**
+
    ```
    [BLE] Client connected
    [BLE] Client disconnected
@@ -1226,6 +1257,7 @@ Weekly review of:
    ```
 
 **Resolution:**
+
 - BLE not advertising: Check button mode, reboot gateway
 - Cannot connect: Move phone closer, reduce interference
 - MTU timeout: Restart phone BLE, try different phone
@@ -1236,6 +1268,7 @@ Weekly review of:
 ### **Problem: Wrong Timestamp / RTC Issues**
 
 **Symptoms:**
+
 - Timestamp shows wrong date/time
 - Timestamp format: `1970-01-01` (epoch)
 - NTP sync fails
@@ -1243,6 +1276,7 @@ Weekly review of:
 **Diagnosis Steps:**
 
 1. **Check RTC Status**
+
    ```
    Expected log: RTC initialized successfully
 
@@ -1253,6 +1287,7 @@ Weekly review of:
    ```
 
 2. **Check NTP Sync**
+
    ```
    Expected log: [RTC] NTP sync: 2025-11-15 19:54:09 (WIB/GMT+7)
 
@@ -1263,6 +1298,7 @@ Weekly review of:
    ```
 
 3. **Check Timezone**
+
    ```
    Config: gmtOffset_sec = 7 * 3600 (GMT+7 / WIB)
 
@@ -1271,6 +1307,7 @@ Weekly review of:
    ```
 
 4. **Check RTC Battery**
+
    ```
    Log: RTC lost power, setting time from compile time
 
@@ -1280,6 +1317,7 @@ Weekly review of:
    ```
 
 **Resolution:**
+
 - RTC not found: Check I2C wiring (SDA=5, SCL=6)
 - NTP fails: Check network, verify NTP server reachable
 - Wrong timezone: Update gmtOffset_sec in code
@@ -1293,6 +1331,7 @@ Weekly review of:
 ### **v1.0** - 2025-11-15 (Production Release)
 
 **Major Features:**
+
 - ✅ Defense-in-depth delete protection (2-layer)
 - ✅ RTC/NTP cleanup & optimization
 - ✅ MQTT validation layer
@@ -1302,6 +1341,7 @@ Weekly review of:
 - ✅ Persistent queue (19 items)
 
 **Bug Fixes:**
+
 - ✅ Fixed watchdog timeout (BLE MTU negotiation)
 - ✅ Fixed MQTT buffer overflow (increased to 8KB)
 - ✅ Fixed config auto-clear issue
@@ -1309,17 +1349,21 @@ Weekly review of:
 - ✅ Fixed RTC/NTP date synchronization
 
 **Performance Improvements:**
-- ✅ Eliminated redundant file I/O (100% reduction in getAllDevicesWithRegisters calls)
+
+- ✅ Eliminated redundant file I/O (100% reduction in getAllDevicesWithRegisters
+  calls)
 - ✅ MQTT payload optimization (hierarchical structure)
 - ✅ Compact logging format (6 registers/line)
 - ✅ Atomic printing (prevents task interruption)
 
 **Known Issues:**
+
 - ⚠️ Queue limited to 100 items (data loss after 20s of MQTT downtime)
 - ⚠️ Persistent queue limited to 19 items
 - ⚠️ WiFi-only mode: No failover (single point of failure)
 
 **Future Enhancements:**
+
 - 📝 SD card persistence (unlimited storage)
 - 📝 Configurable queue size via BLE
 - 📝 Data compression (gzip)
@@ -1331,20 +1375,31 @@ Weekly review of:
 ## **📚 REFERENCES & RESOURCES**
 
 ### **Hardware Documentation**
-- ESP32-S3 Datasheet: [https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf)
-- DS3231 RTC: [https://github.com/NorthernWidget/DS3231](https://github.com/NorthernWidget/DS3231)
+
+- ESP32-S3 Datasheet:
+  [https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf](https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf)
+- DS3231 RTC:
+  [https://github.com/NorthernWidget/DS3231](https://github.com/NorthernWidget/DS3231)
 
 ### **Libraries Used**
+
 - ArduinoJson: [https://arduinojson.org/](https://arduinojson.org/)
-- PubSubClient (MQTT): [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/)
-- RTClib (Adafruit): [https://github.com/adafruit/RTClib](https://github.com/adafruit/RTClib)
+- PubSubClient (MQTT):
+  [https://pubsubclient.knolleary.net/](https://pubsubclient.knolleary.net/)
+- RTClib (Adafruit):
+  [https://github.com/adafruit/RTClib](https://github.com/adafruit/RTClib)
 
 ### **Protocols & Standards**
-- Modbus TCP: [https://www.modbus.org/specs.php](https://www.modbus.org/specs.php)
-- Modbus RTU: [https://www.modbus.org/specs.php](https://www.modbus.org/specs.php)
-- MQTT v3.1.1: [http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
+
+- Modbus TCP:
+  [https://www.modbus.org/specs.php](https://www.modbus.org/specs.php)
+- Modbus RTU:
+  [https://www.modbus.org/specs.php](https://www.modbus.org/specs.php)
+- MQTT v3.1.1:
+  [http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/mqtt-v3.1.1.html)
 
 ### **Internal Documentation**
+
 - Configuration Guide: `docs/CONFIGURATION_GUIDE.md` (TBD)
 - API Reference: `docs/API_REFERENCE.md` (TBD)
 - Firmware Architecture: `docs/ARCHITECTURE.md` (TBD)
@@ -1353,16 +1408,13 @@ Weekly review of:
 
 **END OF DOCUMENTATION** ✅
 
-**Document Version:** 1.0
-**Last Updated:** 15 November 2025
-**Author:** Claude (Anthropic AI)
-**Reviewed By:** [Your Name]
-**Approved By:** [Approver Name]
+**Document Version:** 1.0 **Last Updated:** 15 November 2025 **Author:** Claude
+(Anthropic AI) **Reviewed By:** [Your Name] **Approved By:** [Approver Name]
 
 ---
 
 **For questions or issues, please contact:**
+
 - Technical Support: [your-email@example.com]
 - GitHub Issues: [repository-url/issues]
 - Documentation Updates: Submit PR to `docs/` folder
-

@@ -1,18 +1,22 @@
 # test_backup_restore.py - Changelog v1.1.0
 
-**Date:** November 22, 2025
-**Author:** Kemal (Suriota R&D) + Claude (AI Assistant)
+**Date:** November 22, 2025 **Author:** Kemal (Suriota R&D) + Claude (AI
+Assistant)
 
 ---
 
 ## 🎯 Main Fix: Backup Directory Location
 
 ### **Issue:**
+
 Backup files were saved in project root directory instead of test directory:
+
 - ❌ **Before:** `C:\Users\Administrator\Music\GatewaySuriotaPOC\`
-- ✅ **After:** `C:\Users\Administrator\Music\GatewaySuriotaPOC\Testing\BLE_Testing\Backup_Restore_Test\`
+- ✅ **After:**
+  `C:\Users\Administrator\Music\GatewaySuriotaPOC\Testing\BLE_Testing\Backup_Restore_Test\`
 
 ### **Solution:**
+
 ```python
 # Get the directory where this script is located
 SCRIPT_DIR = Path(__file__).parent
@@ -27,12 +31,14 @@ BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 ## ✨ New Features
 
 ### 1. **List Backup Files (Option 6)**
+
 ```python
 def list_backup_files():
     """List all backup JSON files in backup directory"""
 ```
 
 **Output Example:**
+
 ```
 📂 AVAILABLE BACKUP FILES (3 found):
    Location: C:\...\Backup_Restore_Test
@@ -46,12 +52,14 @@ def list_backup_files():
 ```
 
 ### 2. **Enhanced File Saving**
+
 - ✅ All backups saved to correct directory
 - ✅ UTF-8 encoding support (handles special characters like °C)
 - ✅ File size reporting
 - ✅ Auto-create directory if not exists
 
 ### 3. **Smart File Loading**
+
 ```python
 async def load_backup_from_file(filename):
     # If filename is just a name (no path), look in backup directory
@@ -61,11 +69,13 @@ async def load_backup_from_file(filename):
 ```
 
 **Benefits:**
+
 - User can enter just filename (e.g., `backup.json`)
 - Script automatically looks in backup directory
 - Also supports absolute paths if needed
 
 ### 4. **Improved Error Messages**
+
 ```python
 except FileNotFoundError:
     print(f"❌ File not found: {filepath}")
@@ -78,6 +88,7 @@ except FileNotFoundError:
 ## 🔧 Technical Improvements
 
 ### 1. **Path Handling with pathlib**
+
 ```python
 from pathlib import Path  # NEW import
 
@@ -94,12 +105,14 @@ with open(backup_file, 'w', encoding='utf-8') as f:
 ```
 
 **Benefits:**
+
 - ✅ Cross-platform compatibility (Windows/Linux/Mac)
 - ✅ Automatic path separator handling
 - ✅ Better error messages
 - ✅ Type safety
 
 ### 2. **UTF-8 Encoding**
+
 ```python
 # Before:
 with open(filename, 'w') as f:
@@ -111,11 +124,13 @@ with open(filepath, 'w', encoding='utf-8') as f:
 ```
 
 **Benefits:**
+
 - ✅ Handles special characters: °C, %, etc.
 - ✅ No Unicode escape sequences in JSON
 - ✅ More readable backup files
 
 ### 3. **Better Directory Display**
+
 ```python
 def print_menu():
     ...
@@ -131,6 +146,7 @@ async def main():
 ## 📋 Updated Menu Structure
 
 ### **Before (v1.0.0):**
+
 ```
 1. Test Backup (full_config)
 2. Test Restore (from previous backup)
@@ -143,6 +159,7 @@ async def main():
 ```
 
 ### **After (v1.1.0):**
+
 ```
 📋 AVAILABLE TESTS:
    1. Test Backup (full_config)
@@ -168,24 +185,29 @@ async def main():
 ## 🧪 Testing the Improvements
 
 ### **Test 1: Verify Backup Directory**
+
 ```bash
 cd C:\Users\Administrator\Music\GatewaySuriotaPOC\Testing\BLE_Testing\Backup_Restore_Test
 python test_backup_restore.py
 ```
 
 **Expected Output:**
+
 ```
 [INIT] Script directory: C:\...\Backup_Restore_Test
 [INIT] Backup directory: C:\...\Backup_Restore_Test
 ```
 
 ### **Test 2: List Backup Files**
+
 Run option 6 from menu:
+
 - Should show all `.json` files in Backup_Restore_Test directory
 - Should be sorted by modification time (newest first)
 - Should display file size and timestamp
 
 ### **Test 3: Save and Load Backup**
+
 1. Run option 1 (Backup)
 2. Run option 5 (Save to file)
 3. Run option 6 (List files) - should see the saved file
@@ -200,6 +222,7 @@ Run option 6 from menu:
 If you have old backup files in the wrong directory:
 
 **Option 1: Move Existing Backups (Recommended)**
+
 ```bash
 # Windows PowerShell:
 Move-Item C:\Users\Administrator\Music\GatewaySuriotaPOC\*.json `
@@ -209,8 +232,8 @@ Move-Item C:\Users\Administrator\Music\GatewaySuriotaPOC\*.json `
 mv ~/GatewaySuriotaPOC/*.json ~/GatewaySuriotaPOC/Testing/BLE_Testing/Backup_Restore_Test/
 ```
 
-**Option 2: Use Absolute Path**
-When prompted for filename, enter full path:
+**Option 2: Use Absolute Path** When prompted for filename, enter full path:
+
 ```
 Enter backup filename: C:\Users\Administrator\Music\GatewaySuriotaPOC\old_backup.json
 ```
@@ -220,6 +243,7 @@ Enter backup filename: C:\Users\Administrator\Music\GatewaySuriotaPOC\old_backup
 ## 🔄 Backward Compatibility
 
 ✅ **Fully backward compatible** with v1.0.0:
+
 - All existing test functions work unchanged
 - Can still load backups from absolute paths
 - Command format unchanged
@@ -264,6 +288,4 @@ Enter backup filename: C:\Users\Administrator\Music\GatewaySuriotaPOC\old_backup
 
 ---
 
-**Version:** 1.1.0
-**Status:** ✅ READY FOR TESTING
-**Last Updated:** 2025-11-22
+**Version:** 1.1.0 **Status:** ✅ READY FOR TESTING **Last Updated:** 2025-11-22

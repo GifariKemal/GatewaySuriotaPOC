@@ -64,8 +64,8 @@ except ImportError:
 # ============================================================================
 # PRODUCT CONFIGURATION - Must match ProductConfig.h
 # ============================================================================
-PRODUCT_MODEL = "MGATE-1210"           # Short model name for filename
-PRODUCT_FULL_NAME = "SRT-MGATE-1210"   # Full product name
+PRODUCT_MODEL = "MGATE-1210"  # Short model name for filename
+PRODUCT_FULL_NAME = "SRT-MGATE-1210"  # Full product name
 MANUFACTURER = "SURIOTA IoT Solutions"
 COPYRIGHT = "Copyright (c) 2026 Suriota IoT Solutions"
 
@@ -111,16 +111,18 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
 
     # Load private key
     print(f"\n[1/5] Loading private key: {private_key_path}")
-    with open(private_key_path, 'rb') as f:
+    with open(private_key_path, "rb") as f:
         private_key = SigningKey.from_pem(f.read())
 
     # Read firmware
     print(f"[2/5] Reading firmware: {firmware_path}")
-    with open(firmware_path, 'rb') as f:
+    with open(firmware_path, "rb") as f:
         firmware_data = f.read()
 
     firmware_size = len(firmware_data)
-    print(f"       Firmware size: {firmware_size:,} bytes ({firmware_size/1024/1024:.2f} MB)")
+    print(
+        f"       Firmware size: {firmware_size:,} bytes ({firmware_size/1024/1024:.2f} MB)"
+    )
 
     # Calculate SHA-256 hash (for manifest checksum field)
     print("[3/5] Calculating SHA-256 checksum...")
@@ -131,9 +133,13 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
     # Sign the firmware DATA (not the hash!) - ecdsa.sign_deterministic hashes internally
     # This ensures both Python and mbedtls compute SHA256(firmware_data) before signing/verifying
     print("[4/5] Signing firmware data...")
-    signature = private_key.sign_deterministic(firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der)
+    signature = private_key.sign_deterministic(
+        firmware_data, hashfunc=hashlib.sha256, sigencode=sigencode_der
+    )
     signature_hex = signature.hex()
-    print(f"       Signature ({len(signature)} bytes, DER format): {signature_hex[:64]}...")
+    print(
+        f"       Signature ({len(signature)} bytes, DER format): {signature_hex[:64]}..."
+    )
 
     # Determine version
     if version is None:
@@ -143,13 +149,15 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
 
     # Determine variant
     if variant is None:
-        variant = input(f"Enter variant (P=POE, empty=Non-POE) [{DEFAULT_VARIANT}]: ").strip()
+        variant = input(
+            f"Enter variant (P=POE, empty=Non-POE) [{DEFAULT_VARIANT}]: "
+        ).strip()
         if not variant:
             variant = DEFAULT_VARIANT
 
     # Parse version to build number (MAJOR*1000 + MINOR*100 + PATCH)
     try:
-        parts = version.split('.')
+        parts = version.split(".")
         build_number = int(parts[0]) * 1000 + int(parts[1]) * 100 + int(parts[2])
     except:
         build_number = 1000
@@ -172,7 +180,7 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
             "name": PRODUCT_FULL_NAME,
             "model": f"{PRODUCT_MODEL}({variant})" if variant else PRODUCT_MODEL,
             "manufacturer": MANUFACTURER,
-            "copyright": COPYRIGHT
+            "copyright": COPYRIGHT,
         },
         "version": version,
         "build_number": build_number,
@@ -182,17 +190,15 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
             "filename": output_filename,
             "size": firmware_size,
             "sha256": hash_hex,
-            "signature": signature_hex
+            "signature": signature_hex,
         },
-        "changelog": [
-            f"Version {version} release"
-        ],
-        "mandatory": False
+        "changelog": [f"Version {version} release"],
+        "mandatory": False,
     }
 
     # Save manifest
     manifest_path = os.path.join(output_dir, "firmware_manifest.json")
-    with open(manifest_path, 'w') as f:
+    with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
 
     print(f"       Saved: {manifest_path}")
@@ -203,7 +209,8 @@ def sign_firmware(firmware_path, private_key_path, version=None, variant=None):
     print("SIGNING COMPLETE!")
     print("=" * 60)
 
-    print(f"""
+    print(
+        f"""
 Output Files:
   1. Firmware: {output_path}
   2. Manifest: {manifest_path}
@@ -226,7 +233,8 @@ Upload to GitHub OTA Repository:
   git push
 
 Manifest content:
-""")
+"""
+    )
     print(json.dumps(manifest, indent=2))
 
     return manifest, output_path
@@ -237,19 +245,22 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
 
     print("\nVerifying signature...")
 
-    with open(public_key_path, 'rb') as f:
+    with open(public_key_path, "rb") as f:
         from ecdsa import VerifyingKey
         from ecdsa.util import sigdecode_der  # For DER/ASN.1 format
+
         public_key = VerifyingKey.from_pem(f.read())
 
-    with open(firmware_path, 'rb') as f:
+    with open(firmware_path, "rb") as f:
         firmware_data = f.read()
 
     signature = bytes.fromhex(signature_hex)
 
     try:
         # Verify against firmware DATA (not hash) - ecdsa.verify hashes internally
-        public_key.verify(signature, firmware_data, hashfunc=hashlib.sha256, sigdecode=sigdecode_der)
+        public_key.verify(
+            signature, firmware_data, hashfunc=hashlib.sha256, sigdecode=sigdecode_der
+        )
         print("Signature verification: PASSED")
         return True
     except Exception as e:
@@ -260,16 +271,24 @@ def verify_signature(firmware_path, public_key_path, signature_hex):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
-        print("Usage: python sign_firmware.py <input.bin> [private_key.pem] [version] [variant]")
+        print(
+            "Usage: python sign_firmware.py <input.bin> [private_key.pem] [version] [variant]"
+        )
         print("\nArguments:")
         print("  input.bin      : Input firmware binary (e.g., Main.ino.bin)")
-        print("  private_key    : ECDSA private key (default: OTA_Keys/ota_private_key.pem)")
+        print(
+            "  private_key    : ECDSA private key (default: OTA_Keys/ota_private_key.pem)"
+        )
         print("  version        : Firmware version (e.g., 1.0.0)")
         print("  variant        : Hardware variant (P=POE, empty=Non-POE)")
         print("\nExamples:")
         print("  python sign_firmware.py ../Main/build/Main.ino.bin")
-        print("  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0")
-        print("  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0 P")
+        print(
+            "  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0"
+        )
+        print(
+            "  python sign_firmware.py ../Main/build/Main.ino.bin OTA_Keys/ota_private_key.pem 1.0.0 P"
+        )
         print("\nOutput Naming Convention:")
         print("  Format: {MODEL}_{VARIANT}_v{VERSION}.bin")
         print("  Example: MGATE-1210_P_v1.0.0.bin (POE variant)")
@@ -286,9 +305,13 @@ if __name__ == "__main__":
     version = sys.argv[3] if len(sys.argv) > 3 else None
     variant = sys.argv[4] if len(sys.argv) > 4 else None
 
-    manifest, output_path = sign_firmware(firmware_path, private_key_path, version, variant)
+    manifest, output_path = sign_firmware(
+        firmware_path, private_key_path, version, variant
+    )
 
     # Optional: verify if public key exists
     public_key_path = private_key_path.replace("private", "public")
     if os.path.exists(public_key_path):
-        verify_signature(output_path, public_key_path, manifest["firmware"]["signature"])
+        verify_signature(
+            output_path, public_key_path, manifest["firmware"]["signature"]
+        )

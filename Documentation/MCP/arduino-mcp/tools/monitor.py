@@ -13,28 +13,27 @@ class SerialMonitor:
     def __init__(self):
         self.arduino_cli = "arduino-cli"
 
-    async def _run_command(self, cmd: list[str], timeout: Optional[int] = None) -> Dict[str, Any]:
+    async def _run_command(
+        self, cmd: list[str], timeout: Optional[int] = None
+    ) -> Dict[str, Any]:
         """Run a shell command and return results."""
         try:
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             try:
                 if timeout:
                     stdout, stderr = await asyncio.wait_for(
-                        process.communicate(),
-                        timeout=timeout
+                        process.communicate(), timeout=timeout
                     )
                 else:
                     stdout, stderr = await process.communicate()
 
                 return {
                     "success": True,
-                    "stdout": stdout.decode('utf-8', errors='replace'),
-                    "stderr": stderr.decode('utf-8', errors='replace')
+                    "stdout": stdout.decode("utf-8", errors="replace"),
+                    "stderr": stderr.decode("utf-8", errors="replace"),
                 }
 
             except asyncio.TimeoutError:
@@ -46,30 +45,21 @@ class SerialMonitor:
                     process.kill()
                     await process.wait()
 
-                return {
-                    "success": True,
-                    "stdout": "",
-                    "stderr": "",
-                    "timeout": True
-                }
+                return {"success": True, "stdout": "", "stderr": "", "timeout": True}
 
         except FileNotFoundError:
             return {
                 "success": False,
                 "error": "arduino-cli not found. Please install Arduino CLI.",
                 "stdout": "",
-                "stderr": ""
+                "stderr": "",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": ""
-            }
+            return {"success": False, "error": str(e), "stdout": "", "stderr": ""}
 
-    async def start_monitor(self, port: str, baudrate: int = 115200,
-                           duration: int = 10) -> Dict[str, Any]:
+    async def start_monitor(
+        self, port: str, baudrate: int = 115200, duration: int = 10
+    ) -> Dict[str, Any]:
         """
         Start serial monitor and capture output.
 
@@ -90,16 +80,12 @@ class SerialMonitor:
                 "instructions": [
                     f"1. Open a terminal/command prompt",
                     f"2. Run: arduino-cli monitor -p {port} -c baudrate={baudrate}",
-                    f"3. Press Ctrl+C to stop monitoring"
-                ]
+                    f"3. Press Ctrl+C to stop monitoring",
+                ],
             }
 
         # Build monitor command
-        cmd = [
-            self.arduino_cli, "monitor",
-            "-p", port,
-            "-c", f"baudrate={baudrate}"
-        ]
+        cmd = [self.arduino_cli, "monitor", "-p", port, "-c", f"baudrate={baudrate}"]
 
         print(f"Monitoring {port} at {baudrate} baud for {duration} seconds...")
 
@@ -108,9 +94,7 @@ class SerialMonitor:
 
         try:
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             # Read output for specified duration
@@ -120,12 +104,11 @@ class SerialMonitor:
             while asyncio.get_event_loop().time() < end_time:
                 try:
                     line = await asyncio.wait_for(
-                        process.stdout.readline(),
-                        timeout=0.5
+                        process.stdout.readline(), timeout=0.5
                     )
 
                     if line:
-                        decoded_line = line.decode('utf-8', errors='replace').strip()
+                        decoded_line = line.decode("utf-8", errors="replace").strip()
                         if decoded_line:
                             output_lines.append(decoded_line)
                             print(f"  {decoded_line}")  # Real-time output
@@ -152,17 +135,19 @@ class SerialMonitor:
                 "duration": duration,
                 "lines_captured": len(output_lines),
                 "output": "\n".join(output_lines),
-                "message": f"Captured {len(output_lines)} lines in {duration} seconds"
+                "message": f"Captured {len(output_lines)} lines in {duration} seconds",
             }
 
         except Exception as e:
             return {
                 "success": False,
                 "error": f"Failed to monitor serial port: {str(e)}",
-                "output": "\n".join(output_lines) if output_lines else ""
+                "output": "\n".join(output_lines) if output_lines else "",
             }
 
-    async def send_data(self, port: str, data: str, baudrate: int = 115200) -> Dict[str, Any]:
+    async def send_data(
+        self, port: str, data: str, baudrate: int = 115200
+    ) -> Dict[str, Any]:
         """
         Send data to serial port.
 
@@ -180,5 +165,5 @@ class SerialMonitor:
         return {
             "success": False,
             "error": "Send data feature requires pyserial library (not implemented in arduino-cli)",
-            "suggestion": "Use arduino-cli monitor with interactive mode or implement with pyserial"
+            "suggestion": "Use arduino-cli monitor with interactive mode or implement with pyserial",
         }

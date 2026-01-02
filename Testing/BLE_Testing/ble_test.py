@@ -57,7 +57,7 @@ def notification_handler(sender, data):
     global response_buffer, response_complete
 
     try:
-        chunk = data.decode('utf-8')
+        chunk = data.decode("utf-8")
 
         # Check for end marker
         if chunk == "<END>":
@@ -106,7 +106,9 @@ async def scan_devices():
 
     if len(gateway_devices) == 0:
         print(f"✗ No MGate device found!")
-        print(f"  Looking for: '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}'")
+        print(
+            f"  Looking for: '{SERVICE_NAME_PREFIX}*', '{SERVICE_NAME_LEGACY_PREFIX}*', or '{SERVICE_NAME_LEGACY}'"
+        )
         return None
     elif len(gateway_devices) == 1:
         device = gateway_devices[0]
@@ -164,7 +166,7 @@ async def send_command(client, command_json):
 
     try:
         # Convert JSON to string
-        command_str = json.dumps(command_json, separators=(',', ':'))
+        command_str = json.dumps(command_json, separators=(",", ":"))
 
         print(f"\n[SEND] Sending command ({len(command_str)} bytes):")
         print(f"       {command_str}")
@@ -173,18 +175,20 @@ async def send_command(client, command_json):
         chunk_size = 18
         total_chunks = (len(command_str) + chunk_size - 1) // chunk_size
 
-        print(f"[SEND] Fragmenting into {total_chunks} chunk(s) ({chunk_size} bytes/chunk)...")
+        print(
+            f"[SEND] Fragmenting into {total_chunks} chunk(s) ({chunk_size} bytes/chunk)..."
+        )
 
         for i in range(0, len(command_str), chunk_size):
-            chunk = command_str[i:i+chunk_size]
+            chunk = command_str[i : i + chunk_size]
             chunk_num = (i // chunk_size) + 1
 
-            await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode('utf-8'))
+            await client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode("utf-8"))
             print(f"[SEND] Chunk {chunk_num}/{total_chunks} sent ({len(chunk)} bytes)")
             await asyncio.sleep(0.1)  # Delay for stable transmission
 
         # Send end marker
-        await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode('utf-8'))
+        await client.write_gatt_char(COMMAND_CHAR_UUID, "<END>".encode("utf-8"))
         print("[SEND] ✓ End marker <END> sent")
 
         # Wait for response with timeout
@@ -197,7 +201,7 @@ async def send_command(client, command_json):
 
         if response_complete:
             # Reconstruct full response
-            full_response = ''.join(response_buffer)
+            full_response = "".join(response_buffer)
 
             print(f"\n[RESPONSE] Received ({len(full_response)} bytes):")
             print("=" * 70)
@@ -228,36 +232,30 @@ async def send_command(client, command_json):
 def show_command_examples():
     """Show example commands for quick reference"""
     examples = {
-        "1. Read all devices (summary)": {
-            "op": "read",
-            "type": "devices_summary"
-        },
+        "1. Read all devices (summary)": {"op": "read", "type": "devices_summary"},
         "2. Read all devices with registers (minimal mode)": {
             "op": "read",
             "type": "devices_with_registers",
-            "minimal": True
+            "minimal": True,
         },
         "3. Read specific device": {
             "op": "read",
             "type": "device",
             "device_id": "device_1",
-            "minimal": False
+            "minimal": False,
         },
         "4. Read device (minimal mode)": {
             "op": "read",
             "type": "device",
             "device_id": "device_1",
-            "minimal": True
+            "minimal": True,
         },
         "5. Read registers for device": {
             "op": "read",
             "type": "registers",
-            "device_id": "device_1"
+            "device_id": "device_1",
         },
-        "6. Read server config": {
-            "op": "read",
-            "type": "server_config"
-        },
+        "6. Read server config": {"op": "read", "type": "server_config"},
         "7. Create new device": {
             "op": "create",
             "type": "device",
@@ -266,8 +264,8 @@ def show_command_examples():
                 "slave_id": 1,
                 "baud_rate": 9600,
                 "protocol": "RTU",
-                "enabled": True
-            }
+                "enabled": True,
+            },
         },
         "8. Create new register": {
             "op": "create",
@@ -280,42 +278,34 @@ def show_command_examples():
                 "data_type": "INT16",
                 "scale": 1.0,
                 "offset": 0.0,
-                "unit": "°C"
-            }
+                "unit": "°C",
+            },
         },
         "9. Update device": {
             "op": "update",
             "type": "device",
             "device_id": "device_1",
-            "config": {
-                "enabled": False
-            }
+            "config": {"enabled": False},
         },
         "10. Delete device": {
             "op": "delete",
             "type": "device",
-            "device_id": "device_1"
+            "device_id": "device_1",
         },
         "11. Delete register": {
             "op": "delete",
             "type": "register",
             "device_id": "device_1",
-            "register_id": "register_1"
+            "register_id": "register_1",
         },
         "12. Batch operation (sequential)": {
             "op": "batch",
             "mode": "sequential",
             "commands": [
-                {
-                    "op": "read",
-                    "type": "devices_summary"
-                },
-                {
-                    "op": "read",
-                    "type": "server_config"
-                }
-            ]
-        }
+                {"op": "read", "type": "devices_summary"},
+                {"op": "read", "type": "server_config"},
+            ],
+        },
     }
 
     print("\n" + "=" * 70)
@@ -351,11 +341,11 @@ async def interactive_mode(client):
                 continue
 
             # Handle special commands
-            if user_input.lower() in ['quit', 'exit', 'q']:
+            if user_input.lower() in ["quit", "exit", "q"]:
                 print("\n[EXIT] Disconnecting...")
                 break
 
-            if user_input.lower() in ['help', 'h', '?']:
+            if user_input.lower() in ["help", "h", "?"]:
                 show_command_examples()
                 continue
 
@@ -387,19 +377,12 @@ async def quick_test(client):
     print("=" * 70)
 
     tests = [
-        ("Read devices summary", {
-            "op": "read",
-            "type": "devices_summary"
-        }),
-        ("Read server config", {
-            "op": "read",
-            "type": "server_config"
-        }),
-        ("Read devices with registers (minimal)", {
-            "op": "read",
-            "type": "devices_with_registers",
-            "minimal": True
-        })
+        ("Read devices summary", {"op": "read", "type": "devices_summary"}),
+        ("Read server config", {"op": "read", "type": "server_config"}),
+        (
+            "Read devices with registers (minimal)",
+            {"op": "read", "type": "devices_with_registers", "minimal": True},
+        ),
     ]
 
     for test_name, command in tests:

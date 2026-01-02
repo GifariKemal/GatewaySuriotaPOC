@@ -1,43 +1,39 @@
-#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
 #include "MQTTPersistentQueue.h"
+
 #include <LittleFS.h>
+
 #include <algorithm>
 
+#include "DebugConfig.h"  // MUST BE FIRST for LOG_* macros
+
 // Singleton instance
-MQTTPersistentQueue *MQTTPersistentQueue::instance = nullptr;
+MQTTPersistentQueue* MQTTPersistentQueue::instance = nullptr;
 
 // Private constructor
-MQTTPersistentQueue::MQTTPersistentQueue()
-{
+MQTTPersistentQueue::MQTTPersistentQueue() {
   LOG_MQTT_INFO("[MQTT_QUEUE] Persistent queue initialized");
   lastProcessTime = millis();
 
   // CRITICAL FIX: Create mutex for thread safety
   queueMutex = xSemaphoreCreateMutex();
-  if (queueMutex == NULL)
-  {
+  if (queueMutex == NULL) {
     LOG_MQTT_INFO("[MQTT_QUEUE] CRITICAL: Failed to create mutex!");
-  }
-  else
-  {
+  } else {
     LOG_MQTT_INFO("[MQTT_QUEUE] Thread safety mutex created successfully");
   }
 
   // Initialize LittleFS if not already done
-  if (!LittleFS.begin(true))
-  {
+  if (!LittleFS.begin(true)) {
     LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: LittleFS initialization failed");
   }
 
   // Create queue directory
   File queueDir = LittleFS.open(config.persistenceDir, "r");
-  if (!queueDir)
-  {
+  if (!queueDir) {
     LittleFS.mkdir(config.persistenceDir);
-    LOG_MQTT_INFO("[MQTT_QUEUE] Created queue directory: %s\n", config.persistenceDir);
-  }
-  else
-  {
+    LOG_MQTT_INFO("[MQTT_QUEUE] Created queue directory: %s\n",
+                  config.persistenceDir);
+  } else {
     queueDir.close();
   }
 
@@ -46,17 +42,15 @@ MQTTPersistentQueue::MQTTPersistentQueue()
 }
 
 // Singleton access
-MQTTPersistentQueue *MQTTPersistentQueue::getInstance()
-{
+MQTTPersistentQueue* MQTTPersistentQueue::getInstance() {
   // Thread-safe Meyers Singleton (C++11 guarantees thread-safe static init)
   static MQTTPersistentQueue instance;
-  static MQTTPersistentQueue *ptr = &instance;
+  static MQTTPersistentQueue* ptr = &instance;
   return ptr;
 }
 
 // Configuration methods
-void MQTTPersistentQueue::setConfig(const PersistenceConfig &newConfig)
-{
+void MQTTPersistentQueue::setConfig(const PersistenceConfig& newConfig) {
   config = newConfig;
   LOG_MQTT_INFO("[MQTT_QUEUE] Configuration updated:");
   Serial.printf("  Max queue size: %ld\n", config.maxQueueSize);
@@ -64,56 +58,48 @@ void MQTTPersistentQueue::setConfig(const PersistenceConfig &newConfig)
   Serial.printf("  Max retry delay: %ld ms\n", config.maxRetryDelayMs);
 }
 
-void MQTTPersistentQueue::setMaxQueueSize(uint32_t size)
-{
+void MQTTPersistentQueue::setMaxQueueSize(uint32_t size) {
   config.maxQueueSize = size;
   LOG_MQTT_INFO("[MQTT_QUEUE] Max queue size set to: %ld\n", size);
 }
 
-void MQTTPersistentQueue::setMaxRetries(uint8_t retries)
-{
+void MQTTPersistentQueue::setMaxRetries(uint8_t retries) {
   config.maxRetries = retries;
   LOG_MQTT_INFO("[MQTT_QUEUE] Max retries set to: %d\n", retries);
 }
 
-void MQTTPersistentQueue::setRetryDelay(uint32_t initialMs, uint32_t maxMs)
-{
+void MQTTPersistentQueue::setRetryDelay(uint32_t initialMs, uint32_t maxMs) {
   config.initialRetryDelayMs = initialMs;
   config.maxRetryDelayMs = maxMs;
-  LOG_MQTT_INFO("[MQTT_QUEUE] Retry delay set: %ld - %ld ms\n", initialMs, maxMs);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Retry delay set: %ld - %ld ms\n", initialMs,
+                maxMs);
 }
 
-void MQTTPersistentQueue::setDefaultTimeout(uint32_t timeoutMs)
-{
+void MQTTPersistentQueue::setDefaultTimeout(uint32_t timeoutMs) {
   config.defaultTimeoutMs = timeoutMs;
   LOG_MQTT_INFO("[MQTT_QUEUE] Default timeout set to: %ld ms\n", timeoutMs);
 }
 
-void MQTTPersistentQueue::setCompressionThreshold(uint16_t bytes)
-{
+void MQTTPersistentQueue::setCompressionThreshold(uint16_t bytes) {
   config.compressionThreshold = bytes;
   LOG_MQTT_INFO("[MQTT_QUEUE] Compression threshold set to: %d bytes\n", bytes);
 }
 
 // Message queueing
-QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
-                                                         const String &payload,
-                                                         MessagePriority priority,
-                                                         uint32_t timeoutMs)
-{
+QueueOperationResult MQTTPersistentQueue::enqueueMessage(
+    const String& topic, const String& payload, MessagePriority priority,
+    uint32_t timeoutMs) {
   // CRITICAL FIX: Mutex protection for thread safety
   xSemaphoreTake(queueMutex, portMAX_DELAY);
 
   // Validate inputs
-  if (topic.isEmpty())
-  {
+  if (topic.isEmpty()) {
     LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Topic is empty");
     xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_TOPIC;
   }
 
-  if (payload.isEmpty())
-  {
+  if (payload.isEmpty()) {
     LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Payload is empty");
     xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_PAYLOAD;
@@ -121,13 +107,11 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
 
   // Check queue size limits
   uint32_t totalMessages = highPriorityQueue.size() +
-                           normalPriorityQueue.size() +
-                           lowPriorityQueue.size();
+                           normalPriorityQueue.size() + lowPriorityQueue.size();
 
-  if (totalMessages >= config.maxQueueSize)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Queue full (%ld/%ld)\n",
-                  totalMessages, config.maxQueueSize);
+  if (totalMessages >= config.maxQueueSize) {
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Queue full (%ld/%ld)\n", totalMessages,
+                  config.maxQueueSize);
     xSemaphoreGive(queueMutex);
     return QUEUE_FULL;
   }
@@ -147,9 +131,9 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
   msg.nextRetryTimeMs = 0;
 
   // Get appropriate queue
-  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> *targetQueue = getQueueForPriority(priority);
-  if (!targetQueue)
-  {
+  std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>>* targetQueue =
+      getQueueForPriority(priority);
+  if (!targetQueue) {
     xSemaphoreGive(queueMutex);
     return QUEUE_INVALID_TOPIC;
   }
@@ -162,62 +146,57 @@ QueueOperationResult MQTTPersistentQueue::enqueueMessage(const String &topic,
   xSemaphoreGive(queueMutex);
 
   // Update statistics (outside mutex - not critical section)
-  // NOTE: Stats updates have potential race condition but acceptable for monitoring data
-  // Stats accuracy is not critical for system functionality
+  // NOTE: Stats updates have potential race condition but acceptable for
+  // monitoring data Stats accuracy is not critical for system functionality
   stats.totalPayloadSize += payload.length();
-  if (payload.length() > stats.largestPayloadSize)
-  {
+  if (payload.length() > stats.largestPayloadSize) {
     stats.largestPayloadSize = payload.length();
   }
   updateStats();
 
   // Persist to disk AFTER releasing mutex (deferred write pattern)
-  // Trade-off: If crash occurs between unlock and persist, message is in RAM but not on disk
-  // This is acceptable for significantly improved system responsiveness
-  if (config.enablePersistence)
-  {
+  // Trade-off: If crash occurs between unlock and persist, message is in RAM
+  // but not on disk This is acceptable for significantly improved system
+  // responsiveness
+  if (config.enablePersistence) {
     QueueOperationResult result = persistMessageToDisk(msg);
-    if (result != QUEUE_SUCCESS)
-    {
-      LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: Failed to persist message %d\n", msg.messageId);
+    if (result != QUEUE_SUCCESS) {
+      LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: Failed to persist message %d\n",
+                    msg.messageId);
     }
   }
 
-  LOG_MQTT_INFO("[MQTT_QUEUE] Message %d queued [%s] (topic: %s, size: %d bytes)\n",
-                msg.messageId, getPriorityString(priority), msg.topic.c_str(),
-                msg.payload.length());
+  LOG_MQTT_INFO(
+      "[MQTT_QUEUE] Message %d queued [%s] (topic: %s, size: %d bytes)\n",
+      msg.messageId, getPriorityString(priority), msg.topic.c_str(),
+      msg.payload.length());
 
   return QUEUE_SUCCESS;
 }
 
-QueueOperationResult MQTTPersistentQueue::enqueueJsonMessage(const String &topic,
-                                                             const JsonObject &doc,
-                                                             MessagePriority priority,
-                                                             uint32_t timeoutMs)
-{
+QueueOperationResult MQTTPersistentQueue::enqueueJsonMessage(
+    const String& topic, const JsonObject& doc, MessagePriority priority,
+    uint32_t timeoutMs) {
   String payload;
   serializeJson(doc, payload);
   return enqueueMessage(topic, payload, priority, timeoutMs);
 }
 
 // Publish callback
-void MQTTPersistentQueue::setPublishCallback(PublishCallback callback)
-{
+void MQTTPersistentQueue::setPublishCallback(PublishCallback callback) {
   publishCallback = callback;
   LOG_MQTT_INFO("[MQTT_QUEUE] Publish callback registered");
 }
 
 // Queue processing
-uint32_t MQTTPersistentQueue::processQueue()
-{
+uint32_t MQTTPersistentQueue::processQueue() {
   // CRITICAL FIX: Mutex protection for thread safety
   xSemaphoreTake(queueMutex, portMAX_DELAY);
 
   unsigned long now = millis();
 
   // Check if processing interval has elapsed
-  if (now - lastProcessTime < config.processInterval)
-  {
+  if (now - lastProcessTime < config.processInterval) {
     xSemaphoreGive(queueMutex);
     return 0;
   }
@@ -232,184 +211,149 @@ uint32_t MQTTPersistentQueue::processQueue()
   uint8_t messagesThisCycle = 0;
 
   // Process HIGH priority first
-  while (!highPriorityQueue.empty() && messagesThisCycle < config.messagesPerCycle)
-  {
-    QueuedMessage &msg = highPriorityQueue.front();
+  while (!highPriorityQueue.empty() &&
+         messagesThisCycle < config.messagesPerCycle) {
+    QueuedMessage& msg = highPriorityQueue.front();
 
-    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY)
-    {
+    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY) {
       // Convert PSRAMString to Arduino String for callback
-      if (publishCallback && publishCallback(msg.topic.toString(), msg.payload.toString()))
-      {
+      if (publishCallback &&
+          publishCallback(msg.topic.toString(), msg.payload.toString())) {
         // Success
         msg.status = STATUS_SENT;
-        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
+        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n",
+                      msg.messageId);
         stats.successfulMessages++;
         messagesSent++;
         messagesThisCycle++;
         highPriorityQueue.pop_front();
-      }
-      else
-      {
+      } else {
         // Failed - schedule retry
         msg.status = STATUS_FAILED;
         msg.retryCount++;
 
-        if (msg.retryCount < config.maxRetries)
-        {
+        if (msg.retryCount < config.maxRetries) {
           msg.retryState = RETRY_WAITING;
           msg.lastRetryTime = now;
           msg.nextRetryTimeMs = now + calculateRetryDelay(msg.retryCount);
 
-          LOG_MQTT_INFO("[MQTT_QUEUE] Message %d retry %d scheduled (next: +%ld ms)\n",
-                        msg.messageId, msg.retryCount,
-                        calculateRetryDelay(msg.retryCount));
+          LOG_MQTT_INFO(
+              "[MQTT_QUEUE] Message %d retry %d scheduled (next: +%ld ms)\n",
+              msg.messageId, msg.retryCount,
+              calculateRetryDelay(msg.retryCount));
           messagesThisCycle++;
           highPriorityQueue.pop_front();
-          normalPriorityQueue.push_back(msg); // Re-queue with lower priority
-        }
-        else
-        {
+          normalPriorityQueue.push_back(msg);  // Re-queue with lower priority
+        } else {
           // Max retries exceeded
           msg.status = STATUS_FAILED;
-          LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Message %d failed (max %d retries)\n",
-                        msg.messageId, config.maxRetries);
+          LOG_MQTT_INFO(
+              "[MQTT_QUEUE] ERROR: Message %d failed (max %d retries)\n",
+              msg.messageId, config.maxRetries);
           stats.failedMessages++;
           messagesThisCycle++;
           highPriorityQueue.pop_front();
         }
       }
-    }
-    else if (msg.retryState == RETRY_WAITING)
-    {
+    } else if (msg.retryState == RETRY_WAITING) {
       // Check if retry time has arrived
-      if (now >= msg.nextRetryTimeMs)
-      {
+      if (now >= msg.nextRetryTimeMs) {
         msg.retryState = RETRY_READY;
         highPriorityQueue.push_back(highPriorityQueue.front());
         highPriorityQueue.pop_front();
+      } else {
+        break;  // Not ready yet, skip rest
       }
-      else
-      {
-        break; // Not ready yet, skip rest
-      }
-    }
-    else
-    {
+    } else {
       highPriorityQueue.pop_front();
     }
   }
 
   // Process NORMAL priority (similar logic)
-  while (!normalPriorityQueue.empty() && messagesThisCycle < config.messagesPerCycle)
-  {
-    QueuedMessage &msg = normalPriorityQueue.front();
+  while (!normalPriorityQueue.empty() &&
+         messagesThisCycle < config.messagesPerCycle) {
+    QueuedMessage& msg = normalPriorityQueue.front();
 
-    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY)
-    {
+    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY) {
       // Convert PSRAMString to Arduino String for callback
-      if (publishCallback && publishCallback(msg.topic.toString(), msg.payload.toString()))
-      {
+      if (publishCallback &&
+          publishCallback(msg.topic.toString(), msg.payload.toString())) {
         msg.status = STATUS_SENT;
-        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n", msg.messageId);
+        LOG_MQTT_INFO("[MQTT_QUEUE] Message %d sent successfully\n",
+                      msg.messageId);
         stats.successfulMessages++;
         messagesSent++;
         messagesThisCycle++;
         normalPriorityQueue.pop_front();
-      }
-      else
-      {
+      } else {
         msg.status = STATUS_FAILED;
         msg.retryCount++;
 
-        if (msg.retryCount < config.maxRetries)
-        {
+        if (msg.retryCount < config.maxRetries) {
           msg.retryState = RETRY_WAITING;
           msg.lastRetryTime = now;
           msg.nextRetryTimeMs = now + calculateRetryDelay(msg.retryCount);
           messagesThisCycle++;
           normalPriorityQueue.pop_front();
           lowPriorityQueue.push_back(msg);
-        }
-        else
-        {
+        } else {
           msg.status = STATUS_FAILED;
           stats.failedMessages++;
           messagesThisCycle++;
           normalPriorityQueue.pop_front();
         }
       }
-    }
-    else if (msg.retryState == RETRY_WAITING)
-    {
-      if (now >= msg.nextRetryTimeMs)
-      {
+    } else if (msg.retryState == RETRY_WAITING) {
+      if (now >= msg.nextRetryTimeMs) {
         msg.retryState = RETRY_READY;
         normalPriorityQueue.push_back(normalPriorityQueue.front());
         normalPriorityQueue.pop_front();
-      }
-      else
-      {
+      } else {
         break;
       }
-    }
-    else
-    {
+    } else {
       normalPriorityQueue.pop_front();
     }
   }
 
   // Process LOW priority
-  while (!lowPriorityQueue.empty() && messagesThisCycle < config.messagesPerCycle)
-  {
-    QueuedMessage &msg = lowPriorityQueue.front();
+  while (!lowPriorityQueue.empty() &&
+         messagesThisCycle < config.messagesPerCycle) {
+    QueuedMessage& msg = lowPriorityQueue.front();
 
-    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY)
-    {
+    if (msg.status == STATUS_QUEUED || msg.retryState == RETRY_READY) {
       // Convert PSRAMString to Arduino String for callback
-      if (publishCallback && publishCallback(msg.topic.toString(), msg.payload.toString()))
-      {
+      if (publishCallback &&
+          publishCallback(msg.topic.toString(), msg.payload.toString())) {
         msg.status = STATUS_SENT;
         stats.successfulMessages++;
         messagesSent++;
         messagesThisCycle++;
         lowPriorityQueue.pop_front();
-      }
-      else
-      {
+      } else {
         msg.retryCount++;
-        if (msg.retryCount < config.maxRetries)
-        {
+        if (msg.retryCount < config.maxRetries) {
           msg.retryState = RETRY_WAITING;
           msg.lastRetryTime = now;
           msg.nextRetryTimeMs = now + calculateRetryDelay(msg.retryCount);
           messagesThisCycle++;
           lowPriorityQueue.pop_front();
-        }
-        else
-        {
+        } else {
           msg.status = STATUS_FAILED;
           stats.failedMessages++;
           messagesThisCycle++;
           lowPriorityQueue.pop_front();
         }
       }
-    }
-    else if (msg.retryState == RETRY_WAITING)
-    {
-      if (now >= msg.nextRetryTimeMs)
-      {
+    } else if (msg.retryState == RETRY_WAITING) {
+      if (now >= msg.nextRetryTimeMs) {
         msg.retryState = RETRY_READY;
         lowPriorityQueue.push_back(lowPriorityQueue.front());
         lowPriorityQueue.pop_front();
-      }
-      else
-      {
+      } else {
         break;
       }
-    }
-    else
-    {
+    } else {
       lowPriorityQueue.pop_front();
     }
   }
@@ -421,34 +365,27 @@ uint32_t MQTTPersistentQueue::processQueue()
   return messagesSent;
 }
 
-bool MQTTPersistentQueue::processReadyMessages()
-{
+bool MQTTPersistentQueue::processReadyMessages() {
   unsigned long now = millis();
   uint32_t processed = 0;
 
   // Check all queues for messages ready to retry
-  for (auto &msg : highPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs)
-    {
+  for (auto& msg : highPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs) {
       msg.retryState = RETRY_READY;
       processed++;
     }
   }
 
-  for (auto &msg : normalPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs)
-    {
+  for (auto& msg : normalPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs) {
       msg.retryState = RETRY_READY;
       processed++;
     }
   }
 
-  for (auto &msg : lowPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs)
-    {
+  for (auto& msg : lowPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING && now >= msg.nextRetryTimeMs) {
       msg.retryState = RETRY_READY;
       processed++;
     }
@@ -457,41 +394,37 @@ bool MQTTPersistentQueue::processReadyMessages()
   return processed > 0;
 }
 
-void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId)
-{
+void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId) {
   // Search in all queues
-  for (auto &msg : highPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-    {
+  for (auto& msg : highPriorityQueue) {
+    if (msg.messageId == messageId) {
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n",
+                    messageId);
       return;
     }
   }
 
-  for (auto &msg : normalPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-    {
+  for (auto& msg : normalPriorityQueue) {
+    if (msg.messageId == messageId) {
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n",
+                    messageId);
       return;
     }
   }
 
-  for (auto &msg : lowPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-    {
+  for (auto& msg : lowPriorityQueue) {
+    if (msg.messageId == messageId) {
       msg.retryCount = 0;
       msg.status = STATUS_QUEUED;
       msg.retryState = RETRY_IDLE;
-      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n", messageId);
+      LOG_MQTT_INFO("[MQTT_QUEUE] Manual retry scheduled for message %d\n",
+                    messageId);
       return;
     }
   }
@@ -500,157 +433,133 @@ void MQTTPersistentQueue::retryFailedMessage(uint16_t messageId)
 }
 
 // Message state queries
-MessageStatus MQTTPersistentQueue::getMessageStatus(uint16_t messageId) const
-{
-  for (const auto &msg : highPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-      return msg.status;
+MessageStatus MQTTPersistentQueue::getMessageStatus(uint16_t messageId) const {
+  for (const auto& msg : highPriorityQueue) {
+    if (msg.messageId == messageId) return msg.status;
   }
-  for (const auto &msg : normalPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-      return msg.status;
+  for (const auto& msg : normalPriorityQueue) {
+    if (msg.messageId == messageId) return msg.status;
   }
-  for (const auto &msg : lowPriorityQueue)
-  {
-    if (msg.messageId == messageId)
-      return msg.status;
+  for (const auto& msg : lowPriorityQueue) {
+    if (msg.messageId == messageId) return msg.status;
   }
   return STATUS_QUEUED;
 }
 
-uint32_t MQTTPersistentQueue::getPendingMessageCount() const
-{
-  return highPriorityQueue.size() + normalPriorityQueue.size() + lowPriorityQueue.size();
+uint32_t MQTTPersistentQueue::getPendingMessageCount() const {
+  return highPriorityQueue.size() + normalPriorityQueue.size() +
+         lowPriorityQueue.size();
 }
 
-uint32_t MQTTPersistentQueue::getMessagesByPriority(MessagePriority priority) const
-{
-  switch (priority)
-  {
-  case PRIORITY_HIGH:
-    return highPriorityQueue.size();
-  case PRIORITY_NORMAL:
-    return normalPriorityQueue.size();
-  case PRIORITY_LOW:
-    return lowPriorityQueue.size();
-  default:
-    return 0;
+uint32_t MQTTPersistentQueue::getMessagesByPriority(
+    MessagePriority priority) const {
+  switch (priority) {
+    case PRIORITY_HIGH:
+      return highPriorityQueue.size();
+    case PRIORITY_NORMAL:
+      return normalPriorityQueue.size();
+    case PRIORITY_LOW:
+      return lowPriorityQueue.size();
+    default:
+      return 0;
   }
 }
 
-QueueHealthStatus MQTTPersistentQueue::getQueueHealth() const
-{
+QueueHealthStatus MQTTPersistentQueue::getQueueHealth() const {
   return stats.health;
 }
 
 // Statistics and reporting
-QueueStats MQTTPersistentQueue::getStats() const
-{
-  return stats;
-}
+QueueStats MQTTPersistentQueue::getStats() const { return stats; }
 
-const char *MQTTPersistentQueue::getHealthStatusString(QueueHealthStatus status) const
-{
-  switch (status)
-  {
-  case QUEUE_HEALTHY:
-    return "HEALTHY";
-  case QUEUE_WARNING:
-    return "WARNING (>80% full)";
-  case QUEUE_CRITICAL:
-    return "CRITICAL (>95% full)";
-  case QUEUE_HEALTH_FULL:
-    return "FULL (at max capacity)";
-  default:
-    return "UNKNOWN";
+const char* MQTTPersistentQueue::getHealthStatusString(
+    QueueHealthStatus status) const {
+  switch (status) {
+    case QUEUE_HEALTHY:
+      return "HEALTHY";
+    case QUEUE_WARNING:
+      return "WARNING (>80% full)";
+    case QUEUE_CRITICAL:
+      return "CRITICAL (>95% full)";
+    case QUEUE_HEALTH_FULL:
+      return "FULL (at max capacity)";
+    default:
+      return "UNKNOWN";
   }
 }
 
-const char *MQTTPersistentQueue::getMessageStatusString(MessageStatus status) const
-{
-  switch (status)
-  {
-  case STATUS_QUEUED:
-    return "QUEUED";
-  case STATUS_SENDING:
-    return "SENDING";
-  case STATUS_SENT:
-    return "SENT";
-  case STATUS_FAILED:
-    return "FAILED";
-  case STATUS_EXPIRED:
-    return "EXPIRED";
-  default:
-    return "UNKNOWN";
+const char* MQTTPersistentQueue::getMessageStatusString(
+    MessageStatus status) const {
+  switch (status) {
+    case STATUS_QUEUED:
+      return "QUEUED";
+    case STATUS_SENDING:
+      return "SENDING";
+    case STATUS_SENT:
+      return "SENT";
+    case STATUS_FAILED:
+      return "FAILED";
+    case STATUS_EXPIRED:
+      return "EXPIRED";
+    default:
+      return "UNKNOWN";
   }
 }
 
-const char *MQTTPersistentQueue::getPriorityString(MessagePriority priority) const
-{
-  switch (priority)
-  {
-  case PRIORITY_HIGH:
-    return "HIGH";
-  case PRIORITY_NORMAL:
-    return "NORMAL";
-  case PRIORITY_LOW:
-    return "LOW";
-  default:
-    return "UNKNOWN";
+const char* MQTTPersistentQueue::getPriorityString(
+    MessagePriority priority) const {
+  switch (priority) {
+    case PRIORITY_HIGH:
+      return "HIGH";
+    case PRIORITY_NORMAL:
+      return "NORMAL";
+    case PRIORITY_LOW:
+      return "LOW";
+    default:
+      return "UNKNOWN";
   }
 }
 
 // Diagnostics
-void MQTTPersistentQueue::printQueueStatus()
-{
+void MQTTPersistentQueue::printQueueStatus() {
   Serial.println("\n[MQTT_QUEUE] QUEUE STATUS");
   Serial.printf("  Health: %s\n", getHealthStatusString(stats.health));
-  Serial.printf("  Pending messages: %ld / %ld (%.1f%%)\n",
-                stats.totalMessages, config.maxQueueSize, stats.utilizationPercent);
+  Serial.printf("  Pending messages: %ld / %ld (%.1f%%)\n", stats.totalMessages,
+                config.maxQueueSize, stats.utilizationPercent);
   Serial.printf("  Total payload: %ld bytes\n", stats.totalPayloadSize);
-  Serial.printf("  Success rate: %.1f%% (%ld/%ld)\n\n",
-                stats.successRate, stats.successfulMessages,
+  Serial.printf("  Success rate: %.1f%% (%ld/%ld)\n\n", stats.successRate,
+                stats.successfulMessages,
                 stats.successfulMessages + stats.failedMessages);
 }
 
-void MQTTPersistentQueue::printQueueDetails()
-{
+void MQTTPersistentQueue::printQueueDetails() {
   Serial.println("\n[MQTT_QUEUE] HIGH PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", highPriorityQueue.size());
-  for (const auto &msg : highPriorityQueue)
-  {
-    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n",
-                  msg.messageId, msg.topic.c_str(),
-                  getMessageStatusString(msg.status), msg.payload.length(),
-                  msg.retryCount);
+  for (const auto& msg : highPriorityQueue) {
+    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n", msg.messageId,
+                  msg.topic.c_str(), getMessageStatusString(msg.status),
+                  msg.payload.length(), msg.retryCount);
   }
 
   Serial.println("\n[MQTT_QUEUE] NORMAL PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", normalPriorityQueue.size());
-  for (const auto &msg : normalPriorityQueue)
-  {
-    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n",
-                  msg.messageId, msg.topic.c_str(),
-                  getMessageStatusString(msg.status), msg.payload.length(),
-                  msg.retryCount);
+  for (const auto& msg : normalPriorityQueue) {
+    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n", msg.messageId,
+                  msg.topic.c_str(), getMessageStatusString(msg.status),
+                  msg.payload.length(), msg.retryCount);
   }
 
   Serial.println("\n[MQTT_QUEUE] LOW PRIORITY QUEUE");
   Serial.printf("  Count: %ld\n", lowPriorityQueue.size());
-  for (const auto &msg : lowPriorityQueue)
-  {
-    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n",
-                  msg.messageId, msg.topic.c_str(),
-                  getMessageStatusString(msg.status), msg.payload.length(),
-                  msg.retryCount);
+  for (const auto& msg : lowPriorityQueue) {
+    Serial.printf("    [%d] %s to %s (%d bytes, retries: %d)\n", msg.messageId,
+                  msg.topic.c_str(), getMessageStatusString(msg.status),
+                  msg.payload.length(), msg.retryCount);
   }
   Serial.println();
 }
 
-void MQTTPersistentQueue::printStatistics()
-{
+void MQTTPersistentQueue::printStatistics() {
   Serial.println("\n[MQTT_QUEUE] STATISTICS");
   Serial.printf("  Total queued: %ld\n", stats.totalMessages);
   Serial.printf("  By priority: HIGH=%ld, NORMAL=%ld, LOW=%ld\n",
@@ -665,104 +574,87 @@ void MQTTPersistentQueue::printStatistics()
   Serial.printf("  Retries: %ld attempts\n\n", stats.totalRetries);
 }
 
-void MQTTPersistentQueue::printRetryQueueStatus()
-{
+void MQTTPersistentQueue::printRetryQueueStatus() {
   Serial.println("\n[MQTT_QUEUE] MESSAGES WAITING FOR RETRY");
 
   uint32_t waitingCount = 0;
   unsigned long now = millis();
 
-  for (const auto &msg : highPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING)
-    {
-      unsigned long timeUntilRetry = msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
-      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n",
-                    msg.messageId, timeUntilRetry, msg.retryCount + 1,
-                    config.maxRetries);
+  for (const auto& msg : highPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING) {
+      unsigned long timeUntilRetry =
+          msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
+      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n", msg.messageId,
+                    timeUntilRetry, msg.retryCount + 1, config.maxRetries);
       waitingCount++;
     }
   }
 
-  for (const auto &msg : normalPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING)
-    {
-      unsigned long timeUntilRetry = msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
-      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n",
-                    msg.messageId, timeUntilRetry, msg.retryCount + 1,
-                    config.maxRetries);
+  for (const auto& msg : normalPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING) {
+      unsigned long timeUntilRetry =
+          msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
+      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n", msg.messageId,
+                    timeUntilRetry, msg.retryCount + 1, config.maxRetries);
       waitingCount++;
     }
   }
 
-  for (const auto &msg : lowPriorityQueue)
-  {
-    if (msg.retryState == RETRY_WAITING)
-    {
-      unsigned long timeUntilRetry = msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
-      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n",
-                    msg.messageId, timeUntilRetry, msg.retryCount + 1,
-                    config.maxRetries);
+  for (const auto& msg : lowPriorityQueue) {
+    if (msg.retryState == RETRY_WAITING) {
+      unsigned long timeUntilRetry =
+          msg.nextRetryTimeMs > now ? msg.nextRetryTimeMs - now : 0;
+      Serial.printf("  [%d] Retry in %lu ms (attempt %d/%d)\n", msg.messageId,
+                    timeUntilRetry, msg.retryCount + 1, config.maxRetries);
       waitingCount++;
     }
   }
 
-  if (waitingCount == 0)
-  {
+  if (waitingCount == 0) {
     Serial.println("  None");
   }
   Serial.println();
 }
 
-void MQTTPersistentQueue::printFailedMessages()
-{
+void MQTTPersistentQueue::printFailedMessages() {
   Serial.println("\n[MQTT_QUEUE] FAILED MESSAGES");
 
   uint32_t failedCount = 0;
 
-  for (const auto &msg : highPriorityQueue)
-  {
-    if (msg.status == STATUS_FAILED)
-    {
+  for (const auto& msg : highPriorityQueue) {
+    if (msg.status == STATUS_FAILED) {
       Serial.printf("  [%d] %s (retries: %d/%d, payload: %d bytes)\n",
-                    msg.messageId, msg.topic.c_str(),
-                    msg.retryCount, config.maxRetries, msg.payload.length());
+                    msg.messageId, msg.topic.c_str(), msg.retryCount,
+                    config.maxRetries, msg.payload.length());
       failedCount++;
     }
   }
 
-  for (const auto &msg : normalPriorityQueue)
-  {
-    if (msg.status == STATUS_FAILED)
-    {
+  for (const auto& msg : normalPriorityQueue) {
+    if (msg.status == STATUS_FAILED) {
       Serial.printf("  [%d] %s (retries: %d/%d, payload: %d bytes)\n",
-                    msg.messageId, msg.topic.c_str(),
-                    msg.retryCount, config.maxRetries, msg.payload.length());
+                    msg.messageId, msg.topic.c_str(), msg.retryCount,
+                    config.maxRetries, msg.payload.length());
       failedCount++;
     }
   }
 
-  for (const auto &msg : lowPriorityQueue)
-  {
-    if (msg.status == STATUS_FAILED)
-    {
+  for (const auto& msg : lowPriorityQueue) {
+    if (msg.status == STATUS_FAILED) {
       Serial.printf("  [%d] %s (retries: %d/%d, payload: %d bytes)\n",
-                    msg.messageId, msg.topic.c_str(),
-                    msg.retryCount, config.maxRetries, msg.payload.length());
+                    msg.messageId, msg.topic.c_str(), msg.retryCount,
+                    config.maxRetries, msg.payload.length());
       failedCount++;
     }
   }
 
-  if (failedCount == 0)
-  {
+  if (failedCount == 0) {
     Serial.println("  None - all messages successful!");
   }
   Serial.println();
 }
 
-void MQTTPersistentQueue::printHealthReport()
-{
+void MQTTPersistentQueue::printHealthReport() {
   Serial.println("\n[MQTT QUEUE] HEALTH REPORT\n");
 
   printQueueStatus();
@@ -772,8 +664,7 @@ void MQTTPersistentQueue::printHealthReport()
 }
 
 // Queue management
-void MQTTPersistentQueue::clearQueue()
-{
+void MQTTPersistentQueue::clearQueue() {
   xSemaphoreTake(queueMutex, portMAX_DELAY);
   highPriorityQueue.clear();
   normalPriorityQueue.clear();
@@ -783,45 +674,33 @@ void MQTTPersistentQueue::clearQueue()
   LOG_MQTT_INFO("[MQTT_QUEUE] Queue cleared");
 }
 
-void MQTTPersistentQueue::clearFailedMessages()
-{
+void MQTTPersistentQueue::clearFailedMessages() {
   uint32_t cleared = 0;
 
-  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();)
-  {
-    if (it->status == STATUS_FAILED)
-    {
+  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();) {
+    if (it->status == STATUS_FAILED) {
       it = highPriorityQueue.erase(it);
       cleared++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = normalPriorityQueue.begin(); it != normalPriorityQueue.end();)
-  {
-    if (it->status == STATUS_FAILED)
-    {
+  for (auto it = normalPriorityQueue.begin();
+       it != normalPriorityQueue.end();) {
+    if (it->status == STATUS_FAILED) {
       it = normalPriorityQueue.erase(it);
       cleared++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();)
-  {
-    if (it->status == STATUS_FAILED)
-    {
+  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();) {
+    if (it->status == STATUS_FAILED) {
       it = lowPriorityQueue.erase(it);
       cleared++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
@@ -830,77 +709,59 @@ void MQTTPersistentQueue::clearFailedMessages()
   LOG_MQTT_INFO("[MQTT_QUEUE] Cleared %ld failed messages\n", cleared);
 }
 
-void MQTTPersistentQueue::clearExpiredMessages()
-{
+void MQTTPersistentQueue::clearExpiredMessages() {
   unsigned long now = millis();
   uint32_t cleared = 0;
 
-  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       it = highPriorityQueue.erase(it);
       cleared++;
       stats.expiredMessages++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = normalPriorityQueue.begin(); it != normalPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = normalPriorityQueue.begin();
+       it != normalPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       it = normalPriorityQueue.erase(it);
       cleared++;
       stats.expiredMessages++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       it = lowPriorityQueue.erase(it);
       cleared++;
       stats.expiredMessages++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  if (cleared > 0)
-  {
+  if (cleared > 0) {
     LOG_MQTT_INFO("[MQTT_QUEUE] Cleared %ld expired messages\n", cleared);
     updateStats();
   }
 }
 
-uint32_t MQTTPersistentQueue::pruneOldMessages(uint32_t ageMs)
-{
+uint32_t MQTTPersistentQueue::pruneOldMessages(uint32_t ageMs) {
   unsigned long now = millis();
   uint32_t pruned = 0;
 
-  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();)
-  {
-    if ((now - it->enqueuedTime) > ageMs)
-    {
+  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();) {
+    if ((now - it->enqueuedTime) > ageMs) {
       it = lowPriorityQueue.erase(it);
       pruned++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
@@ -910,14 +771,15 @@ uint32_t MQTTPersistentQueue::pruneOldMessages(uint32_t ageMs)
 }
 
 // Persistence operations
-QueueOperationResult MQTTPersistentQueue::persistMessageToDisk(const QueuedMessage &msg)
-{
-  String filename = String(config.persistenceDir) + "/" + String(msg.messageId) + ".json";
+QueueOperationResult MQTTPersistentQueue::persistMessageToDisk(
+    const QueuedMessage& msg) {
+  String filename =
+      String(config.persistenceDir) + "/" + String(msg.messageId) + ".json";
 
   JsonDocument doc;
   doc["id"] = msg.messageId;
-  doc["topic"] = msg.topic.toString();       // Convert PSRAMString to String
-  doc["payload"] = msg.payload.toString();   // Convert PSRAMString to String
+  doc["topic"] = msg.topic.toString();      // Convert PSRAMString to String
+  doc["payload"] = msg.payload.toString();  // Convert PSRAMString to String
   doc["priority"] = (int)msg.priority;
   doc["status"] = (int)msg.status;
   doc["enqueued_time"] = msg.enqueuedTime;
@@ -925,15 +787,15 @@ QueueOperationResult MQTTPersistentQueue::persistMessageToDisk(const QueuedMessa
   doc["timeout_ms"] = msg.timeoutMs;
 
   File file = LittleFS.open(filename.c_str(), "w");
-  if (!file)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Cannot create file %s\n", filename.c_str());
+  if (!file) {
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Cannot create file %s\n",
+                  filename.c_str());
     return QUEUE_STORAGE_ERROR;
   }
 
-  if (serializeJson(doc, file) == 0)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Failed to write to %s\n", filename.c_str());
+  if (serializeJson(doc, file) == 0) {
+    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Failed to write to %s\n",
+                  filename.c_str());
     file.close();
     return QUEUE_STORAGE_ERROR;
   }
@@ -942,30 +804,28 @@ QueueOperationResult MQTTPersistentQueue::persistMessageToDisk(const QueuedMessa
   return QUEUE_SUCCESS;
 }
 
-bool MQTTPersistentQueue::loadQueueFromDisk()
-{
+bool MQTTPersistentQueue::loadQueueFromDisk() {
   File queueDir = LittleFS.open(config.persistenceDir, "r");
-  if (!queueDir)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] Queue directory not found: %s\n", config.persistenceDir);
+  if (!queueDir) {
+    LOG_MQTT_INFO("[MQTT_QUEUE] Queue directory not found: %s\n",
+                  config.persistenceDir);
     return false;
   }
 
   uint32_t loadedCount = 0;
 
   File file = queueDir.openNextFile();
-  while (file)
-  {
-    if (String(file.name()).endsWith(".json"))
-    {
+  while (file) {
+    if (String(file.name()).endsWith(".json")) {
       JsonDocument doc;
 
-      if (deserializeJson(doc, file) == DeserializationError::Ok)
-      {
+      if (deserializeJson(doc, file) == DeserializationError::Ok) {
         QueuedMessage msg;
         msg.messageId = doc["id"];
-        msg.topic = PSRAMString(doc["topic"].as<String>());      // Convert String to PSRAMString
-        msg.payload = PSRAMString(doc["payload"].as<String>());  // Convert String to PSRAMString
+        msg.topic = PSRAMString(
+            doc["topic"].as<String>());  // Convert String to PSRAMString
+        msg.payload = PSRAMString(
+            doc["payload"].as<String>());  // Convert String to PSRAMString
         msg.priority = (MessagePriority)doc["priority"].as<int>();
         msg.status = (MessageStatus)doc["status"].as<int>();
         msg.enqueuedTime = doc["enqueued_time"];
@@ -973,9 +833,9 @@ bool MQTTPersistentQueue::loadQueueFromDisk()
         msg.timeoutMs = doc["timeout_ms"];
         msg.retryState = RETRY_IDLE;
 
-        std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> *targetQueue = getQueueForPriority(msg.priority);
-        if (targetQueue)
-        {
+        std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>>*
+            targetQueue = getQueueForPriority(msg.priority);
+        if (targetQueue) {
           targetQueue->push_back(msg);
           loadedCount++;
         }
@@ -988,65 +848,57 @@ bool MQTTPersistentQueue::loadQueueFromDisk()
 
   queueDir.close();
 
-  if (loadedCount > 0)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] Loaded %ld persisted messages from disk\n", loadedCount);
+  if (loadedCount > 0) {
+    LOG_MQTT_INFO("[MQTT_QUEUE] Loaded %ld persisted messages from disk\n",
+                  loadedCount);
     updateStats();
   }
 
   return true;
 }
 
-void MQTTPersistentQueue::cleanupPersistenceStorage()
-{
+void MQTTPersistentQueue::cleanupPersistenceStorage() {
   File queueDir = LittleFS.open(config.persistenceDir, "r");
-  if (!queueDir)
-  {
-    // No valid handle to close - LittleFS returns invalid File object on failure
-    LOG_MQTT_INFO("[MQTT_QUEUE] ERROR: Failed to open persistence directory: %s\n", config.persistenceDir);
+  if (!queueDir) {
+    // No valid handle to close - LittleFS returns invalid File object on
+    // failure
+    LOG_MQTT_INFO(
+        "[MQTT_QUEUE] ERROR: Failed to open persistence directory: %s\n",
+        config.persistenceDir);
     return;
   }
 
   uint32_t cleanedCount = 0;
   File file = queueDir.openNextFile();
 
-  while (file)
-  {
+  while (file) {
     String filename = file.name();
 
     // Remove files for messages no longer in queue
     uint16_t fileId = 0;
-    if (sscanf(filename.c_str(), "%hu.json", &fileId) == 1)
-    {
+    if (sscanf(filename.c_str(), "%hu.json", &fileId) == 1) {
       bool found = false;
 
-      for (const auto &msg : highPriorityQueue)
-      {
-        if (msg.messageId == fileId)
-        {
+      for (const auto& msg : highPriorityQueue) {
+        if (msg.messageId == fileId) {
           found = true;
           break;
         }
       }
-      for (const auto &msg : normalPriorityQueue)
-      {
-        if (msg.messageId == fileId)
-        {
+      for (const auto& msg : normalPriorityQueue) {
+        if (msg.messageId == fileId) {
           found = true;
           break;
         }
       }
-      for (const auto &msg : lowPriorityQueue)
-      {
-        if (msg.messageId == fileId)
-        {
+      for (const auto& msg : lowPriorityQueue) {
+        if (msg.messageId == fileId) {
           found = true;
           break;
         }
       }
 
-      if (!found)
-      {
+      if (!found) {
         String fullPath = String(config.persistenceDir) + "/" + filename;
         LittleFS.remove(fullPath.c_str());
         cleanedCount++;
@@ -1059,25 +911,20 @@ void MQTTPersistentQueue::cleanupPersistenceStorage()
 
   queueDir.close();
 
-  if (cleanedCount > 0)
-  {
+  if (cleanedCount > 0) {
     LOG_MQTT_INFO("[MQTT_QUEUE] Cleaned %ld orphaned files\n", cleanedCount);
   }
 }
 
-QueueOperationResult MQTTPersistentQueue::saveQueueToDisk()
-{
+QueueOperationResult MQTTPersistentQueue::saveQueueToDisk() {
   // Save all queued messages
-  for (const auto &msg : highPriorityQueue)
-  {
+  for (const auto& msg : highPriorityQueue) {
     persistMessageToDisk(msg);
   }
-  for (const auto &msg : normalPriorityQueue)
-  {
+  for (const auto& msg : normalPriorityQueue) {
     persistMessageToDisk(msg);
   }
-  for (const auto &msg : lowPriorityQueue)
-  {
+  for (const auto& msg : lowPriorityQueue) {
     persistMessageToDisk(msg);
   }
 
@@ -1085,22 +932,18 @@ QueueOperationResult MQTTPersistentQueue::saveQueueToDisk()
   return QUEUE_SUCCESS;
 }
 
-QueueOperationResult MQTTPersistentQueue::loadQueueFromDiskNow()
-{
+QueueOperationResult MQTTPersistentQueue::loadQueueFromDiskNow() {
   clearQueue();
   return loadQueueFromDisk() ? QUEUE_SUCCESS : QUEUE_STORAGE_ERROR;
 }
 
-uint32_t MQTTPersistentQueue::getPersistenceUsage() const
-{
+uint32_t MQTTPersistentQueue::getPersistenceUsage() const {
   uint32_t totalSize = 0;
   File queueDir = LittleFS.open(config.persistenceDir, "r");
 
-  if (queueDir)
-  {
+  if (queueDir) {
     File file = queueDir.openNextFile();
-    while (file)
-    {
+    while (file) {
       totalSize += file.size();
       file.close();
       file = queueDir.openNextFile();
@@ -1112,107 +955,87 @@ uint32_t MQTTPersistentQueue::getPersistenceUsage() const
 }
 
 // Performance optimization
-void MQTTPersistentQueue::enableCompression(bool enable)
-{
+void MQTTPersistentQueue::enableCompression(bool enable) {
   config.enableCompression = enable;
-  LOG_MQTT_INFO("[MQTT_QUEUE] Compression %s\n", enable ? "ENABLED" : "DISABLED");
+  LOG_MQTT_INFO("[MQTT_QUEUE] Compression %s\n",
+                enable ? "ENABLED" : "DISABLED");
 }
 
-void MQTTPersistentQueue::setBatchSize(uint8_t messagesPerCycle)
-{
+void MQTTPersistentQueue::setBatchSize(uint8_t messagesPerCycle) {
   config.messagesPerCycle = messagesPerCycle;
-  LOG_MQTT_INFO("[MQTT_QUEUE] Batch size set to: %d messages/cycle\n", messagesPerCycle);
+  LOG_MQTT_INFO("[MQTT_QUEUE] Batch size set to: %d messages/cycle\n",
+                messagesPerCycle);
 }
 
-void MQTTPersistentQueue::setProcessInterval(uint32_t intervalMs)
-{
+void MQTTPersistentQueue::setProcessInterval(uint32_t intervalMs) {
   config.processInterval = intervalMs;
   LOG_MQTT_INFO("[MQTT_QUEUE] Process interval set to: %ld ms\n", intervalMs);
 }
 
 // Recovery and robustness
-bool MQTTPersistentQueue::verifyQueueIntegrity()
-{
+bool MQTTPersistentQueue::verifyQueueIntegrity() {
   // Check for invalid states
   uint32_t issues = 0;
 
-  for (const auto &msg : highPriorityQueue)
-  {
-    if (msg.topic.isEmpty() || msg.payload.isEmpty())
-    {
+  for (const auto& msg : highPriorityQueue) {
+    if (msg.topic.isEmpty() || msg.payload.isEmpty()) {
       issues++;
     }
   }
 
-  for (const auto &msg : normalPriorityQueue)
-  {
-    if (msg.topic.isEmpty() || msg.payload.isEmpty())
-    {
+  for (const auto& msg : normalPriorityQueue) {
+    if (msg.topic.isEmpty() || msg.payload.isEmpty()) {
       issues++;
     }
   }
 
-  for (const auto &msg : lowPriorityQueue)
-  {
-    if (msg.topic.isEmpty() || msg.payload.isEmpty())
-    {
+  for (const auto& msg : lowPriorityQueue) {
+    if (msg.topic.isEmpty() || msg.payload.isEmpty()) {
       issues++;
     }
   }
 
-  if (issues > 0)
-  {
-    LOG_MQTT_INFO("[MQTT_QUEUE] WARNING: Queue integrity check found %ld issues\n", issues);
+  if (issues > 0) {
+    LOG_MQTT_INFO(
+        "[MQTT_QUEUE] WARNING: Queue integrity check found %ld issues\n",
+        issues);
   }
 
   return issues == 0;
 }
 
-uint32_t MQTTPersistentQueue::repairQueue()
-{
+uint32_t MQTTPersistentQueue::repairQueue() {
   uint32_t repaired = 0;
 
-  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();)
-  {
-    if (it->topic.isEmpty() || it->payload.isEmpty())
-    {
+  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();) {
+    if (it->topic.isEmpty() || it->payload.isEmpty()) {
       it = highPriorityQueue.erase(it);
       repaired++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = normalPriorityQueue.begin(); it != normalPriorityQueue.end();)
-  {
-    if (it->topic.isEmpty() || it->payload.isEmpty())
-    {
+  for (auto it = normalPriorityQueue.begin();
+       it != normalPriorityQueue.end();) {
+    if (it->topic.isEmpty() || it->payload.isEmpty()) {
       it = normalPriorityQueue.erase(it);
       repaired++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();)
-  {
-    if (it->topic.isEmpty() || it->payload.isEmpty())
-    {
+  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();) {
+    if (it->topic.isEmpty() || it->payload.isEmpty()) {
       it = lowPriorityQueue.erase(it);
       repaired++;
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  if (repaired > 0)
-  {
+  if (repaired > 0) {
     LOG_MQTT_INFO("[MQTT_QUEUE] Repaired %ld corrupted messages\n", repaired);
     updateStats();
   }
@@ -1220,77 +1043,58 @@ uint32_t MQTTPersistentQueue::repairQueue()
   return repaired;
 }
 
-void MQTTPersistentQueue::enableAutoRecovery(bool enable)
-{
-  LOG_MQTT_INFO("[MQTT_QUEUE] Auto-recovery %s\n", enable ? "ENABLED" : "DISABLED");
+void MQTTPersistentQueue::enableAutoRecovery(bool enable) {
+  LOG_MQTT_INFO("[MQTT_QUEUE] Auto-recovery %s\n",
+                enable ? "ENABLED" : "DISABLED");
 }
 
 // Private helper methods
-void MQTTPersistentQueue::updateStats()
-{
-  stats.totalMessages = highPriorityQueue.size() +
-                        normalPriorityQueue.size() +
+void MQTTPersistentQueue::updateStats() {
+  stats.totalMessages = highPriorityQueue.size() + normalPriorityQueue.size() +
                         lowPriorityQueue.size();
 
   stats.highPriorityCount = highPriorityQueue.size();
   stats.normalPriorityCount = normalPriorityQueue.size();
   stats.lowPriorityCount = lowPriorityQueue.size();
 
-  stats.utilizationPercent = (stats.totalMessages * 100.0f) / config.maxQueueSize;
+  stats.utilizationPercent =
+      (stats.totalMessages * 100.0f) / config.maxQueueSize;
 
-  if (stats.totalMessages > 0)
-  {
+  if (stats.totalMessages > 0) {
     stats.averagePayloadSize = stats.totalPayloadSize / stats.totalMessages;
-  }
-  else
-  {
+  } else {
     stats.averagePayloadSize = 0;
   }
 
   uint32_t totalProcessed = stats.successfulMessages + stats.failedMessages;
-  if (totalProcessed > 0)
-  {
+  if (totalProcessed > 0) {
     stats.successRate = (stats.successfulMessages * 100.0f) / totalProcessed;
-  }
-  else
-  {
+  } else {
     stats.successRate = 0.0f;
   }
 
   updateHealthStatus();
 }
 
-void MQTTPersistentQueue::updateHealthStatus()
-{
-  if (stats.utilizationPercent >= 100.0f)
-  {
+void MQTTPersistentQueue::updateHealthStatus() {
+  if (stats.utilizationPercent >= 100.0f) {
     stats.health = QUEUE_HEALTH_FULL;
-  }
-  else if (stats.utilizationPercent >= 95.0f)
-  {
+  } else if (stats.utilizationPercent >= 95.0f) {
     stats.health = QUEUE_CRITICAL;
-  }
-  else if (stats.utilizationPercent >= 80.0f)
-  {
+  } else if (stats.utilizationPercent >= 80.0f) {
     stats.health = QUEUE_WARNING;
-  }
-  else
-  {
+  } else {
     stats.health = QUEUE_HEALTHY;
   }
 }
 
-uint32_t MQTTPersistentQueue::calculateRetryDelay(uint8_t retryCount) const
-{
-  if (retryCount == 0)
-    return 0;
+uint32_t MQTTPersistentQueue::calculateRetryDelay(uint8_t retryCount) const {
+  if (retryCount == 0) return 0;
 
   uint32_t delay = config.initialRetryDelayMs;
-  for (uint8_t i = 1; i < retryCount; i++)
-  {
+  for (uint8_t i = 1; i < retryCount; i++) {
     delay = (uint32_t)(delay * config.backoffMultiplier);
-    if (delay > config.maxRetryDelayMs)
-    {
+    if (delay > config.maxRetryDelayMs) {
       delay = config.maxRetryDelayMs;
       break;
     }
@@ -1303,93 +1107,75 @@ uint32_t MQTTPersistentQueue::calculateRetryDelay(uint8_t retryCount) const
   return delay;
 }
 
-std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>> *MQTTPersistentQueue::getQueueForPriority(
-    MessagePriority priority)
-{
-  switch (priority)
-  {
-  case PRIORITY_HIGH:
-    return &highPriorityQueue;
-  case PRIORITY_NORMAL:
-    return &normalPriorityQueue;
-  case PRIORITY_LOW:
-    return &lowPriorityQueue;
-  default:
-    return nullptr;
+std::deque<QueuedMessage, STLPSRAMAllocator<QueuedMessage>>*
+MQTTPersistentQueue::getQueueForPriority(MessagePriority priority) {
+  switch (priority) {
+    case PRIORITY_HIGH:
+      return &highPriorityQueue;
+    case PRIORITY_NORMAL:
+      return &normalPriorityQueue;
+    case PRIORITY_LOW:
+      return &lowPriorityQueue;
+    default:
+      return nullptr;
   }
 }
 
-void MQTTPersistentQueue::cleanExpiredMessages()
-{
-  if (!config.enableTimeout)
-    return;
+void MQTTPersistentQueue::cleanExpiredMessages() {
+  if (!config.enableTimeout) return;
 
   unsigned long now = millis();
   uint32_t expiredCount = 0;
 
   // Clean HIGH priority queue
-  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = highPriorityQueue.begin(); it != highPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       stats.expiredMessages++;
       expiredCount++;
       it = highPriorityQueue.erase(it);
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
   // Clean NORMAL priority queue
-  for (auto it = normalPriorityQueue.begin(); it != normalPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = normalPriorityQueue.begin();
+       it != normalPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       stats.expiredMessages++;
       expiredCount++;
       it = normalPriorityQueue.erase(it);
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
   // Clean LOW priority queue
-  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();)
-  {
-    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs)
-    {
+  for (auto it = lowPriorityQueue.begin(); it != lowPriorityQueue.end();) {
+    if (it->timeoutMs > 0 && (now - it->enqueuedTime) > it->timeoutMs) {
       it->status = STATUS_EXPIRED;
       stats.expiredMessages++;
       expiredCount++;
       it = lowPriorityQueue.erase(it);
-    }
-    else
-    {
+    } else {
       ++it;
     }
   }
 
-  if (expiredCount > 0)
-  {
+  if (expiredCount > 0) {
     updateStats();
     LOG_MQTT_INFO("[MQTT_QUEUE] Cleaned %ld expired messages\n", expiredCount);
   }
 }
 
 // Destructor
-MQTTPersistentQueue::~MQTTPersistentQueue()
-{
+MQTTPersistentQueue::~MQTTPersistentQueue() {
   saveQueueToDisk();
 
   // CRITICAL FIX: Delete mutex for cleanup
-  if (queueMutex != NULL)
-  {
+  if (queueMutex != NULL) {
     vSemaphoreDelete(queueMutex);
     queueMutex = NULL;
   }

@@ -2,19 +2,21 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > MQTT Publish Modes
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > MQTT Publish Modes
 
-**Current Version:** v2.5.34
-**Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Current Version:** v2.5.34 **Developer:** Kemal **Last Updated:** December 10,
+2025
 
 ---
 
 ## Overview
 
 SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
+
 - **Default Mode**: Batch publishing - all data in 1 payload
-- **Customize Mode**: Multi-topic publishing - data grouped per topic with different intervals
+- **Customize Mode**: Multi-topic publishing - data grouped per topic with
+  different intervals
 
 ---
 
@@ -84,6 +86,7 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 ### Configuration Fields
 
 #### Root MQTT Config
+
 | Field            | Type    | Required | Description                                  |
 | ---------------- | ------- | -------- | -------------------------------------------- |
 | `enabled`        | boolean | Yes      | Enable/disable MQTT service                  |
@@ -98,6 +101,7 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 | `publish_mode`   | string  | Yes      | Active mode: `"default"` or `"customize"`    |
 
 #### Default Mode Config
+
 | Field             | Type    | Required | Description                                           |
 | ----------------- | ------- | -------- | ----------------------------------------------------- |
 | `enabled`         | boolean | Yes      | Enable/disable default mode                           |
@@ -107,12 +111,14 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 | `interval_unit`   | string  | Yes      | Interval unit: `"ms"`, `"s"`, or `"m"` (default: "s") |
 
 #### Customize Mode Config
+
 | Field           | Type    | Required | Description                          |
 | --------------- | ------- | -------- | ------------------------------------ |
 | `enabled`       | boolean | Yes      | Enable/disable customize mode        |
 | `custom_topics` | array   | Yes      | Array of custom topic configurations |
 
 #### Custom Topic Object
+
 | Field           | Type          | Required | Description                                           |
 | --------------- | ------------- | -------- | ----------------------------------------------------- |
 | `topic`         | string        | Yes      | MQTT topic name                                       |
@@ -122,13 +128,17 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 
 ### Register ID Mapping
 
-**IMPORTANT:** The `registers` field in custom topics uses **register_id** (String), not Modbus address or numeric index.
+**IMPORTANT:** The `registers` field in custom topics uses **register_id**
+(String), not Modbus address or numeric index.
 
 #### What is register_id?
 
-`register_id` is a **unique identifier** for each register that is generated when a register is created via the BLE CRUD API. The common format is: `device_id + "_" + address` or a custom user-defined string.
+`register_id` is a **unique identifier** for each register that is generated
+when a register is created via the BLE CRUD API. The common format is:
+`device_id + "_" + address` or a custom user-defined string.
 
 **Example:**
+
 ```json
 // DEVICE_001 - Temperature & Humidity Sensor (4 registers)
 {
@@ -197,12 +207,13 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 ```
 
 **Usage in Customize Mode:**
+
 ```json
 {
   "custom_topics": [
     {
       "topic": "sensor/temperature",
-      "registers": ["temp_room_1", "temp_room_2"]  // Using register_id!
+      "registers": ["temp_room_1", "temp_room_2"] // Using register_id!
     },
     {
       "topic": "power/meter",
@@ -213,17 +224,20 @@ SRT-MGATE-1210 Firmware v2.5.34 supports 2 configurable MQTT publishing modes:
 ```
 
 Topic `sensor/temperature` will publish data from:
+
 - Register `temp_room_1` (Temperature Room 1, address 4001)
 - Register `temp_room_2` (Temperature Room 2, address 4002)
 
 Topic `power/meter` will publish data from:
+
 - Register `voltage_l1` (Voltage L1, address 4112)
 - Register `current_l1` (Current L1, address 4114)
 - Register `power_total` (Total Power, address 4150)
 
 #### Key Benefits of Using register_id
 
-1. **Stable Identifier:** Does not change when registers are reordered or deleted
+1. **Stable Identifier:** Does not change when registers are reordered or
+   deleted
 2. **Human-Readable:** `voltage_l1` is clearer than number `1`
 3. **Unique:** No duplication across devices
 4. **Backend-Friendly:** Easy to filter and match in firmware
@@ -233,9 +247,12 @@ Topic `power/meter` will publish data from:
 ## Default Mode
 
 ### Description
-Default mode collects all readable register data and sends it in **one payload** to **one topic** at a fixed interval.
+
+Default mode collects all readable register data and sends it in **one payload**
+to **one topic** at a fixed interval.
 
 ### Characteristics
+
 - Simple configuration
 - Efficient bandwidth usage (1 message instead of N messages)
 - Single topic for all data
@@ -295,11 +312,14 @@ Time: 15000ms → Publish 1 message with all data
 ```
 
 ### Example: 10 Registers
+
 **Without Default Mode:**
+
 - 10 separate MQTT messages
 - More network overhead
 
 **With Default Mode:**
+
 - 1 MQTT message containing array of 10 data points
 - Reduced bandwidth by ~90%
 
@@ -308,9 +328,12 @@ Time: 15000ms → Publish 1 message with all data
 ## Customize Mode
 
 ### Description
-Customize mode enables the creation of **multiple topics** with **flexible** register selection and **different intervals** per topic.
+
+Customize mode enables the creation of **multiple topics** with **flexible**
+register selection and **different intervals** per topic.
 
 ### Characteristics
+
 - Multiple topics
 - Flexible register selection per topic
 - Independent interval per topic
@@ -353,6 +376,7 @@ Customize mode enables the creation of **multiple topics** with **flexible** reg
 ### Payload Format (Per Topic)
 
 Topic: `warehouse/temperature`
+
 ```json
 {
   "timestamp": 1699123456789,
@@ -377,6 +401,7 @@ Topic: `warehouse/temperature`
 ```
 
 Topic: `warehouse/humidity`
+
 ```json
 {
   "timestamp": 1699123456789,
@@ -424,7 +449,13 @@ Registers can appear in multiple topics:
     },
     {
       "topic": "sensor/all_sensors",
-      "registers": ["temp_room_1", "temp_room_2", "temp_room_3", "humidity_room_1", "pressure_inlet"],
+      "registers": [
+        "temp_room_1",
+        "temp_room_2",
+        "temp_room_3",
+        "humidity_room_1",
+        "pressure_inlet"
+      ],
       "interval": 10,
       "interval_unit": "s"
     },
@@ -439,8 +470,11 @@ Registers can appear in multiple topics:
 ```
 
 **Result:**
-- Register `temp_room_1`: Published to 3 topics (temperature, all_sensors, critical)
-- Register `temp_room_2`, `temp_room_3`: Published to 2 topics (temperature, all_sensors)
+
+- Register `temp_room_1`: Published to 3 topics (temperature, all_sensors,
+  critical)
+- Register `temp_room_2`, `temp_room_3`: Published to 2 topics (temperature,
+  all_sensors)
 - Register `humidity_room_1`: Published to 1 topic (all_sensors)
 - Register `pressure_inlet`: Published to 2 topics (all_sensors, critical)
 
@@ -450,9 +484,11 @@ Registers can appear in multiple topics:
 
 ### Simplified Payload (6 Fields)
 
-The payload has been simplified from 7 fields to 6 fields for bandwidth efficiency by adding a `unit` field for measurement units.
+The payload has been simplified from 7 fields to 6 fields for bandwidth
+efficiency by adding a `unit` field for measurement units.
 
 #### Old Payload Format (Deprecated)
+
 ```json
 {
   "time": 1699123456,
@@ -466,6 +502,7 @@ The payload has been simplified from 7 fields to 6 fields for bandwidth efficien
 ```
 
 #### New Payload Format (Current)
+
 ```json
 {
   "time": 1699123456,
@@ -479,24 +516,26 @@ The payload has been simplified from 7 fields to 6 fields for bandwidth efficien
 
 ### Field Descriptions
 
-| Field         | Type      | Description                                       |
-| ------------- | --------- | ------------------------------------------------- |
-| `time`        | integer   | Unix timestamp when data was read                 |
-| `name`        | string    | Register name from configuration                  |
-| `device_id`   | string    | Modbus device identifier                          |
-| `value`       | float/int | Calibrated register value (after scale & offset)  |
-| `description` | string    | Optional description from BLE config              |
-| `unit`        | string    | Measurement unit (°C, V, A, PSI, etc.)            |
+| Field         | Type      | Description                                      |
+| ------------- | --------- | ------------------------------------------------ |
+| `time`        | integer   | Unix timestamp when data was read                |
+| `name`        | string    | Register name from configuration                 |
+| `device_id`   | string    | Modbus device identifier                         |
+| `value`       | float/int | Calibrated register value (after scale & offset) |
+| `description` | string    | Optional description from BLE config             |
+| `unit`        | string    | Measurement unit (°C, V, A, PSI, etc.)           |
 
 ### Calibration Formula
 
-The firmware applies calibration to raw Modbus values **AFTER** data type conversion using the formula:
+The firmware applies calibration to raw Modbus values **AFTER** data type
+conversion using the formula:
 
 ```
 final_value = (raw_value × scale) + offset
 ```
 
 **Default values:**
+
 - `scale` = 1.0
 - `offset` = 0.0
 - `unit` = ""
@@ -504,6 +543,7 @@ final_value = (raw_value × scale) + offset
 **Usage Examples:**
 
 #### Example 1: Voltage Divider (Scale Only)
+
 ```json
 {
   "register_name": "Voltage Sensor",
@@ -512,9 +552,11 @@ final_value = (raw_value × scale) + offset
   "unit": "V"
 }
 ```
+
 Raw Modbus: 2500 → Calibrated: (2500 × 0.01) + 0 = **25.0 V**
 
 #### Example 2: Temperature Offset Correction
+
 ```json
 {
   "register_name": "Room Temperature",
@@ -523,9 +565,11 @@ Raw Modbus: 2500 → Calibrated: (2500 × 0.01) + 0 = **25.0 V**
   "unit": "°C"
 }
 ```
+
 Raw Modbus: 27.5 → Calibrated: (27.5 × 1.0) - 2.5 = **25.0 °C**
 
 #### Example 3: Fahrenheit to Celsius Conversion
+
 ```json
 {
   "register_name": "Temperature (F to C)",
@@ -534,9 +578,11 @@ Raw Modbus: 27.5 → Calibrated: (27.5 × 1.0) - 2.5 = **25.0 °C**
   "unit": "°C"
 }
 ```
+
 Raw Modbus: 77 (°F) → Calibrated: (77 × 0.5556) - 17.778 ≈ **25.0 °C**
 
 #### Example 4: PSI to Bar Conversion
+
 ```json
 {
   "register_name": "Pressure Sensor",
@@ -545,6 +591,7 @@ Raw Modbus: 77 (°F) → Calibrated: (77 × 0.5556) - 17.778 ≈ **25.0 °C**
   "unit": "bar"
 }
 ```
+
 Raw Modbus: 100 (PSI) → Calibrated: (100 × 0.06895) + 0 = **6.895 bar**
 
 ### Internal Fields (Not in MQTT Payload)
@@ -557,7 +604,8 @@ These fields are used internally for deduplication and routing:
 
 ### Register Configuration Changes
 
-**IMPORTANT:** The per-register field `refresh_rate_ms` has been removed. Polling interval now uses **device-level** `refresh_rate_ms`:
+**IMPORTANT:** The per-register field `refresh_rate_ms` has been removed.
+Polling interval now uses **device-level** `refresh_rate_ms`:
 
 ```json
 {
@@ -601,6 +649,7 @@ All registers in that device will use the same polling interval (1000ms).
 ```
 
 **Response:**
+
 ```json
 {
   "status": "success",
@@ -627,7 +676,12 @@ All registers in that device will use the same polling interval (1000ms).
       "custom_topics": [
         {
           "topic": "factory/line1/temperature",
-          "registers": ["temp_zone_a", "temp_zone_b", "temp_zone_c", "temp_zone_d"],
+          "registers": [
+            "temp_zone_a",
+            "temp_zone_b",
+            "temp_zone_c",
+            "temp_zone_d"
+          ],
           "interval": 5,
           "interval_unit": "s"
         },
@@ -696,6 +750,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 **Scenario:** Send all sensor data to ThingsBoard/AWS IoT
 
 **Configuration:**
+
 ```json
 {
   "publish_mode": "default",
@@ -709,6 +764,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 ```
 
 **Benefits:**
+
 - Single message per interval
 - Platform receives all data in one batch
 - Easy to process on backend
@@ -718,11 +774,13 @@ Gateway will maintain MQTT connection but won't publish any data.
 ### Use Case 2: Multi-Consumer Architecture (Customize Mode)
 
 **Scenario:**
+
 - Dashboard needs realtime data (1s interval)
 - Database needs historical data (1min interval)
 - Alert system needs critical sensors (500ms interval)
 
 **Configuration:**
+
 ```json
 {
   "publish_mode": "customize",
@@ -731,13 +789,27 @@ Gateway will maintain MQTT connection but won't publish any data.
     "custom_topics": [
       {
         "topic": "dashboard/realtime",
-        "registers": ["temp_room_1", "temp_room_2", "humidity_room_1", "pressure_inlet", "voltage_l1", "current_l1"],
+        "registers": [
+          "temp_room_1",
+          "temp_room_2",
+          "humidity_room_1",
+          "pressure_inlet",
+          "voltage_l1",
+          "current_l1"
+        ],
         "interval": 1,
         "interval_unit": "s"
       },
       {
         "topic": "database/historical",
-        "registers": ["temp_room_1", "temp_room_2", "humidity_room_1", "pressure_inlet", "voltage_l1", "current_l1"],
+        "registers": [
+          "temp_room_1",
+          "temp_room_2",
+          "humidity_room_1",
+          "pressure_inlet",
+          "voltage_l1",
+          "current_l1"
+        ],
         "interval": 1,
         "interval_unit": "m"
       },
@@ -753,6 +825,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 ```
 
 **Benefits:**
+
 - Different consumers subscribe to different topics
 - Each topic has appropriate update frequency
 - Reduced network load for slow consumers
@@ -764,6 +837,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 **Scenario:** Warehouse monitoring with different sensor types
 
 **Configuration:**
+
 ```json
 {
   "publish_mode": "customize",
@@ -772,13 +846,23 @@ Gateway will maintain MQTT connection but won't publish any data.
     "custom_topics": [
       {
         "topic": "warehouse/environment/temperature",
-        "registers": ["temp_zone_1", "temp_zone_2", "temp_zone_3", "temp_zone_4"],
+        "registers": [
+          "temp_zone_1",
+          "temp_zone_2",
+          "temp_zone_3",
+          "temp_zone_4"
+        ],
         "interval": 5,
         "interval_unit": "s"
       },
       {
         "topic": "warehouse/environment/humidity",
-        "registers": ["humidity_zone_1", "humidity_zone_2", "humidity_zone_3", "humidity_zone_4"],
+        "registers": [
+          "humidity_zone_1",
+          "humidity_zone_2",
+          "humidity_zone_3",
+          "humidity_zone_4"
+        ],
         "interval": 5,
         "interval_unit": "s"
       },
@@ -800,6 +884,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 ```
 
 **Benefits:**
+
 - Logical grouping by sensor type
 - Different safety sensors can have faster intervals
 - Easier to implement topic-based access control
@@ -811,12 +896,14 @@ Gateway will maintain MQTT connection but won't publish any data.
 ### UI Components Required
 
 #### 1. Mode Selection Screen
+
 - Radio button group:
   - Default Mode
   - Customize Mode
 - Save button
 
 #### 2. Default Mode Configuration Screen
+
 ```
 ┌─────────────────────────────────────┐
 │ Default Mode Settings               │
@@ -837,6 +924,7 @@ Gateway will maintain MQTT connection but won't publish any data.
 ```
 
 #### 3. Customize Mode Configuration Screen
+
 ```
 ┌─────────────────────────────────────┐
 │ Customize Mode Settings             │
@@ -866,17 +954,21 @@ Gateway will maintain MQTT connection but won't publish any data.
 
 ### Register Selection Widget (Hierarchical Device → Registers)
 
-**IMPORTANT:** Register selection uses **register_id** (String unique identifier), not register_index or Modbus address.
+**IMPORTANT:** Register selection uses **register_id** (String unique
+identifier), not register_index or Modbus address.
 
-For register selection, you need a **hierarchical multi-select picker** that displays:
+For register selection, you need a **hierarchical multi-select picker** that
+displays:
 
 **Level 1: Device Selection**
+
 - Select device first (e.g., DEVICE_001, DEVICE_003)
 
 **Level 2: Register Selection**
+
 - Display registers grouped by selected device
 - Show **Register Name** (primary) + **register_id** (secondary)
-- *Optional: Address* (for reference)
+- _Optional: Address_ (for reference)
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -911,6 +1003,7 @@ For register selection, you need a **hierarchical multi-select picker** that dis
 ```
 
 **API to get available registers grouped by device:**
+
 ```javascript
 // GET /api/devices
 // Response:
@@ -954,6 +1047,7 @@ For register selection, you need a **hierarchical multi-select picker** that dis
 ```
 
 **UI Benefits:**
+
 - Scalable: 5 devices × 36 registers = 180 registers, manageable
 - Clear hierarchy: Device → Registers
 - Reduced cognitive load: User only sees 1-36 registers at a time
@@ -979,32 +1073,35 @@ For register selection, you need a **hierarchical multi-select picker** that dis
 ### API Integration
 
 #### Get Current Configuration
+
 ```javascript
 async function getMqttConfig() {
-  const response = await fetch('/api/server-config');
+  const response = await fetch("/api/server-config");
   const config = await response.json();
   return config.mqtt_config;
 }
 ```
 
 #### Update Configuration
+
 ```javascript
 async function updateMqttConfig(mqttConfig) {
-  const response = await fetch('/api/server-config', {
-    method: 'POST',
+  const response = await fetch("/api/server-config", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json'
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify({ mqtt_config: mqttConfig })
+    body: JSON.stringify({ mqtt_config: mqttConfig }),
   });
 
   if (response.ok) {
-    alert('Configuration updated. Device will restart in 5 seconds.');
+    alert("Configuration updated. Device will restart in 5 seconds.");
   }
 }
 ```
 
 #### Example: Save Default Mode
+
 ```javascript
 const defaultModeConfig = {
   enabled: true,
@@ -1015,17 +1112,18 @@ const defaultModeConfig = {
     enabled: true,
     topic_publish: "v1/devices/me/telemetry",
     topic_subscribe: "device/control",
-    interval: 5000
+    interval: 5000,
   },
   customize_mode: {
-    enabled: false
-  }
+    enabled: false,
+  },
 };
 
 await updateMqttConfig(defaultModeConfig);
 ```
 
 #### Example: Save Customize Mode
+
 ```javascript
 const customizeModeConfig = {
   enabled: true,
@@ -1033,7 +1131,7 @@ const customizeModeConfig = {
   broker_port: 1883,
   publish_mode: "customize",
   default_mode: {
-    enabled: false
+    enabled: false,
   },
   customize_mode: {
     enabled: true,
@@ -1042,16 +1140,16 @@ const customizeModeConfig = {
         topic: "sensor/temperature",
         registers: ["temp_room_1", "temp_room_2", "humidity_room_1"],
         interval: 5,
-        interval_unit: "s"
+        interval_unit: "s",
       },
       {
         topic: "power/meter",
         registers: ["voltage_l1", "current_l1", "power_total"],
         interval: 10,
-        interval_unit: "s"
-      }
-    ]
-  }
+        interval_unit: "s",
+      },
+    ],
+  },
 };
 
 await updateMqttConfig(customizeModeConfig);
@@ -1062,6 +1160,7 @@ await updateMqttConfig(customizeModeConfig);
 ## Testing Checklist
 
 ### Default Mode Tests
+
 - [ ] Enable default mode and verify single message published
 - [ ] Verify all registers included in payload
 - [ ] Verify interval timing is correct
@@ -1070,6 +1169,7 @@ await updateMqttConfig(customizeModeConfig);
 - [ ] Verify payload format matches documentation
 
 ### Customize Mode Tests
+
 - [ ] Enable customize mode with 1 topic
 - [ ] Enable customize mode with 5+ topics
 - [ ] Verify register filtering works correctly
@@ -1079,12 +1179,14 @@ await updateMqttConfig(customizeModeConfig);
 - [ ] Verify payload format matches documentation
 
 ### Mode Switching Tests
+
 - [ ] Switch from default to customize (requires restart)
 - [ ] Switch from customize to default (requires restart)
 - [ ] Disable both modes (MQTT stays connected)
 - [ ] Enable both modes (only active mode publishes)
 
 ### Edge Cases
+
 - [ ] Empty custom_topics array
 - [ ] Topic with empty registers array (should be ignored)
 - [ ] Invalid register index (should be skipped)
@@ -1096,22 +1198,26 @@ await updateMqttConfig(customizeModeConfig);
 ## Troubleshooting
 
 ### No Data Published (Default Mode)
+
 1. Check `default_mode.enabled` is `true`
 2. Check `publish_mode` is set to `"default"`
 3. Verify MQTT connection is established
 4. Check interval value is not too long
 
 ### No Data Published (Customize Mode)
+
 1. Check `customize_mode.enabled` is `true`
 2. Check `publish_mode` is set to `"customize"`
 3. Verify at least 1 topic has valid registers
 4. Check `register_id` values match actual configured registers (case-sensitive)
 
 ### Data Published to Wrong Topic
+
 1. Verify `publish_mode` setting
 2. Check active mode's topic configuration
 
 ### Missing Registers in Payload
+
 1. In customize mode, check `register_id` values in topic configuration
 2. Verify `register_id` is set correctly in device config (case-sensitive)
 3. Check deduplication is not removing data
@@ -1124,9 +1230,11 @@ await updateMqttConfig(customizeModeConfig);
 ### From Legacy Single-Message Mode
 
 **Old behavior:**
+
 - Each register sent as separate MQTT message
 
 **Migration to Default Mode:**
+
 ```json
 {
   "publish_mode": "default",
@@ -1139,21 +1247,23 @@ await updateMqttConfig(customizeModeConfig);
 ```
 
 **Backend changes required:**
+
 - Update MQTT subscriber to parse array of data instead of single data point
 - Loop through `payload.data[]` array
 
 **Example subscriber update:**
+
 ```javascript
 // Old code
-client.on('message', (topic, message) => {
+client.on("message", (topic, message) => {
   const data = JSON.parse(message);
   processDataPoint(data); // Single data point
 });
 
 // New code
-client.on('message', (topic, message) => {
+client.on("message", (topic, message) => {
   const payload = JSON.parse(message);
-  payload.data.forEach(dataPoint => {
+  payload.data.forEach((dataPoint) => {
     processDataPoint(dataPoint); // Loop through array
   });
 });
@@ -1164,14 +1274,18 @@ client.on('message', (topic, message) => {
 ## Version History
 
 ### v2.1.1 (Current - November 14, 2025)
+
 - **Developer:** Kemal
-- **BREAKING CHANGE:** Customize mode now uses `register_id` (String) instead of `register_index` (int)
+- **BREAKING CHANGE:** Customize mode now uses `register_id` (String) instead of
+  `register_index` (int)
 - Added hierarchical Device → Registers UI selection
-- Improved register identification with meaningful IDs (e.g., "voltage_l1", "temp_room_1")
+- Improved register identification with meaningful IDs (e.g., "voltage_l1",
+  "temp_room_1")
 - Enhanced documentation with real-world examples
 - Performance optimization (BLE transmission 28x faster)
 
 ### v2.0 (November 2024)
+
 - Added Default Mode (batch publishing)
 - Added Customize Mode (multi-topic publishing)
 - Simplified payload from 7 fields to 6 fields (added unit field)
@@ -1179,6 +1293,7 @@ client.on('message', (topic, message) => {
 - Added register overlap support
 
 ### v1.0 (Initial Release)
+
 - Legacy single-message-per-register mode
 
 ---
@@ -1193,9 +1308,8 @@ client.on('message', (topic, message) => {
 
 ---
 
-**Document Version:** 2.1 (Updated)
-**Last Updated:** December 10, 2025
-**Firmware Version:** v2.5.34
-**Developer:** Kemal
+**Document Version:** 2.1 (Updated) **Last Updated:** December 10, 2025
+**Firmware Version:** v2.5.34 **Developer:** Kemal
 
-[← Back to Technical Guides](README.md) | [↑ Top](#mqtt-publish-modes---documentation)
+[← Back to Technical Guides](README.md) |
+[↑ Top](#mqtt-publish-modes---documentation)

@@ -1,13 +1,13 @@
 # Network Configuration Guide
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Dual Network Interface Configuration & Failover
+**SRT-MGATE-1210 Modbus IIoT Gateway** Dual Network Interface Configuration &
+Failover
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Network Configuration
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Network Configuration
 
-**Current Version:** v2.5.34
-**Developer:** Kemal
-**Last Updated:** December 10, 2025
+**Current Version:** v2.5.34 **Developer:** Kemal **Last Updated:** December 10,
+2025
 
 ---
 
@@ -27,20 +27,21 @@ Dual Network Interface Configuration & Failover
 
 ## 🎯 Overview
 
-SRT-MGATE-1210 gateway supports **dual network interface** for high availability and redundancy:
+SRT-MGATE-1210 gateway supports **dual network interface** for high availability
+and redundancy:
 
 1. **Ethernet** - W5500 chip (hardware SPI)
 2. **WiFi** - ESP32-S3 built-in (802.11 b/g/n)
 
 ### Key Features
 
-| Feature | Description |
-|---------|-------------|
-| **Dual Interface** | Ethernet + WiFi can be enabled simultaneously |
-| **Automatic Failover** | Automatic switch to backup network if primary fails |
-| **Dynamic Switching** | No restart needed when network switches |
-| **Priority Control** | User can choose which network is prioritized |
-| **Health Monitoring** | Background task continuously monitors network status |
+| Feature                | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| **Dual Interface**     | Ethernet + WiFi can be enabled simultaneously        |
+| **Automatic Failover** | Automatic switch to backup network if primary fails  |
+| **Dynamic Switching**  | No restart needed when network switches              |
+| **Priority Control**   | User can choose which network is prioritized         |
+| **Health Monitoring**  | Background task continuously monitors network status |
 
 ---
 
@@ -49,28 +50,25 @@ SRT-MGATE-1210 gateway supports **dual network interface** for high availability
 ### 1. Ethernet (W5500)
 
 **Hardware:**
+
 - W5500 SPI Ethernet Controller
 - 10/100 Mbps
 - Full-duplex support
 - Hardware TCP/IP stack
 
-**GPIO Connections:**
-| Pin | Function |
-|-----|----------|
-| GPIO 14 | SPI3_MOSI |
-| GPIO 21 | SPI3_MISO |
-| GPIO 47 | SPI3_SCK |
-| GPIO 48 | SPI3_CS |
-| GPIO 3 | ETH_RST (Reset) |
-| GPIO 9 | ETH_INT (Interrupt) |
+**GPIO Connections:** | Pin | Function | |-----|----------| | GPIO 14 |
+SPI3_MOSI | | GPIO 21 | SPI3_MISO | | GPIO 47 | SPI3_SCK | | GPIO 48 | SPI3_CS |
+| GPIO 3 | ETH_RST (Reset) | | GPIO 9 | ETH_INT (Interrupt) |
 
 **Advantages:**
+
 - ✅ Stable connection (no interference)
 - ✅ Low latency
 - ✅ Better for industrial environments
 - ✅ No signal loss issues
 
 **Disadvantages:**
+
 - ❌ Requires physical cable
 - ❌ Less flexible installation
 
@@ -79,17 +77,20 @@ SRT-MGATE-1210 gateway supports **dual network interface** for high availability
 ### 2. WiFi (ESP32-S3)
 
 **Hardware:**
+
 - ESP32-S3 built-in WiFi
 - 802.11 b/g/n (2.4 GHz only)
 - WPA/WPA2/WPA3 support
 
 **Advantages:**
+
 - ✅ Wireless (no cables needed)
 - ✅ Flexible installation
 - ✅ Easy to relocate
 - ✅ Good for temporary setups
 
 **Disadvantages:**
+
 - ❌ Signal interference (2.4GHz crowded)
 - ❌ Distance limitations
 - ❌ Potential packet loss
@@ -101,26 +102,28 @@ SRT-MGATE-1210 gateway supports **dual network interface** for high availability
 
 ### What is `communication.mode`?
 
-Field that determines the **primary network interface** that will be prioritized by the gateway.
+Field that determines the **primary network interface** that will be prioritized
+by the gateway.
 
 ```json
 {
   "communication": {
-    "mode": "ETH"    // or "WIFI"
+    "mode": "ETH" // or "WIFI"
   }
 }
 ```
 
 ### Valid Values
 
-| Value | Description | Use Case |
-|-------|-------------|----------|
-| `"ETH"` | Prioritize Ethernet | Industrial plants, stable environments |
-| `"WIFI"` | Prioritize WiFi | Remote monitoring, flexible installations |
+| Value    | Description         | Use Case                                  |
+| -------- | ------------------- | ----------------------------------------- |
+| `"ETH"`  | Prioritize Ethernet | Industrial plants, stable environments    |
+| `"WIFI"` | Prioritize WiFi     | Remote monitoring, flexible installations |
 
 ### Default Behavior
 
 **If `communication.mode` is not specified:**
+
 - Default: `"ETH"`
 - Reason: Ethernet is more stable for industrial IoT
 
@@ -167,6 +170,7 @@ graph TD
 ### Failover Priority
 
 **Priority Order:**
+
 1. **Primary Mode** (as configured in `communication.mode`)
 2. **Ethernet** (if primary fails)
 3. **WiFi** (if Ethernet also fails)
@@ -204,6 +208,7 @@ else {
 ### Background Monitoring
 
 Gateway runs a **failover task** that:
+
 - Monitors network health every 10 seconds
 - Detects connection loss
 - Auto-switches to backup network
@@ -239,6 +244,7 @@ Gateway runs a **failover task** that:
 ```
 
 **Behavior:**
+
 1. Gateway will prioritize Ethernet
 2. If Ethernet cable unplugged → auto switch to WiFi
 3. If Ethernet plugged back → auto restore to Ethernet
@@ -271,6 +277,7 @@ Gateway runs a **failover task** that:
 ```
 
 **Behavior:**
+
 1. Gateway will prioritize WiFi
 2. If WiFi signal lost → auto switch to Ethernet
 3. If WiFi restored → auto restore to WiFi
@@ -304,6 +311,7 @@ Gateway runs a **failover task** that:
 ```
 
 **Behavior:**
+
 1. Gateway will only use Ethernet
 2. If Ethernet fails → **No fallback** → status "NONE"
 3. LED NET will be OFF (no network)
@@ -335,6 +343,7 @@ Gateway runs a **failover task** that:
 ```
 
 **Behavior:**
+
 1. Gateway will only use WiFi
 2. If WiFi fails → **No fallback** → status "NONE"
 
@@ -366,6 +375,7 @@ Gateway runs a **failover task** that:
 ```
 
 **Behavior:**
+
 1. Ethernet primary, WiFi ready as hot standby
 2. Seamless failover < 10 seconds
 3. Automatic restoration to primary
@@ -378,6 +388,7 @@ Gateway runs a **failover task** that:
 ### When to Use Ethernet Primary (`mode: "ETH"`)
 
 ✅ **Recommended for:**
+
 - Industrial plants with wired infrastructure
 - Critical processes requiring stable connection
 - High data rate applications
@@ -385,6 +396,7 @@ Gateway runs a **failover task** that:
 - Production deployments
 
 ❌ **Not Recommended for:**
+
 - Temporary installations
 - Areas without cable access
 - Mobile/portable setups
@@ -394,6 +406,7 @@ Gateway runs a **failover task** that:
 ### When to Use WiFi Primary (`mode: "WIFI"`)
 
 ✅ **Recommended for:**
+
 - Remote monitoring locations
 - Flexible installations
 - Testing and development
@@ -401,6 +414,7 @@ Gateway runs a **failover task** that:
 - Temporary deployments
 
 ❌ **Not Recommended for:**
+
 - Critical industrial processes
 - High data rate requirements
 - Areas with poor WiFi signal
@@ -446,13 +460,14 @@ graph TD
 
 ```json
 {
-  "communication": {"mode": "ETH"},
-  "ethernet": {"enabled": true, "use_dhcp": true},
-  "wifi": {"enabled": true, "ssid": "Backup-WiFi", "password": "xxx"}
+  "communication": { "mode": "ETH" },
+  "ethernet": { "enabled": true, "use_dhcp": true },
+  "wifi": { "enabled": true, "ssid": "Backup-WiFi", "password": "xxx" }
 }
 ```
 
 **Why:**
+
 - Primary: Ethernet (stable)
 - Backup: WiFi (automatic failover)
 - **High Availability:** 99.9% uptime
@@ -463,13 +478,14 @@ graph TD
 
 ```json
 {
-  "communication": {"mode": "WIFI"},
-  "wifi": {"enabled": true, "ssid": "Dev-Network", "password": "xxx"},
-  "ethernet": {"enabled": false}
+  "communication": { "mode": "WIFI" },
+  "wifi": { "enabled": true, "ssid": "Dev-Network", "password": "xxx" },
+  "ethernet": { "enabled": false }
 }
 ```
 
 **Why:**
+
 - Easy to connect from laptop/phone
 - No cable needed
 - Quick deployment
@@ -480,7 +496,7 @@ graph TD
 
 ```json
 {
-  "communication": {"mode": "ETH"},
+  "communication": { "mode": "ETH" },
   "ethernet": {
     "enabled": true,
     "use_dhcp": false,
@@ -488,11 +504,12 @@ graph TD
     "gateway": "192.168.10.1",
     "subnet": "255.255.255.0"
   },
-  "wifi": {"enabled": false}
+  "wifi": { "enabled": false }
 }
 ```
 
 **Why:**
+
 - Static IP for reliability
 - No wireless (security policy)
 - Predictable network configuration
@@ -503,13 +520,14 @@ graph TD
 
 ```json
 {
-  "communication": {"mode": "WIFI"},
-  "wifi": {"enabled": true, "ssid": "Site-WiFi", "password": "xxx"},
-  "ethernet": {"enabled": true, "use_dhcp": true}
+  "communication": { "mode": "WIFI" },
+  "wifi": { "enabled": true, "ssid": "Site-WiFi", "password": "xxx" },
+  "ethernet": { "enabled": true, "use_dhcp": true }
 }
 ```
 
 **Why:**
+
 - WiFi primary (flexible)
 - Ethernet backup (if available)
 - Good for distributed sensors
@@ -521,6 +539,7 @@ graph TD
 ### Read Network Configuration
 
 **Request:**
+
 ```json
 {
   "op": "read",
@@ -529,6 +548,7 @@ graph TD
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -557,6 +577,7 @@ graph TD
 ### Update Network Configuration
 
 **Request:**
+
 ```json
 {
   "op": "update",
@@ -582,6 +603,7 @@ graph TD
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -597,27 +619,27 @@ graph TD
 
 #### communication
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `mode` | string | No | `"ETH"` | Primary network: `"ETH"` or `"WIFI"` |
+| Field  | Type   | Required | Default | Description                          |
+| ------ | ------ | -------- | ------- | ------------------------------------ |
+| `mode` | string | No       | `"ETH"` | Primary network: `"ETH"` or `"WIFI"` |
 
 #### wifi
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `enabled` | boolean | Yes | `true` | Enable WiFi interface |
-| `ssid` | string | Yes* | `""` | WiFi network name (*if enabled) |
-| `password` | string | Yes* | `""` | WiFi password (*if enabled) |
+| Field      | Type    | Required | Default | Description                      |
+| ---------- | ------- | -------- | ------- | -------------------------------- |
+| `enabled`  | boolean | Yes      | `true`  | Enable WiFi interface            |
+| `ssid`     | string  | Yes\*    | `""`    | WiFi network name (\*if enabled) |
+| `password` | string  | Yes\*    | `""`    | WiFi password (\*if enabled)     |
 
 #### ethernet
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `enabled` | boolean | Yes | `true` | Enable Ethernet interface |
-| `use_dhcp` | boolean | Yes | `true` | Use DHCP (true) or Static IP (false) |
-| `static_ip` | string | No | `""` | Static IP address (if DHCP disabled) |
-| `gateway` | string | No | `""` | Gateway IP (if DHCP disabled) |
-| `subnet` | string | No | `""` | Subnet mask (if DHCP disabled) |
+| Field       | Type    | Required | Default | Description                          |
+| ----------- | ------- | -------- | ------- | ------------------------------------ |
+| `enabled`   | boolean | Yes      | `true`  | Enable Ethernet interface            |
+| `use_dhcp`  | boolean | Yes      | `true`  | Use DHCP (true) or Static IP (false) |
+| `static_ip` | string  | No       | `""`    | Static IP address (if DHCP disabled) |
+| `gateway`   | string  | No       | `""`    | Gateway IP (if DHCP disabled)        |
+| `subnet`    | string  | No       | `""`    | Subnet mask (if DHCP disabled)       |
 
 ---
 
@@ -626,6 +648,7 @@ graph TD
 ### Issue: Both Networks Not Working
 
 **Symptoms:**
+
 - LED NET is OFF
 - Serial: `[NetworkMgr] No network available initially.`
 - Status: `activeMode = "NONE"`
@@ -633,21 +656,25 @@ graph TD
 **Solutions:**
 
 1. **Check Ethernet Cable:**
+
    ```bash
    # Serial monitor should show:
    [NetworkMgr] Ethernet link detected
    [NetworkMgr] DHCP success. IP: 192.168.1.100
    ```
+
    - Verify cable is plugged in
    - Check cable integrity
    - Verify switch/router is powered
 
 2. **Check WiFi Credentials:**
+
    ```bash
    # Serial monitor should show:
    [NetworkMgr] Connecting to WiFi: MyNetwork
    [NetworkMgr] WiFi connected. IP: 192.168.1.101
    ```
+
    - Verify SSID is correct
    - Check password (case-sensitive)
    - Ensure 2.4GHz network (not 5GHz)
@@ -659,6 +686,7 @@ graph TD
      "type": "server_config"
    }
    ```
+
    - Check `wifi.enabled` = true
    - Check `ethernet.enabled` = true
 
@@ -667,16 +695,18 @@ graph TD
 ### Issue: Failover Not Working
 
 **Symptoms:**
+
 - Network lost when primary fails
 - No automatic switch to backup
 
 **Solutions:**
 
 1. **Verify Both Interfaces Enabled:**
+
    ```json
    {
-     "wifi": {"enabled": true},
-     "ethernet": {"enabled": true}
+     "wifi": { "enabled": true },
+     "ethernet": { "enabled": true }
    }
    ```
 
@@ -696,12 +726,14 @@ graph TD
 ### Issue: Static IP Not Working
 
 **Symptoms:**
+
 - Gateway gets DHCP IP instead of static
 - No network connection with static config
 
 **Solutions:**
 
 1. **Verify DHCP is Disabled:**
+
    ```json
    {
      "ethernet": {
@@ -728,15 +760,18 @@ graph TD
 ### Issue: WiFi Keeps Disconnecting
 
 **Symptoms:**
+
 - Frequent failover ETH ↔ WiFi
 - Unstable connection on WiFi
 
 **Solutions:**
 
 1. **Check Signal Strength:**
+
    ```bash
    [NetworkMgr] WiFi RSSI: -75 dBm  // Weak signal
    ```
+
    - Move gateway closer to AP
    - Use external antenna
    - Switch to Ethernet
@@ -749,7 +784,7 @@ graph TD
 3. **Use Ethernet Instead:**
    ```json
    {
-     "communication": {"mode": "ETH"}
+     "communication": { "mode": "ETH" }
    }
    ```
 
@@ -759,16 +794,17 @@ graph TD
 
 ### LED Indicators
 
-| LED NET State | Meaning |
-|---------------|---------|
-| **OFF** | No network connection |
+| LED NET State         | Meaning                    |
+| --------------------- | -------------------------- |
+| **OFF**               | No network connection      |
 | **Slow Blink** (1 Hz) | Network available, no data |
-| **Fast Blink** (5 Hz) | Active data transmission |
-| **Solid ON** | Network connected, idle |
+| **Fast Blink** (5 Hz) | Active data transmission   |
+| **Solid ON**          | Network connected, idle    |
 
 ### Serial Monitor
 
 **Normal Operation:**
+
 ```
 [NetworkMgr] Initial active network: ETH. IP: 192.168.1.100
 [MQTT] Connected to broker
@@ -776,6 +812,7 @@ graph TD
 ```
 
 **Failover Event:**
+
 ```
 [NetworkMgr] Network check: ETH -> DOWN
 [NetworkMgr] Switching to backup: WIFI
@@ -798,11 +835,13 @@ graph TD
 ### Recommended Setup
 
 **Production:**
+
 - Primary: Ethernet (stable)
 - Backup: WiFi (automatic failover)
 - Mode: `"ETH"`
 
 **Development:**
+
 - Primary: WiFi (flexible)
 - Backup: Optional
 - Mode: `"WIFI"`
@@ -820,9 +859,7 @@ graph TD
 
 ---
 
-**Document Version:** 1.1 (Updated)
-**Firmware Version:** v2.3.11
-**Last Updated:** November 21, 2025
-**Author:** Kemal
+**Document Version:** 1.1 (Updated) **Firmware Version:** v2.3.11 **Last
+Updated:** November 21, 2025 **Author:** Kemal
 
 [← Back to Technical Guides](README.md) | [↑ Top](#network-configuration-guide)

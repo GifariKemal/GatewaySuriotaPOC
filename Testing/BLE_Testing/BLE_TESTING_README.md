@@ -2,9 +2,11 @@
 
 ## 📋 Overview
 
-Tool interaktif untuk testing CRUD operations melalui BLE pada SRT-MGATE-1210 firmware.
+Tool interaktif untuk testing CRUD operations melalui BLE pada SRT-MGATE-1210
+firmware.
 
 **Fitur:**
+
 - ✅ Scan dan connect ke BLE device "SURIOTA GW"
 - ✅ Send JSON commands secara manual/interaktif
 - ✅ Command fragmentation (18 bytes/chunk + `<END>` marker)
@@ -14,6 +16,7 @@ Tool interaktif untuk testing CRUD operations melalui BLE pada SRT-MGATE-1210 fi
 - ✅ Quick test mode untuk automated testing
 
 **BLE Configuration:**
+
 - Service UUID: `00001830-0000-1000-8000-00805f9b34fb`
 - Command Characteristic: `11111111-1111-1111-1111-111111111101`
 - Response Characteristic: `11111111-1111-1111-1111-111111111102`
@@ -31,6 +34,7 @@ pip install -r requirements.txt
 ```
 
 Atau install manual:
+
 ```bash
 pip install bleak
 ```
@@ -52,6 +56,7 @@ python ble_test.py
 ```
 
 **Steps:**
+
 1. Tool akan scan BLE devices
 2. Pilih device number untuk connect
 3. Pilih mode: `1` untuk Interactive Mode
@@ -59,6 +64,7 @@ python ble_test.py
 5. Lihat response dari device
 
 **Example Session:**
+
 ```
 > {"op":"read","type":"devices_summary"}
 [SEND] Sending command...
@@ -88,6 +94,7 @@ python ble_test.py
 Pilih mode: `2` untuk Quick Test
 
 Tool akan menjalankan test sequence otomatis:
+
 - Read devices summary
 - Read server config
 - Read devices with registers (minimal mode)
@@ -99,17 +106,20 @@ Tool akan menjalankan test sequence otomatis:
 ### READ Operations
 
 #### 1. Read All Devices (Summary)
+
 ```json
 {
   "op": "read",
   "type": "devices_summary"
 }
 ```
+
 **Response:** List device IDs dan names tanpa registers
 
 ---
 
 #### 2. Read All Devices with Registers (Minimal Mode)
+
 ```json
 {
   "op": "read",
@@ -117,11 +127,13 @@ Tool akan menjalankan test sequence otomatis:
   "minimal": true
 }
 ```
+
 **Response:** All devices dengan register_count (payload kecil ~1KB)
 
 ---
 
 #### 3. Read All Devices with Registers (Full Mode)
+
 ```json
 {
   "op": "read",
@@ -129,12 +141,14 @@ Tool akan menjalankan test sequence otomatis:
   "minimal": false
 }
 ```
-**Response:** All devices dengan full registers array (payload besar ~11KB)
-**⚠️ WARNING:** Jika payload >10KB akan error!
+
+**Response:** All devices dengan full registers array (payload besar ~11KB) **⚠️
+WARNING:** Jika payload >10KB akan error!
 
 ---
 
 #### 4. Read Specific Device (Minimal Mode)
+
 ```json
 {
   "op": "read",
@@ -143,11 +157,13 @@ Tool akan menjalankan test sequence otomatis:
   "minimal": true
 }
 ```
+
 **Response:** Device info + register_count (tanpa registers array)
 
 ---
 
 #### 5. Read Specific Device (Full Mode)
+
 ```json
 {
   "op": "read",
@@ -156,11 +172,13 @@ Tool akan menjalankan test sequence otomatis:
   "minimal": false
 }
 ```
+
 **Response:** Device info + full registers array
 
 ---
 
 #### 6. Read Registers for Device
+
 ```json
 {
   "op": "read",
@@ -168,11 +186,13 @@ Tool akan menjalankan test sequence otomatis:
   "device_id": "device_1"
 }
 ```
+
 **Response:** Array of all registers untuk device tersebut
 
 ---
 
 #### 7. Read Registers Summary
+
 ```json
 {
   "op": "read",
@@ -180,28 +200,33 @@ Tool akan menjalankan test sequence otomatis:
   "device_id": "device_1"
 }
 ```
+
 **Response:** Summary (register_id, name, address saja)
 
 ---
 
 #### 8. Read Server Config
+
 ```json
 {
   "op": "read",
   "type": "server_config"
 }
 ```
+
 **Response:** MQTT/HTTP server configuration
 
 ---
 
 #### 9. Read Logging Config
+
 ```json
 {
   "op": "read",
   "type": "logging_config"
 }
 ```
+
 **Response:** Logging configuration
 
 ---
@@ -209,6 +234,7 @@ Tool akan menjalankan test sequence otomatis:
 ### CREATE Operations
 
 #### 10. Create New Device
+
 ```json
 {
   "op": "create",
@@ -222,11 +248,13 @@ Tool akan menjalankan test sequence otomatis:
   }
 }
 ```
+
 **Response:** Created device dengan device_id
 
 ---
 
 #### 11. Create New Register
+
 ```json
 {
   "op": "create",
@@ -244,14 +272,17 @@ Tool akan menjalankan test sequence otomatis:
   }
 }
 ```
+
 **Response:** Created register dengan register_id
 
 **Data Types:**
+
 - `INT16`, `UINT16`, `INT32`, `UINT32`
 - `FLOAT32`, `DOUBLE64`
 - `BINARY`, `STRING`
 
 **Function Codes:**
+
 - `3` = Read Holding Registers
 - `4` = Read Input Registers
 
@@ -260,6 +291,7 @@ Tool akan menjalankan test sequence otomatis:
 ### UPDATE Operations
 
 #### 12. Update Device
+
 ```json
 {
   "op": "update",
@@ -271,11 +303,13 @@ Tool akan menjalankan test sequence otomatis:
   }
 }
 ```
+
 **Response:** Updated device data
 
 ---
 
 #### 13. Update Register
+
 ```json
 {
   "op": "update",
@@ -288,11 +322,13 @@ Tool akan menjalankan test sequence otomatis:
   }
 }
 ```
+
 **Response:** Updated register data
 
 ---
 
 #### 14. Update Server Config
+
 ```json
 {
   "op": "update",
@@ -305,6 +341,7 @@ Tool akan menjalankan test sequence otomatis:
   }
 }
 ```
+
 **Response:** Success message (device will restart in 5s)
 
 ---
@@ -312,6 +349,7 @@ Tool akan menjalankan test sequence otomatis:
 ### DELETE Operations
 
 #### 15. Delete Device
+
 ```json
 {
   "op": "delete",
@@ -319,11 +357,13 @@ Tool akan menjalankan test sequence otomatis:
   "device_id": "device_1"
 }
 ```
+
 **Response:** Deleted device data
 
 ---
 
 #### 16. Delete Register
+
 ```json
 {
   "op": "delete",
@@ -332,6 +372,7 @@ Tool akan menjalankan test sequence otomatis:
   "register_id": "register_1"
 }
 ```
+
 **Response:** Deleted register data
 
 ---
@@ -339,6 +380,7 @@ Tool akan menjalankan test sequence otomatis:
 ### BATCH Operations
 
 #### 17. Batch Sequential
+
 ```json
 {
   "op": "batch",
@@ -357,6 +399,7 @@ Tool akan menjalankan test sequence otomatis:
 ```
 
 #### 18. Batch Atomic
+
 ```json
 {
   "op": "batch",
@@ -394,6 +437,7 @@ Tool akan menjalankan test sequence otomatis:
 ```
 
 **Expected:**
+
 - Full mode: Returns full registers array (~11KB if 50 registers)
 - Minimal mode: Returns register_count only (~1KB)
 
@@ -409,6 +453,7 @@ Tool akan menjalankan test sequence otomatis:
 ```
 
 **Expected:**
+
 - If payload >10KB: Error message "Payload too large"
 - Device should NOT crash
 
@@ -450,6 +495,7 @@ Tool akan menjalankan test sequence otomatis:
 ### Issue: "No BLE devices found" atau "No 'SURIOTA GW' devices found"
 
 **Solutions:**
+
 1. Pastikan ESP32 sudah running dan BLE enabled
 2. Pastikan Bluetooth adapter di PC aktif
 3. Cek jarak antara PC dan ESP32 (<10 meter)
@@ -464,6 +510,7 @@ Tool akan menjalankan test sequence otomatis:
 ### Issue: "Connection timeout"
 
 **Solutions:**
+
 1. Restart ESP32 device
 2. Restart Bluetooth adapter di PC
 3. Close aplikasi lain yang menggunakan BLE
@@ -473,6 +520,7 @@ Tool akan menjalankan test sequence otomatis:
 ### Issue: "Response timeout"
 
 **Solutions:**
+
 1. Cek serial monitor untuk error messages
 2. Command mungkin terlalu kompleks (payload >10KB)
 3. Gunakan minimal mode untuk large queries
@@ -482,6 +530,7 @@ Tool akan menjalankan test sequence otomatis:
 ### Issue: "Invalid JSON error"
 
 **Solutions:**
+
 1. Pastikan JSON format benar (gunakan quotes untuk strings)
 2. Gunakan single-line JSON (no line breaks)
 3. Type `help` untuk melihat contoh yang valid
@@ -521,6 +570,7 @@ logging.basicConfig(level=logging.DEBUG)
 ## 📞 Support
 
 Jika menemukan issues:
+
 1. Cek serial monitor ESP32 untuk error logs
 2. Cek Python traceback untuk BLE errors
 3. Verify command JSON format
@@ -528,6 +578,4 @@ Jika menemukan issues:
 
 ---
 
-**Version:** 1.0.0
-**Last Updated:** 2025-01-16
-**Author:** Claude Code
+**Version:** 1.0.0 **Last Updated:** 2025-01-16 **Author:** Claude Code

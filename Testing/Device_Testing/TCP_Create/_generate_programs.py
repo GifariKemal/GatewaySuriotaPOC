@@ -259,6 +259,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 '''
 
+
 def generate_programs():
     """Generate TCP programs for different register counts"""
 
@@ -274,17 +275,17 @@ def generate_programs():
             name = f"Temp_Zone_{i+1}"
             line = f'    {{"address": {i}, "name": "{name}", "desc": "Temperature Zone {i+1}", "unit": "degC"}}'
             if i < num_regs - 1:
-                line += ','
+                line += ","
             registers_lines.append(line)
 
-        registers_list = '\n'.join(registers_lines)
+        registers_list = "\n".join(registers_lines)
 
         # Create file content
         content = TEMPLATE.format(num_regs=num_regs, registers_list=registers_list)
 
         # Write file
-        filename = f'create_device_{num_regs}_registers.py'
-        with open(filename, 'w', encoding='utf-8') as f:
+        filename = f"create_device_{num_regs}_registers.py"
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
 
         # Make executable (Unix-like)
@@ -300,6 +301,7 @@ def generate_programs():
     for num_regs in register_counts:
         print(f"    - create_device_{num_regs}_registers.py")
     print()
+
 
 if __name__ == "__main__":
     print()
