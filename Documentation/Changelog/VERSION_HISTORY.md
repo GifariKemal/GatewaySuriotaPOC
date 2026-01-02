@@ -8,6 +8,126 @@
 
 ---
 
+## Version 1.0.5 (Server Config Validation)
+
+**Release Date:** January 2, 2026 (Thursday)
+**Status:** Production
+**Related:** Mobile App Error Handling Enhancement
+
+### Feature: Comprehensive Server Configuration Validation
+
+**Background:** Previously, server_config updates only checked if `communication` and `protocol` fields existed, without validating their values. This caused:
+- Mobile app received `success` even with invalid configurations
+- Users didn't know which fields were required vs optional
+- Errors only appeared when device tried to use invalid config (e.g., WiFi with no SSID)
+
+### What's New
+
+**1. Enhanced Validation with Detailed Error Messages**
+
+Firmware now validates all server config fields and returns specific error information:
+
+```json
+{
+  "status": "error",
+  "error_code": 509,
+  "domain": "CONFIG",
+  "severity": "ERROR",
+  "message": "WiFi SSID is required when WiFi is enabled",
+  "field": "wifi.ssid",
+  "suggestion": "Provide a valid WiFi network name"
+}
+```
+
+**2. Validation Rules Implemented**
+
+| Section | Field | Validation |
+|---------|-------|------------|
+| **Communication** | `mode` | Required. Must be "ETH" or "WiFi" |
+| **WiFi** | `enabled` | Must be `true` when mode is "WiFi" |
+| **WiFi** | `ssid` | Required when enabled. Max 32 chars |
+| **WiFi** | `password` | Min 8 chars if provided (empty = open network) |
+| **Ethernet** | `enabled` | Must be `true` when mode is "ETH" |
+| **Ethernet** | `use_dhcp` | If `false`, static_ip/gateway/subnet required |
+| **Ethernet** | `static_ip`, `gateway`, `subnet` | Valid IPv4 format (xxx.xxx.xxx.xxx) |
+| **MQTT** | `broker_address` | Required when enabled |
+| **MQTT** | `broker_port` | 1-65535 |
+| **MQTT** | `keep_alive` | 30-3600 seconds |
+| **MQTT** | `publish_mode` | "default" or "customize" |
+| **MQTT** | `interval_unit` | "ms", "s", or "m" |
+| **HTTP** | `endpoint_url` | Required when enabled. Must start with http:// or https:// |
+| **HTTP** | `method` | GET, POST, PUT, PATCH, or DELETE |
+| **HTTP** | `timeout` | 1000-30000 ms |
+| **HTTP** | `retry` | 0-10 |
+
+**3. New Response Fields for Mobile App**
+
+- `field` - Which field caused the error (e.g., "wifi.ssid", "ethernet.static_ip")
+- `suggestion` - Human-readable suggestion to fix the error
+
+### Files Changed
+
+- `Main/ServerConfig.h` - Added `ConfigValidationResult` struct and validation methods
+- `Main/ServerConfig.cpp` - Implemented `validateConfigEnhanced()` with all validations
+- `Main/CRUDHandler.cpp` - Enhanced error response with field-specific details
+- `Main/ProductConfig.h` - Version bump to 1.0.5
+
+### Mobile App Integration
+
+**Handle validation errors:**
+```dart
+void handleServerConfigResponse(Map<String, dynamic> response) {
+  if (response['status'] == 'error') {
+    String field = response['field'] ?? '';
+    String message = response['message'] ?? 'Unknown error';
+    String suggestion = response['suggestion'] ?? '';
+
+    // Highlight specific field in UI if 'field' is provided
+    if (field.isNotEmpty) {
+      highlightFieldError(field, message);
+    }
+
+    showErrorDialog(message: message, suggestion: suggestion);
+  }
+}
+```
+
+### Example Error Scenarios
+
+| Invalid Config | Error Message | Field |
+|----------------|---------------|-------|
+| WiFi mode but enabled=false | "WiFi must be enabled when communication mode is 'WiFi'" | wifi.enabled |
+| WiFi enabled but no SSID | "WiFi SSID is required when WiFi is enabled" | wifi.ssid |
+| ETH mode, DHCP=false, no static IP | "Static IP is required when DHCP is disabled" | ethernet.static_ip |
+| Invalid IP format "192.168.1" | "Invalid static IP format. Use xxx.xxx.xxx.xxx" | ethernet.static_ip |
+| MQTT enabled but no broker | "MQTT broker address is required when MQTT is enabled" | mqtt_config.broker_address |
+| HTTP URL without http:// | "HTTP endpoint must start with http:// or https://" | http_config.endpoint_url |
+
+### Enhancement: Faster Modbus Auto-Recovery
+
+**Background:** When a Modbus device disconnects (cable unplugged, device powered off), the gateway disables the device after 5 failed retries. Previously, auto-recovery only checked every **5 minutes**, which was too slow for many use cases.
+
+**Change:** Reduced recovery interval from **5 minutes** to **30 seconds**.
+
+| Protocol | Retry Cycle Time | Recovery Interval | Worst Case Recovery |
+|----------|------------------|-------------------|---------------------|
+| **Modbus RTU** | ~3.1 seconds | 30 seconds | ~33 seconds |
+| **Modbus TCP** | ~62 seconds | 30 seconds | ~92 seconds |
+
+**RTOS Safety Analysis:**
+- Recovery task is lightweight (iterates device list, resets flags)
+- No memory allocation in recovery loop
+- CPU usage < 0.1% per 30-second cycle
+- Thread-safe via recursive mutex protection
+
+**Files Changed:**
+- `Main/ModbusRtuService.cpp` - `RECOVERY_INTERVAL_MS = 30000`
+- `Main/ModbusTcpService.cpp` - `RECOVERY_INTERVAL_MS = 30000`
+
+**User Impact:** When cable is reconnected or device is powered back on, polling resumes automatically within ~30 seconds (instead of waiting up to 5 minutes).
+
+---
+
 ## Version 1.0.4 (Device Summary Connection Identifiers)
 
 **Release Date:** December 29, 2025 (Sunday)

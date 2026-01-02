@@ -2114,7 +2114,11 @@ void ModbusTcpService::autoRecoveryTask(void *parameter)
 void ModbusTcpService::autoRecoveryLoop()
 {
   LOG_TCP_INFO("[TCP AutoRecovery] Task started");
-  const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
+  // v1.0.5: Reduced from 5 minutes to 30 seconds for faster recovery
+  // - TCP retry cycle takes ~62s, so 30s provides good balance
+  // - Total worst-case recovery: 62s + 30s = ~92 seconds
+  // - Safe for RTOS: lightweight task, no memory allocation
+  const unsigned long RECOVERY_INTERVAL_MS = 30000; // 30 seconds
 
   while (running)
   {

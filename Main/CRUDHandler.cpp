@@ -921,13 +921,37 @@ void CRUDHandler::setupCommandHandlers()
 
       auto response = make_psram_unique<JsonDocument>();
       (*response)["status"] = "ok";
-      (*response)["message"] = "Server configuration updated. Device will restart in 5s.";
+      (*response)["message"] = "Server configuration updated. Device will restart in 10s.";
       manager->sendResponse(*response);
     }
     else
     {
-      // v1.0.2: Standardized error response
-      manager->sendError(ERR_CFG_SAVE_FAILED, "Server configuration update failed", "server_config");
+      // v1.0.2: Enhanced validation error response with field-specific details
+      const ConfigValidationResult& validation = serverConfig->getLastValidationResult();
+
+      auto response = make_psram_unique<JsonDocument>();
+      (*response)["status"] = "error";
+      (*response)["error_code"] = validation.errorCode;
+      (*response)["domain"] = "CONFIG";
+      (*response)["severity"] = "ERROR";
+      (*response)["message"] = validation.message;
+
+      // Include field info if available (helps mobile app highlight specific field)
+      if (!validation.field.isEmpty())
+      {
+        (*response)["field"] = validation.field;
+      }
+
+      // Include suggestion for user
+      if (!validation.suggestion.isEmpty())
+      {
+        (*response)["suggestion"] = validation.suggestion;
+      }
+
+      LOG_CRUD_WARN("[CRUD] Server config validation failed: %s (field: %s)",
+                   validation.message.c_str(), validation.field.c_str());
+
+      manager->sendResponse(*response);
     }
   };
 

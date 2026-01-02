@@ -1496,7 +1496,11 @@ void ModbusRtuService::autoRecoveryTask(void *parameter)
 void ModbusRtuService::autoRecoveryLoop()
 {
   LOG_RTU_INFO("[RTU AutoRecovery] Task started");
-  const unsigned long RECOVERY_INTERVAL_MS = 300000; // 5 minutes
+  // v1.0.5: Reduced from 5 minutes to 30 seconds for faster recovery
+  // - RTU retry cycle takes ~3.1s, so 30s provides good balance
+  // - Total worst-case recovery: 3.1s + 30s = ~33 seconds
+  // - Safe for RTOS: lightweight task, no memory allocation
+  const unsigned long RECOVERY_INTERVAL_MS = 30000; // 30 seconds
 
   while (running)
   {

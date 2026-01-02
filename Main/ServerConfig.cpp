@@ -168,11 +168,328 @@ bool ServerConfig::loadConfig()
 
 bool ServerConfig::validateConfig(const JsonDocument &cfg)
 {
-  if (!cfg["communication"] || !cfg["protocol"])
-  {
-    return false;
+  // Use enhanced validation and store result
+  lastValidationResult = validateConfigEnhanced(cfg);
+  return lastValidationResult.isValid;
+}
+
+// v1.0.2: Helper to validate IPv4 address format
+bool ServerConfig::isValidIPv4(const String& ip)
+{
+  if (ip.isEmpty()) return false;
+
+  int parts[4];
+  int count = sscanf(ip.c_str(), "%d.%d.%d.%d", &parts[0], &parts[1], &parts[2], &parts[3]);
+  if (count != 4) return false;
+
+  for (int i = 0; i < 4; i++) {
+    if (parts[i] < 0 || parts[i] > 255) return false;
   }
-  return true;
+
+  // Also check format - no extra characters
+  char reconstructed[16];
+  snprintf(reconstructed, sizeof(reconstructed), "%d.%d.%d.%d", parts[0], parts[1], parts[2], parts[3]);
+  return ip.equals(reconstructed);
+}
+
+// v1.0.2: Helper to validate URL format
+bool ServerConfig::isValidURL(const String& url)
+{
+  if (url.isEmpty()) return false;
+  return url.startsWith("http://") || url.startsWith("https://");
+}
+
+// v1.0.2: Enhanced validation with detailed error messages
+ConfigValidationResult ServerConfig::validateConfigEnhanced(const JsonDocument &cfg)
+{
+  // 1. Check required top-level fields
+  if (!cfg["communication"]) {
+    return ConfigValidationResult::error(509,
+      "Missing required field: communication",
+      "communication",
+      "Include communication object with mode field");
+  }
+
+  if (!cfg["protocol"]) {
+    return ConfigValidationResult::error(509,
+      "Missing required field: protocol",
+      "protocol",
+      "Set protocol to 'mqtt' or 'http'");
+  }
+
+  // 2. Validate protocol value
+  String protocol = cfg["protocol"] | "";
+  if (protocol != "mqtt" && protocol != "http") {
+    return ConfigValidationResult::error(509,
+      "Invalid protocol value. Must be 'mqtt' or 'http'",
+      "protocol",
+      "Set protocol to 'mqtt' or 'http'");
+  }
+
+  // 3. Validate communication mode
+  JsonObjectConst comm = cfg["communication"];
+  String mode = comm["mode"] | "";
+  if (mode.isEmpty()) {
+    return ConfigValidationResult::error(509,
+      "Missing communication mode",
+      "communication.mode",
+      "Set mode to 'ETH' or 'WiFi'");
+  }
+
+  if (mode != "ETH" && mode != "WiFi") {
+    return ConfigValidationResult::error(509,
+      "Invalid communication mode. Must be 'ETH' or 'WiFi'",
+      "communication.mode",
+      "Set mode to 'ETH' or 'WiFi'");
+  }
+
+  // 4. WiFi validation (when mode is WiFi)
+  if (mode == "WiFi") {
+    JsonObjectConst wifi = cfg["wifi"];
+    if (!wifi) {
+      return ConfigValidationResult::error(509,
+        "WiFi configuration required when mode is 'WiFi'",
+        "wifi",
+        "Include wifi object with enabled, ssid, and password");
+    }
+
+    bool wifiEnabled = wifi["enabled"] | false;
+    if (!wifiEnabled) {
+      return ConfigValidationResult::error(509,
+        "WiFi must be enabled when communication mode is 'WiFi'",
+        "wifi.enabled",
+        "Set wifi.enabled to true");
+    }
+
+    String ssid = wifi["ssid"] | "";
+    if (ssid.isEmpty()) {
+      return ConfigValidationResult::error(509,
+        "WiFi SSID is required when WiFi is enabled",
+        "wifi.ssid",
+        "Provide a valid WiFi network name");
+    }
+
+    if (ssid.length() > 32) {
+      return ConfigValidationResult::error(509,
+        "WiFi SSID too long. Maximum 32 characters",
+        "wifi.ssid",
+        "Use an SSID with 32 characters or less");
+    }
+
+    String password = wifi["password"] | "";
+    // Password can be empty for open networks, but if provided must be 8+ chars
+    if (!password.isEmpty() && password.length() < 8) {
+      return ConfigValidationResult::error(509,
+        "WiFi password must be at least 8 characters",
+        "wifi.password",
+        "Use a password with 8 or more characters, or leave empty for open networks");
+    }
+  }
+
+  // 5. Ethernet validation (when mode is ETH)
+  if (mode == "ETH") {
+    JsonObjectConst eth = cfg["ethernet"];
+    if (!eth) {
+      return ConfigValidationResult::error(509,
+        "Ethernet configuration required when mode is 'ETH'",
+        "ethernet",
+        "Include ethernet object with enabled and network settings");
+    }
+
+    bool ethEnabled = eth["enabled"] | false;
+    if (!ethEnabled) {
+      return ConfigValidationResult::error(509,
+        "Ethernet must be enabled when communication mode is 'ETH'",
+        "ethernet.enabled",
+        "Set ethernet.enabled to true");
+    }
+
+    bool useDhcp = eth["use_dhcp"] | true;
+    if (!useDhcp) {
+      // Static IP configuration required
+      String staticIp = eth["static_ip"] | "";
+      String gateway = eth["gateway"] | "";
+      String subnet = eth["subnet"] | "";
+
+      if (staticIp.isEmpty()) {
+        return ConfigValidationResult::error(509,
+          "Static IP is required when DHCP is disabled",
+          "ethernet.static_ip",
+          "Provide a valid IP address (e.g., 192.168.1.100)");
+      }
+
+      if (!isValidIPv4(staticIp)) {
+        return ConfigValidationResult::error(509,
+          "Invalid static IP format. Use xxx.xxx.xxx.xxx",
+          "ethernet.static_ip",
+          "Provide a valid IPv4 address (e.g., 192.168.1.100)");
+      }
+
+      if (gateway.isEmpty()) {
+        return ConfigValidationResult::error(509,
+          "Gateway IP is required when DHCP is disabled",
+          "ethernet.gateway",
+          "Provide a valid gateway IP (e.g., 192.168.1.1)");
+      }
+
+      if (!isValidIPv4(gateway)) {
+        return ConfigValidationResult::error(509,
+          "Invalid gateway IP format. Use xxx.xxx.xxx.xxx",
+          "ethernet.gateway",
+          "Provide a valid IPv4 address (e.g., 192.168.1.1)");
+      }
+
+      if (subnet.isEmpty()) {
+        return ConfigValidationResult::error(509,
+          "Subnet mask is required when DHCP is disabled",
+          "ethernet.subnet",
+          "Provide a valid subnet mask (e.g., 255.255.255.0)");
+      }
+
+      if (!isValidIPv4(subnet)) {
+        return ConfigValidationResult::error(509,
+          "Invalid subnet mask format. Use xxx.xxx.xxx.xxx",
+          "ethernet.subnet",
+          "Provide a valid subnet mask (e.g., 255.255.255.0)");
+      }
+    }
+  }
+
+  // 6. MQTT validation (when protocol is mqtt)
+  if (protocol == "mqtt") {
+    JsonObjectConst mqtt = cfg["mqtt_config"];
+    // mqtt_config is optional, but if enabled, must have valid broker
+    if (mqtt) {
+      bool mqttEnabled = mqtt["enabled"] | false;
+      if (mqttEnabled) {
+        String broker = mqtt["broker_address"] | "";
+        if (broker.isEmpty()) {
+          return ConfigValidationResult::error(509,
+            "MQTT broker address is required when MQTT is enabled",
+            "mqtt_config.broker_address",
+            "Provide a valid broker hostname or IP address");
+        }
+
+        int port = mqtt["broker_port"] | 1883;
+        if (port < 1 || port > 65535) {
+          return ConfigValidationResult::error(509,
+            "MQTT port must be between 1 and 65535",
+            "mqtt_config.broker_port",
+            "Use port 1883 for standard MQTT or 8883 for TLS");
+        }
+
+        int keepAlive = mqtt["keep_alive"] | 120;
+        if (keepAlive < 30 || keepAlive > 3600) {
+          return ConfigValidationResult::error(509,
+            "MQTT keep_alive must be between 30 and 3600 seconds",
+            "mqtt_config.keep_alive",
+            "Recommended value is 120 seconds");
+        }
+
+        // Validate publish_mode if present
+        String publishMode = mqtt["publish_mode"] | "default";
+        if (publishMode != "default" && publishMode != "customize") {
+          return ConfigValidationResult::error(509,
+            "Invalid publish_mode. Must be 'default' or 'customize'",
+            "mqtt_config.publish_mode",
+            "Set publish_mode to 'default' or 'customize'");
+        }
+
+        // Validate interval_unit if present
+        JsonObjectConst defaultMode = mqtt["default_mode"];
+        if (defaultMode) {
+          String intervalUnit = defaultMode["interval_unit"] | "s";
+          if (intervalUnit != "ms" && intervalUnit != "s" && intervalUnit != "m") {
+            return ConfigValidationResult::error(509,
+              "Invalid interval_unit. Must be 'ms', 's', or 'm'",
+              "mqtt_config.default_mode.interval_unit",
+              "Use 'ms' for milliseconds, 's' for seconds, or 'm' for minutes");
+          }
+
+          int interval = defaultMode["interval"] | 5;
+          if (interval < 1 || interval > 3600) {
+            return ConfigValidationResult::error(509,
+              "MQTT interval must be between 1 and 3600",
+              "mqtt_config.default_mode.interval",
+              "Set a reasonable data transmission interval");
+          }
+        }
+      }
+    }
+  }
+
+  // 7. HTTP validation (when protocol is http)
+  if (protocol == "http") {
+    JsonObjectConst http = cfg["http_config"];
+    // http_config is optional, but if enabled, must have valid URL
+    if (http) {
+      bool httpEnabled = http["enabled"] | false;
+      if (httpEnabled) {
+        String url = http["endpoint_url"] | "";
+        if (url.isEmpty()) {
+          return ConfigValidationResult::error(509,
+            "HTTP endpoint URL is required when HTTP is enabled",
+            "http_config.endpoint_url",
+            "Provide a valid URL starting with http:// or https://");
+        }
+
+        if (!isValidURL(url)) {
+          return ConfigValidationResult::error(509,
+            "HTTP endpoint must start with http:// or https://",
+            "http_config.endpoint_url",
+            "Provide a valid URL (e.g., https://api.example.com/data)");
+        }
+
+        // Validate HTTP method
+        String method = http["method"] | "POST";
+        if (method != "GET" && method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE") {
+          return ConfigValidationResult::error(509,
+            "Invalid HTTP method. Must be GET, POST, PUT, PATCH, or DELETE",
+            "http_config.method",
+            "Use a valid HTTP method (POST is recommended for telemetry)");
+        }
+
+        // Validate timeout
+        int timeout = http["timeout"] | 5000;
+        if (timeout < 1000 || timeout > 30000) {
+          return ConfigValidationResult::error(509,
+            "HTTP timeout must be between 1000 and 30000 milliseconds",
+            "http_config.timeout",
+            "Recommended timeout is 5000ms (5 seconds)");
+        }
+
+        // Validate retry count
+        int retry = http["retry"] | 3;
+        if (retry < 0 || retry > 10) {
+          return ConfigValidationResult::error(509,
+            "HTTP retry count must be between 0 and 10",
+            "http_config.retry",
+            "Recommended retry count is 3");
+        }
+
+        // Validate interval_unit if present
+        String intervalUnit = http["interval_unit"] | "s";
+        if (intervalUnit != "ms" && intervalUnit != "s" && intervalUnit != "m") {
+          return ConfigValidationResult::error(509,
+            "Invalid interval_unit. Must be 'ms', 's', or 'm'",
+            "http_config.interval_unit",
+            "Use 'ms' for milliseconds, 's' for seconds, or 'm' for minutes");
+        }
+
+        int interval = http["interval"] | 5;
+        if (interval < 1 || interval > 3600) {
+          return ConfigValidationResult::error(509,
+            "HTTP interval must be between 1 and 3600",
+            "http_config.interval",
+            "Set a reasonable data transmission interval");
+        }
+      }
+    }
+  }
+
+  // All validations passed
+  LOG_CONFIG_INFO("[SERVER] Configuration validation passed");
+  return ConfigValidationResult::success();
 }
 
 bool ServerConfig::getConfig(JsonObject &result)
