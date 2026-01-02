@@ -1,7 +1,7 @@
 # Quick Start Guide
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Get your gateway configured and running in 5 minutes
+**SRT-MGATE-1210 Modbus IIoT Gateway** Get your gateway configured and running
+in 5 minutes
 
 [Home](../README.md) > [Documentation](README.md) > Quick Start Guide
 
@@ -26,9 +26,11 @@ Get your gateway configured and running in 5 minutes
 3. Wait for device to boot (~10-15 seconds)
 
 **LED Reference:**
+
 - **Solid Blue:** Device ready, no network
 - **Blinking Blue (slow):** Connected and operating normally
-- **Blinking Red:** Error state (see [Troubleshooting](Technical_Guides/TROUBLESHOOTING.md))
+- **Blinking Red:** Error state (see
+  [Troubleshooting](Technical_Guides/TROUBLESHOOTING.md))
 
 ---
 
@@ -38,10 +40,13 @@ Get your gateway configured and running in 5 minutes
 
 1. **Open nRF Connect** on your mobile device
 2. **Scan for devices** - Look for device named:
+
    ```
    MGate-1210(P)XXXX
    ```
-   Where XXXX is derived from the device's MAC address (e.g., `MGate-1210(P)A716`)
+
+   Where XXXX is derived from the device's MAC address (e.g.,
+   `MGate-1210(P)A716`)
 
 3. **Connect** to the device
 4. **Find the UART service:**
@@ -58,9 +63,11 @@ Get your gateway configured and running in 5 minutes
 3. Select "Text mode" for communication
 
 **Troubleshooting:**
+
 - Can't find device? → Check power, verify LED is blinking
 - Connection fails? → Move closer, restart device
-- See [BLE Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#ble-connection-issues)
+- See
+  [BLE Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#ble-connection-issues)
 
 ---
 
@@ -92,6 +99,7 @@ Send this JSON command via BLE:
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "success",
@@ -125,6 +133,7 @@ Send this JSON command via BLE:
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "success",
@@ -182,6 +191,7 @@ Send this command to add a Modbus device:
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "success",
@@ -223,6 +233,7 @@ Add a holding register to read temperature data:
 ```
 
 **Common data types:**
+
 - `INT16` - 16-bit signed integer
 - `UINT16` - 16-bit unsigned integer
 - `INT32_ABCD` - 32-bit integer (big-endian)
@@ -232,6 +243,7 @@ Add a holding register to read temperature data:
 See [Modbus Data Types](Technical_Guides/MODBUS_DATATYPES.md) for complete list.
 
 **Expected response:**
+
 ```json
 {
   "status": "success",
@@ -276,6 +288,7 @@ You should now see live data notifications:
 ```
 
 **To stop streaming:**
+
 ```json
 {
   "cmd": "stop_stream",
@@ -347,29 +360,36 @@ You should now see live data notifications:
 ## Common Quick Fixes
 
 ### "Can't connect via BLE"
+
 1. Check device is powered on (LED should blink)
 2. Move closer to device (< 5 meters)
 3. Restart BLE on your phone
 4. Restart gateway device
-5. See [BLE Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#ble-connection-issues)
+5. See
+   [BLE Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#ble-connection-issues)
 
 ### "Network won't connect"
+
 1. Verify WiFi credentials (case-sensitive!)
 2. Check router is accessible
 3. For Ethernet: verify cable is connected and LED on RJ45 is lit
 4. Send `{"cmd": "get_status"}` to check network status
-5. See [Network Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#network-connectivity-issues)
+5. See
+   [Network Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#network-connectivity-issues)
 
 ### "No data from Modbus device"
+
 1. Verify Modbus device is powered on
 2. Check wiring: A, B, GND connections
 3. Verify baud rate matches your device
 4. Confirm slave ID is correct
 5. Try reading a different register address
 6. Enable logging: `{"cmd": "set_log_level", "data": {"level": "DEBUG"}}`
-7. See [Modbus Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#modbus-communication-problems)
+7. See
+   [Modbus Troubleshooting](Technical_Guides/TROUBLESHOOTING.md#modbus-communication-problems)
 
 ### "Data looks wrong"
+
 1. Check `data_type` - try different endianness (ABCD vs CDAB)
 2. Verify register `address` is correct
 3. Check `function_code` (3 = holding register, 4 = input register)
@@ -382,20 +402,30 @@ You should now see live data notifications:
 Now that your gateway is running, explore these topics:
 
 ### Essential Reading
+
 1. **[API Reference](API_Reference/API.md)** - Complete command reference
 2. **[Best Practices](BEST_PRACTICES.md)** - Recommended configurations
-3. **[Network Configuration](Technical_Guides/NETWORK_CONFIGURATION.md)** - Advanced network setup
+3. **[Network Configuration](Technical_Guides/NETWORK_CONFIGURATION.md)** -
+   Advanced network setup
 
 ### Advanced Topics
-4. **[MQTT Publish Modes](Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)** - Optimize MQTT payload
-5. **[Register Calibration](Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)** - Scale and calibrate sensors
-6. **[Batch Operations](API_Reference/API.md#batch-operations)** - Configure multiple devices at once
-7. **[Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md)** - Comprehensive problem solving
+
+4. **[MQTT Publish Modes](Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md)** -
+   Optimize MQTT payload
+5. **[Register Calibration](Technical_Guides/REGISTER_CALIBRATION_DOCUMENTATION.md)** -
+   Scale and calibrate sensors
+6. **[Batch Operations](API_Reference/API.md#batch-operations)** - Configure
+   multiple devices at once
+7. **[Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md)** -
+   Comprehensive problem solving
 
 ### Code Examples
-- **JavaScript:** [API.md - JavaScript Example](API_Reference/API.md#javascript-example)
+
+- **JavaScript:**
+  [API.md - JavaScript Example](API_Reference/API.md#javascript-example)
 - **Python:** [API.md - Python Example](API_Reference/API.md#python-example)
-- **Flutter/Dart:** [API.md - Flutter Example](API_Reference/API.md#flutter-example)
+- **Flutter/Dart:**
+  [API.md - Flutter Example](API_Reference/API.md#flutter-example)
 
 ---
 
@@ -477,6 +507,7 @@ Now that your gateway is running, explore these topics:
 ## Useful Commands Reference
 
 ### Status & Info
+
 ```json
 {"cmd": "get_status"}                    // Get system status
 {"cmd": "get_config"}                    // Get current configuration
@@ -485,6 +516,7 @@ Now that your gateway is running, explore these topics:
 ```
 
 ### Device Management
+
 ```json
 {"cmd": "create_device", "data": {...}}   // Add new device
 {"cmd": "update_device", "data": {...}}   // Update device
@@ -492,6 +524,7 @@ Now that your gateway is running, explore these topics:
 ```
 
 ### Register Management
+
 ```json
 {"cmd": "create_register", "data": {...}} // Add register
 {"cmd": "update_register", "data": {...}} // Update register
@@ -499,6 +532,7 @@ Now that your gateway is running, explore these topics:
 ```
 
 ### Data Access
+
 ```json
 {"cmd": "read_device", "data": {"device_id": 1}}  // Read all registers
 {"cmd": "start_stream", "data": {"device_id": 1}} // Start streaming
@@ -506,6 +540,7 @@ Now that your gateway is running, explore these topics:
 ```
 
 ### System Operations
+
 ```json
 {"cmd": "restart"}                       // Restart gateway
 {"cmd": "factory_reset"}                 // Reset to defaults (WARNING!)
@@ -519,17 +554,19 @@ Now that your gateway is running, explore these topics:
 **Have questions?** Check these resources:
 
 - **[FAQ](FAQ.md)** - Frequently asked questions
-- **[Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md)** - Comprehensive problem solving
+- **[Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md)** -
+  Comprehensive problem solving
 - **[API Reference](API_Reference/API.md)** - Complete command documentation
-- **[Hardware Specs](Technical_Guides/HARDWARE.md)** - LED indicators, pinout, specs
+- **[Hardware Specs](Technical_Guides/HARDWARE.md)** - LED indicators, pinout,
+  specs
 
-**Still stuck?** See the [Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md) for detailed diagnosis steps.
+**Still stuck?** See the
+[Troubleshooting Guide](Technical_Guides/TROUBLESHOOTING.md) for detailed
+diagnosis steps.
 
 ---
 
-**Document Version:** 2.0
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
-**Maintainer:** Kemal
+**Document Version:** 2.0 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34 **Maintainer:** Kemal
 
 [← Back to Documentation Index](README.md)

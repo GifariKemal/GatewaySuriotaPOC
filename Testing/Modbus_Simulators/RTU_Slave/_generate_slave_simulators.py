@@ -369,6 +369,7 @@ if __name__ == "__main__":
     run_server()
 '''
 
+
 def generate_programs():
     """Generate RTU slave programs for different register counts"""
 
@@ -382,21 +383,22 @@ def generate_programs():
         register_lines = []
         for i in range(num_regs):
             sensor = SENSOR_TYPES[i % len(SENSOR_TYPES)]
-            name = f"{sensor['name']}_{(i // len(SENSOR_TYPES)) + 1}" if i >= len(SENSOR_TYPES) else sensor['name']
+            name = (
+                f"{sensor['name']}_{(i // len(SENSOR_TYPES)) + 1}"
+                if i >= len(SENSOR_TYPES)
+                else sensor["name"]
+            )
             register_lines.append(
                 f'    {i}: {{"name": "{name}", "unit": "{sensor["unit"]}", '
                 f'"min": {sensor["min"]}, "max": {sensor["max"]}, "initial": {sensor["initial"]}}}'
             )
 
-        register_dict = ',\n'.join(register_lines)
+        register_dict = ",\n".join(register_lines)
 
-        content = TEMPLATE.format(
-            num_regs=num_regs,
-            register_dict=register_dict
-        )
+        content = TEMPLATE.format(num_regs=num_regs, register_dict=register_dict)
 
-        filename = f'modbus_slave_{num_regs}_registers.py'
-        with open(filename, 'w', encoding='utf-8') as f:
+        filename = f"modbus_slave_{num_regs}_registers.py"
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
 
         try:
@@ -411,6 +413,7 @@ def generate_programs():
     for num_regs in register_counts:
         print(f"    - modbus_slave_{num_regs}_registers.py")
     print()
+
 
 if __name__ == "__main__":
     print()

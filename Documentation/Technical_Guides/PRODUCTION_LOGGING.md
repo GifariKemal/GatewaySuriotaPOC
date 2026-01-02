@@ -1,23 +1,26 @@
 # Production Logging System - SRT-MGATE-1210
 
-**Version:** 1.1.0 | **Updated:** December 10, 2025 | **Author:** Suriota R&D Team
+**Version:** 1.1.0 | **Updated:** December 10, 2025 | **Author:** Suriota R&D
+Team
 
 ---
 
 ## 1. Overview
 
-Production logging adalah sistem logging minimal yang dirancang untuk deployment jangka panjang (1-5+ tahun). Sistem ini menggantikan pendekatan lama (`Serial.end()`) dengan output yang terstruktur dan informatif.
+Production logging adalah sistem logging minimal yang dirancang untuk deployment
+jangka panjang (1-5+ tahun). Sistem ini menggantikan pendekatan lama
+(`Serial.end()`) dengan output yang terstruktur dan informatif.
 
 ### Perbandingan Mode
 
-| Aspek | Development (`PRODUCTION_MODE=0`) | Production (`PRODUCTION_MODE=1`) |
-|-------|-----------------------------------|----------------------------------|
-| Serial Output | Full verbose | Minimal JSON |
-| Log Macros | All levels (ERROR→VERBOSE) | ERROR & WARN only |
-| BLE Startup | Always ON | Button-controlled |
-| Heartbeat | None | Every 60s (configurable) |
-| Format | Human-readable | JSON (parseable) |
-| Binary Size | ~2.1 MB | ~1.8 MB (15% smaller) |
+| Aspek         | Development (`PRODUCTION_MODE=0`) | Production (`PRODUCTION_MODE=1`) |
+| ------------- | --------------------------------- | -------------------------------- |
+| Serial Output | Full verbose                      | Minimal JSON                     |
+| Log Macros    | All levels (ERROR→VERBOSE)        | ERROR & WARN only                |
+| BLE Startup   | Always ON                         | Button-controlled                |
+| Heartbeat     | None                              | Every 60s (configurable)         |
+| Format        | Human-readable                    | JSON (parseable)                 |
+| Binary Size   | ~2.1 MB                           | ~1.8 MB (15% smaller)            |
 
 ---
 
@@ -33,14 +36,14 @@ Semua log production menggunakan format JSON satu baris untuk kemudahan parsing:
 
 ### 2.2 Log Types
 
-| Type | Code | Description | Frequency |
-|------|------|-------------|-----------|
-| Boot | `SYS` | System startup | Once |
-| Heartbeat | `HB` | Periodic status | Every 60s |
-| Error | `ERR` | Critical errors | On occurrence |
-| Warning | `WARN` | Warnings | On occurrence |
-| Network | `NET` | Network changes | On state change |
-| System | `SYS` | System events | On occurrence |
+| Type      | Code   | Description     | Frequency       |
+| --------- | ------ | --------------- | --------------- |
+| Boot      | `SYS`  | System startup  | Once            |
+| Heartbeat | `HB`   | Periodic status | Every 60s       |
+| Error     | `ERR`  | Critical errors | On occurrence   |
+| Warning   | `WARN` | Warnings        | On occurrence   |
+| Network   | `NET`  | Network changes | On state change |
+| System    | `SYS`  | System events   | On occurrence   |
 
 ---
 
@@ -51,10 +54,17 @@ Semua log production menggunakan format JSON satu baris untuk kemudahan parsing:
 Dikirim satu kali saat device startup:
 
 ```json
-{"t":"SYS","e":"BOOT","v":"2.3.3","id":"SRT-MGATE-1210","mem":{"d":150000,"p":7500000}}
+{
+  "t": "SYS",
+  "e": "BOOT",
+  "v": "2.3.3",
+  "id": "SRT-MGATE-1210",
+  "mem": { "d": 150000, "p": 7500000 }
+}
 ```
 
 **Fields:**
+
 - `t`: Type = "SYS" (System)
 - `e`: Event = "BOOT"
 - `v`: Firmware version
@@ -67,10 +77,20 @@ Dikirim satu kali saat device startup:
 Dikirim setiap 60 detik (configurable):
 
 ```json
-{"t":"HB","up":3600,"mem":{"d":145000,"p":7400000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":1250,"er":3}}
+{
+  "t": "HB",
+  "up": 3600,
+  "mem": { "d": 145000, "p": 7400000 },
+  "net": "ETH",
+  "proto": "mqtt",
+  "st": "OK",
+  "err": 0,
+  "mb": { "ok": 1250, "er": 3 }
+}
 ```
 
 **Fields:**
+
 - `t`: Type = "HB" (Heartbeat)
 - `up`: Uptime in seconds (3600 = 1 hour)
 - `mem.d`: Free DRAM (bytes)
@@ -87,10 +107,11 @@ Dikirim setiap 60 detik (configurable):
 Dikirim saat terjadi error kritis:
 
 ```json
-{"t":"ERR","up":7200,"m":"MQTT","msg":"Connection lost","cnt":5}
+{ "t": "ERR", "up": 7200, "m": "MQTT", "msg": "Connection lost", "cnt": 5 }
 ```
 
 **Fields:**
+
 - `t`: Type = "ERR" (Error)
 - `up`: Uptime when error occurred
 - `m`: Module name
@@ -102,7 +123,7 @@ Dikirim saat terjadi error kritis:
 Dikirim saat ada kondisi warning:
 
 ```json
-{"t":"WARN","up":7200,"m":"MEM","msg":"PSRAM below 1MB"}
+{ "t": "WARN", "up": 7200, "m": "MEM", "msg": "PSRAM below 1MB" }
 ```
 
 ### 3.5 Network State Change
@@ -110,10 +131,11 @@ Dikirim saat ada kondisi warning:
 Dikirim saat network berubah:
 
 ```json
-{"t":"NET","up":7200,"net":"WIFI","rc":2}
+{ "t": "NET", "up": 7200, "net": "WIFI", "rc": 2 }
 ```
 
 **Fields:**
+
 - `net`: New network type
 - `rc`: Reconnect count
 
@@ -122,15 +144,15 @@ Dikirim saat network berubah:
 Dikirim untuk event penting:
 
 ```json
-{"t":"SYS","up":7200,"e":"OTA_START","d":"v2.4.0"}
+{ "t": "SYS", "up": 7200, "e": "OTA_START", "d": "v2.4.0" }
 ```
 
 ```json
-{"t":"SYS","up":7500,"e":"OTA_COMPLETE","d":"Rebooting..."}
+{ "t": "SYS", "up": 7500, "e": "OTA_COMPLETE", "d": "Rebooting..." }
 ```
 
 ```json
-{"t":"SYS","up":0,"e":"FACTORY_RESET"}
+{ "t": "SYS", "up": 0, "e": "FACTORY_RESET" }
 ```
 
 ---
@@ -139,43 +161,43 @@ Dikirim untuk event penting:
 
 ### 4.1 All JSON Keys
 
-| Key | Type | Description | Example |
-|-----|------|-------------|---------|
-| `t` | string | Log type | "HB", "ERR", "SYS" |
-| `up` | number | Uptime (seconds) | 3600 |
-| `e` | string | Event name | "BOOT", "OTA_START" |
-| `v` | string | Firmware version | "2.3.3" |
-| `id` | string | Device ID | "SRT-MGATE-1210" |
-| `mem.d` | number | Free DRAM (bytes) | 150000 |
-| `mem.p` | number | Free PSRAM (bytes) | 7500000 |
-| `net` | string | Network type | "ETH", "WIFI", "NONE" |
-| `proto` | string | Protocol | "mqtt", "http" |
-| `st` | string | Status | "OK", "ERR", "CONN", "OFF" |
-| `err` | number | Error count | 5 |
-| `mb.ok` | number | Modbus success | 1250 |
-| `mb.er` | number | Modbus errors | 3 |
-| `m` | string | Module name | "MQTT", "NET", "MEM" |
-| `msg` | string | Message | "Connection lost" |
-| `cnt` | number | Count | 5 |
-| `rc` | number | Reconnect count | 2 |
-| `d` | string | Detail/description | "v2.4.0" |
+| Key     | Type   | Description        | Example                    |
+| ------- | ------ | ------------------ | -------------------------- |
+| `t`     | string | Log type           | "HB", "ERR", "SYS"         |
+| `up`    | number | Uptime (seconds)   | 3600                       |
+| `e`     | string | Event name         | "BOOT", "OTA_START"        |
+| `v`     | string | Firmware version   | "2.3.3"                    |
+| `id`    | string | Device ID          | "SRT-MGATE-1210"           |
+| `mem.d` | number | Free DRAM (bytes)  | 150000                     |
+| `mem.p` | number | Free PSRAM (bytes) | 7500000                    |
+| `net`   | string | Network type       | "ETH", "WIFI", "NONE"      |
+| `proto` | string | Protocol           | "mqtt", "http"             |
+| `st`    | string | Status             | "OK", "ERR", "CONN", "OFF" |
+| `err`   | number | Error count        | 5                          |
+| `mb.ok` | number | Modbus success     | 1250                       |
+| `mb.er` | number | Modbus errors      | 3                          |
+| `m`     | string | Module name        | "MQTT", "NET", "MEM"       |
+| `msg`   | string | Message            | "Connection lost"          |
+| `cnt`   | number | Count              | 5                          |
+| `rc`    | number | Reconnect count    | 2                          |
+| `d`     | string | Detail/description | "v2.4.0"                   |
 
 ### 4.2 Status Values
 
-| Status | Code | Description |
-|--------|------|-------------|
-| OK | `OK` | Operating normally |
-| Error | `ERR` | Error state |
+| Status     | Code   | Description             |
+| ---------- | ------ | ----------------------- |
+| OK         | `OK`   | Operating normally      |
+| Error      | `ERR`  | Error state             |
 | Connecting | `CONN` | Connecting/reconnecting |
-| Off | `OFF` | Disabled/not started |
+| Off        | `OFF`  | Disabled/not started    |
 
 ### 4.3 Network Types
 
-| Network | Code | Description |
-|---------|------|-------------|
-| Ethernet | `ETH` | Wired Ethernet connection |
-| WiFi | `WIFI` | Wireless connection |
-| None | `NONE` | No network |
+| Network  | Code   | Description               |
+| -------- | ------ | ------------------------- |
+| Ethernet | `ETH`  | Wired Ethernet connection |
+| WiFi     | `WIFI` | Wireless connection       |
+| None     | `NONE` | No network                |
 
 ---
 
@@ -206,12 +228,12 @@ productionLogger->setEnabled(false);
 
 ### 5.3 Recommended Intervals
 
-| Deployment | Heartbeat Interval | Rationale |
-|------------|-------------------|-----------|
-| Debug/Test | 10-30 seconds | Quick feedback |
+| Deployment        | Heartbeat Interval   | Rationale                |
+| ----------------- | -------------------- | ------------------------ |
+| Debug/Test        | 10-30 seconds        | Quick feedback           |
 | Normal Production | 60 seconds (default) | Balance visibility/noise |
-| Low-bandwidth | 5-15 minutes | Reduce data volume |
-| Long-term (years) | 5-60 minutes | Minimal wear |
+| Low-bandwidth     | 5-15 minutes         | Reduce data volume       |
+| Long-term (years) | 5-60 minutes         | Minimal wear             |
 
 ---
 
@@ -292,6 +314,7 @@ while True:
 ### 7.2 Log Aggregation
 
 Production logs dapat di-collect via:
+
 1. **Serial-to-MQTT bridge** - Forward logs to cloud
 2. **USB serial logger** - Long-term file storage
 3. **RS232/RS485 adapter** - Industrial log collectors
@@ -351,6 +374,7 @@ Jika tidak perlu JSON parsing, set `setJsonFormat(false)`:
 ### 9.3 Memory Considerations
 
 ProductionLogger uses:
+
 - ~500 bytes DRAM for instance
 - ~200 bytes per log call (temporary)
 - Mutex for thread safety
@@ -359,13 +383,13 @@ ProductionLogger uses:
 
 ## 10. Troubleshooting
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| No serial output | `enabled = false` | Check `setEnabled(true)` |
-| Too much output | Interval too short | Increase heartbeat interval |
-| Missing heartbeats | `loop()` not running | Check FreeRTOS task health |
-| JSON parse errors | Corrupted output | Check baud rate (115200) |
-| Memory dropping | Leak elsewhere | Check heartbeat mem trend |
+| Issue              | Cause                | Solution                    |
+| ------------------ | -------------------- | --------------------------- |
+| No serial output   | `enabled = false`    | Check `setEnabled(true)`    |
+| Too much output    | Interval too short   | Increase heartbeat interval |
+| Missing heartbeats | `loop()` not running | Check FreeRTOS task health  |
+| JSON parse errors  | Corrupted output     | Check baud rate (115200)    |
+| Memory dropping    | Leak elsewhere       | Check heartbeat mem trend   |
 
 ---
 
@@ -380,6 +404,7 @@ ProductionLogger uses:
 ```
 
 **Problems:**
+
 - No visibility into device status
 - Cannot diagnose field issues
 - No error logging
@@ -396,6 +421,7 @@ ProductionLogger uses:
 ```
 
 **Benefits:**
+
 - Minimal but informative output
 - Error tracking and counting
 - Memory/network health monitoring
@@ -406,9 +432,9 @@ ProductionLogger uses:
 
 ## 12. Changelog
 
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2025-11-25 | Initial production logging system |
+| Version | Date       | Changes                           |
+| ------- | ---------- | --------------------------------- |
+| 1.0.0   | 2025-11-25 | Initial production logging system |
 
 ---
 

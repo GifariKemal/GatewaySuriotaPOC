@@ -2,15 +2,18 @@
 #define ERROR_HANDLER_H
 
 #include <Arduino.h>
+
 #include <deque>
 #include <functional>
+
+#include "PSRAMAllocator.h"  // FIXED BUG B: For PSRAM allocator
 #include "UnifiedErrorCodes.h"
-#include "PSRAMAllocator.h" // FIXED BUG B: For PSRAM allocator
 
 /*
  * @brief Unified Error Handler - Centralized error management
  *
- * Manages error reporting, logging, tracking, and recovery across all subsystems.
+ * Manages error reporting, logging, tracking, and recovery across all
+ * subsystems.
  *
  * Features:
  * - Centralized error reporting from all managers
@@ -22,26 +25,26 @@
  * - Severity-based filtering
  */
 
-class ErrorHandler
-{
-private:
-  static ErrorHandler *instance;
+class ErrorHandler {
+ private:
+  static ErrorHandler* instance;
 
   // Configuration
   bool enabled = true;
   bool logToSerial = true;
-  uint8_t maxHistorySize = 100;                      // Maximum errors to keep in history
-  ErrorSeverity minSeverityToLog = SEVERITY_WARNING; // Minimum severity to log
+  uint8_t maxHistorySize = 100;  // Maximum errors to keep in history
+  ErrorSeverity minSeverityToLog = SEVERITY_WARNING;  // Minimum severity to log
 
   // Error history (circular buffer)
-  // FIXED BUG B: Use PSRAM allocator to save precious DRAM (5-10KB moved to PSRAM)
+  // FIXED BUG B: Use PSRAM allocator to save precious DRAM (5-10KB moved to
+  // PSRAM)
   std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> errorHistory;
 
   // Statistics
   ErrorStatistics statistics;
 
   // Callbacks
-  typedef std::function<void(const ErrorContext &)> ErrorCallback;
+  typedef std::function<void(const ErrorContext&)> ErrorCallback;
   // FIXED BUG B: Use PSRAM allocator to save DRAM
   std::deque<ErrorCallback, STLPSRAMAllocator<ErrorCallback>> errorCallbacks;
 
@@ -56,20 +59,22 @@ private:
   ErrorHandler();
 
   // Internal methods
-  void updateStatistics(const ErrorContext &context);
+  void updateStatistics(const ErrorContext& context);
   void maintainHistory();
   void updateTimers();
-  ErrorContext enrichErrorContext(const ErrorContext &context);
+  ErrorContext enrichErrorContext(const ErrorContext& context);
 
-public:
+ public:
   // Singleton access
-  static ErrorHandler *getInstance();
+  static ErrorHandler* getInstance();
 
   // Core error reporting
-  void reportError(UnifiedErrorCode code, const String &description = "");
-  void reportError(const ErrorContext &context);
-  void reportError(UnifiedErrorCode code, uint32_t detailValue1, uint32_t detailValue2 = 0);
-  void reportError(UnifiedErrorCode code, const String &deviceId, uint32_t detailValue1);
+  void reportError(UnifiedErrorCode code, const String& description = "");
+  void reportError(const ErrorContext& context);
+  void reportError(UnifiedErrorCode code, uint32_t detailValue1,
+                   uint32_t detailValue2 = 0);
+  void reportError(UnifiedErrorCode code, const String& deviceId,
+                   uint32_t detailValue1);
 
   // Configuration
   void setEnabled(bool enable);
@@ -91,11 +96,14 @@ public:
 
   // History access
   uint32_t getHistorySize() const;
-  ErrorContext getHistoryEntry(uint32_t index) const; // 0 = newest
+  ErrorContext getHistoryEntry(uint32_t index) const;  // 0 = newest
   // FIXED BUG B: Return type must match PSRAM allocator
-  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistory() const;
-  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistoryByDomain(ErrorDomain domain) const;
-  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistoryBySeverity(ErrorSeverity severity) const;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>> getErrorHistory()
+      const;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>>
+  getErrorHistoryByDomain(ErrorDomain domain) const;
+  std::deque<ErrorContext, STLPSRAMAllocator<ErrorContext>>
+  getErrorHistoryBySeverity(ErrorSeverity severity) const;
 
   // Statistics
   ErrorStatistics getStatistics() const;
@@ -107,24 +115,25 @@ public:
 
   // Error patterns
   bool isErrorRepeating(UnifiedErrorCode code, uint32_t withinMs = 60000) const;
-  uint32_t getRepeatingErrorCount(UnifiedErrorCode code, uint32_t withinMs = 60000) const;
+  uint32_t getRepeatingErrorCount(UnifiedErrorCode code,
+                                  uint32_t withinMs = 60000) const;
   ErrorDomain getMostFrequentErrorDomain(uint32_t withinMs = 3600000) const;
 
   // Recovery suggestions
-  const char *getRecoverySuggestion(UnifiedErrorCode code) const;
-  void printErrorWithRecovery(const ErrorContext &context);
+  const char* getRecoverySuggestion(UnifiedErrorCode code) const;
+  void printErrorWithRecovery(const ErrorContext& context);
 
   // Diagnostics and reporting
   void printLastError();
   void printErrorStatistics();
-  void printErrorHistory(uint32_t count = 10); // Print last N errors
+  void printErrorHistory(uint32_t count = 10);  // Print last N errors
   void printErrorsByDomain();
   void printErrorsBySeverity();
   void printDetailedErrorReport();
   void printErrorTrends();
 
   // Utility methods
-  String formatErrorMessage(const ErrorContext &context);
+  String formatErrorMessage(const ErrorContext& context);
   String formatErrorCode(UnifiedErrorCode code);
   bool isRecoverableError(UnifiedErrorCode code) const;
   uint32_t getSuggestedRetryDelay(UnifiedErrorCode code) const;
@@ -137,4 +146,4 @@ public:
   ~ErrorHandler();
 };
 
-#endif // ERROR_HANDLER_H
+#endif  // ERROR_HANDLER_H

@@ -2,6 +2,7 @@
 #define MEMORY_RECOVERY_H
 
 #include <Arduino.h>
+
 #include "DebugConfig.h"
 
 /*
@@ -21,42 +22,43 @@
 // ============================================
 // MEMORY THRESHOLDS (bytes)
 // ============================================
-namespace MemoryThresholds
-{
-  // DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
-  // v2.5.1 FIX: Adjusted thresholds for realistic operation with BLE active
-  // BLE stack alone uses ~63KB DRAM, plus 10+ FreeRTOS tasks with 4-8KB stacks each
-  // Normal idle DRAM with BLE active: ~15-20KB (not a problem, system is stable)
-  constexpr uint32_t DRAM_HEALTHY = 50000;   // 50KB - Normal operation (lowered - rarely achievable with BLE)
-  constexpr uint32_t DRAM_WARNING = 25000;   // 25KB - Proactive cleanup
-  constexpr uint32_t DRAM_CRITICAL = 12000;  // 12KB - Emergency recovery (lowered from 20KB to stop false alarms)
-  constexpr uint32_t DRAM_EMERGENCY = 8000;  // 8KB - Imminent crash (lowered from 10KB)
+namespace MemoryThresholds {
+// DRAM thresholds (ESP32-S3 has ~400KB total DRAM)
+// v2.5.1 FIX: Adjusted thresholds for realistic operation with BLE active
+// BLE stack alone uses ~63KB DRAM, plus 10+ FreeRTOS tasks with 4-8KB stacks
+// each Normal idle DRAM with BLE active: ~15-20KB (not a problem, system is
+// stable)
+constexpr uint32_t DRAM_HEALTHY =
+    50000;  // 50KB - Normal operation (lowered - rarely achievable with BLE)
+constexpr uint32_t DRAM_WARNING = 25000;   // 25KB - Proactive cleanup
+constexpr uint32_t DRAM_CRITICAL = 12000;  // 12KB - Emergency recovery (lowered
+                                           // from 20KB to stop false alarms)
+constexpr uint32_t DRAM_EMERGENCY =
+    8000;  // 8KB - Imminent crash (lowered from 10KB)
 
-  // PSRAM thresholds (ESP32-S3 has 8MB OPI PSRAM)
-  constexpr uint32_t PSRAM_WARNING = 1000000; // 1MB - Warn if PSRAM low
-  constexpr uint32_t PSRAM_CRITICAL = 500000; // 500KB - Critical PSRAM
-}
+// PSRAM thresholds (ESP32-S3 has 8MB OPI PSRAM)
+constexpr uint32_t PSRAM_WARNING = 1000000;  // 1MB - Warn if PSRAM low
+constexpr uint32_t PSRAM_CRITICAL = 500000;  // 500KB - Critical PSRAM
+}  // namespace MemoryThresholds
 
 // ============================================
 // RECOVERY ACTION TYPES
 // ============================================
-enum RecoveryAction
-{
+enum RecoveryAction {
   RECOVERY_NONE = 0,
-  RECOVERY_FLUSH_OLD_QUEUE = 1,       // Remove oldest 20 queue entries
-  RECOVERY_CLEAR_MQTT_PERSISTENT = 2, // Clear expired MQTT persistent queue
-  RECOVERY_FORCE_GARBAGE_COLLECT = 3, // Trigger aggressive heap cleanup
-  RECOVERY_EMERGENCY_RESTART = 4      // Last resort - ESP restart
+  RECOVERY_FLUSH_OLD_QUEUE = 1,        // Remove oldest 20 queue entries
+  RECOVERY_CLEAR_MQTT_PERSISTENT = 2,  // Clear expired MQTT persistent queue
+  RECOVERY_FORCE_GARBAGE_COLLECT = 3,  // Trigger aggressive heap cleanup
+  RECOVERY_EMERGENCY_RESTART = 4       // Last resort - ESP restart
 };
 
 // ============================================
 // MEMORY RECOVERY CLASS
 // ============================================
-class MemoryRecovery
-{
-private:
+class MemoryRecovery {
+ private:
   static unsigned long lastMemoryCheck;
-  static uint32_t memoryCheckInterval; // Default 5000ms
+  static uint32_t memoryCheckInterval;  // Default 5000ms
   static uint32_t lowMemoryEventCount;
   static uint32_t criticalEventCount;
   static bool recoveryInProgress;
@@ -65,10 +67,9 @@ private:
   // Private constructor (singleton pattern)
   MemoryRecovery() {}
 
-public:
+ public:
   // Get singleton instance
-  static MemoryRecovery *getInstance()
-  {
+  static MemoryRecovery* getInstance() {
     static MemoryRecovery instance;
     return &instance;
   }
@@ -89,13 +90,13 @@ public:
    * @param freeDram Output: Free DRAM in bytes
    * @param freePsram Output: Free PSRAM in bytes
    */
-  static void getMemoryStats(uint32_t &freeDram, uint32_t &freePsram);
+  static void getMemoryStats(uint32_t& freeDram, uint32_t& freePsram);
 
   /**
    * Log memory status with context
    * @param context Caller identifier (e.g., "RTU", "MQTT")
    */
-  static void logMemoryStatus(const char *context);
+  static void logMemoryStatus(const char* context);
 
   /**
    * Force specific recovery action manually
@@ -154,7 +155,7 @@ public:
    */
   static uint32_t triggerCleanup();
 
-private:
+ private:
   /**
    * Execute queue flush recovery
    * @param entriesToFlush Number of queue entries to remove
@@ -181,4 +182,4 @@ private:
   static void executeEmergencyRestart();
 };
 
-#endif // MEMORY_RECOVERY_H
+#endif  // MEMORY_RECOVERY_H

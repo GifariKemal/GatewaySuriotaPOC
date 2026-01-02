@@ -6,9 +6,12 @@
 
 ## 📌 Overview
 
-Folder khusus untuk testing **Create Device + Register** pada firmware **SRT-MGATE-1210**. Program menggunakan **BLE** untuk komunikasi dengan ESP32-S3 dan melakukan CRUD operations.
+Folder khusus untuk testing **Create Device + Register** pada firmware
+**SRT-MGATE-1210**. Program menggunakan **BLE** untuk komunikasi dengan ESP32-S3
+dan melakukan CRUD operations.
 
 ### Firmware Details
+
 - **Product:** SRT-MGATE-1210 Modbus IIoT Gateway
 - **MCU:** ESP32-S3 Dev Module
 - **Firmware Version:** v2.3.0
@@ -51,11 +54,13 @@ pip install -r requirements.txt
 ### 3. Run Testing Program
 
 **Option A - Original (RECOMMENDED):**
+
 ```bash
 python create_device_5_registers.py
 ```
 
 **Option B - API Compliant:**
+
 ```bash
 python create_device_5_registers_corrected.py
 ```
@@ -65,6 +70,7 @@ python create_device_5_registers_corrected.py
 ## 📊 Device Configuration
 
 ### Device Details
+
 ```
 Device Name:      TCP_Device_Test
 Protocol:         Modbus TCP
@@ -78,13 +84,13 @@ Refresh Rate:     5000 ms
 
 ### Registers Created (5 Total)
 
-| # | Name | Address | Type | Function Code | Unit | Description |
-|---|------|---------|------|---------------|------|-------------|
-| 1 | Temperature | 0 | INT16 | 4 (Input Reg) | °C | Temperature Sensor Reading |
-| 2 | Humidity | 1 | INT16 | 4 (Input Reg) | % | Humidity Sensor Reading |
-| 3 | Pressure | 2 | INT16 | 4 (Input Reg) | Pa | Pressure Sensor Reading |
-| 4 | Voltage | 3 | INT16 | 4 (Input Reg) | V | Voltage Measurement |
-| 5 | Current | 4 | INT16 | 4 (Input Reg) | A | Current Measurement |
+| #   | Name        | Address | Type  | Function Code | Unit | Description                |
+| --- | ----------- | ------- | ----- | ------------- | ---- | -------------------------- |
+| 1   | Temperature | 0       | INT16 | 4 (Input Reg) | °C   | Temperature Sensor Reading |
+| 2   | Humidity    | 1       | INT16 | 4 (Input Reg) | %    | Humidity Sensor Reading    |
+| 3   | Pressure    | 2       | INT16 | 4 (Input Reg) | Pa   | Pressure Sensor Reading    |
+| 4   | Voltage     | 3       | INT16 | 4 (Input Reg) | V    | Voltage Measurement        |
+| 5   | Current     | 4       | INT16 | 4 (Input Reg) | A    | Current Measurement        |
 
 ---
 
@@ -93,6 +99,7 @@ Refresh Rate:     5000 ms
 ### Version 1: `create_device_5_registers.py` (Original)
 
 **Payload Format:**
+
 - Device: `"ip": "192.168.1.8"`
 - Register: `"function_code": 4` (integer)
 - Register: `"type": "Input Registers"` (included)
@@ -100,6 +107,7 @@ Refresh Rate:     5000 ms
 **Status:** ✅ Based on proven working code
 
 **Use Case:**
+
 - First testing
 - Backward compatibility
 - Quick verification
@@ -109,6 +117,7 @@ Refresh Rate:     5000 ms
 ### Version 2: `create_device_5_registers_corrected.py` (API Compliant)
 
 **Payload Format:**
+
 - Device: `"ip_address": "192.168.1.8"` (corrected)
 - Register: `"function_code": "input"` (string)
 - Register: No `"type"` field (removed)
@@ -116,6 +125,7 @@ Refresh Rate:     5000 ms
 **Status:** ✅ 100% sesuai API.md v2.3.0
 
 **Use Case:**
+
 - Production deployment
 - Future-proof
 - API compliance
@@ -126,12 +136,12 @@ Refresh Rate:     5000 ms
 
 ### Service & Characteristics
 
-| Item | UUID |
-|------|------|
-| **Service UUID** | `00001830-0000-1000-8000-00805f9b34fb` |
-| **Command Characteristic** | `11111111-1111-1111-1111-111111111101` |
+| Item                        | UUID                                   |
+| --------------------------- | -------------------------------------- |
+| **Service UUID**            | `00001830-0000-1000-8000-00805f9b34fb` |
+| **Command Characteristic**  | `11111111-1111-1111-1111-111111111101` |
 | **Response Characteristic** | `11111111-1111-1111-1111-111111111102` |
-| **Device Name** | `SURIOTA GW` |
+| **Device Name**             | `SURIOTA GW`                           |
 
 ### Fragmentation
 
@@ -147,6 +157,7 @@ Refresh Rate:     5000 ms
 ### Create Device (Modbus TCP)
 
 **Request:**
+
 ```json
 {
   "op": "create",
@@ -166,6 +177,7 @@ Refresh Rate:     5000 ms
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -177,6 +189,7 @@ Refresh Rate:     5000 ms
 ### Create Register
 
 **Request:**
+
 ```json
 {
   "op": "create",
@@ -198,6 +211,7 @@ Refresh Rate:     5000 ms
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -273,6 +287,7 @@ Registers Created: 5
 ### Issue: `Service 'SURIOTA GW' not found`
 
 **Solution:**
+
 - Press button >8 seconds on ESP32-S3
 - Check LED is ON (steady)
 - Enable Bluetooth on PC
@@ -280,6 +295,7 @@ Registers Created: 5
 ### Issue: `Connection failed`
 
 **Solution:**
+
 - Restart ESP32-S3
 - Wait 5 seconds
 - Run program again
@@ -287,6 +303,7 @@ Registers Created: 5
 ### Issue: `bleak not found`
 
 **Solution:**
+
 ```bash
 pip install bleak
 ```
@@ -294,6 +311,7 @@ pip install bleak
 ### Issue: Script hangs
 
 **Solution:**
+
 - Press Ctrl+C to stop
 - Restart ESP32-S3
 - Try again
@@ -303,7 +321,8 @@ pip install bleak
 ## 📚 Related Documentation
 
 - [API.md](../Docs/API.md) - Complete BLE CRUD API
-- [MQTT_PUBLISH_MODES_DOCUMENTATION.md](../Docs/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT modes
+- [MQTT_PUBLISH_MODES_DOCUMENTATION.md](../Docs/MQTT_PUBLISH_MODES_DOCUMENTATION.md) -
+  MQTT modes
 - [NETWORK_CONFIGURATION.md](../Docs/NETWORK_CONFIGURATION.md) - Network setup
 - [TROUBLESHOOTING.md](../Docs/TROUBLESHOOTING.md) - Troubleshooting guide
 
@@ -332,9 +351,7 @@ pip install bleak
 
 ## 📞 Support
 
-**PT Surya Inovasi Prioritas (SURIOTA)**
-R&D Team
-📧 Email: support@suriota.com
+**PT Surya Inovasi Prioritas (SURIOTA)** R&D Team 📧 Email: support@suriota.com
 🌐 Website: https://suriota.com
 
 ---

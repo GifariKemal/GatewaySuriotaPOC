@@ -7,11 +7,13 @@
 // PRODUCTION MODE DEFINITION
 // ============================================
 #ifndef PRODUCTION_MODE
-#define PRODUCTION_MODE 0 // 0 = Development, 1 = Production (compile-time default)
+#define PRODUCTION_MODE \
+  0  // 0 = Development, 1 = Production (compile-time default)
 #endif
 
 // Runtime production mode (switchable via BLE without re-upload)
-// Initialized from compile-time default, can be changed via set_production_mode command
+// Initialized from compile-time default, can be changed via set_production_mode
+// command
 extern uint8_t g_productionMode;
 
 // Runtime mode check macros (use these instead of #if PRODUCTION_MODE)
@@ -24,7 +26,8 @@ extern uint8_t g_productionMode;
  * ============================================
  *
  * Two-tier logging system:
- * 1. PRODUCTION_MODE (compile-time): Switches between production/development output
+ * 1. PRODUCTION_MODE (compile-time): Switches between production/development
+ * output
  * 2. LOG_LEVEL (runtime): Granular control within each mode
  *
  * ============================================
@@ -45,9 +48,12 @@ extern uint8_t g_productionMode;
  * - Periodic heartbeat (configurable, default 60s)
  *
  * Production Serial Output Format (JSON):
- * - Boot:      {"t":"SYS","e":"BOOT","v":"2.3.3","id":"SRT-MGATE-1210","mem":{"d":150000,"p":7500000}}
- * - Heartbeat: {"t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
- * - Error:     {"t":"ERR","up":3600,"m":"MQTT","msg":"Connection failed","cnt":1}
+ * - Boot:
+ * {"t":"SYS","e":"BOOT","v":"2.3.3","id":"SRT-MGATE-1210","mem":{"d":150000,"p":7500000}}
+ * - Heartbeat:
+ * {"t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
+ * - Error:     {"t":"ERR","up":3600,"m":"MQTT","msg":"Connection
+ * failed","cnt":1}
  * - Warning:   {"t":"WARN","up":3600,"m":"MEM","msg":"Low PSRAM"}
  * - Network:   {"t":"NET","up":3600,"net":"WIFI","rc":1}
  * - System:    {"t":"SYS","up":3600,"e":"OTA_START","d":"v2.4.0"}
@@ -78,14 +84,13 @@ extern uint8_t g_productionMode;
 // ============================================
 // LOG LEVEL ENUMERATION
 // ============================================
-enum LogLevel : uint8_t
-{
-  LOG_NONE = 0,   // No logging (silent mode)
-  LOG_ERROR = 1,  // Critical errors only (production minimal)
-  LOG_WARN = 2,   // Warnings + errors (production recommended)
-  LOG_INFO = 3,   // Info + warnings + errors (production default)
-  LOG_DEBUG = 4,  // Debug + info + warnings + errors (development)
-  LOG_VERBOSE = 5 // All logs including verbose (heavy development)
+enum LogLevel : uint8_t {
+  LOG_NONE = 0,    // No logging (silent mode)
+  LOG_ERROR = 1,   // Critical errors only (production minimal)
+  LOG_WARN = 2,    // Warnings + errors (production recommended)
+  LOG_INFO = 3,    // Info + warnings + errors (production default)
+  LOG_DEBUG = 4,   // Debug + info + warnings + errors (development)
+  LOG_VERBOSE = 5  // All logs including verbose (heavy development)
 };
 
 // Global log level (runtime configurable)
@@ -98,7 +103,7 @@ extern LogLevel currentLogLevel;
  * Get formatted timestamp for logging
  * Returns: "[YYYY-MM-DD HH:MM:SS]" if RTC available, "[uptime_sec]" otherwise
  */
-const char *getLogTimestamp();
+const char* getLogTimestamp();
 
 // Enable/disable timestamps in logs (default: enabled)
 extern bool logTimestampsEnabled;
@@ -109,9 +114,10 @@ void setLogTimestamps(bool enabled);
 // ============================================
 #ifndef COMPILE_LOG_LEVEL
 #if PRODUCTION_MODE == 1
-#define COMPILE_LOG_LEVEL LOG_WARN // Production: ERROR & WARN only (suppress INFO)
+#define COMPILE_LOG_LEVEL \
+  LOG_WARN  // Production: ERROR & WARN only (suppress INFO)
 #else
-#define COMPILE_LOG_LEVEL LOG_VERBOSE // Development: All logs
+#define COMPILE_LOG_LEVEL LOG_VERBOSE  // Development: All logs
 #endif
 #endif
 
@@ -120,7 +126,7 @@ void setLogTimestamps(bool enabled);
 // ============================================
 void setLogLevel(LogLevel level);
 LogLevel getLogLevel();
-const char *getLogLevelName(LogLevel level);
+const char* getLogLevelName(LogLevel level);
 void printLogLevelStatus();
 
 // ============================================
@@ -136,36 +142,33 @@ void printLogLevelStatus();
 #define LOG_CHECK(level) (currentLogLevel >= level && level <= LOG_WARN)
 
 // Generic log macros (production - ERROR/WARN only) with timestamps
-#define LOG_ERROR_F(prefix, fmt, ...)                                                \
-  do                                                                                 \
-  {                                                                                  \
-    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                                \
-      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_ERROR))                                                   \
-      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_ERROR_F(prefix, fmt, ...)                                \
+  do {                                                               \
+    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                \
+      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                  \
+    else if (LOG_CHECK(LOG_ERROR))                                   \
+      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
-#define LOG_WARN_F(prefix, fmt, ...)                                                \
-  do                                                                                \
-  {                                                                                 \
-    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                                \
-      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_WARN))                                                   \
-      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_WARN_F(prefix, fmt, ...)                                \
+  do {                                                              \
+    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                \
+      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                 \
+    else if (LOG_CHECK(LOG_WARN))                                   \
+      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
 // INFO, DEBUG, VERBOSE disabled in production (compile out)
 #define LOG_INFO_F(prefix, fmt, ...) \
-  do                                 \
-  {                                  \
+  do {                               \
   } while (0)
 #define LOG_DEBUG_F(prefix, fmt, ...) \
-  do                                  \
-  {                                   \
+  do {                                \
   } while (0)
 #define LOG_VERBOSE_F(prefix, fmt, ...) \
-  do                                    \
-  {                                     \
+  do {                                  \
   } while (0)
 
 #else
@@ -174,52 +177,53 @@ void printLogLevelStatus();
 // ==========================================
 
 // Runtime + compile-time filtering
-#define LOG_CHECK(level) (currentLogLevel >= level && COMPILE_LOG_LEVEL >= level)
+#define LOG_CHECK(level) \
+  (currentLogLevel >= level && COMPILE_LOG_LEVEL >= level)
 
 // Generic log macros (development - all levels) with timestamps
-#define LOG_ERROR_F(prefix, fmt, ...)                                                \
-  do                                                                                 \
-  {                                                                                  \
-    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                                \
-      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_ERROR))                                                   \
-      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_ERROR_F(prefix, fmt, ...)                                \
+  do {                                                               \
+    if (LOG_CHECK(LOG_ERROR) && logTimestampsEnabled)                \
+      Serial.printf("%s[ERROR][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                  \
+    else if (LOG_CHECK(LOG_ERROR))                                   \
+      Serial.printf("[ERROR][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
-#define LOG_WARN_F(prefix, fmt, ...)                                                \
-  do                                                                                \
-  {                                                                                 \
-    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                                \
-      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_WARN))                                                   \
-      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_WARN_F(prefix, fmt, ...)                                \
+  do {                                                              \
+    if (LOG_CHECK(LOG_WARN) && logTimestampsEnabled)                \
+      Serial.printf("%s[WARN][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                 \
+    else if (LOG_CHECK(LOG_WARN))                                   \
+      Serial.printf("[WARN][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
-#define LOG_INFO_F(prefix, fmt, ...)                                                \
-  do                                                                                \
-  {                                                                                 \
-    if (LOG_CHECK(LOG_INFO) && logTimestampsEnabled)                                \
-      Serial.printf("%s[INFO][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_INFO))                                                   \
-      Serial.printf("[INFO][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_INFO_F(prefix, fmt, ...)                                \
+  do {                                                              \
+    if (LOG_CHECK(LOG_INFO) && logTimestampsEnabled)                \
+      Serial.printf("%s[INFO][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                 \
+    else if (LOG_CHECK(LOG_INFO))                                   \
+      Serial.printf("[INFO][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
-#define LOG_DEBUG_F(prefix, fmt, ...)                                                \
-  do                                                                                 \
-  {                                                                                  \
-    if (LOG_CHECK(LOG_DEBUG) && logTimestampsEnabled)                                \
-      Serial.printf("%s[DEBUG][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_DEBUG))                                                   \
-      Serial.printf("[DEBUG][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_DEBUG_F(prefix, fmt, ...)                                \
+  do {                                                               \
+    if (LOG_CHECK(LOG_DEBUG) && logTimestampsEnabled)                \
+      Serial.printf("%s[DEBUG][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                  \
+    else if (LOG_CHECK(LOG_DEBUG))                                   \
+      Serial.printf("[DEBUG][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
-#define LOG_VERBOSE_F(prefix, fmt, ...)                                                \
-  do                                                                                   \
-  {                                                                                    \
-    if (LOG_CHECK(LOG_VERBOSE) && logTimestampsEnabled)                                \
-      Serial.printf("%s[VERBOSE][%s] " fmt, getLogTimestamp(), prefix, ##__VA_ARGS__); \
-    else if (LOG_CHECK(LOG_VERBOSE))                                                   \
-      Serial.printf("[VERBOSE][%s] " fmt, prefix, ##__VA_ARGS__);                      \
+#define LOG_VERBOSE_F(prefix, fmt, ...)                                \
+  do {                                                                 \
+    if (LOG_CHECK(LOG_VERBOSE) && logTimestampsEnabled)                \
+      Serial.printf("%s[VERBOSE][%s] " fmt, getLogTimestamp(), prefix, \
+                    ##__VA_ARGS__);                                    \
+    else if (LOG_CHECK(LOG_VERBOSE))                                   \
+      Serial.printf("[VERBOSE][%s] " fmt, prefix, ##__VA_ARGS__);      \
   } while (0)
 
 #endif
@@ -312,35 +316,30 @@ void printLogLevelStatus();
 // ============================================
 // THROTTLED LOGGING (prevent log spam)
 // ============================================
-class LogThrottle
-{
-private:
+class LogThrottle {
+ private:
   unsigned long lastLogTime = 0;
   unsigned long firstSuppressionTime = 0;
   uint32_t intervalMs;
   uint32_t suppressedCount = 0;
-  String lastMessageContext; // Store context for development mode
+  String lastMessageContext;  // Store context for development mode
 
-public:
+ public:
   LogThrottle(uint32_t intervalMs = 10000) : intervalMs(intervalMs) {}
 
-  bool shouldLog(const char *context = nullptr)
-  {
+  bool shouldLog(const char* context = nullptr) {
     unsigned long now = millis();
-    if (now - lastLogTime >= intervalMs)
-    {
-      if (suppressedCount > 0)
-      {
+    if (now - lastLogTime >= intervalMs) {
+      if (suppressedCount > 0) {
 #if PRODUCTION_MODE == 0
         // Development mode - show detailed suppression info
-        uint32_t suppressionDuration = (now - firstSuppressionTime) / 1000; // seconds
-        if (lastMessageContext.length() > 0)
-        {
+        uint32_t suppressionDuration =
+            (now - firstSuppressionTime) / 1000;  // seconds
+        if (lastMessageContext.length() > 0) {
           Serial.printf("  (suppressed %lu similar messages in %lus: \"%s\")\n",
-                        suppressedCount, suppressionDuration, lastMessageContext.c_str());
-        }
-        else
-        {
+                        suppressedCount, suppressionDuration,
+                        lastMessageContext.c_str());
+        } else {
           Serial.printf("  (suppressed %lu similar messages in %lus)\n",
                         suppressedCount, suppressionDuration);
         }
@@ -357,11 +356,9 @@ public:
     }
 
     // Message is being suppressed
-    if (suppressedCount == 0)
-    {
+    if (suppressedCount == 0) {
       firstSuppressionTime = now;
-      if (context != nullptr)
-      {
+      if (context != nullptr) {
         lastMessageContext = String(context);
       }
     }
@@ -369,23 +366,16 @@ public:
     return false;
   }
 
-  void setInterval(uint32_t newIntervalMs)
-  {
-    intervalMs = newIntervalMs;
-  }
+  void setInterval(uint32_t newIntervalMs) { intervalMs = newIntervalMs; }
 
-  void reset()
-  {
+  void reset() {
     lastLogTime = 0;
     suppressedCount = 0;
     firstSuppressionTime = 0;
     lastMessageContext = "";
   }
 
-  uint32_t getSuppressedCount() const
-  {
-    return suppressedCount;
-  }
+  uint32_t getSuppressedCount() const { return suppressedCount; }
 };
 
 // ============================================
@@ -395,52 +385,40 @@ public:
 // Production Mode - All debug output disabled
 
 #define DEBUG_PRINT(fmt, ...) \
-  do                          \
-  {                           \
+  do {                        \
   } while (0)
 #define DEBUG_PRINTLN(msg) \
-  do                       \
-  {                        \
+  do {                     \
   } while (0)
 #define DEBUG_DEVICE_PRINT(fmt, ...) \
-  do                                 \
-  {                                  \
+  do {                               \
   } while (0)
 #define DEBUG_MODBUS_PRINT(fmt, ...) \
-  do                                 \
-  {                                  \
+  do {                               \
   } while (0)
 #define DEBUG_BLE_PRINT(fmt, ...) \
-  do                              \
-  {                               \
+  do {                            \
   } while (0)
 #define DEBUG_MQTT_PRINT(fmt, ...) \
-  do                               \
-  {                                \
+  do {                             \
   } while (0)
 #define DEBUG_NETWORK_PRINT(fmt, ...) \
-  do                                  \
-  {                                   \
+  do {                                \
   } while (0)
 #define DEBUG_HTTP_PRINT(fmt, ...) \
-  do                               \
-  {                                \
+  do {                             \
   } while (0)
 #define DEBUG_CONFIG_PRINT(fmt, ...) \
-  do                                 \
-  {                                  \
+  do {                               \
   } while (0)
 #define DEBUG_MEMORY_PRINT(fmt, ...) \
-  do                                 \
-  {                                  \
+  do {                               \
   } while (0)
 #define DEBUG_ERROR_PRINT(fmt, ...) \
-  do                                \
-  {                                 \
+  do {                              \
   } while (0)
 #define DEBUG_METRICS_PRINT(fmt, ...) \
-  do                                  \
-  {                                   \
+  do {                                \
   } while (0)
 
 #else
@@ -448,45 +426,80 @@ public:
 
 #define DEBUG_PRINT(fmt, ...) Serial.printf("[DEBUG] " fmt "\n", ##__VA_ARGS__)
 #define DEBUG_PRINTLN(msg) Serial.println("[DEBUG] " msg)
-#define DEBUG_DEVICE_PRINT(fmt, ...) Serial.printf("[DEVICE] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_MODBUS_PRINT(fmt, ...) Serial.printf("[MODBUS] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_BLE_PRINT(fmt, ...) Serial.printf("[BLE] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_MQTT_PRINT(fmt, ...) Serial.printf("[MQTT] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_NETWORK_PRINT(fmt, ...) Serial.printf("[NETWORK] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_HTTP_PRINT(fmt, ...) Serial.printf("[HTTP] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_CONFIG_PRINT(fmt, ...) Serial.printf("[CONFIG] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_MEMORY_PRINT(fmt, ...) Serial.printf("[MEMORY] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_ERROR_PRINT(fmt, ...) Serial.printf("[ERROR_LOG] " fmt "\n", ##__VA_ARGS__)
-#define DEBUG_METRICS_PRINT(fmt, ...) Serial.printf("[METRICS] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_DEVICE_PRINT(fmt, ...) \
+  Serial.printf("[DEVICE] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_MODBUS_PRINT(fmt, ...) \
+  Serial.printf("[MODBUS] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_BLE_PRINT(fmt, ...) \
+  Serial.printf("[BLE] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_MQTT_PRINT(fmt, ...) \
+  Serial.printf("[MQTT] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_NETWORK_PRINT(fmt, ...) \
+  Serial.printf("[NETWORK] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_HTTP_PRINT(fmt, ...) \
+  Serial.printf("[HTTP] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_CONFIG_PRINT(fmt, ...) \
+  Serial.printf("[CONFIG] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_MEMORY_PRINT(fmt, ...) \
+  Serial.printf("[MEMORY] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_ERROR_PRINT(fmt, ...) \
+  Serial.printf("[ERROR_LOG] " fmt "\n", ##__VA_ARGS__)
+#define DEBUG_METRICS_PRINT(fmt, ...) \
+  Serial.printf("[METRICS] " fmt "\n", ##__VA_ARGS__)
 
 #endif
 
 // ============================================
 // MODE CHECKING MACROS (Deprecated - moved to top of file as runtime checks)
 // ============================================
-// IS_PRODUCTION_MODE() and IS_DEV_MODE() are now defined at the top of this file
-// as runtime checks using g_productionMode variable
+// IS_PRODUCTION_MODE() and IS_DEV_MODE() are now defined at the top of this
+// file as runtime checks using g_productionMode variable
 
 // Conditional code execution based on mode (runtime)
-#define DEBUG_CODE(code) do { if (IS_DEV_MODE()) { code; } } while(0)
-#define PRODUCTION_CODE(code) do { if (IS_PRODUCTION_MODE()) { code; } } while(0)
+#define DEBUG_CODE(code) \
+  do {                   \
+    if (IS_DEV_MODE()) { \
+      code;              \
+    }                    \
+  } while (0)
+#define PRODUCTION_CODE(code)   \
+  do {                          \
+    if (IS_PRODUCTION_MODE()) { \
+      code;                     \
+    }                           \
+  } while (0)
 
 // v2.5.35: Development-only Serial.print macros
 // These macros wrap Serial.print* calls to only execute in development mode
 // Usage: DEV_SERIAL_PRINTLN("message") instead of Serial.println("message")
-#define DEV_SERIAL_PRINT(msg) do { if (IS_DEV_MODE()) { Serial.print(msg); } } while(0)
-#define DEV_SERIAL_PRINTLN(msg) do { if (IS_DEV_MODE()) { Serial.println(msg); } } while(0)
-#define DEV_SERIAL_PRINTF(...) do { if (IS_DEV_MODE()) { Serial.printf(__VA_ARGS__); } } while(0)
+#define DEV_SERIAL_PRINT(msg) \
+  do {                        \
+    if (IS_DEV_MODE()) {      \
+      Serial.print(msg);      \
+    }                         \
+  } while (0)
+#define DEV_SERIAL_PRINTLN(msg) \
+  do {                          \
+    if (IS_DEV_MODE()) {        \
+      Serial.println(msg);      \
+    }                           \
+  } while (0)
+#define DEV_SERIAL_PRINTF(...)    \
+  do {                            \
+    if (IS_DEV_MODE()) {          \
+      Serial.printf(__VA_ARGS__); \
+    }                             \
+  } while (0)
 
 // ============================================
 // MODE INDICATOR FUNCTION
 // ============================================
 #if PRODUCTION_MODE == 0
-inline void debugPrintMode()
-{
+inline void debugPrintMode() {
   Serial.println("\n[SYSTEM] DEVELOPMENT MODE - DEBUG ACTIVE");
   Serial.println("  All monitoring & debug output enabled");
-  Serial.printf("  Default log level: %s\n\n", getLogLevelName(currentLogLevel));
+  Serial.printf("  Default log level: %s\n\n",
+                getLogLevelName(currentLogLevel));
 }
 #else
 inline void debugPrintMode() {}
@@ -509,4 +522,4 @@ inline void debugPrintMode() {}
 #define VERBOSE_MQTT_QUEUE_LOG 1
 #endif
 
-#endif // DEBUG_CONFIG_H
+#endif  // DEBUG_CONFIG_H

@@ -1,8 +1,7 @@
 # OTA Deployment Guide - Step by Step
 
-**Document Version:** 1.2
-**Date:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.2 **Date:** December 10, 2025 **Firmware Version:**
+2.5.34
 
 Panduan lengkap untuk deploy OTA firmware update pada SRT-MGATE-1210 Gateway.
 
@@ -24,6 +23,7 @@ Panduan lengkap untuk deploy OTA firmware update pada SRT-MGATE-1210 Gateway.
 ## 1. Prerequisites
 
 ### Software Requirements
+
 - Python 3.x dengan `ecdsa` module
 - GitHub CLI (`gh`)
 - Arduino IDE (untuk compile firmware)
@@ -43,6 +43,7 @@ gh auth login --web --git-protocol https
 ```
 
 ### File Structure
+
 ```
 GatewaySuriotaPOC/
 ├── Main/
@@ -65,7 +66,8 @@ GatewaySuriotaPOC/
 
 ## 2. Generate OTA Keys
 
-**Jalankan sekali saja** saat pertama kali setup OTA. Key pair ini akan digunakan untuk semua firmware release.
+**Jalankan sekali saja** saat pertama kali setup OTA. Key pair ini akan
+digunakan untuk semua firmware release.
 
 ### Command
 
@@ -101,11 +103,11 @@ Public Key (hex):
 
 ### Files Generated
 
-| File | Deskripsi | Commit ke Git? |
-|------|-----------|----------------|
+| File                  | Deskripsi                 | Commit ke Git?      |
+| --------------------- | ------------------------- | ------------------- |
 | `ota_private_key.pem` | Private key untuk signing | **TIDAK! RAHASIA!** |
-| `ota_public_key.pem` | Public key | Ya |
-| `ota_public_key.h` | C header untuk firmware | Ya |
+| `ota_public_key.pem`  | Public key                | Ya                  |
+| `ota_public_key.h`    | C header untuk firmware   | Ya                  |
 
 ### Backup Private Key
 
@@ -176,7 +178,9 @@ Verifying signature...
 Signature verification: PASSED
 ```
 
-**IMPORTANT:** Signature must be in DER format (70-72 bytes). If you see 64 bytes, the signing script needs to be updated with `sigencode=sigencode_der` parameter. See v2.5.10 fix for details.
+**IMPORTANT:** Signature must be in DER format (70-72 bytes). If you see 64
+bytes, the signing script needs to be updated with `sigencode=sigencode_der`
+parameter. See v2.5.10 fix for details.
 
 ### Generated Manifest
 
@@ -201,6 +205,7 @@ Signature verification: PASSED
 ```
 
 **Signature Format Notes:**
+
 - Format: DER encoded (starts with `3044` or `3045`)
 - Size: 70-72 bytes (140-144 hex characters)
 - Encoding: Hexadecimal string (NOT base64)
@@ -239,7 +244,8 @@ https://github.com/GifariKemal/GatewaySuriotaPOC/releases/tag/v2.5.0
 
 ## 5. Setup Manifest di Repository
 
-Device mencari manifest di `raw.githubusercontent.com`. Perlu commit manifest ke repository.
+Device mencari manifest di `raw.githubusercontent.com`. Perlu commit manifest ke
+repository.
 
 ### Update Manifest dengan URL
 
@@ -285,6 +291,7 @@ git push
 ### Manifest URL
 
 Setelah push, manifest tersedia di:
+
 ```
 https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/firmware_manifest.json
 ```
@@ -306,6 +313,7 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -328,6 +336,7 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -346,10 +355,11 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Check for Update
 
 ```json
-{"op": "ota", "type": "check_update"}
+{ "op": "ota", "type": "check_update" }
 ```
 
 **Response (no update):**
+
 ```json
 {
   "status": "ok",
@@ -360,6 +370,7 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ```
 
 **Response (update available):**
+
 ```json
 {
   "status": "ok",
@@ -375,10 +386,11 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Start Update
 
 ```json
-{"op": "ota", "type": "start_update"}
+{ "op": "ota", "type": "start_update" }
 ```
 
 **Response (success):**
+
 ```json
 {
   "status": "ok",
@@ -391,10 +403,11 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Check OTA Status
 
 ```json
-{"op": "ota", "type": "ota_status"}
+{ "op": "ota", "type": "ota_status" }
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -411,7 +424,7 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Apply Update (Reboot)
 
 ```json
-{"op": "ota", "type": "apply_update"}
+{ "op": "ota", "type": "apply_update" }
 ```
 
 ---
@@ -421,14 +434,17 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Error: "Manifest fetch failed: HTTP -1"
 
 **Penyebab:**
+
 - WiFi/Ethernet tidak terhubung
 - DNS resolution gagal
 - SSL handshake failed
 
 **Solusi:**
+
 1. Cek koneksi network:
+
    ```json
-   {"op": "read", "type": "network_status"}
+   { "op": "read", "type": "network_status" }
    ```
 
 2. Pastikan device terhubung ke internet
@@ -438,11 +454,14 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Error: "update_available: false" padahal ada versi baru
 
 **Penyebab:**
+
 - Manifest belum di-push ke repository
 - Cache belum expire
 
 **Solusi:**
+
 1. Verifikasi manifest di browser:
+
    ```
    https://raw.githubusercontent.com/GifariKemal/GatewaySuriotaPOC/main/firmware_manifest.json
    ```
@@ -452,19 +471,23 @@ Gunakan BLE testing tool untuk konfigurasi device.
 ### Error: "Signature verification failed"
 
 **Penyebab:**
+
 - Firmware tidak di-sign dengan private key yang benar
 - Public key di firmware tidak match
 
 **Solusi:**
+
 1. Re-sign firmware dengan private key yang benar
 2. Pastikan public key di `OTAValidator.cpp` match dengan private key
 
 ### Error: "Downgrade rejected"
 
 **Penyebab:**
+
 - Trying to install older version
 
 **Solusi:**
+
 - OTA hanya bisa ke versi lebih tinggi (anti-rollback)
 
 ---
@@ -473,19 +496,19 @@ Gunakan BLE testing tool untuk konfigurasi device.
 
 ### OTA BLE Commands
 
-| Command | Deskripsi |
-|---------|-----------|
-| `check_update` | Cek update tersedia |
-| `start_update` | Mulai download |
-| `ota_status` | Status download |
-| `abort_update` | Batalkan update |
-| `apply_update` | Apply dan reboot |
-| `enable_ble_ota` | Enable BLE OTA mode |
-| `disable_ble_ota` | Disable BLE OTA mode |
-| `rollback` | Rollback ke versi sebelumnya |
-| `get_config` | Get OTA configuration |
-| `set_github_repo` | Set repository |
-| `set_github_token` | Set auth token |
+| Command            | Deskripsi                    |
+| ------------------ | ---------------------------- |
+| `check_update`     | Cek update tersedia          |
+| `start_update`     | Mulai download               |
+| `ota_status`       | Status download              |
+| `abort_update`     | Batalkan update              |
+| `apply_update`     | Apply dan reboot             |
+| `enable_ble_ota`   | Enable BLE OTA mode          |
+| `disable_ble_ota`  | Disable BLE OTA mode         |
+| `rollback`         | Rollback ke versi sebelumnya |
+| `get_config`       | Get OTA configuration        |
+| `set_github_repo`  | Set repository               |
+| `set_github_token` | Set auth token               |
 
 ### Release Checklist
 
@@ -502,15 +525,15 @@ Gunakan BLE testing tool untuk konfigurasi device.
 
 ## Files Reference
 
-| File | Lokasi | Deskripsi |
-|------|--------|-----------|
-| Private Key | `ota_private_key.pem` | **RAHASIA!** Untuk signing |
-| Public Key | `ota_public_key.pem` | Untuk verifikasi |
-| C Header | `ota_public_key.h` | Embed di firmware |
-| Key Generator | `Tools/generate_ota_keys.py` | Generate key pair |
-| Firmware Signer | `Tools/sign_firmware.py` | Sign firmware |
-| Manifest | `firmware_manifest.json` | Info firmware |
-| Backup Keys | `~/Documents/OTA_Keys_Backup/` | Backup lokasi |
+| File            | Lokasi                         | Deskripsi                  |
+| --------------- | ------------------------------ | -------------------------- |
+| Private Key     | `ota_private_key.pem`          | **RAHASIA!** Untuk signing |
+| Public Key      | `ota_public_key.pem`           | Untuk verifikasi           |
+| C Header        | `ota_public_key.h`             | Embed di firmware          |
+| Key Generator   | `Tools/generate_ota_keys.py`   | Generate key pair          |
+| Firmware Signer | `Tools/sign_firmware.py`       | Sign firmware              |
+| Manifest        | `firmware_manifest.json`       | Info firmware              |
+| Backup Keys     | `~/Documents/OTA_Keys_Backup/` | Backup lokasi              |
 
 ---
 

@@ -8,9 +8,4 @@ from .flasher import ArduinoFlasher
 from .monitor import SerialMonitor
 from .library_manager import LibraryManager
 
-__all__ = [
-    'ArduinoBuilder',
-    'ArduinoFlasher',
-    'SerialMonitor',
-    'LibraryManager'
-]
+__all__ = ["ArduinoBuilder", "ArduinoFlasher", "SerialMonitor", "LibraryManager"]

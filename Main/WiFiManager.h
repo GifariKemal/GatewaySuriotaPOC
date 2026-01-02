@@ -1,20 +1,20 @@
 #ifndef WIFI_MANAGER_H
 #define WIFI_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
-#include <WiFi.h>
 #include <ArduinoJson.h>
+#include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
-class WiFiManager
-{
-private:
-  static WiFiManager *instance;
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+
+class WiFiManager {
+ private:
+  static WiFiManager* instance;
   bool initialized;
   bool configStored;  // v2.5.33: Track if credentials are stored for reconnect
   int referenceCount;
-  SemaphoreHandle_t refCountMutex; // FIXED: Thread safety for referenceCount
+  SemaphoreHandle_t refCountMutex;  // FIXED: Thread safety for referenceCount
   String ssid;
   String password;
 
@@ -24,10 +24,10 @@ private:
 
   WiFiManager();
 
-public:
-  static WiFiManager *getInstance();
+ public:
+  static WiFiManager* getInstance();
 
-  bool init(const String &ssid, const String &password);
+  bool init(const String& ssid, const String& password);
   void addReference();
   void removeReference();
   void cleanup();
@@ -35,11 +35,12 @@ public:
   bool isAvailable();
   IPAddress getLocalIP();
   String getSSID();
-  void getStatus(JsonObject &status);
+  void getStatus(JsonObject& status);
 
   // v2.5.33: Reconnect support
-  bool tryReconnect();           // Attempt to reconnect using stored credentials
-  bool hasStoredConfig() const;  // Check if credentials are available for reconnect
+  bool tryReconnect();  // Attempt to reconnect using stored credentials
+  bool hasStoredConfig()
+      const;  // Check if credentials are available for reconnect
   bool isInitialized() const { return initialized; }
   uint32_t getReconnectCount() const { return reconnectCount; }
 

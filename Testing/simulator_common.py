@@ -39,17 +39,19 @@ try:
     from rich.theme import Theme
 
     # Custom theme for SURIOTA simulators
-    custom_theme = Theme({
-        "info": "cyan",
-        "warning": "yellow",
-        "error": "bold red",
-        "success": "bold green",
-        "header": "bold magenta",
-        "data": "white",
-        "register": "bold cyan",
-        "value": "bold white",
-        "unit": "dim cyan",
-    })
+    custom_theme = Theme(
+        {
+            "info": "cyan",
+            "warning": "yellow",
+            "error": "bold red",
+            "success": "bold green",
+            "header": "bold magenta",
+            "data": "white",
+            "register": "bold cyan",
+            "value": "bold white",
+            "unit": "dim cyan",
+        }
+    )
 
     console = Console(theme=custom_theme)
     RICH_AVAILABLE = True
@@ -60,14 +62,18 @@ except ImportError:
 # Colorama fallback for compatibility
 try:
     from colorama import init, Fore, Back, Style
+
     init(autoreset=True)
     COLORAMA_AVAILABLE = True
 except ImportError:
     COLORAMA_AVAILABLE = False
+
     class Fore:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Back:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Style:
         BRIGHT = DIM = RESET_ALL = ""
 
@@ -75,6 +81,7 @@ except ImportError:
 # =============================================================================
 # Enhanced UI Functions (Rich-based)
 # =============================================================================
+
 
 def print_header(title, subtitle="", version=""):
     """Print a beautiful header box"""
@@ -87,14 +94,16 @@ def print_header(title, subtitle="", version=""):
             header_text.append(f"Version {version}", style="dim")
 
         console.print()
-        console.print(Panel(
-            header_text,
-            title="[bold magenta]SURIOTA Modbus Simulator[/bold magenta]",
-            subtitle=f"[dim]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]",
-            box=DOUBLE,
-            border_style="magenta",
-            padding=(1, 2)
-        ))
+        console.print(
+            Panel(
+                header_text,
+                title="[bold magenta]SURIOTA Modbus Simulator[/bold magenta]",
+                subtitle=f"[dim]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/dim]",
+                box=DOUBLE,
+                border_style="magenta",
+                padding=(1, 2),
+            )
+        )
         console.print()
     else:
         print()
@@ -155,7 +164,9 @@ def print_info(message):
 def print_table(headers, rows, title=""):
     """Print a formatted table"""
     if RICH_AVAILABLE:
-        table = Table(title=title, box=ROUNDED, border_style="cyan", header_style="bold magenta")
+        table = Table(
+            title=title, box=ROUNDED, border_style="cyan", header_style="bold magenta"
+        )
 
         for header in headers:
             table.add_column(header, justify="left")
@@ -171,7 +182,10 @@ def print_table(headers, rows, title=""):
             print("  " + "-" * 50)
 
         # Simple table format
-        col_widths = [max(len(str(row[i])) for row in [headers] + rows) for i in range(len(headers))]
+        col_widths = [
+            max(len(str(row[i])) for row in [headers] + rows)
+            for i in range(len(headers))
+        ]
 
         header_line = "  "
         for i, h in enumerate(headers):
@@ -199,8 +213,17 @@ def print_box(title, content, style="info"):
         else:
             text = str(content)
 
-        border_style = "cyan" if style == "info" else "yellow" if style == "warning" else "red"
-        console.print(Panel(text, title=f"[bold]{title}[/bold]", border_style=border_style, padding=(0, 2)))
+        border_style = (
+            "cyan" if style == "info" else "yellow" if style == "warning" else "red"
+        )
+        console.print(
+            Panel(
+                text,
+                title=f"[bold]{title}[/bold]",
+                border_style=border_style,
+                padding=(0, 2),
+            )
+        )
     else:
         print(f"\n  +--- {title} ---+")
         if isinstance(content, dict):
@@ -223,7 +246,7 @@ def print_register_values(register_info, values, update_count=0, slave_id=1):
             box=HEAVY,
             border_style="cyan",
             header_style="bold magenta",
-            title_style="bold white"
+            title_style="bold white",
         )
 
         table.add_column("Addr", justify="right", style="dim", width=5)
@@ -239,14 +262,16 @@ def print_register_values(register_info, values, update_count=0, slave_id=1):
                 value = values[addr] if addr < len(values) else 0
                 table.add_row(
                     str(addr),
-                    info['name'][:17],
+                    info["name"][:17],
                     str(value),
-                    info.get('unit', ''),
-                    f"{info.get('min', 0)}-{info.get('max', 100)}"
+                    info.get("unit", ""),
+                    f"{info.get('min', 0)}-{info.get('max', 100)}",
                 )
 
         if len(register_info) > num_to_show:
-            table.add_row("...", f"+ {len(register_info) - num_to_show} more", "...", "", "")
+            table.add_row(
+                "...", f"+ {len(register_info) - num_to_show} more", "...", "", ""
+            )
 
         console.print()
         console.print(table)
@@ -262,7 +287,9 @@ def print_register_values(register_info, values, update_count=0, slave_id=1):
             if addr in register_info:
                 info = register_info[addr]
                 value = values[addr] if addr < len(values) else 0
-                print(f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info.get('unit', '')}")
+                print(
+                    f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info.get('unit', '')}"
+                )
 
         if len(register_info) > num_to_show:
             print(f"  ... and {len(register_info) - num_to_show} more registers")
@@ -291,19 +318,24 @@ def print_connection_info(protocol, config):
             text.append("Baud Rate: ", style="dim")
             text.append(f"{config.get('baud_rate', 9600)}\n", style="bold white")
             text.append("Format: ", style="dim")
-            text.append(f"{config.get('data_bits', 8)}{config.get('parity', 'N')}{config.get('stop_bits', 1)}\n", style="bold white")
+            text.append(
+                f"{config.get('data_bits', 8)}{config.get('parity', 'N')}{config.get('stop_bits', 1)}\n",
+                style="bold white",
+            )
 
         text.append("Slave ID: ", style="dim")
         text.append(f"{config.get('slave_id', 1)}\n", style="bold white")
         text.append("Registers: ", style="dim")
         text.append(f"{config.get('num_registers', 0)}", style="bold green")
 
-        console.print(Panel(
-            text,
-            title="[bold]Connection Configuration[/bold]",
-            border_style="cyan",
-            padding=(0, 2)
-        ))
+        console.print(
+            Panel(
+                text,
+                title="[bold]Connection Configuration[/bold]",
+                border_style="cyan",
+                padding=(0, 2),
+            )
+        )
     else:
         print(f"\n  Connection Configuration:")
         if protocol == "TCP":
@@ -328,12 +360,7 @@ def print_startup_banner(protocol, num_registers):
         banner.append(f"{num_registers} Input Registers", style="white")
 
         console.print()
-        console.print(Panel(
-            banner,
-            box=DOUBLE,
-            border_style="magenta",
-            padding=(1, 4)
-        ))
+        console.print(Panel(banner, box=DOUBLE, border_style="magenta", padding=(1, 4)))
     else:
         print()
         print("=" * 60)
@@ -349,7 +376,7 @@ def print_ready_message(protocol, config):
         if protocol == "TCP":
             addr = f"{config.get('ip', '0.0.0.0')}:{config.get('port', 502)}"
         else:
-            addr = config.get('port', 'COM1')
+            addr = config.get("port", "COM1")
 
         text = Text()
         text.append("Server READY\n", style="bold green")
@@ -360,17 +387,13 @@ def print_ready_message(protocol, config):
         text.append(" to stop", style="dim")
 
         console.print()
-        console.print(Panel(
-            text,
-            border_style="green",
-            padding=(0, 2)
-        ))
+        console.print(Panel(text, border_style="green", padding=(0, 2)))
         console.print()
     else:
         if protocol == "TCP":
             addr = f"{config.get('ip', '0.0.0.0')}:{config.get('port', 502)}"
         else:
-            addr = config.get('port', 'COM1')
+            addr = config.get("port", "COM1")
 
         print()
         print(f"  [READY] Server listening on {addr}")
@@ -385,7 +408,8 @@ def print_dependencies():
     # Check pymodbus
     try:
         import pymodbus
-        version = getattr(pymodbus, '__version__', 'unknown')
+
+        version = getattr(pymodbus, "__version__", "unknown")
         deps.append(("pymodbus", version, True))
     except ImportError:
         deps.append(("pymodbus", "NOT FOUND", False))
@@ -393,7 +417,8 @@ def print_dependencies():
     # Check pyserial
     try:
         import serial
-        version = getattr(serial, '__version__', 'unknown')
+
+        version = getattr(serial, "__version__", "unknown")
         deps.append(("pyserial", version, True))
     except ImportError:
         deps.append(("pyserial", "NOT FOUND", False))
@@ -435,16 +460,25 @@ def create_live_display():
 # =============================================================================
 __all__ = [
     # UI Functions
-    'print_header', 'print_section',
-    'print_success', 'print_error', 'print_warning', 'print_info',
-    'print_table', 'print_box',
-    'print_register_values', 'print_connection_info',
-    'print_startup_banner', 'print_ready_message',
-    'print_dependencies', 'create_live_display',
-
+    "print_header",
+    "print_section",
+    "print_success",
+    "print_error",
+    "print_warning",
+    "print_info",
+    "print_table",
+    "print_box",
+    "print_register_values",
+    "print_connection_info",
+    "print_startup_banner",
+    "print_ready_message",
+    "print_dependencies",
+    "create_live_display",
     # Rich objects (for advanced usage)
-    'console', 'RICH_AVAILABLE',
-
+    "console",
+    "RICH_AVAILABLE",
     # Colorama compatibility
-    'Fore', 'Style', 'COLORAMA_AVAILABLE'
+    "Fore",
+    "Style",
+    "COLORAMA_AVAILABLE",
 ]

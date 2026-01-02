@@ -8,7 +8,9 @@
 
 ## 📋 Overview
 
-This directory contains comprehensive testing infrastructure for the SRT-MGATE-1210 firmware, including:
+This directory contains comprehensive testing infrastructure for the
+SRT-MGATE-1210 firmware, including:
+
 - **BLE Testing** - Backup/restore, device control, CRUD operations
 - **Device Testing** - RTU/TCP device creation and validation
 - **Modbus Simulators** - Software RTU/TCP slaves for testing
@@ -22,6 +24,7 @@ This directory contains comprehensive testing infrastructure for the SRT-MGATE-1
 ### Prerequisites
 
 **Python Environment:**
+
 ```bash
 # Install Python 3.8+
 python3 --version
@@ -31,6 +34,7 @@ pip install bleak pyserial pymodbus
 ```
 
 **Hardware Requirements:**
+
 - ESP32-S3 with firmware v2.3.11+
 - BLE-capable computer/smartphone
 - (Optional) RS485-to-USB adapter for RTU testing
@@ -98,6 +102,7 @@ Testing/
 **Purpose:** Validate BLE communication, backup/restore, device control
 
 **Key Tests:**
+
 - ✅ BLE connection and MTU negotiation
 - ✅ CRUD operations (Create, Read, Update, Delete)
 - ✅ Backup configuration (up to 200KB payloads)
@@ -107,6 +112,7 @@ Testing/
 - ✅ Large JSON payload handling (3420+ bytes)
 
 **Quick Start:**
+
 ```bash
 cd BLE_Testing/Backup_Restore_Test
 python test_backup_restore.py
@@ -120,6 +126,7 @@ python test_backup_restore.py
 ```
 
 **Documentation:**
+
 - [BLE Testing Overview](BLE_Testing/BLE_TESTING_README.md)
 - [Backup/Restore Guide](BLE_Testing/Backup_Restore_Test/README_TESTING.md)
 - [Quick Start](BLE_Testing/Backup_Restore_Test/QUICK_START.md)
@@ -134,12 +141,14 @@ python test_backup_restore.py
 #### RTU Device Testing
 
 **Scenarios:**
+
 - Single device with 1-50 registers
 - Multiple devices with different baud rates
 - Different data types (FLOAT32, INT16, UINT32, etc.)
 - Serial port switching (Port 1/2)
 
 **Quick Start:**
+
 ```bash
 cd Device_Testing/RTU_Create
 pip install -r requirements.txt
@@ -148,18 +157,21 @@ python create_device_50_registers.py  # Stress test
 ```
 
 **Documentation:**
+
 - [RTU Testing Guide](Device_Testing/RTU_Create/README.md)
 - [Testing Summary](Device_Testing/RTU_Create/TESTING_SUMMARY.md)
 
 #### TCP Device Testing
 
 **Scenarios:**
+
 - Single TCP device with 1-50 registers
 - Multiple TCP devices with different IP addresses
 - Connection timeout handling
 - Payload size validation
 
 **Quick Start:**
+
 ```bash
 cd Device_Testing/TCP_Create
 pip install -r requirements.txt
@@ -167,6 +179,7 @@ python create_device_5_registers.py
 ```
 
 **Documentation:**
+
 - [TCP Testing Guide](Device_Testing/TCP_Create/DOCUMENTATION.md)
 - [Payload Validation](Device_Testing/TCP_Create/PAYLOAD_VALIDATION.md)
 
@@ -179,12 +192,14 @@ python create_device_5_registers.py
 #### RTU Slave Simulator
 
 **Features:**
+
 - Simulates Modbus RTU slave on serial port
 - Configurable slave ID, baud rate, parity
 - Supports function codes 1, 2, 3, 4, 15, 16
 - Configurable register values
 
 **Quick Start:**
+
 ```bash
 cd Modbus_Simulators/RTU_Slave
 pip install -r requirements.txt
@@ -192,17 +207,20 @@ python rtu_slave_simulator.py --port COM3 --slave-id 1 --baudrate 9600
 ```
 
 **Documentation:**
+
 - [RTU Simulator Guide](Modbus_Simulators/RTU_Slave/README.md)
 
 #### TCP Slave Simulator
 
 **Features:**
+
 - Simulates Modbus TCP slave on network
 - Configurable IP address and port
 - Supports multiple client connections
 - Register mapping configuration
 
 **Quick Start:**
+
 ```bash
 cd Modbus_Simulators/TCP_Slave
 pip install -r requirements.txt
@@ -210,6 +228,7 @@ python tcp_slave_simulator.py --port 502
 ```
 
 **Documentation:**
+
 - [TCP Simulator Guide](Modbus_Simulators/TCP_Slave/DOCUMENTATION.md)
 
 ---
@@ -219,18 +238,21 @@ python tcp_slave_simulator.py --port 502
 **Purpose:** Validate MQTT/HTTP server configurations
 
 **Scenarios:**
+
 - MQTT broker connection (local/cloud)
 - HTTP endpoint testing (POST/PUT)
 - Large payload publishing (59+ registers)
 - Network failover testing
 
 **Quick Start:**
+
 ```bash
 cd Server_Config
 python test_mqtt_config.py
 ```
 
 **Documentation:**
+
 - [Config Reference](Server_Config/CONFIG_REFERENCE.md)
 - [Large Config Testing](Server_Config/README_59_REGISTERS.md)
 
@@ -240,28 +262,28 @@ python test_mqtt_config.py
 
 ### Feature Testing Status
 
-| Feature | BLE Test | Device Test | Simulator | Status |
-|---------|----------|-------------|-----------|--------|
-| **Device CRUD** | ✅ | ✅ | ✅ | Complete |
-| **Register CRUD** | ✅ | ✅ | ✅ | Complete |
-| **Backup Config** | ✅ | - | - | Complete |
-| **Restore Config** | ✅ | - | - | Complete |
-| **Factory Reset** | ✅ | - | - | Complete |
-| **Device Control** | ✅ | - | - | Complete |
-| **RTU Polling** | - | ✅ | ✅ | Complete |
-| **TCP Polling** | - | ✅ | ✅ | Complete |
-| **MQTT Publish** | - | ✅ | - | Complete |
-| **HTTP Publish** | - | ✅ | - | Complete |
-| **Large Payloads** | ✅ | ✅ | - | Complete (v2.3.11) |
-| **Data Types** | - | ✅ | ✅ | 40+ types |
+| Feature            | BLE Test | Device Test | Simulator | Status             |
+| ------------------ | -------- | ----------- | --------- | ------------------ |
+| **Device CRUD**    | ✅       | ✅          | ✅        | Complete           |
+| **Register CRUD**  | ✅       | ✅          | ✅        | Complete           |
+| **Backup Config**  | ✅       | -           | -         | Complete           |
+| **Restore Config** | ✅       | -           | -         | Complete           |
+| **Factory Reset**  | ✅       | -           | -         | Complete           |
+| **Device Control** | ✅       | -           | -         | Complete           |
+| **RTU Polling**    | -        | ✅          | ✅        | Complete           |
+| **TCP Polling**    | -        | ✅          | ✅        | Complete           |
+| **MQTT Publish**   | -        | ✅          | -         | Complete           |
+| **HTTP Publish**   | -        | ✅          | -         | Complete           |
+| **Large Payloads** | ✅       | ✅          | -         | Complete (v2.3.11) |
+| **Data Types**     | -        | ✅          | ✅        | 40+ types          |
 
 ### Bug Fix Validation
 
-| Bug # | Description | Test Script | Status |
-|-------|-------------|-------------|--------|
-| **#32** | Restore config failure (large JSON) | `test_backup_restore.py` | ✅ FIXED (v2.3.11) |
-| **MQTT** | Partial publish (incomplete data) | Device testing scripts | ✅ FIXED (v2.3.2) |
-| **Cache** | Memory leak after deletion | Device creation/deletion | ✅ FIXED (v2.3.1) |
+| Bug #     | Description                         | Test Script              | Status             |
+| --------- | ----------------------------------- | ------------------------ | ------------------ |
+| **#32**   | Restore config failure (large JSON) | `test_backup_restore.py` | ✅ FIXED (v2.3.11) |
+| **MQTT**  | Partial publish (incomplete data)   | Device testing scripts   | ✅ FIXED (v2.3.2)  |
+| **Cache** | Memory leak after deletion          | Device creation/deletion | ✅ FIXED (v2.3.1)  |
 
 ---
 
@@ -270,6 +292,7 @@ python test_mqtt_config.py
 ### For New Firmware Build:
 
 1. **BLE Connection Test** (2 min)
+
    ```bash
    cd BLE_Testing/Backup_Restore_Test
    python test_backup_restore.py
@@ -277,12 +300,14 @@ python test_mqtt_config.py
    ```
 
 2. **Backup/Restore Cycle** (5 min)
+
    ```bash
    # Same script
    # Select: Backup-Restore-Compare cycle
    ```
 
 3. **Device Polling Test** (10 min)
+
    ```bash
    cd Device_Testing/RTU_Create
    python create_device_50_registers.py
@@ -290,6 +315,7 @@ python test_mqtt_config.py
    ```
 
 4. **MQTT Publish Test** (5 min)
+
    ```bash
    # Use MQTT subscriber (mosquitto_sub or MQTT Explorer)
    mosquitto_sub -h localhost -t "suriota/gateway/#" -v
@@ -312,8 +338,8 @@ python test_mqtt_config.py
 
 #### BLE Connection Fails
 
-**Symptom:** Python script can't find gateway
-**Solution:**
+**Symptom:** Python script can't find gateway **Solution:**
+
 1. Check firmware PRODUCTION_MODE (should be 0 for dev)
 2. Enable BLE via button (if PRODUCTION_MODE=1)
 3. Check BLE name in script matches gateway
@@ -321,8 +347,8 @@ python test_mqtt_config.py
 
 #### Modbus Simulator Not Responding
 
-**Symptom:** Gateway shows "Device timeout"
-**Solution:**
+**Symptom:** Gateway shows "Device timeout" **Solution:**
+
 1. Check serial port/IP address correct
 2. Verify simulator running (`ps aux | grep python`)
 3. Check baud rate matches (RTU)
@@ -330,8 +356,8 @@ python test_mqtt_config.py
 
 #### Large Payload Test Fails
 
-**Symptom:** Restore fails with "Missing 'config' object"
-**Solution:**
+**Symptom:** Restore fails with "Missing 'config' object" **Solution:**
+
 1. Upgrade firmware to v2.3.11+ (BUG #32 fix)
 2. Check PSRAM available (>1MB free)
 3. Use `test_backup_restore.py` option 4 (Backup-Restore-Compare)
@@ -342,13 +368,16 @@ python test_mqtt_config.py
 
 ### Modbus Test Values
 
-See [Modbus Test Values.md](Modbus Test Values.md) for comprehensive test data including:
+See [Modbus Test Values.md](Modbus Test Values.md) for comprehensive test data
+including:
+
 - INT16, UINT16, INT32, UINT32 test values
 - FLOAT32, FLOAT64 precision testing
 - Endianness variants (BE, LE, ABCD, CDAB, etc.)
 - Edge cases (0, MAX, MIN, -1, overflow)
 
 **Example:**
+
 ```
 INT16:
   Set Value: 32767
@@ -368,11 +397,13 @@ FLOAT32_ABCD:
 ### Adding New Tests
 
 1. **Create test directory:**
+
    ```bash
    mkdir -p Testing/NewFeature_Testing
    ```
 
 2. **Add Python script:**
+
    ```python
    # test_new_feature.py
    import bleak
@@ -380,6 +411,7 @@ FLOAT32_ABCD:
    ```
 
 3. **Create documentation:**
+
    ```bash
    touch Testing/NewFeature_Testing/README.md
    ```
@@ -427,12 +459,14 @@ if __name__ == "__main__":
 ## 📚 Related Documentation
 
 ### Firmware Documentation
+
 - [Quick Start Guide](../Documentation/QUICKSTART.md)
 - [API Reference](../Documentation/API_Reference/API.md)
 - [Troubleshooting Guide](../Documentation/Technical_Guides/TROUBLESHOOTING.md)
 - [Version History](../Documentation/Changelog/VERSION_HISTORY.md)
 
 ### Specific API Docs
+
 - [BLE Backup/Restore API](../Documentation/API_Reference/BLE_BACKUP_RESTORE.md)
 - [BLE Factory Reset API](../Documentation/API_Reference/BLE_FACTORY_RESET.md)
 - [BLE Device Control API](../Documentation/API_Reference/BLE_DEVICE_CONTROL.md)
@@ -477,6 +511,7 @@ When contributing new tests:
 ### Reporting Test Failures
 
 When reporting test failures, include:
+
 - Firmware version (`[INFO] Current version: X.X.X` in serial log)
 - Python version (`python3 --version`)
 - Test script name and version
@@ -486,9 +521,7 @@ When reporting test failures, include:
 
 ---
 
-**Testing Documentation Version:** 1.1
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
-**Maintainer:** Kemal
+**Testing Documentation Version:** 1.1 **Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34 **Maintainer:** Kemal
 
 [← Back to Main README](../README.md) | [↑ Top](#-testing-documentation)

@@ -30,6 +30,7 @@ COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
 SERVICE_NAME = "SURIOTA GW"
 
+
 # =============================================================================
 # Server Config Update Class
 # =============================================================================
@@ -37,6 +38,7 @@ class ServerConfigClient:
     """
     BLE Client for updating server configuration
     """
+
     def __init__(self):
         self.client = None
         self.response_buffer = ""
@@ -62,7 +64,9 @@ class ServerConfigClient:
             print(f"[FOUND] {device.name} ({device.address})")
             self.client = BleakClient(device.address)
             await self.client.connect()
-            await self.client.start_notify(RESPONSE_CHAR_UUID, self._notification_handler)
+            await self.client.start_notify(
+                RESPONSE_CHAR_UUID, self._notification_handler
+            )
 
             self.connected = True
             print(f"[SUCCESS] Connected to {device.name}")
@@ -85,7 +89,7 @@ class ServerConfigClient:
         """
         Handle BLE notification responses with fragmentation support
         """
-        fragment = data.decode('utf-8')
+        fragment = data.decode("utf-8")
 
         if fragment == "<END>":
             if self.response_buffer:
@@ -94,10 +98,10 @@ class ServerConfigClient:
                     print(f"[RESPONSE] {json.dumps(response, indent=2)}")
 
                     # Check if server config update was successful
-                    if response.get('status') == 'ok':
-                        print("\n" + "="*70)
+                    if response.get("status") == "ok":
+                        print("\n" + "=" * 70)
                         print("✅ SERVER CONFIGURATION UPDATED SUCCESSFULLY!")
-                        print("="*70)
+                        print("=" * 70)
                         print("\n⚠️  WARNING: Device will restart in 5 seconds...")
                         print("    Please wait for the device to reboot.")
                         print("\n📋 Configuration Summary:")
@@ -106,16 +110,16 @@ class ServerConfigClient:
                         print("    • MQTT: Enabled (broker.hivemq.com)")
                         print("    • MQTT Mode: Default Mode (20s interval)")
                         print("    • HTTP: Disabled")
-                        print("="*70)
-                    elif response.get('status') == 'error':
-                        print("\n" + "="*70)
+                        print("=" * 70)
+                    elif response.get("status") == "error":
+                        print("\n" + "=" * 70)
                         print("❌ SERVER CONFIGURATION UPDATE FAILED!")
-                        print("="*70)
-                        error_code = response.get('code', 'UNKNOWN')
-                        error_msg = response.get('message', 'No error message')
+                        print("=" * 70)
+                        error_code = response.get("code", "UNKNOWN")
+                        error_msg = response.get("message", "No error message")
                         print(f"    Error Code: {error_code}")
                         print(f"    Error Message: {error_msg}")
-                        print("="*70)
+                        print("=" * 70)
 
                 except json.JSONDecodeError as e:
                     print(f"[ERROR] JSON Parse: {e}")
@@ -136,7 +140,7 @@ class ServerConfigClient:
         if not self.connected:
             raise RuntimeError("Not connected to BLE device")
 
-        json_str = json.dumps(command, separators=(',', ':'))
+        json_str = json.dumps(command, separators=(",", ":"))
 
         if description:
             print(f"\n[COMMAND] {description}")
@@ -148,7 +152,7 @@ class ServerConfigClient:
         print(f"[INFO] Sending {total_chunks} fragments...")
 
         for i in range(0, len(json_str), chunk_size):
-            chunk = json_str[i:i+chunk_size]
+            chunk = json_str[i : i + chunk_size]
             chunk_num = (i // chunk_size) + 1
             print(f"[FRAGMENT {chunk_num}/{total_chunks}] {len(chunk)} bytes")
             await self.client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode())
@@ -164,9 +168,9 @@ class ServerConfigClient:
         """
         Main workflow: Update server configuration
         """
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("  SRT-MGATE-1210 TESTING: UPDATE SERVER CONFIGURATION")
-        print("="*70)
+        print("=" * 70)
         print("\n📋 Configuration to be applied:")
         print("    • Communication Mode: Ethernet (DHCP - Automatic IP)")
         print("    • WiFi: Enabled")
@@ -184,7 +188,7 @@ class ServerConfigClient:
         print("        - Clean Session: Yes")
         print("        - TLS: No")
         print("    • HTTP: Disabled")
-        print("="*70)
+        print("=" * 70)
 
         # =============================================================================
         # Server Config Update Payload
@@ -193,20 +197,18 @@ class ServerConfigClient:
             "op": "update",
             "type": "server_config",
             "config": {
-                "communication": {
-                    "mode": "WiFi"
-                },
+                "communication": {"mode": "WiFi"},
                 "wifi": {
                     "enabled": True,
                     "ssid": "SURIOTA 5G 25",
-                    "password": "Tampan12"
+                    "password": "Tampan12",
                 },
                 "ethernet": {
                     "enabled": False,
                     "use_dhcp": True,
                     "static_ip": "",
                     "gateway": "",
-                    "subnet": ""
+                    "subnet": "",
                 },
                 "protocol": "mqtt",
                 "mqtt_config": {
@@ -225,12 +227,9 @@ class ServerConfigClient:
                         "topic_publish": "v1/devices/me/telemetry/gwsrt",
                         "topic_subscribe": "v1/devices/me/rpc",
                         "interval": 20,
-                        "interval_unit": "s"
+                        "interval_unit": "s",
                     },
-                    "customize_mode": {
-                        "enabled": False,
-                        "custom_topics": []
-                    }
+                    "customize_mode": {"enabled": False, "custom_topics": []},
                 },
                 "http_config": {
                     "enabled": False,
@@ -241,16 +240,13 @@ class ServerConfigClient:
                     "retry": 3,
                     "interval": 5,
                     "interval_unit": "s",
-                    "headers": {}
-                }
-            }
+                    "headers": {},
+                },
+            },
         }
 
         print("\n>>> Sending server_config update command...")
-        await self.send_command(
-            server_config,
-            "Update Server Configuration"
-        )
+        await self.send_command(server_config, "Update Server Configuration")
 
         print("\n✅ Command sent successfully!")
         print("⏳ Waiting for device to process and restart...")
@@ -280,14 +276,15 @@ async def main():
     except Exception as e:
         print(f"\n[EXCEPTION] {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:
         await client.disconnect()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  TESTING COMPLETE")
-    print("="*70)
+    print("=" * 70)
     print("\n📝 Next Steps:")
     print("    1. Wait for device to finish rebooting (~10 seconds)")
     print("    2. Check device LED status:")
@@ -301,7 +298,7 @@ async def main():
     print("    • If device doesn't restart, power cycle it manually")
     print("    • If MQTT not working, check broker.hivemq.com accessibility")
     print("    • If WiFi fails, verify password is correct: @Kremi201")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
@@ -312,4 +309,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n[FATAL ERROR] {e}")
         import traceback
+
         traceback.print_exc()

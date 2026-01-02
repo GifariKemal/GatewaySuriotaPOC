@@ -1,21 +1,25 @@
 # MQTT Publish Modes Test Client
 
-Python script untuk testing MQTT Publish Modes (Default & Customize) pada SRT-MGATE-1210 Firmware v2.0 via BLE.
+Python script untuk testing MQTT Publish Modes (Default & Customize) pada
+SRT-MGATE-1210 Firmware v2.0 via BLE.
 
 ## 🎯 Fitur Testing
 
 ### Default Mode Tests
+
 - ✅ Test interval dengan unit **seconds** (5s)
 - ✅ Test interval dengan unit **milliseconds** (3000ms)
 - ✅ Test interval dengan unit **minutes** (1m)
 
 ### Customize Mode Tests
+
 - ✅ Test basic 2 topics (Temperature & Pressure)
 - ✅ Test mixed interval units (ms/s/m) dalam satu config
 - ✅ Test register overlap (register yang sama di multiple topics)
 - ✅ Test warehouse scenario (4 topics dengan kategorisasi)
 
 ### Other Tests
+
 - ✅ Test disable both modes (MQTT tetap connected tapi tidak publish)
 - ✅ Read current configuration
 
@@ -28,6 +32,7 @@ pip install bleak asyncio
 ```
 
 **Dependencies:**
+
 - Python 3.7+
 - `bleak` - BLE library
 - `asyncio` - Async I/O
@@ -42,9 +47,11 @@ pip install bleak asyncio
 
 **Mengapa register_index penting?**
 
-Customize mode menggunakan **register_index** (bukan address Modbus) untuk mapping register ke topic.
+Customize mode menggunakan **register_index** (bukan address Modbus) untuk
+mapping register ke topic.
 
 **Contoh:**
+
 ```json
 // Device dengan 3 registers
 {
@@ -75,6 +82,7 @@ Customize mode menggunakan **register_index** (bukan address Modbus) untuk mappi
 ```
 
 **Setup Steps:**
+
 1. Run `python modbus_Config_test.py` untuk create device & registers
 2. Verify `register_index` ada di setiap register (check serial monitor)
 3. Run `python mqtt_publish_modes_test.py` untuk test MQTT modes
@@ -131,9 +139,11 @@ OTHER:
 ## 📝 Penjelasan Test Scenarios
 
 ### Test 1: Default Mode - 5 Seconds
+
 **Tujuan:** Test interval dengan unit seconds
 
 **Config:**
+
 ```json
 {
   "publish_mode": "default",
@@ -147,6 +157,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Firmware convert: 5s → 5000ms
 - Publish semua register ke 1 topic setiap 5 detik
 - Serial output: `[MQTT] Default Mode: ENABLED, Interval: 5s (5000ms)`
@@ -154,9 +165,11 @@ OTHER:
 ---
 
 ### Test 2: Default Mode - 3000 Milliseconds
+
 **Tujuan:** Test interval dengan unit milliseconds
 
 **Config:**
+
 ```json
 {
   "publish_mode": "default",
@@ -169,15 +182,18 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Firmware convert: 3000ms → 3000ms (no conversion)
 - Publish setiap 3 detik
 
 ---
 
 ### Test 3: Default Mode - 1 Minute
+
 **Tujuan:** Test interval dengan unit minutes
 
 **Config:**
+
 ```json
 {
   "publish_mode": "default",
@@ -190,6 +206,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Firmware convert: 1m → 60000ms
 - Publish setiap 1 menit
 - Serial output: `[MQTT] Default Mode: ENABLED, Interval: 1m (60000ms)`
@@ -197,9 +214,11 @@ OTHER:
 ---
 
 ### Test 4: Customize Mode - Basic
+
 **Tujuan:** Test customize mode dengan 2 topics
 
 **Config:**
+
 ```json
 {
   "publish_mode": "customize",
@@ -224,6 +243,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Topic `sensor/temperature` publish register 1,2,3 setiap 5 detik
 - Topic `sensor/pressure` publish register 4,5 setiap 10 detik
 - Serial output menampilkan 2 custom topics
@@ -231,9 +251,11 @@ OTHER:
 ---
 
 ### Test 5: Customize Mode - Mixed Intervals
+
 **Tujuan:** Test 3 unit interval berbeda (ms/s/m) dalam satu config
 
 **Config:**
+
 ```json
 {
   "custom_topics": [
@@ -260,6 +282,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - `alerts/critical` → setiap 500ms
 - `dashboard/realtime` → setiap 2s (2000ms)
 - `database/historical` → setiap 1m (60000ms)
@@ -268,9 +291,11 @@ OTHER:
 ---
 
 ### Test 6: Customize Mode - Register Overlap
+
 **Tujuan:** Test register yang sama di multiple topics
 
 **Config:**
+
 ```json
 {
   "custom_topics": [
@@ -291,6 +316,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Register 1 publish ke 3 topics: temperature, all_sensors, critical
 - Register 2-3 publish ke 2 topics: temperature, all_sensors
 - Register 4-5 publish ke 1 topic: all_sensors
@@ -299,9 +325,11 @@ OTHER:
 ---
 
 ### Test 7: Warehouse Scenario
+
 **Tujuan:** Test real-world scenario dengan 4 kategori sensor
 
 **Config:**
+
 ```json
 {
   "custom_topics": [
@@ -334,6 +362,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - Environment sensors: Temp & Humidity setiap 5s
 - Safety sensors: Smoke setiap 1s, CO2 setiap 2s
 - Total 4 topics dengan interval berbeda
@@ -341,9 +370,11 @@ OTHER:
 ---
 
 ### Test 8: Disable Both Modes
+
 **Tujuan:** Test MQTT connection tanpa publishing
 
 **Config:**
+
 ```json
 {
   "mqtt_config": {
@@ -359,6 +390,7 @@ OTHER:
 ```
 
 **Expected Behavior:**
+
 - MQTT tetap connected ke broker
 - Tidak ada publishing data
 - Serial output: `[MQTT] No active publish mode`
@@ -393,6 +425,7 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 ## 🧪 Checklist Testing
 
 ### Default Mode
+
 - [ ] Test interval seconds (5s)
 - [ ] Test interval milliseconds (3000ms)
 - [ ] Test interval minutes (1m)
@@ -400,6 +433,7 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 - [ ] Verify batch publishing (all registers in 1 message)
 
 ### Customize Mode
+
 - [ ] Test 2 topics dengan interval berbeda
 - [ ] Test 3 unit interval (ms/s/m) dalam 1 config
 - [ ] Test register overlap (register di multiple topics)
@@ -408,6 +442,7 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 - [ ] Verify register filtering by index
 
 ### Edge Cases
+
 - [ ] Disable both modes (MQTT connected, no publish)
 - [ ] Switch from default to customize
 - [ ] Switch from customize to default
@@ -421,11 +456,13 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 ### ✅ Success Indicators
 
 1. **BLE Connection:**
+
    ```
    ✅ Connected to SURIOTA GW (XX:XX:XX:XX:XX:XX)
    ```
 
 2. **Command Sent:**
+
    ```
    📤 Sending command (XXX bytes):
    📥 Fragment: '...'
@@ -443,11 +480,13 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 ### ❌ Failure Indicators
 
 1. **BLE Not Found:**
+
    ```
    ❌ Service SURIOTA GW not found
    ```
 
 2. **Parse Error:**
+
    ```
    ❌ Failed to parse response: Expecting value: line 1 column 1
    ```
@@ -463,18 +502,24 @@ Setelah mengirim config, monitor serial ESP32 untuk melihat:
 ## 🐛 Troubleshooting
 
 ### Issue: BLE tidak terdeteksi
+
 **Solusi:**
+
 - Pastikan gateway dalam mode BLE advertising
 - Restart gateway
 - Pastikan Bluetooth adapter PC aktif
 
 ### Issue: Response tidak lengkap
+
 **Solusi:**
+
 - Increase `await asyncio.sleep(2.0)` di send_command()
 - Check MTU size BLE
 
 ### Issue: Config tidak tersimpan
+
 **Solusi:**
+
 - Verify JSON format valid
 - Check serial monitor untuk error message
 - Pastikan SPIFFS tidak full

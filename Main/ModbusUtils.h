@@ -39,9 +39,8 @@
  * Version: 1.0.0
  * Created: November 25, 2025
  */
-class ModbusUtils
-{
-public:
+class ModbusUtils {
+ public:
   /**
    * Process single-register value (INT16, UINT16, BOOL, BINARY)
    *
@@ -49,28 +48,28 @@ public:
    * @param rawValue Raw 16-bit register value from Modbus
    * @return Parsed value as double (for JSON compatibility)
    */
-  static double processRegisterValue(const JsonObject &reg, uint16_t rawValue);
+  static double processRegisterValue(const JsonObject& reg, uint16_t rawValue);
 
   /**
-   * Process multi-register value (INT32, UINT32, FLOAT32, INT64, UINT64, DOUBLE64)
+   * Process multi-register value (INT32, UINT32, FLOAT32, INT64, UINT64,
+   * DOUBLE64)
    *
-   * @param reg JsonObject containing register configuration (optional, for future use)
+   * @param reg JsonObject containing register configuration (optional, for
+   * future use)
    * @param values Array of raw 16-bit register values
    * @param count Number of registers (2 for 32-bit, 4 for 64-bit)
    * @param baseType Data type string ("INT32", "FLOAT32", etc.)
    * @param endianness_variant Byte order string ("BE", "LE", "BE_BS", "LE_BS")
    * @return Parsed value as double
    */
-  static double processMultiRegisterValue(
-      const JsonObject &reg,
-      uint16_t *values,
-      int count,
-      const char *baseType,
-      const char *endianness_variant);
+  static double processMultiRegisterValue(const JsonObject& reg,
+                                          uint16_t* values, int count,
+                                          const char* baseType,
+                                          const char* endianness_variant);
 
-private:
+ private:
   // Private constructor (utility class, no instances)
   ModbusUtils() {}
 };
 
-#endif // MODBUS_UTILS_H
+#endif  // MODBUS_UTILS_H

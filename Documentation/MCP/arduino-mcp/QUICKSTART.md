@@ -11,17 +11,19 @@
 Choose one method:
 
 **Option A - Using winget (recommended):**
+
 ```powershell
 winget install ArduinoSA.CLI
 ```
 
 **Option B - Using Chocolatey:**
+
 ```powershell
 choco install arduino-cli
 ```
 
-**Option C - Manual download:**
-Download from: https://arduino.github.io/arduino-cli/latest/installation/
+**Option C - Manual download:** Download from:
+https://arduino.github.io/arduino-cli/latest/installation/
 
 ### 2. Run Installation Script
 
@@ -31,6 +33,7 @@ install.bat
 ```
 
 This will:
+
 - ✅ Check Python installation
 - ✅ Verify Arduino CLI
 - ✅ Install Python dependencies
@@ -42,6 +45,7 @@ This will:
 **Edit:** `%APPDATA%\Claude\claude_desktop_config.json`
 
 **Add:**
+
 ```json
 {
   "mcpServers": {
@@ -65,6 +69,7 @@ Close and reopen Claude Desktop to load the MCP server.
 ### 5. Test It!
 
 Ask Claude:
+
 ```
 List all connected Arduino boards
 ```
@@ -118,6 +123,7 @@ winget install ArduinoSA.CLI
 ### "No boards detected"
 
 **Solution:**
+
 1. Connect ESP32-S3 via USB
 2. Install USB drivers (CP210x or CH340)
 3. Check Device Manager for COM port
@@ -126,6 +132,7 @@ winget install ArduinoSA.CLI
 ### "MCP server not responding"
 
 **Solution:**
+
 1. Check config file paths are absolute paths
 2. Restart Claude Desktop
 3. Check Python is installed: `python --version`
@@ -136,7 +143,8 @@ winget install ArduinoSA.CLI
 ## 📚 Learn More
 
 - **Full Documentation:** `README.md`
-- **Installation Scripts:** `install.bat` (Windows) or `install.sh` (Linux/macOS)
+- **Installation Scripts:** `install.bat` (Windows) or `install.sh`
+  (Linux/macOS)
 - **Configuration Example:** `mcp_config_example.json`
 - **Gateway Project Docs:** `../Documentation/`
 
@@ -145,6 +153,7 @@ winget install ArduinoSA.CLI
 ## 🆘 Need Help?
 
 Check the full `README.md` for:
+
 - Complete tool reference
 - Advanced usage examples
 - Detailed troubleshooting

@@ -2,10 +2,11 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-Analisis mendalam tentang kapasitas register dan device yang dapat ditampung oleh gateway.
+Analisis mendalam tentang kapasitas register dan device yang dapat ditampung
+oleh gateway.
 
-**Updated for v2.1.1:** November 14, 2025 (Friday) - WIB (GMT+7)
-**Developer:** Kemal
+**Updated for v2.1.1:** November 14, 2025 (Friday) - WIB (GMT+7) **Developer:**
+Kemal
 
 ---
 
@@ -24,12 +25,12 @@ Analisis mendalam tentang kapasitas register dan device yang dapat ditampung ole
 
 ### ESP32-S3 Memory Specifications
 
-| Resource              | Capacity       | Purpose                          |
-| --------------------- | -------------- | -------------------------------- |
-| **Internal SRAM**     | 512 KB         | Program execution, stack, heap   |
-| **External PSRAM**    | 8 MB (8192 KB) | Large data structures, buffers   |
-| **Flash Storage**     | 16 MB          | Firmware code, file system       |
-| **LittleFS Partition**| ~14 MB         | Configuration files, queues      |
+| Resource               | Capacity       | Purpose                        |
+| ---------------------- | -------------- | ------------------------------ |
+| **Internal SRAM**      | 512 KB         | Program execution, stack, heap |
+| **External PSRAM**     | 8 MB (8192 KB) | Large data structures, buffers |
+| **Flash Storage**      | 16 MB          | Firmware code, file system     |
+| **LittleFS Partition** | ~14 MB         | Configuration files, queues    |
 
 ### Memory Allocation Strategy
 
@@ -53,6 +54,7 @@ MAX_STREAM_QUEUE_SIZE = 50;             // Streaming data points
 ### Configuration Storage
 
 **File-based Storage (LittleFS)**:
+
 ```
 /devices.json          → All device configurations
 /registers.json        → All register configurations (if separate)
@@ -62,6 +64,7 @@ MAX_STREAM_QUEUE_SIZE = 50;             // Streaming data points
 ```
 
 **In-Memory Cache (PSRAM)**:
+
 ```cpp
 JsonDocument *devicesCache;    // Loaded on-demand
 JsonDocument *registersCache;  // Loaded on-demand
@@ -75,6 +78,7 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Per Device Configuration
 
 **Minimal Device (JSON)**:
+
 ```json
 {
   "D_ABC123": {
@@ -96,6 +100,7 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Per Register Configuration
 
 **Typical Register (JSON)**:
+
 ```json
 {
   "address": 40001,
@@ -116,6 +121,7 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Runtime Data Point (Queue)
 
 **Data Point in Queue**:
+
 ```json
 {
   "device_id": "D_ABC123",
@@ -137,6 +143,7 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 **Available Flash Storage**: 14 MB (14,680,064 bytes)
 
 **Reserved System Files**: ~1 MB
+
 - Server config, logging config, MQTT queue, system files
 
 **Available for Configurations**: ~13 MB (13,631,488 bytes)
@@ -146,11 +153,13 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Scenario 1: Device-Heavy Configuration
 
 **Assumptions**:
+
 - Average device size: 200 bytes (minimal registers)
 - Average 5 registers per device
 - Total per device: 200 + (5 × 180) = 1,100 bytes
 
 **Maximum Devices**:
+
 ```
 13,631,488 bytes ÷ 1,100 bytes = 12,392 devices
 ```
@@ -158,11 +167,13 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Scenario 2: Register-Heavy Configuration
 
 **Assumptions**:
+
 - Average device size: 200 bytes
 - Average 50 registers per device
 - Total per device: 200 + (50 × 180) = 9,200 bytes
 
 **Maximum Devices**:
+
 ```
 13,631,488 bytes ÷ 9,200 bytes = 1,482 devices
 ```
@@ -170,10 +181,12 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 #### Scenario 3: Maximum Registers per Device
 
 **Assumptions**:
+
 - Single device: 200 bytes
 - All remaining space for registers
 
 **Maximum Registers (Single Device)**:
+
 ```
 (13,631,488 - 200) bytes ÷ 180 bytes = 75,729 registers
 ```
@@ -187,11 +200,13 @@ shouldUsePsram(size > 1024);   // Use PSRAM for files > 1KB
 **Available for Configuration Cache**: ~6 MB (6,291,456 bytes)
 
 **Maximum Registers in PSRAM Cache**:
+
 ```
 6,291,456 bytes ÷ 180 bytes = 34,952 registers
 ```
 
 **Queue Capacity**:
+
 ```
 Data Queue: 100 data points × 120 bytes = 12,000 bytes (12 KB)
 Stream Queue: 50 data points × 120 bytes = 6,000 bytes (6 KB)
@@ -233,27 +248,28 @@ Total Queue: 18 KB
 
 #### Configuration Limits
 
-| Scenario                  | Devices | Registers/Device | Total Registers | Notes                          |
-| ------------------------- | ------- | ---------------- | --------------- | ------------------------------ |
-| **Small Installation**    | 10      | 10               | 100             | Typical home/small office      |
-| **Medium Installation**   | 50      | 20               | 1,000           | Factory floor, building        |
-| **Large Installation**    | 200     | 50               | 10,000          | Industrial campus              |
-| **Maximum Recommended**   | 500     | 100              | 50,000          | Enterprise deployment          |
-| **Theoretical Maximum**   | 1,000   | 500              | 500,000         | Not recommended (performance)  |
+| Scenario                | Devices | Registers/Device | Total Registers | Notes                         |
+| ----------------------- | ------- | ---------------- | --------------- | ----------------------------- |
+| **Small Installation**  | 10      | 10               | 100             | Typical home/small office     |
+| **Medium Installation** | 50      | 20               | 1,000           | Factory floor, building       |
+| **Large Installation**  | 200     | 50               | 10,000          | Industrial campus             |
+| **Maximum Recommended** | 500     | 100              | 50,000          | Enterprise deployment         |
+| **Theoretical Maximum** | 1,000   | 500              | 500,000         | Not recommended (performance) |
 
 #### Performance-Based Limits
 
 **Refresh Rate Constraints**:
 
-| Refresh Rate | Max Registers (RTU) | Max Registers (TCP) | Notes                        |
-| ------------ | ------------------- | ------------------- | ---------------------------- |
-| **1 second** | 20                  | 40                  | Real-time monitoring         |
-| **5 seconds**| 100                 | 200                 | Standard industrial polling  |
-| **10 seconds**| 200                | 400                 | Slow-changing values         |
-| **30 seconds**| 600                | 1,200               | Energy meters, totals        |
-| **60 seconds**| 1,200              | 2,400               | Historical trending          |
+| Refresh Rate   | Max Registers (RTU) | Max Registers (TCP) | Notes                       |
+| -------------- | ------------------- | ------------------- | --------------------------- |
+| **1 second**   | 20                  | 40                  | Real-time monitoring        |
+| **5 seconds**  | 100                 | 200                 | Standard industrial polling |
+| **10 seconds** | 200                 | 400                 | Slow-changing values        |
+| **30 seconds** | 600                 | 1,200               | Energy meters, totals       |
+| **60 seconds** | 1,200               | 2,400               | Historical trending         |
 
 **Combined Protocol Limits**:
+
 - 2x Modbus RTU ports + Modbus TCP = ~3,600 registers at 1-second refresh
 - Recommended: 1,000-2,000 registers for stable operation
 
@@ -301,7 +317,8 @@ JSON File Size → Parse Time (approximate)
 
 **📊 Performance After Optimization:**
 
-The BLE transmission layer was significantly optimized in v2.1.1 to eliminate timeout issues.
+The BLE transmission layer was significantly optimized in v2.1.1 to eliminate
+timeout issues.
 
 #### Optimization Details
 
@@ -328,7 +345,8 @@ Payload Size → Before v2.1.1 → After v2.1.1 → Improvement
 50 KB (500 regs minimal)  → 139 sec  → 5.0 sec  → 28x faster ⚡
 ```
 
-**Impact:** Mobile app timeouts (typically 30 seconds) are now completely eliminated.
+**Impact:** Mobile app timeouts (typically 30 seconds) are now completely
+eliminated.
 
 #### Configuration Size vs. BLE Transmission Time
 
@@ -343,19 +361,23 @@ Configuration        → Payload (full) → Payload (minimal) → Time (full) �
 ```
 
 **Recommendations:**
-- ✅ Use `minimal=true` parameter for `devices_with_registers` API when only need IDs and names
+
+- ✅ Use `minimal=true` parameter for `devices_with_registers` API when only
+  need IDs and names
 - ✅ Payload size reduces by **71%** with minimal mode
-- ✅ All responses under 5 seconds with up to 100 devices × 100 registers (full mode)
+- ✅ All responses under 5 seconds with up to 100 devices × 100 registers (full
+  mode)
 
 #### Network Comparison (v2.1.1)
 
-| Transport | Typical Latency | Max Payload Size | Notes |
-|-----------|----------------|------------------|-------|
-| **BLE** | 0.6-2.1 sec (21KB) | ~210 KB practical | Optimized in v2.1.1 |
-| **WiFi MQTT** | 50-200 ms | Unlimited | For data publishing |
-| **WiFi HTTP** | 100-500 ms | Unlimited | For data publishing |
+| Transport     | Typical Latency    | Max Payload Size  | Notes               |
+| ------------- | ------------------ | ----------------- | ------------------- |
+| **BLE**       | 0.6-2.1 sec (21KB) | ~210 KB practical | Optimized in v2.1.1 |
+| **WiFi MQTT** | 50-200 ms          | Unlimited         | For data publishing |
+| **WiFi HTTP** | 100-500 ms         | Unlimited         | For data publishing |
 
-**Key Takeaway:** BLE is now **viable for large configurations** (100+ devices) thanks to v2.1.1 optimization.
+**Key Takeaway:** BLE is now **viable for large configurations** (100+ devices)
+thanks to v2.1.1 optimization.
 
 ---
 
@@ -373,6 +395,7 @@ Refresh rate: 1-10 seconds
 ```
 
 **Benefits**:
+
 - ✅ Fast response times (<1 second)
 - ✅ Low memory usage (<1 MB PSRAM)
 - ✅ Quick JSON parsing (<100 ms)
@@ -388,6 +411,7 @@ Refresh rate: 5-30 seconds
 ```
 
 **Trade-offs**:
+
 - ⚠️ Moderate response times (1-3 seconds)
 - ⚠️ Higher memory usage (2-5 MB PSRAM)
 - ⚠️ Longer polling cycles (minutes)
@@ -403,6 +427,7 @@ Refresh rate: 30-60 seconds
 ```
 
 **Considerations**:
+
 - ⚠️ Slower response times (3-10 seconds)
 - ⚠️ High memory usage (5-7 MB PSRAM)
 - ⚠️ Long polling cycles (10-20 minutes)
@@ -417,6 +442,7 @@ Devices: >500
 ```
 
 **Problems**:
+
 - ❌ PSRAM exhaustion
 - ❌ JSON parsing timeouts
 - ❌ System instability
@@ -464,11 +490,11 @@ Total: 1,500 registers (Port 1 becomes bottleneck)
 ```json
 {
   "device_name": "Power Meter",
-  "refresh_rate_ms": 10000,  // Default: 10 seconds
+  "refresh_rate_ms": 10000, // Default: 10 seconds
   "registers": [
     {
       "register_name": "alarm_status",
-      "refresh_rate_ms": 1000  // Override: 1 second (critical)
+      "refresh_rate_ms": 1000 // Override: 1 second (critical)
     },
     {
       "register_name": "total_kwh"
@@ -483,7 +509,7 @@ Total: 1,500 registers (Port 1 becomes bottleneck)
 ```json
 {
   "register_name": "reserved_register",
-  "enabled": false  // Skip polling
+  "enabled": false // Skip polling
 }
 ```
 
@@ -506,10 +532,12 @@ Address 40001, 40050, 40100 → 3 separate requests
 ### Vertical Scaling (Single Gateway)
 
 **Current Gateway Capacity**:
+
 - Recommended: 1,000-5,000 registers
 - Maximum: 30,000-50,000 registers
 
 **Optimization Techniques**:
+
 1. Increase refresh rates for non-critical data
 2. Disable unused registers
 3. Use batch polling for sequential addresses
@@ -518,12 +546,14 @@ Address 40001, 40050, 40100 → 3 separate requests
 ### Horizontal Scaling (Multiple Gateways)
 
 **When to Use Multiple Gateways**:
+
 - Total registers >10,000
 - Geographic distribution (multiple buildings)
 - Network segmentation (separate VLANs)
 - Redundancy requirements
 
 **Architecture Example**:
+
 ```
 Building A: Gateway 1 (2,000 registers)
 Building B: Gateway 2 (2,000 registers)
@@ -578,10 +608,10 @@ ls -lh /littlefs/devices.json
 
 ### Quick Reference Table
 
-| Configuration Size | Devices | Registers | PSRAM  | Performance | Status          |
-| ------------------ | ------- | --------- | ------ | ----------- | --------------- |
-| **Small**          | 10-50   | 100-500   | <500KB | Excellent   | ✅ Recommended  |
-| **Medium**         | 50-200  | 500-5K    | 1-2MB  | Good        | ✅ Recommended  |
+| Configuration Size | Devices | Registers | PSRAM  | Performance | Status             |
+| ------------------ | ------- | --------- | ------ | ----------- | ------------------ |
+| **Small**          | 10-50   | 100-500   | <500KB | Excellent   | ✅ Recommended     |
+| **Medium**         | 50-200  | 500-5K    | 1-2MB  | Good        | ✅ Recommended     |
 | **Large**          | 200-500 | 5K-30K    | 2-5MB  | Acceptable  | ⚠️ Requires tuning |
 | **Very Large**     | >500    | >30K      | >5MB   | Poor        | ❌ Not recommended |
 
@@ -595,6 +625,7 @@ ls -lh /littlefs/devices.json
 ### Final Recommendation
 
 **For optimal performance and stability**:
+
 ```
 ✅ Target: 1,000-2,000 registers
 ✅ Devices: 50-100 devices
@@ -604,6 +635,7 @@ ls -lh /littlefs/devices.json
 ```
 
 This configuration provides:
+
 - Fast response times
 - Stable operation
 - Room for growth
@@ -613,4 +645,5 @@ This configuration provides:
 
 **Copyright © 2025 PT Surya Inovasi Prioritas (SURIOTA)**
 
-*This document is part of the SRT-MGATE-1210 firmware documentation. Licensed under MIT License.*
+_This document is part of the SRT-MGATE-1210 firmware documentation. Licensed
+under MIT License._

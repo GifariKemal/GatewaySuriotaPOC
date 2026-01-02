@@ -1,6 +1,7 @@
 # 📋 Modbus Register Editor - Documentation
 
-> **Interactive web form for configuring Modbus registers on SRT-MGATE-1210 Gateway**
+> **Interactive web form for configuring Modbus registers on SRT-MGATE-1210
+> Gateway**
 
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -29,15 +30,20 @@
 
 ## 🎯 Overview
 
-The **Modbus Register Editor** is a modern, interactive web-based form designed for configuring Modbus registers on the SRT-MGATE-1210 Gateway. It provides a user-friendly interface with real-time JSON preview, syntax highlighting, and comprehensive validation.
+The **Modbus Register Editor** is a modern, interactive web-based form designed
+for configuring Modbus registers on the SRT-MGATE-1210 Gateway. It provides a
+user-friendly interface with real-time JSON preview, syntax highlighting, and
+comprehensive validation.
 
 ### Key Highlights
 
-- ✅ **28 Data Types** - Full support for INT, UINT, FLOAT, DOUBLE (16/32/64-bit) with endianness variants
+- ✅ **28 Data Types** - Full support for INT, UINT, FLOAT, DOUBLE
+  (16/32/64-bit) with endianness variants
 - ✅ **Live JSON Preview** - Real-time syntax-highlighted JSON output
 - ✅ **Calibration Support** - Built-in scale and offset configuration
 - ✅ **Fully Responsive** - Optimized for mobile, tablet, and desktop
-- ✅ **Modern UI/UX** - Beautiful animations, transitions, and interactive feedback
+- ✅ **Modern UI/UX** - Beautiful animations, transitions, and interactive
+  feedback
 - ✅ **Production Ready** - Clean code, well-documented, and tested
 
 ---
@@ -87,6 +93,7 @@ The **Modbus Register Editor** is a modern, interactive web-based form designed 
 ## 📸 Screenshots
 
 ### Desktop View (2-Column Layout)
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  [🔲 Icon] Modbus Register Editor         [● Live Preview] │
@@ -113,6 +120,7 @@ The **Modbus Register Editor** is a modern, interactive web-based form designed 
 ```
 
 ### Mobile View (Single Column)
+
 ```
 ┌────────────────────────┐
 │ 🔲 Modbus Register     │
@@ -179,6 +187,7 @@ Dependencies: Tailwind CSS CDN only
 ### Required Fields (⚠️ Must be filled)
 
 #### 1. **Device ID** (Read-only)
+
 - **Type**: Text (6 characters, hexadecimal)
 - **Format**: `D4A5F1`
 - **Description**: Unique identifier for the Modbus device
@@ -186,6 +195,7 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `D4A5F1`, `A7B2C3`
 
 #### 2. **Register Name** ⚠️
+
 - **Type**: Text
 - **Max Length**: 50 characters
 - **Description**: Unique identifier for the register
@@ -194,6 +204,7 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `Voltage_L1`, `Temperature_Sensor`, `Power_Meter_01`
 
 #### 3. **Modbus Address** ⚠️
+
 - **Type**: Number
 - **Range**: 0 - 65535
 - **Description**: Modbus register address
@@ -202,6 +213,7 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `40001`, `30001`, `0`, `65535`
 
 #### 4. **Function Code** ⚠️
+
 - **Type**: Dropdown
 - **Options**:
   - `1` - Read Coil Status (FC 01)
@@ -213,6 +225,7 @@ Dependencies: Tailwind CSS CDN only
 - **Default**: `3` (Holding Register)
 
 #### 5. **Data Type** ⚠️
+
 - **Type**: Dropdown (Grouped)
 - **Options**: 28 data types across 8 categories
 - **Description**: Format for interpreting raw Modbus data
@@ -236,6 +249,7 @@ Dependencies: Tailwind CSS CDN only
 | **Legacy**          | INT32, FLOAT32, STRING                                   | Legacy formats                   |
 
 **Endianness Notation:**
+
 - `BE` - Big Endian (ABCD)
 - `LE` - Little Endian (DCBA)
 - `_BS` - Byte Swap / Word Swap (BADC for BE, CDAB for LE)
@@ -243,6 +257,7 @@ Dependencies: Tailwind CSS CDN only
 ### Optional Fields
 
 #### 6. **Description**
+
 - **Type**: Text
 - **Max Length**: 200 characters
 - **Description**: Human-readable description of the register
@@ -250,6 +265,7 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `Phase 1 Voltage Measurement`, `Temperature from sensor 01`
 
 #### 7. **Scale** (Calibration)
+
 - **Type**: Number (decimal)
 - **Range**: Any float
 - **Description**: Multiplier for calibrating raw values
@@ -259,11 +275,13 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `0.1`, `0.001`, `1.8`, `100`
 
 **Use Cases:**
+
 - Resolution conversion (e.g., 0.1 for values in tenths)
 - Unit conversion (e.g., 0.001 for mA → A)
 - Celsius to Fahrenheit (scale: 1.8, offset: 32)
 
 #### 8. **Offset** (Calibration)
+
 - **Type**: Number (decimal)
 - **Range**: Any float
 - **Description**: Value added after scaling
@@ -273,16 +291,19 @@ Dependencies: Tailwind CSS CDN only
 - **Example**: `0`, `-5`, `32`, `-273.15`
 
 **Formula:**
+
 ```
 final_value = (raw_value × scale) + offset
 ```
 
 **Use Cases:**
+
 - Sensor bias correction
 - Zero-point adjustment
 - Temperature offset conversion
 
 #### 9. **Unit**
+
 - **Type**: Text
 - **Max Length**: 20 characters
 - **Description**: Measurement unit for display
@@ -332,6 +353,7 @@ final_value = (raw_value × scale) + offset
 ### Example Payloads
 
 #### Example 1: Temperature Sensor
+
 ```json
 {
   "op": "create",
@@ -351,6 +373,7 @@ final_value = (raw_value × scale) + offset
 ```
 
 #### Example 2: Power Meter
+
 ```json
 {
   "op": "create",
@@ -370,6 +393,7 @@ final_value = (raw_value × scale) + offset
 ```
 
 #### Example 3: Pressure Sensor (No Calibration)
+
 ```json
 {
   "op": "create",
@@ -454,18 +478,29 @@ The form uses a **mobile-first approach** with three main breakpoints:
 ```css
 /* Fade In */
 @keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Slide Up */
 @keyframes slideUp {
-  0% { transform: translateY(10px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 ```
 
 **Applied to:**
+
 - Main container: `animate-fade-in`
 - Form cards: `animate-slide-up`
 - Error messages: `animate-slide-up`
@@ -474,7 +509,8 @@ The form uses a **mobile-first approach** with three main breakpoints:
 
 ```css
 /* Transform on focus */
-input:focus, select:focus {
+input:focus,
+select:focus {
   transform: translateY(-1px);
 }
 
@@ -502,6 +538,7 @@ input:focus, select:focus {
 ### State Transitions
 
 **Save Button:**
+
 ```
 [Normal] → [Click] → [Loading] → [Success] → [Normal]
   ↓           ↓          ↓            ↓          ↓
@@ -509,6 +546,7 @@ input:focus, select:focus {
 ```
 
 **Copy Button:**
+
 ```
 [Normal] → [Click] → [Success] → [Normal]
   ↓           ↓          ↓          ↓
@@ -520,11 +558,11 @@ Dark BG   Checkmark  Green BG   Dark BG
 
 ```javascript
 // Visual feedback
-input.classList.toggle('border-red-500', hasError);   // Red border
-input.classList.toggle('border-slate-200', !hasError); // Normal border
+input.classList.toggle("border-red-500", hasError); // Red border
+input.classList.toggle("border-slate-200", !hasError); // Normal border
 
 // Error message
-errorMsg.classList.toggle('hidden', !hasError);  // Show/hide message
+errorMsg.classList.toggle("hidden", !hasError); // Show/hide message
 ```
 
 ---
@@ -534,11 +572,13 @@ errorMsg.classList.toggle('hidden', !hasError);  // Show/hide message
 ### Quick Start
 
 1. **Download the file**
+
    ```bash
    # No installation needed, just open the HTML file
    ```
 
 2. **Open in browser**
+
    ```bash
    # Double-click the file or
    open Add\ Register.html
@@ -571,21 +611,21 @@ npx http-server
 
 ```javascript
 // Example: Send data via Fetch API
-document.getElementById('btnSave').addEventListener('click', async () => {
+document.getElementById("btnSave").addEventListener("click", async () => {
   const payload = buildPayload();
 
   try {
-    const response = await fetch('/api/registers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const response = await fetch("/api/registers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
 
     if (response.ok) {
-      alert('Register saved successfully!');
+      alert("Register saved successfully!");
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
   }
 });
 ```
@@ -596,12 +636,12 @@ document.getElementById('btnSave').addEventListener('click', async () => {
 // Example: Send via BLE GATT Characteristic
 async function sendViaBLE(payload) {
   const device = await navigator.bluetooth.requestDevice({
-    filters: [{ services: ['your-service-uuid'] }]
+    filters: [{ services: ["your-service-uuid"] }],
   });
 
   const server = await device.gatt.connect();
-  const service = await server.getPrimaryService('your-service-uuid');
-  const characteristic = await service.getCharacteristic('your-char-uuid');
+  const service = await server.getPrimaryService("your-service-uuid");
+  const characteristic = await service.getCharacteristic("your-char-uuid");
 
   const encoder = new TextEncoder();
   const data = encoder.encode(JSON.stringify(payload));
@@ -621,6 +661,7 @@ The backend must handle the following:
 #### Endpoint: `POST /api/registers`
 
 **Request Headers:**
+
 ```
 Content-Type: application/json
 ```
@@ -662,6 +703,7 @@ Content-Type: application/json
 ### Integration with Firmware
 
 The JSON payload is compatible with:
+
 - **SRT-MGATE-1210 Firmware** (`ConfigManager.cpp`)
 - **Flutter Mobile App** (`form_modbus_config_screen.dart`)
 
@@ -671,8 +713,8 @@ Both systems expect the same JSON structure.
 
 ## 🌐 Browser Support
 
-| Browser | Version | Support         |
-| ------- | ------- | --------------- |
+| Browser | Version | Support          |
+| ------- | ------- | ---------------- |
 | Chrome  | ≥ 90    | ✅ Full          |
 | Firefox | ≥ 88    | ✅ Full          |
 | Safari  | ≥ 14    | ✅ Full          |
@@ -691,6 +733,7 @@ Both systems expect the same JSON structure.
 ### Polyfills (Optional)
 
 For older browsers, consider:
+
 ```html
 <!-- Clipboard API polyfill -->
 <script src="https://unpkg.com/clipboard-polyfill"></script>
@@ -710,15 +753,15 @@ tailwind.config = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#2f6f64',  // Primary color
-          dark: '#1f4f44',     // Darker variant
-          light: '#3f8f74',    // Lighter variant
-          ink: '#e7f3f0'       // Background tint
-        }
-      }
-    }
-  }
-}
+          DEFAULT: "#2f6f64", // Primary color
+          dark: "#1f4f44", // Darker variant
+          light: "#3f8f74", // Lighter variant
+          ink: "#e7f3f0", // Background tint
+        },
+      },
+    },
+  },
+};
 ```
 
 ### Custom Validation
@@ -727,11 +770,11 @@ Add your own validation rules:
 
 ```javascript
 function validRegisterName() {
-  const name = $('#reg_name').value;
+  const name = $("#reg_name").value;
   const ok = /^[a-zA-Z0-9_-]+$/.test(name);
 
   if (!ok) {
-    alert('Only alphanumeric, underscore, and hyphen allowed');
+    alert("Only alphanumeric, underscore, and hyphen allowed");
   }
 
   return ok;
@@ -755,12 +798,18 @@ All styles use Tailwind utility classes. To modify:
 
 ```html
 <!-- Change button color -->
-<button class="bg-brand"> <!-- Original -->
-<button class="bg-blue-600"> <!-- Modified -->
+<button class="bg-brand">
+  <!-- Original -->
+  <button class="bg-blue-600">
+    <!-- Modified -->
 
-<!-- Change border radius -->
-<input class="rounded-xl"> <!-- Original -->
-<input class="rounded-md"> <!-- Modified -->
+    <!-- Change border radius -->
+    <input class="rounded-xl" />
+    <!-- Original -->
+    <input class="rounded-md" />
+    <!-- Modified -->
+  </button>
+</button>
 ```
 
 ---
@@ -774,6 +823,7 @@ All styles use Tailwind utility classes. To modify:
 **Cause:** Validation errors preventing render
 
 **Solution:**
+
 - Check address is between 0-65535
 - Fill all required fields
 - Check browser console for errors
@@ -783,14 +833,15 @@ All styles use Tailwind utility classes. To modify:
 **Cause:** Clipboard API not supported or permissions denied
 
 **Solution:**
+
 ```javascript
 // Fallback copy method
 function fallbackCopy(text) {
-  const textarea = document.createElement('textarea');
+  const textarea = document.createElement("textarea");
   textarea.value = text;
   document.body.appendChild(textarea);
   textarea.select();
-  document.execCommand('copy');
+  document.execCommand("copy");
   document.body.removeChild(textarea);
 }
 ```
@@ -800,6 +851,7 @@ function fallbackCopy(text) {
 **Cause:** Tailwind CDN blocked or slow connection
 
 **Solution:**
+
 - Check internet connection
 - Try local Tailwind CSS build
 - Check browser console for CDN errors
@@ -809,6 +861,7 @@ function fallbackCopy(text) {
 **Cause:** Browser performance or hardware acceleration disabled
 
 **Solution:**
+
 ```css
 /* Force hardware acceleration */
 * {
@@ -822,6 +875,7 @@ function fallbackCopy(text) {
 **Cause:** Viewport meta tag missing or incorrect
 
 **Solution:**
+
 ```html
 <!-- Ensure this is in <head> -->
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -836,7 +890,7 @@ Enable console logging:
 const DEBUG = true;
 
 function render() {
-  if (DEBUG) console.log('Rendering payload:', buildPayload());
+  if (DEBUG) console.log("Rendering payload:", buildPayload());
   // ... rest of function
 }
 ```
@@ -846,9 +900,11 @@ function render() {
 ## 📝 Changelog
 
 ### Version 2.0.0 (Current)
+
 **Release Date:** 2024-01-XX
 
 **Major Changes:**
+
 - ✅ **Removed** `refresh_rate_ms` field (breaking change)
 - ✅ **Added** 28 data types (up from 7)
 - ✅ **Added** JSON syntax highlighting
@@ -860,13 +916,16 @@ function render() {
 - ✅ **Added** copy success indicator
 
 **Breaking Changes:**
+
 - `refresh_rate_ms` removed from JSON payload
 - Minimum browser requirements updated
 
 ### Version 1.0.0
+
 **Release Date:** 2024-01-XX
 
 **Initial Release:**
+
 - Basic form fields
 - Simple JSON preview
 - Basic validation

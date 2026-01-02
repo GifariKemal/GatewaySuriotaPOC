@@ -4,8 +4,9 @@
 #include <Arduino.h>
 #include <OneButton.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include <freertos/semphr.h>
+#include <freertos/task.h>
+
 #include "DebugConfig.h"
 
 // Define button and LED pins
@@ -13,28 +14,26 @@
 #define LED_STATUS 8
 
 // System mode enum
-enum SystemMode
-{
-  MODE_RUNNING = 0, // Production running mode - BLE OFF
-  MODE_CONFIG = 1   // Configuration mode - BLE ON
+enum SystemMode {
+  MODE_RUNNING = 0,  // Production running mode - BLE OFF
+  MODE_CONFIG = 1    // Configuration mode - BLE ON
 };
 
 // Forward declaration
 class BLEManager;
 
-class ButtonManager
-{
-private:
-  static ButtonManager *instance;
+class ButtonManager {
+ private:
+  static ButtonManager* instance;
 
-  OneButton *button;
+  OneButton* button;
   TaskHandle_t buttonTaskHandle;
 
   SystemMode currentMode;
-  bool productionMode; // true if PRODUCTION_MODE == 1
+  bool productionMode;  // true if PRODUCTION_MODE == 1
   SemaphoreHandle_t modeMutex;
 
-  BLEManager *bleManager; // Reference to BLE manager
+  BLEManager* bleManager;  // Reference to BLE manager
 
   // LED Status control
   unsigned long lastStatusBlinkMillis;
@@ -48,7 +47,7 @@ private:
   static void handleDoubleClick();
 
   // FreeRTOS task function
-  static void buttonTask(void *parameter);
+  static void buttonTask(void* parameter);
   void buttonLoop();
 
   // Mode switching
@@ -59,15 +58,15 @@ private:
   void updateLEDStatus();
   unsigned long getStatusBlinkInterval();
 
-public:
+ public:
   // Singleton getInstance method
-  static ButtonManager *getInstance();
+  static ButtonManager* getInstance();
 
   // Initialize button and LED
   void begin(bool isProductionMode);
 
   // Set BLE manager reference
-  void setBLEManager(BLEManager *ble) { bleManager = ble; }
+  void setBLEManager(BLEManager* ble) { bleManager = ble; }
 
   // Get current mode
   SystemMode getCurrentMode() const { return currentMode; }
@@ -81,6 +80,6 @@ public:
   ~ButtonManager();
 };
 
-extern ButtonManager *buttonManager; // Declare global instance
+extern ButtonManager* buttonManager;  // Declare global instance
 
-#endif // BUTTON_MANAGER_H
+#endif  // BUTTON_MANAGER_H

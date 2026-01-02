@@ -1,9 +1,7 @@
 # 🧪 PANDUAN TESTING BLE BACKUP & RESTORE
 
-**Versi:** 1.1.0 (BUG #32 FIXED!)
-**Tanggal:** 22 November 2025
-**Author:** SURIOTA R&D Team
-**Firmware Required:** v2.3.1+
+**Versi:** 1.1.0 (BUG #32 FIXED!) **Tanggal:** 22 November 2025 **Author:**
+SURIOTA R&D Team **Firmware Required:** v2.3.1+
 
 ---
 
@@ -23,9 +21,8 @@
 
 ### 1. Kebutuhan Hardware
 
-✅ **ESP32-S3 Gateway** dengan firmware v2.3.1+ (BUG #32 fixed)
-✅ **PC/Laptop** dengan Bluetooth LE
-✅ **Kabel USB-C** untuk monitoring serial (opsional)
+✅ **ESP32-S3 Gateway** dengan firmware v2.3.1+ (BUG #32 fixed) ✅ **PC/Laptop**
+dengan Bluetooth LE ✅ **Kabel USB-C** untuk monitoring serial (opsional)
 
 ### 2. Kebutuhan Software
 
@@ -60,7 +57,8 @@ pip3 install bleak
 
 #### B. Setup Konfigurasi Awal
 
-**PENTING:** Sebelum testing, pastikan gateway sudah punya **beberapa device** yang terkonfigurasi!
+**PENTING:** Sebelum testing, pastikan gateway sudah punya **beberapa device**
+yang terkonfigurasi!
 
 Gunakan BLE untuk membuat minimal **3-5 device** dengan cara:
 
@@ -97,9 +95,11 @@ Ulangi untuk **Test Sensor 2, 3, 4, 5** dengan slave_id berbeda.
 #### C. Nyalakan BLE
 
 **Development Mode** (BLE selalu ON):
+
 - BLE akan otomatis ON saat boot
 
 **Production Mode** (BLE pakai button):
+
 - **Tekan dan tahan button** selama 3 detik
 - LED akan berkedip, BLE ON
 
@@ -127,6 +127,7 @@ python3 test_backup_restore.py
 ### STEP 2: Koneksi ke Gateway
 
 Script akan otomatis:
+
 1. **Scan** BLE devices
 2. **Detect** "SURIOTA GW"
 3. **Connect** otomatis
@@ -184,6 +185,7 @@ BLE BACKUP & RESTORE TEST MENU
 Pilih **option 8** dari menu untuk menjalankan semua test otomatis.
 
 Test yang akan dijalankan:
+
 - ✅ **Test 1**: Backup configuration
 - ✅ **Test 3**: Error handling
 - ✅ **Test 4**: Complete backup-restore cycle
@@ -195,6 +197,7 @@ Test yang akan dijalankan:
 **Pilih option: 1**
 
 **Apa yang terjadi:**
+
 1. Script kirim command backup ke gateway
 2. Gateway proses semua konfigurasi
 3. Gateway kirim response via BLE (fragmented)
@@ -258,6 +261,7 @@ TEST 1: BACKUP CONFIGURATION (full_config)
 **⚠️ PENTING:** Harus run TEST 1 dulu, atau load backup dari file (option 7)!
 
 **Apa yang terjadi:**
+
 1. Script tanya konfirmasi (karena akan replace semua config)
 2. User ketik **yes** untuk lanjut
 3. Script kirim command restore dengan config dari backup
@@ -330,6 +334,7 @@ TEST 2: RESTORE CONFIGURATION (restore_config)
 **Pilih option: 3**
 
 **Apa yang terjadi:**
+
 1. Script kirim command restore **TANPA field 'config'** (sengaja invalid)
 2. Gateway detect error
 3. Gateway kirim error response
@@ -366,6 +371,7 @@ TEST 3: RESTORE WITH INVALID PAYLOAD (Error Handling)
 **Pilih option: 4**
 
 **Apa yang terjadi:**
+
 1. **STEP 1:** Backup configuration pertama
 2. Save backup ke file: `backup_before_restore_TIMESTAMP.json`
 3. **STEP 2:** Restore configuration dari backup
@@ -410,6 +416,7 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ```
 
 **Ini test PALING PENTING** karena membuktikan:
+
 - ✅ Data tidak hilang
 - ✅ Data tidak corrupt
 - ✅ Restore bekerja dengan benar
@@ -488,7 +495,8 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 }
 ```
 
-**⚠️ CATATAN:** Field `config` harus diambil dari response **full_config** backup!
+**⚠️ CATATAN:** Field `config` harus diambil dari response **full_config**
+backup!
 
 ---
 
@@ -530,6 +538,7 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ```
 
 **Validasi:**
+
 - ✅ `status` = `"ok"`
 - ✅ `backup_info` ada dan lengkap
 - ✅ `config.devices` adalah array
@@ -558,6 +567,7 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ```
 
 **Validasi:**
+
 - ✅ `status` = `"ok"`
 - ✅ `success_count` = 3 (semua config restored)
 - ✅ `fail_count` = 0
@@ -576,6 +586,7 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ```
 
 **Validasi:**
+
 - ✅ `status` = `"error"`
 - ✅ `error` message jelas dan deskriptif
 
@@ -586,11 +597,13 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ### Problem 1: Gateway tidak ditemukan saat scan
 
 **Symptom:**
+
 ```
 ❌ 'SURIOTA GW' not found!
 ```
 
 **Solution:**
+
 1. ✅ Cek apakah BLE sudah ON (cek serial monitor)
 2. ✅ Production mode: tekan button 3 detik untuk enable BLE
 3. ✅ Cek jarak: gateway harus dalam radius 5-10 meter
@@ -602,11 +615,13 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ### Problem 2: Connection timeout
 
 **Symptom:**
+
 ```
 ❌ Connection failed!
 ```
 
 **Solution:**
+
 1. ✅ Reset gateway (tekan tombol reset)
 2. ✅ Tunggu 5 detik, coba connect lagi
 3. ✅ Check serial monitor untuk error messages
@@ -617,13 +632,16 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ### Problem 3: Response timeout (no response)
 
 **Symptom:**
+
 ```
 ⏱️  TIMEOUT after 60 seconds!
 ```
 
 **Solution:**
+
 1. ✅ Check serial monitor - lihat error messages
-2. ✅ Config terlalu besar? Coba dengan config lebih kecil (hapus beberapa device)
+2. ✅ Config terlalu besar? Coba dengan config lebih kecil (hapus beberapa
+   device)
 3. ✅ Check memory: lihat free DRAM/PSRAM di serial monitor
 4. ✅ Restart gateway dan coba lagi
 
@@ -632,12 +650,14 @@ TEST 4: BACKUP-RESTORE-COMPARE CYCLE (Data Integrity)
 ### Problem 4: JSON parse error
 
 **Symptom:**
+
 ```
 ❌ JSON Parse Error: ...
 Raw response (first 500 chars): ...
 ```
 
 **Solution:**
+
 1. ✅ BLE response mungkin corrupt - coba lagi
 2. ✅ MTU negotiation gagal - restart gateway
 3. ✅ Check serial monitor untuk BLE errors
@@ -648,6 +668,7 @@ Raw response (first 500 chars): ...
 ### Problem 5: Partial restore failure
 
 **Symptom:**
+
 ```
 ⚠️  WARNING: 1 configuration(s) failed to restore
    Success Count: 2
@@ -655,6 +676,7 @@ Raw response (first 500 chars): ...
 ```
 
 **Solution:**
+
 1. ✅ Check serial monitor untuk detail error
 2. ✅ Biasanya `logging_config` yang fail (not critical)
 3. ✅ Verify critical configs (devices, server) sudah restored
@@ -665,12 +687,14 @@ Raw response (first 500 chars): ...
 ### Problem 6: Memory exhaustion
 
 **Symptom di Serial Monitor:**
+
 ```
 [MEM] CRITICAL: Free DRAM below threshold
 [MEM] DRAM: 15234 bytes free
 ```
 
 **Solution:**
+
 1. ✅ Gateway memory penuh - hapus beberapa device
 2. ✅ Restart gateway untuk clear memory
 3. ✅ Test dengan config lebih kecil (< 30 devices)
@@ -738,11 +762,11 @@ Raw response (first 500 chars): ...
 #### TEST 4: Backup-Restore-Compare
 
 - [ ] Backup pertama success
-- [ ] File saved: backup_before_restore_*.json
+- [ ] File saved: backup*before_restore*\*.json
 - [ ] Restore success
 - [ ] Wait 3 seconds completed
 - [ ] Backup kedua success
-- [ ] File saved: backup_after_restore_*.json
+- [ ] File saved: backup*after_restore*\*.json
 - [ ] Device count match
 - [ ] Device IDs match (BUG #32 fixed! IDs preserved from backup)
 - [ ] Register count match
@@ -766,12 +790,13 @@ Raw response (first 500 chars): ...
 ### Expected Performance
 
 | Config Size | Devices | Registers | Backup Size | Processing Time | BLE Transfer Time (512 MTU) |
-|------------|---------|-----------|-------------|-----------------|----------------------------|
-| Small      | 5       | 15        | ~10 KB      | 200-300 ms      | 2-3 seconds                |
-| Medium     | 20      | 60        | ~40 KB      | 400-600 ms      | 5-8 seconds                |
-| Large      | 50      | 150       | ~120 KB     | 800-1200 ms     | 15-20 seconds              |
+| ----------- | ------- | --------- | ----------- | --------------- | --------------------------- |
+| Small       | 5       | 15        | ~10 KB      | 200-300 ms      | 2-3 seconds                 |
+| Medium      | 20      | 60        | ~40 KB      | 400-600 ms      | 5-8 seconds                 |
+| Large       | 50      | 150       | ~120 KB     | 800-1200 ms     | 15-20 seconds               |
 
-**Note:** Processing time = waktu di gateway. Transfer time = waktu kirim via BLE.
+**Note:** Processing time = waktu di gateway. Transfer time = waktu kirim via
+BLE.
 
 ---
 
@@ -801,6 +826,7 @@ Jika menemukan bug atau masalah:
 ### Tip 1: Backup Before Critical Operations
 
 **SELALU backup dulu sebelum:**
+
 - Factory reset
 - Firmware update
 - Mass device configuration changes
@@ -847,6 +873,7 @@ Simpan backup dengan metadata:
 ### Tip 4: Test Restore in Staging
 
 Jika punya 2 gateway:
+
 1. Backup dari Gateway A
 2. Restore ke Gateway B (test environment)
 3. Validate everything works
@@ -854,5 +881,4 @@ Jika punya 2 gateway:
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-*Empowering Industrial IoT Solutions*
+**Made with ❤️ by SURIOTA R&D Team** _Empowering Industrial IoT Solutions_

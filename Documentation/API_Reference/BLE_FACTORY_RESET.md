@@ -1,21 +1,22 @@
 # BLE Factory Reset API Reference
 
-**Version:** 1.1.0
-**Last Updated:** December 10, 2025
-**Component:** BLE CRUD Handler - System Operations
+**Version:** 1.1.0 **Last Updated:** December 10, 2025 **Component:** BLE CRUD
+Handler - System Operations
 
 ---
 
 ## 📋 Overview
 
-The **Factory Reset** command provides a simple way to reset the gateway to factory defaults via BLE. This command:
+The **Factory Reset** command provides a simple way to reset the gateway to
+factory defaults via BLE. This command:
 
 - ✅ **Clears all device configurations** (devices.json)
 - ✅ **Resets server config to defaults** (WiFi, Ethernet, MQTT, HTTP)
 - ✅ **Resets logging config to defaults**
 - ✅ **Automatically restarts the device**
 
-⚠️ **WARNING:** This operation is **IRREVERSIBLE**. All configured devices, registers, and network settings will be lost!
+⚠️ **WARNING:** This operation is **IRREVERSIBLE**. All configured devices,
+registers, and network settings will be lost!
 
 ---
 
@@ -25,8 +26,7 @@ The **Factory Reset** command provides a simple way to reset the gateway to fact
 
 **Description:** Reset gateway to factory defaults and restart device.
 
-**Operation:** `system`
-**Type:** `factory_reset`
+**Operation:** `system` **Type:** `factory_reset`
 
 ---
 
@@ -43,11 +43,11 @@ The **Factory Reset** command provides a simple way to reset the gateway to fact
 
 ### Request Fields
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `op` | string | ✅ Yes | - | Must be `"system"` |
-| `type` | string | ✅ Yes | - | Must be `"factory_reset"` |
-| `reason` | string | ❌ No | `"No reason provided"` | Optional reason for audit trail (logged to Serial) |
+| Field    | Type   | Required | Default                | Description                                        |
+| -------- | ------ | -------- | ---------------------- | -------------------------------------------------- |
+| `op`     | string | ✅ Yes   | -                      | Must be `"system"`                                 |
+| `type`   | string | ✅ Yes   | -                      | Must be `"factory_reset"`                          |
+| `reason` | string | ❌ No    | `"No reason provided"` | Optional reason for audit trail (logged to Serial) |
 
 ---
 
@@ -70,12 +70,12 @@ The **Factory Reset** command provides a simple way to reset the gateway to fact
 
 ### Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | string | Always `"ok"` for successful reset initiation |
-| `message` | string | Human-readable confirmation message |
-| `configs_cleared` | array | List of configuration files that will be cleared |
-| `restart_in_ms` | number | Milliseconds until device restart (3000ms = 3 seconds) |
+| Field             | Type   | Description                                            |
+| ----------------- | ------ | ------------------------------------------------------ |
+| `status`          | string | Always `"ok"` for successful reset initiation          |
+| `message`         | string | Human-readable confirmation message                    |
+| `configs_cleared` | array  | List of configuration files that will be cleared       |
+| `restart_in_ms`   | number | Milliseconds until device restart (3000ms = 3 seconds) |
 
 ---
 
@@ -157,6 +157,7 @@ When the command is received, the gateway performs the following steps:
 ```
 
 **Key Features:**
+
 - **Communication Mode:** Ethernet primary (`"ETH"`)
 - **WiFi:** Enabled but unconfigured (empty SSID/password)
 - **Ethernet:** DHCP enabled, static IP fields empty
@@ -180,7 +181,7 @@ When the command is received, the gateway performs the following steps:
 {}
 ```
 
-*(Empty - all devices deleted)*
+_(Empty - all devices deleted)_
 
 ---
 
@@ -189,6 +190,7 @@ When the command is received, the gateway performs the following steps:
 ### Example 1: Basic Factory Reset
 
 **Request:**
+
 ```json
 {
   "op": "system",
@@ -197,6 +199,7 @@ When the command is received, the gateway performs the following steps:
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -211,6 +214,7 @@ When the command is received, the gateway performs the following steps:
 ```
 
 **Serial Log:**
+
 ```
 ========================================
 [FACTORY RESET] ⚠️  INITIATED by BLE client
@@ -245,6 +249,7 @@ When the command is received, the gateway performs the following steps:
 ### Example 2: Factory Reset with Reason
 
 **Request:**
+
 ```json
 {
   "op": "system",
@@ -254,6 +259,7 @@ When the command is received, the gateway performs the following steps:
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -268,6 +274,7 @@ When the command is received, the gateway performs the following steps:
 ```
 
 **Serial Log:**
+
 ```
 ========================================
 [FACTORY RESET] ⚠️  INITIATED by BLE client
@@ -283,16 +290,16 @@ When the command is received, the gateway performs the following steps:
 ### JavaScript Example
 
 ```javascript
-async function factoryReset(reason = '') {
+async function factoryReset(reason = "") {
   // Show confirmation dialog
   const confirmed = confirm(
-    '⚠️ FACTORY RESET WARNING\n\n' +
-    'This will ERASE all configurations:\n' +
-    '• All Modbus devices and registers\n' +
-    '• WiFi/Ethernet settings\n' +
-    '• MQTT/HTTP server settings\n\n' +
-    'The device will restart automatically.\n\n' +
-    'Are you sure you want to continue?'
+    "⚠️ FACTORY RESET WARNING\n\n" +
+      "This will ERASE all configurations:\n" +
+      "• All Modbus devices and registers\n" +
+      "• WiFi/Ethernet settings\n" +
+      "• MQTT/HTTP server settings\n\n" +
+      "The device will restart automatically.\n\n" +
+      "Are you sure you want to continue?",
   );
 
   if (!confirmed) {
@@ -301,19 +308,19 @@ async function factoryReset(reason = '') {
 
   // Send factory reset command
   const command = {
-    op: 'system',
-    type: 'factory_reset',
-    reason: reason || 'Reset via mobile app'
+    op: "system",
+    type: "factory_reset",
+    reason: reason || "Reset via mobile app",
   };
 
   try {
     const response = await bleManager.sendCommand(command);
 
-    if (response.status === 'ok') {
+    if (response.status === "ok") {
       alert(
-        '✅ Factory Reset Initiated\n\n' +
-        `Device will restart in ${response.restart_in_ms / 1000} seconds.\n\n` +
-        'Please reconnect after restart to configure the device.'
+        "✅ Factory Reset Initiated\n\n" +
+          `Device will restart in ${response.restart_in_ms / 1000} seconds.\n\n` +
+          "Please reconnect after restart to configure the device.",
       );
 
       // Auto-disconnect after 2 seconds
@@ -322,12 +329,12 @@ async function factoryReset(reason = '') {
       }, 2000);
     }
   } catch (error) {
-    alert('❌ Factory reset failed: ' + error.message);
+    alert("❌ Factory reset failed: " + error.message);
   }
 }
 
 // Usage
-factoryReset('Redeployment to factory floor');
+factoryReset("Redeployment to factory floor");
 ```
 
 ---
@@ -335,27 +342,37 @@ factoryReset('Redeployment to factory floor');
 ## ⚠️ Important Notes
 
 ### 1. **No Confirmation Required**
-This is a **simple single-command** reset without two-step confirmation. Make sure your mobile app shows a clear warning dialog before sending the command.
+
+This is a **simple single-command** reset without two-step confirmation. Make
+sure your mobile app shows a clear warning dialog before sending the command.
 
 ### 2. **Automatic Restart**
-The device will **automatically restart** 3 seconds after the command is received. You don't need to manually power cycle the device.
+
+The device will **automatically restart** 3 seconds after the command is
+received. You don't need to manually power cycle the device.
 
 ### 3. **BLE Reconnection**
+
 After restart, the device will:
+
 - ✅ Keep the same BLE device name
 - ✅ Start advertising again
 - ✅ Have **empty device list** (no configured devices)
 - ✅ Have **default server settings** (broker.hivemq.com)
 
 ### 4. **Audit Trail**
+
 All factory reset operations are logged to Serial Monitor with:
+
 - Timestamp
 - Reason (if provided)
 - Step-by-step progress
 - Success confirmation
 
 ### 5. **What is NOT Reset**
+
 The following are **preserved** after factory reset:
+
 - ✅ Firmware version
 - ✅ ESP32 hardware settings
 - ✅ BLE device name
@@ -386,16 +403,16 @@ The following are **preserved** after factory reset:
 
 ## 📊 Comparison: Manual vs BLE Reset
 
-| Feature | Manual (`clearAllConfigurations()`) | BLE Factory Reset |
-|---------|-------------------------------------|-------------------|
-| **Trigger** | Code uncomment + upload | BLE command |
-| **User Access** | Requires firmware modification | Mobile app button |
-| **Graceful Shutdown** | ❌ No | ✅ Yes (stops services first) |
-| **Server Config Reset** | ❌ No (only devices) | ✅ Yes (all configs) |
-| **Logging Config Reset** | ❌ No | ✅ Yes |
-| **Auto Restart** | ❌ No | ✅ Yes (3 seconds) |
-| **Audit Trail** | ❌ No | ✅ Yes (Serial log) |
-| **Production Ready** | ❌ No (debug only) | ✅ Yes |
+| Feature                  | Manual (`clearAllConfigurations()`) | BLE Factory Reset             |
+| ------------------------ | ----------------------------------- | ----------------------------- |
+| **Trigger**              | Code uncomment + upload             | BLE command                   |
+| **User Access**          | Requires firmware modification      | Mobile app button             |
+| **Graceful Shutdown**    | ❌ No                               | ✅ Yes (stops services first) |
+| **Server Config Reset**  | ❌ No (only devices)                | ✅ Yes (all configs)          |
+| **Logging Config Reset** | ❌ No                               | ✅ Yes                        |
+| **Auto Restart**         | ❌ No                               | ✅ Yes (3 seconds)            |
+| **Audit Trail**          | ❌ No                               | ✅ Yes (Serial log)           |
+| **Production Ready**     | ❌ No (debug only)                  | ✅ Yes                        |
 
 ---
 
@@ -404,6 +421,7 @@ The following are **preserved** after factory reset:
 ### Issue: Device doesn't restart after reset
 
 **Solution:**
+
 - Check Serial Monitor for errors
 - Manually power cycle if needed
 - Verify ESP.restart() works on your board
@@ -411,6 +429,7 @@ The following are **preserved** after factory reset:
 ### Issue: Configs not cleared after restart
 
 **Solution:**
+
 - Check LittleFS write errors in Serial log
 - Verify SD card is working
 - Re-send factory reset command
@@ -418,6 +437,7 @@ The following are **preserved** after factory reset:
 ### Issue: BLE connection drops before receiving response
 
 **Solution:**
+
 - Normal behavior - device restarts after 3 seconds
 - Wait 10 seconds and reconnect
 - Check Serial log to confirm reset completed
@@ -433,5 +453,4 @@ The following are **preserved** after factory reset:
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-*Empowering Industrial IoT Solutions*
+**Made with ❤️ by SURIOTA R&D Team** _Empowering Industrial IoT Solutions_

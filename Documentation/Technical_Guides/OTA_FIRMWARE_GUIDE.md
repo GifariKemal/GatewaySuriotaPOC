@@ -1,9 +1,9 @@
 # OTA Firmware Preparation & Deployment Guide
 
-**Version:** 2.5.34
-**Last Updated:** December 10, 2025
+**Version:** 2.5.34 **Last Updated:** December 10, 2025
 
-Panduan lengkap untuk menyiapkan firmware .bin, upload ke GitHub, dan deployment OTA update ke device.
+Panduan lengkap untuk menyiapkan firmware .bin, upload ke GitHub, dan deployment
+OTA update ke device.
 
 ---
 
@@ -40,11 +40,14 @@ pip install ecdsa
 
 ### OpenSSL Alternatives untuk Windows
 
-OpenSSL TIDAK diperlukan jika menggunakan Python scripts yang disediakan di folder `Tools/`:
+OpenSSL TIDAK diperlukan jika menggunakan Python scripts yang disediakan di
+folder `Tools/`:
+
 - `generate_ota_keys.py` - Generate ECDSA key pair
 - `sign_firmware.py` - Sign firmware binary
 
 Jika tetap ingin menggunakan OpenSSL di Windows:
+
 1. **Git Bash** - Sudah include OpenSSL (jalankan dari Git Bash)
 2. **WSL** - Windows Subsystem for Linux
 3. **Download** - https://slproweb.com/products/Win32OpenSSL.html
@@ -137,6 +140,7 @@ python generate_ota_keys.py
 ```
 
 Script akan generate 3 file:
+
 - `ota_private_key.pem` - **SIMPAN DENGAN AMAN!**
 - `ota_public_key.pem` - Public key
 - `ota_public_key.h` - C header siap copy ke firmware
@@ -284,13 +288,9 @@ python Tools/sign_firmware.py "Main/build/esp32.esp32.esp32s3/Main.ino.bin" "Too
 # "signature": "3045022057c665a0b3bc5287d618ea4d9c1cf655b611b5362af04cb6c55fc0e66c75ce28022100998bf5103d6a593f42de0cd0bb1cbfea225842be2cae6df8b0d51b984c1dc87f"
 ```
 
-**Signature Format:**
-| Property | Value |
-|----------|-------|
-| Algorithm | ECDSA P-256 (secp256r1) |
-| Format | DER encoded |
-| Size | 70-72 bytes (variable) |
-| Encoding | Hexadecimal string |
+**Signature Format:** | Property | Value | |----------|-------| | Algorithm |
+ECDSA P-256 (secp256r1) | | Format | DER encoded | | Size | 70-72 bytes
+(variable) | | Encoding | Hexadecimal string |
 
 ---
 
@@ -577,6 +577,7 @@ Setelah reboot:
 **Common Causes & Solutions:**
 
 1. **Double-Hash Bug (Most Common - Fixed in v2.5.10):**
+
    ```python
    # WRONG - Python ecdsa hashes internally, causing double-hash:
    firmware_hash = hashlib.sha256(firmware_data).digest()
@@ -702,19 +703,16 @@ Before release, verify all files:
 ## Security Best Practices
 
 1. **Private Key:** Simpan `ota_private_key.pem` dengan SANGAT AMAN
-
    - Jangan commit ke Git
    - Gunakan hardware security module untuk production
    - Backup securely offline
 
 2. **GitHub Token:** Untuk private repo
-
    - Gunakan token dengan minimum scope
    - Rotate token secara berkala
    - Jangan hardcode di source code
 
 3. **Signature Verification:** Selalu enable di production
-
    - Mencegah firmware palsu/modified
    - Wajib untuk deployment production
 

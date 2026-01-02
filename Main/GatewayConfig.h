@@ -14,68 +14,69 @@
 #define GATEWAY_CONFIG_H
 
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <ArduinoJson.h>
-#include "DebugConfig.h"
-#include "ProductConfig.h"
+#include <LittleFS.h>
 #include <esp_mac.h>
 
+#include "DebugConfig.h"
+#include "ProductConfig.h"
+
 class GatewayConfig {
-private:
-    static GatewayConfig* instance;
+ private:
+  static GatewayConfig* instance;
 
-    // Gateway identification
-    String bleName;           // Auto-generated from ProductConfig: "MGate-1210(P)-A716"
-    String friendlyName;      // User-configurable: "Panel Listrik Gedung A"
-    String location;          // Optional: "Lt.1 Ruang Panel"
-    String serialNumber;      // Auto-generated: "SRT-MGATE1210P-20251205-3AC9A7"
-    uint8_t macAddress[6];    // BT MAC address
-    String macString;         // MAC as string "AA:BB:CC:DD:EE:FF"
+  // Gateway identification
+  String bleName;  // Auto-generated from ProductConfig: "MGate-1210(P)-A716"
+  String friendlyName;    // User-configurable: "Panel Listrik Gedung A"
+  String location;        // Optional: "Lt.1 Ruang Panel"
+  String serialNumber;    // Auto-generated: "SRT-MGATE1210P-20251205-3AC9A7"
+  uint8_t macAddress[6];  // BT MAC address
+  String macString;       // MAC as string "AA:BB:CC:DD:EE:FF"
 
-    static const char* CONFIG_FILE;
+  static const char* CONFIG_FILE;
 
-    GatewayConfig();
+  GatewayConfig();
 
-    // Generate BLE name from MAC address using ProductConfig
-    void generateBLEName();
+  // Generate BLE name from MAC address using ProductConfig
+  void generateBLEName();
 
-    // Generate serial number from MAC address
-    void generateSerialNumber();
+  // Generate serial number from MAC address
+  void generateSerialNumber();
 
-public:
-    static GatewayConfig* getInstance();
+ public:
+  static GatewayConfig* getInstance();
 
-    // Initialization
-    bool begin();
+  // Initialization
+  bool begin();
 
-    // Load/Save config
-    bool load();
-    bool save();
+  // Load/Save config
+  bool load();
+  bool save();
 
-    // Getters
-    const char* getBLEName() const { return bleName.c_str(); }
-    const char* getFriendlyName() const { return friendlyName.c_str(); }
-    const char* getLocation() const { return location.c_str(); }
-    const char* getSerialNumber() const { return serialNumber.c_str(); }
-    const char* getMACString() const { return macString.c_str(); }
-    const uint8_t* getMACAddress() const { return macAddress; }
+  // Getters
+  const char* getBLEName() const { return bleName.c_str(); }
+  const char* getFriendlyName() const { return friendlyName.c_str(); }
+  const char* getLocation() const { return location.c_str(); }
+  const char* getSerialNumber() const { return serialNumber.c_str(); }
+  const char* getMACString() const { return macString.c_str(); }
+  const uint8_t* getMACAddress() const { return macAddress; }
 
-    // Get UID part of BLE name (last 4 hex chars from MAC)
-    String getUID() const;
+  // Get UID part of BLE name (last 4 hex chars from MAC)
+  String getUID() const;
 
-    // Get last 6 hex chars of MAC (for compatibility)
-    String getShortMAC() const;
+  // Get last 6 hex chars of MAC (for compatibility)
+  String getShortMAC() const;
 
-    // Setters (save to config file)
-    bool setFriendlyName(const String& name);
-    bool setLocation(const String& loc);
+  // Setters (save to config file)
+  bool setFriendlyName(const String& name);
+  bool setLocation(const String& loc);
 
-    // Get full gateway info as JSON
-    void getGatewayInfo(JsonDocument& doc) const;
+  // Get full gateway info as JSON
+  void getGatewayInfo(JsonDocument& doc) const;
 
-    // Singleton - prevent copying
-    GatewayConfig(const GatewayConfig&) = delete;
-    GatewayConfig& operator=(const GatewayConfig&) = delete;
+  // Singleton - prevent copying
+  GatewayConfig(const GatewayConfig&) = delete;
+  GatewayConfig& operator=(const GatewayConfig&) = delete;
 };
 
-#endif // GATEWAY_CONFIG_H
+#endif  // GATEWAY_CONFIG_H

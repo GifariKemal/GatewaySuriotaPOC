@@ -40,21 +40,21 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "project_path": {
                         "type": "string",
-                        "description": "Path to the Arduino project directory (contains .ino file)"
+                        "description": "Path to the Arduino project directory (contains .ino file)",
                     },
                     "fqbn": {
                         "type": "string",
                         "description": "Fully Qualified Board Name (e.g., esp32:esp32:esp32s3). Optional if set in project.",
-                        "default": "esp32:esp32:esp32s3"
+                        "default": "esp32:esp32:esp32s3",
                     },
                     "verbose": {
                         "type": "boolean",
                         "description": "Enable verbose build output",
-                        "default": False
-                    }
+                        "default": False,
+                    },
                 },
-                "required": ["project_path"]
-            }
+                "required": ["project_path"],
+            },
         ),
         Tool(
             name="arduino_upload",
@@ -64,26 +64,26 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "project_path": {
                         "type": "string",
-                        "description": "Path to the Arduino project directory"
+                        "description": "Path to the Arduino project directory",
                     },
                     "port": {
                         "type": "string",
                         "description": "Serial port (e.g., COM3, /dev/ttyUSB0). Auto-detect if not specified.",
-                        "default": ""
+                        "default": "",
                     },
                     "fqbn": {
                         "type": "string",
                         "description": "Fully Qualified Board Name",
-                        "default": "esp32:esp32:esp32s3"
+                        "default": "esp32:esp32:esp32s3",
                     },
                     "verify": {
                         "type": "boolean",
                         "description": "Verify upload after writing",
-                        "default": True
-                    }
+                        "default": True,
+                    },
                 },
-                "required": ["project_path"]
-            }
+                "required": ["project_path"],
+            },
         ),
         Tool(
             name="arduino_monitor",
@@ -91,23 +91,20 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "port": {
-                        "type": "string",
-                        "description": "Serial port to monitor"
-                    },
+                    "port": {"type": "string", "description": "Serial port to monitor"},
                     "baudrate": {
                         "type": "integer",
                         "description": "Baud rate for serial communication",
-                        "default": 115200
+                        "default": 115200,
                     },
                     "duration": {
                         "type": "integer",
                         "description": "Duration in seconds to monitor (0 = continuous)",
-                        "default": 10
-                    }
+                        "default": 10,
+                    },
                 },
-                "required": ["port"]
-            }
+                "required": ["port"],
+            },
         ),
         Tool(
             name="arduino_clean",
@@ -117,20 +114,16 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "project_path": {
                         "type": "string",
-                        "description": "Path to the Arduino project directory"
+                        "description": "Path to the Arduino project directory",
                     }
                 },
-                "required": ["project_path"]
-            }
+                "required": ["project_path"],
+            },
         ),
         Tool(
             name="arduino_board_list",
             description="List all connected Arduino boards and their ports.",
-            inputSchema={
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
+            inputSchema={"type": "object", "properties": {}, "required": []},
         ),
         Tool(
             name="arduino_lib_install",
@@ -140,16 +133,16 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "library_name": {
                         "type": "string",
-                        "description": "Name of the library to install (e.g., 'ArduinoJson')"
+                        "description": "Name of the library to install (e.g., 'ArduinoJson')",
                     },
                     "version": {
                         "type": "string",
                         "description": "Specific version to install. Latest if not specified.",
-                        "default": ""
-                    }
+                        "default": "",
+                    },
                 },
-                "required": ["library_name"]
-            }
+                "required": ["library_name"],
+            },
         ),
         Tool(
             name="arduino_lib_search",
@@ -159,11 +152,11 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query for library name"
+                        "description": "Search query for library name",
                     }
                 },
-                "required": ["query"]
-            }
+                "required": ["query"],
+            },
         ),
         Tool(
             name="arduino_compile_fix",
@@ -173,16 +166,16 @@ async def list_tools() -> list[Tool]:
                 "properties": {
                     "project_path": {
                         "type": "string",
-                        "description": "Path to the Arduino project directory"
+                        "description": "Path to the Arduino project directory",
                     },
                     "error_log": {
                         "type": "string",
-                        "description": "Compilation error log from previous build attempt"
-                    }
+                        "description": "Compilation error log from previous build attempt",
+                    },
                 },
-                "required": ["project_path", "error_log"]
-            }
-        )
+                "required": ["project_path", "error_log"],
+            },
+        ),
     ]
 
 
@@ -195,7 +188,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await builder.build(
                 project_path=arguments["project_path"],
                 fqbn=arguments.get("fqbn", "esp32:esp32:esp32s3"),
-                verbose=arguments.get("verbose", False)
+                verbose=arguments.get("verbose", False),
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -204,7 +197,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
                 project_path=arguments["project_path"],
                 port=arguments.get("port", ""),
                 fqbn=arguments.get("fqbn", "esp32:esp32:esp32s3"),
-                verify=arguments.get("verify", True)
+                verify=arguments.get("verify", True),
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -212,7 +205,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
             result = await monitor.start_monitor(
                 port=arguments["port"],
                 baudrate=arguments.get("baudrate", 115200),
-                duration=arguments.get("duration", 10)
+                duration=arguments.get("duration", 10),
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -227,7 +220,7 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         elif name == "arduino_lib_install":
             result = await lib_manager.install_library(
                 library_name=arguments["library_name"],
-                version=arguments.get("version", "")
+                version=arguments.get("version", ""),
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
@@ -237,29 +230,29 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
 
         elif name == "arduino_compile_fix":
             result = await builder.auto_fix_errors(
-                project_path=arguments["project_path"],
-                error_log=arguments["error_log"]
+                project_path=arguments["project_path"], error_log=arguments["error_log"]
             )
             return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
         else:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "success": False,
-                    "error": f"Unknown tool: {name}"
-                }, indent=2)
-            )]
+            return [
+                TextContent(
+                    type="text",
+                    text=json.dumps(
+                        {"success": False, "error": f"Unknown tool: {name}"}, indent=2
+                    ),
+                )
+            ]
 
     except Exception as e:
-        return [TextContent(
-            type="text",
-            text=json.dumps({
-                "success": False,
-                "error": str(e),
-                "tool": name
-            }, indent=2)
-        )]
+        return [
+            TextContent(
+                type="text",
+                text=json.dumps(
+                    {"success": False, "error": str(e), "tool": name}, indent=2
+                ),
+            )
+        ]
 
 
 async def main():
@@ -267,11 +260,7 @@ async def main():
     from mcp.server.stdio import stdio_server
 
     async with stdio_server() as (read_stream, write_stream):
-        await app.run(
-            read_stream,
-            write_stream,
-            app.create_initialization_options()
-        )
+        await app.run(read_stream, write_stream, app.create_initialization_options())
 
 
 if __name__ == "__main__":

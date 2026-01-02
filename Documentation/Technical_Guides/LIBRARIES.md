@@ -2,7 +2,8 @@
 
 **SRT-MGATE-1210 Modbus IIoT Gateway**
 
-Complete reference for all third-party libraries used in the firmware, including installation, configuration, and version requirements.
+Complete reference for all third-party libraries used in the firmware, including
+installation, configuration, and version requirements.
 
 ---
 
@@ -22,7 +23,9 @@ Complete reference for all third-party libraries used in the firmware, including
 
 ## Overview
 
-The SRT-MGATE-1210 firmware is built on a robust foundation of well-tested, industry-standard libraries. This document provides comprehensive information about each library used in the project.
+The SRT-MGATE-1210 firmware is built on a robust foundation of well-tested,
+industry-standard libraries. This document provides comprehensive information
+about each library used in the project.
 
 ### Library Categories
 
@@ -40,12 +43,12 @@ The SRT-MGATE-1210 firmware is built on a robust foundation of well-tested, indu
 
 **Purpose**: Base framework for ESP32-S3 development
 
-**Provider**: Espressif Systems
-**Repository**: https://github.com/espressif/arduino-esp32
-**Version Required**: 2.0.0 or higher
+**Provider**: Espressif Systems **Repository**:
+https://github.com/espressif/arduino-esp32 **Version Required**: 2.0.0 or higher
 **License**: LGPL 2.1
 
 **Installation (Arduino IDE)**:
+
 ```
 File → Preferences → Additional Boards Manager URLs:
 https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
@@ -54,12 +57,14 @@ Tools → Board → Boards Manager → Search "esp32" → Install "esp32 by Espr
 ```
 
 **Key Components**:
+
 - ESP32-S3 hardware abstraction
 - FreeRTOS kernel
 - WiFi and Bluetooth stacks
 - Peripheral drivers (SPI, I2C, UART)
 
 **Configuration**:
+
 ```cpp
 // Board: ESP32-S3 Dev Module
 // Flash Size: 16MB (128Mb)
@@ -73,11 +78,11 @@ Tools → Board → Boards Manager → Search "esp32" → Install "esp32 by Espr
 
 **Purpose**: Real-time operating system for multitasking
 
-**Provider**: Espressif (integrated in ESP32 Arduino Core)
-**Version**: 10.4.3 (ESP-IDF v4.4)
-**License**: MIT
+**Provider**: Espressif (integrated in ESP32 Arduino Core) **Version**: 10.4.3
+(ESP-IDF v4.4) **License**: MIT
 
 **Headers Used**:
+
 ```cpp
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -86,12 +91,14 @@ Tools → Board → Boards Manager → Search "esp32" → Install "esp32 by Espr
 ```
 
 **Key Features**:
+
 - **Task Management**: 15+ concurrent tasks
 - **Queue Communication**: Inter-task messaging
 - **Semaphore/Mutex**: Resource locking
 - **Memory Management**: Heap allocation with PSRAM support
 
 **Task Examples**:
+
 ```cpp
 // BLE Task (Core 0, Priority 5)
 xTaskCreatePinnedToCore(
@@ -124,11 +131,11 @@ xTaskCreatePinnedToCore(
 
 **Purpose**: Bluetooth Low Energy server and GATT services
 
-**Provider**: Espressif (integrated in Arduino Core)
-**Version**: Built-in (ESP32 Arduino Core 2.0+)
-**License**: Apache 2.0
+**Provider**: Espressif (integrated in Arduino Core) **Version**: Built-in
+(ESP32 Arduino Core 2.0+) **License**: Apache 2.0
 
 **Headers Used**:
+
 ```cpp
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -137,12 +144,14 @@ xTaskCreatePinnedToCore(
 ```
 
 **Key Features**:
+
 - **GATT Server**: Custom service UUID
 - **Characteristics**: RX (write), TX (notify), Stream (notify)
 - **MTU Negotiation**: 512 bytes maximum
 - **Connection Management**: Auto-reconnect, timeouts
 
 **BLE Service Configuration**:
+
 ```cpp
 // Custom GATT Service
 #define SERVICE_UUID        "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -159,22 +168,24 @@ xTaskCreatePinnedToCore(
 
 **Purpose**: WiFi connectivity with Station and AP modes
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <WiFi.h>
 ```
 
 **Key Features**:
+
 - **Station Mode**: Connect to existing WiFi networks
 - **Fallback Support**: Automatic Ethernet → WiFi failover
 - **Multi-network**: Supports multiple SSID configurations
 - **WPA2/WPA3**: Enterprise security support
 
 **Configuration Example**:
+
 ```cpp
 WiFi.mode(WIFI_STA);
 WiFi.begin(ssid, password);
@@ -189,23 +200,25 @@ WiFi.setAutoReconnect(true);
 
 **Purpose**: W5500 Ethernet controller interface
 
-**Provider**: Arduino
-**Repository**: https://github.com/arduino-libraries/Ethernet
-**Version Required**: 2.0.0 or higher
-**License**: LGPL 2.1
+**Provider**: Arduino **Repository**:
+https://github.com/arduino-libraries/Ethernet **Version Required**: 2.0.0 or
+higher **License**: LGPL 2.1
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "Ethernet" → Install "Ethernet by Arduino"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <SPI.h>
 #include <Ethernet.h>
 ```
 
 **Hardware Configuration**:
+
 ```cpp
 // W5500 on SPI3 (FSPI)
 #define ETH_CS   48
@@ -220,7 +233,8 @@ SPI3.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
 Ethernet.init(ETH_CS);
 ```
 
-**Related**: [EthernetManager.cpp](../Main/EthernetManager.cpp), [docs/HARDWARE.md](HARDWARE.md)
+**Related**: [EthernetManager.cpp](../Main/EthernetManager.cpp),
+[docs/HARDWARE.md](HARDWARE.md)
 
 ---
 
@@ -228,30 +242,34 @@ Ethernet.init(ETH_CS);
 
 **Purpose**: MQTT client for publish/subscribe messaging
 
-**Provider**: ThingsBoard
-**Repository**: https://github.com/thingsboard/pubsubclient
-**Version Required**: 2.12.1 or higher
-**License**: MIT
+**Provider**: ThingsBoard **Repository**:
+https://github.com/thingsboard/pubsubclient **Version Required**: 2.12.1 or
+higher **License**: MIT
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "TBPubSubClient" → Install "TBPubSubClient by ThingsBoard"
 ```
 
-**Note**: This is a fork of PubSubClient optimized for ThingsBoard but works with any MQTT broker
+**Note**: This is a fork of PubSubClient optimized for ThingsBoard but works
+with any MQTT broker
 
 **Headers Used**:
+
 ```cpp
 #include <PubSubClient.h>
 ```
 
 **Key Features**:
+
 - **QoS 0/1**: Quality of Service levels
 - **Persistent Queue**: Failed publish retry mechanism
 - **Auto-reconnect**: Exponential backoff
 - **TLS Support**: Secure MQTT connections
 
 **Configuration**:
+
 ```cpp
 mqttClient.setServer(broker, port);
 mqttClient.setBufferSize(2048);
@@ -260,10 +278,12 @@ mqttClient.setSocketTimeout(30);
 ```
 
 **Custom Enhancements**:
+
 - **MQTTPersistentQueue**: Offline message buffering (LittleFS)
 - **Exponential Backoff**: Smart reconnection strategy
 
-**Related**: [MqttManager.cpp](../Main/MqttManager.cpp), [MQTTPersistentQueue.cpp](../Main/MQTTPersistentQueue.cpp)
+**Related**: [MqttManager.cpp](../Main/MqttManager.cpp),
+[MQTTPersistentQueue.cpp](../Main/MQTTPersistentQueue.cpp)
 
 ---
 
@@ -271,23 +291,24 @@ mqttClient.setSocketTimeout(30);
 
 **Purpose**: HTTP/HTTPS client for RESTful API calls and WebSocket support
 
-**Provider**: Arduino
-**Repository**: https://github.com/arduino-libraries/ArduinoHttpClient
-**Version Required**: 0.6.1 or higher
-**Status**: [EXPERIMENTAL]
-**License**: Apache 2.0
+**Provider**: Arduino **Repository**:
+https://github.com/arduino-libraries/ArduinoHttpClient **Version Required**:
+0.6.1 or higher **Status**: [EXPERIMENTAL] **License**: Apache 2.0
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "ArduinoHttpClient" → Install "ArduinoHttpClient by Arduino"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <ArduinoHttpClient.h>
 ```
 
 **Key Features**:
+
 - **HTTP Methods**: GET, POST, PUT, PATCH, DELETE
 - **WebSocket Support**: Bidirectional communication
 - **Headers**: Custom headers support
@@ -295,6 +316,7 @@ Tools → Manage Libraries → Search "ArduinoHttpClient" → Install "ArduinoHt
 - **Authentication**: Basic Auth, Bearer tokens
 
 **Usage Example**:
+
 ```cpp
 #include <ArduinoHttpClient.h>
 
@@ -317,28 +339,30 @@ int statusCode = http.responseStatusCode();
 
 **Purpose**: Modbus RTU Master implementation
 
-**Provider**: 4-20ma
-**Repository**: https://github.com/4-20ma/ModbusMaster
-**Version Required**: 2.0.1 or higher
-**License**: Apache 2.0
+**Provider**: 4-20ma **Repository**: https://github.com/4-20ma/ModbusMaster
+**Version Required**: 2.0.1 or higher **License**: Apache 2.0
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "ModbusMaster" → Install "ModbusMaster by Doc Walker"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <ModbusMaster.h>
 ```
 
 **Key Features**:
+
 - **Function Codes**: 1, 2, 3, 4, 5, 6, 15, 16
 - **Exception Handling**: Timeout, CRC errors
 - **Prepost Transmission**: RS485 DE/RE pin control
 - **Multi-slave**: Up to 247 slaves per bus
 
 **Configuration**:
+
 ```cpp
 ModbusMaster node;
 node.begin(slaveId, Serial1); // RS485 Port 1
@@ -347,6 +371,7 @@ node.postTransmission(postTransmission);
 ```
 
 **Supported Operations**:
+
 ```cpp
 // Read Holding Registers (FC 03)
 uint8_t result = node.readHoldingRegisters(address, quantity);
@@ -358,7 +383,8 @@ uint8_t result = node.readInputRegisters(address, quantity);
 uint8_t result = node.writeSingleRegister(address, value);
 ```
 
-**Related**: [ModbusRtuService.cpp](../Main/ModbusRtuService.cpp), [docs/MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)
+**Related**: [ModbusRtuService.cpp](../Main/ModbusRtuService.cpp),
+[docs/MODBUS_DATATYPES.md](MODBUS_DATATYPES.md)
 
 ---
 
@@ -368,16 +394,16 @@ uint8_t result = node.writeSingleRegister(address, value);
 
 **Purpose**: I2C communication for RTC DS3231
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: LGPL 2.1
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: LGPL 2.1
 
 **Headers Used**:
+
 ```cpp
 #include <Wire.h>
 ```
 
 **Configuration**:
+
 ```cpp
 #define I2C_SDA 5
 #define I2C_SCL 6
@@ -387,6 +413,7 @@ Wire.setClock(100000); // 100kHz standard I2C
 ```
 
 **Connected Devices**:
+
 - DS3231 RTC (0x68)
 
 **Related**: [RTCManager.cpp](../Main/RTCManager.cpp)
@@ -397,29 +424,32 @@ Wire.setClock(100000); // 100kHz standard I2C
 
 **Purpose**: Network Time Protocol client for time synchronization
 
-**Provider**: Fabrice Weinberg
-**Repository**: https://github.com/arduino-libraries/NTPClient
-**Version Required**: 3.2.1 or higher
-**License**: MIT
+**Provider**: Fabrice Weinberg **Repository**:
+https://github.com/arduino-libraries/NTPClient **Version Required**: 3.2.1 or
+higher **License**: MIT
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "NTPClient" → Install "NTPClient by Fabrice Weinberg"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 ```
 
 **Key Features**:
+
 - **NTP Synchronization**: Gets time from NTP server
 - **Timezone Support**: GMT offset configuration
 - **Update Interval**: Configurable sync interval
 - **Multiple Servers**: Fallback server support
 
 **Usage Example**:
+
 ```cpp
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 25200, 60000); // GMT+7 (WIB)
@@ -437,28 +467,31 @@ unsigned long epochTime = timeClient.getEpochTime();
 
 **Purpose**: DS3231 RTC hardware interface
 
-**Provider**: Adafruit Industries
-**Repository**: https://github.com/adafruit/RTClib
-**Version Required**: 2.1.4 or higher
+**Provider**: Adafruit Industries **Repository**:
+https://github.com/adafruit/RTClib **Version Required**: 2.1.4 or higher
 **License**: MIT
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "RTClib" → Install "RTClib by Adafruit"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <RTClib.h>
 ```
 
 **Key Features**:
+
 - **DS3231 Support**: High-precision RTC (±2ppm)
 - **Temperature Compensation**: Built-in
 - **Alarms**: Two programmable alarms
 - **Battery Backup**: CR2032 coin cell
 
 **Usage Example**:
+
 ```cpp
 RTC_DS3231 rtc;
 rtc.begin();
@@ -472,11 +505,13 @@ DateTime currentTime = rtc.now();
 ```
 
 **Custom Features**:
+
 - **NTP Sync**: Periodic synchronization with NTP servers
 - **Timezone Support**: UTC offset configuration
 - **Drift Correction**: Automatic time drift detection
 
-**Related**: [RTCManager.cpp](../Main/RTCManager.cpp), [docs/HARDWARE.md](HARDWARE.md)
+**Related**: [RTCManager.cpp](../Main/RTCManager.cpp),
+[docs/HARDWARE.md](HARDWARE.md)
 
 ---
 
@@ -484,11 +519,11 @@ DateTime currentTime = rtc.now();
 
 **Purpose**: SPI communication for Ethernet and SD Card
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <SPI.h>
 ```
@@ -496,6 +531,7 @@ DateTime currentTime = rtc.now();
 **SPI Instances**:
 
 **SPI (Default) - MicroSD Card**:
+
 ```cpp
 #define SD_CS   11
 #define SD_MOSI 10
@@ -506,6 +542,7 @@ SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
 ```
 
 **SPI3 (FSPI) - W5500 Ethernet**:
+
 ```cpp
 #define ETH_CS   48
 #define ETH_MOSI 14
@@ -516,7 +553,8 @@ SPIClass SPI3(FSPI);
 SPI3.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
 ```
 
-**Related**: [EthernetManager.cpp](../Main/EthernetManager.cpp), [docs/HARDWARE.md](HARDWARE.md)
+**Related**: [EthernetManager.cpp](../Main/EthernetManager.cpp),
+[docs/HARDWARE.md](HARDWARE.md)
 
 ---
 
@@ -524,11 +562,11 @@ SPI3.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
 
 **Purpose**: UART/RS485 communication for Modbus RTU
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <HardwareSerial.h>
 ```
@@ -536,6 +574,7 @@ SPI3.begin(ETH_SCK, ETH_MISO, ETH_MOSI, ETH_CS);
 **Configuration**:
 
 **Serial1 (Modbus RTU Port 1)**:
+
 ```cpp
 #define RXD1_RS485 15
 #define TXD1_RS485 16
@@ -544,6 +583,7 @@ Serial1.begin(baudrate, SERIAL_8N1, RXD1_RS485, TXD1_RS485);
 ```
 
 **Serial2 (Modbus RTU Port 2)**:
+
 ```cpp
 #define RXD2_RS485 17
 #define TXD2_RS485 18
@@ -552,6 +592,7 @@ Serial2.begin(baudrate, SERIAL_8N1, RXD2_RS485, TXD2_RS485);
 ```
 
 **Dynamic Baudrate Support**:
+
 - 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200 baud
 
 **Related**: [ModbusRtuService.cpp](../Main/ModbusRtuService.cpp)
@@ -562,28 +603,31 @@ Serial2.begin(baudrate, SERIAL_8N1, RXD2_RS485, TXD2_RS485);
 
 **Purpose**: Advanced button handling with debouncing
 
-**Provider**: Matthias Hertel
-**Repository**: https://github.com/mathertel/OneButton
-**Version Required**: 2.0.0 or higher
+**Provider**: Matthias Hertel **Repository**:
+https://github.com/mathertel/OneButton **Version Required**: 2.0.0 or higher
 **License**: BSD 3-Clause
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "OneButton" → Install "OneButton by Matthias Hertel"
 ```
 
 **Headers Used**:
+
 ```cpp
 #include <OneButton.h>
 ```
 
 **Key Features**:
+
 - **Debouncing**: Hardware noise filtering
 - **Click Detection**: Single, double, multi-click
 - **Long Press**: Configurable duration
 - **Events**: Press start, during, end
 
 **Configuration**:
+
 ```cpp
 #define BUTTON_PIN 0
 
@@ -595,10 +639,12 @@ button.setPressTicks(5000); // 5 seconds for long press
 ```
 
 **BLE Configuration Mode**:
+
 - **Long Press (5s)**: Enter BLE configuration mode
 - **Button GPIO 0**: Boot mode selection
 
-**Related**: [ButtonManager.cpp](../Main/ButtonManager.cpp), [docs/HARDWARE.md](HARDWARE.md)
+**Related**: [ButtonManager.cpp](../Main/ButtonManager.cpp),
+[docs/HARDWARE.md](HARDWARE.md)
 
 ---
 
@@ -608,13 +654,12 @@ button.setPressTicks(5000); // 5 seconds for long press
 
 **Purpose**: JSON parsing and serialization
 
-**Provider**: Benoît Blanchon
-**Repository**: https://github.com/bblanchon/ArduinoJson
-**Version Required**: 7.4.2 or higher (v7.x series)
-**Popularity**: ⭐ 6,953 stars on GitHub
-**License**: MIT
+**Provider**: Benoît Blanchon **Repository**:
+https://github.com/bblanchon/ArduinoJson **Version Required**: 7.4.2 or higher
+(v7.x series) **Popularity**: ⭐ 6,953 stars on GitHub **License**: MIT
 
 **Installation (Arduino IDE)**:
+
 ```
 Tools → Manage Libraries → Search "ArduinoJson" → Install "ArduinoJson by Benoit Blanchon" (v7.4.2+)
 ```
@@ -622,17 +667,20 @@ Tools → Manage Libraries → Search "ArduinoJson" → Install "ArduinoJson by 
 **⚠️ Important**: This firmware uses ArduinoJson v7.x (latest version)
 
 **Headers Used**:
+
 ```cpp
 #include <ArduinoJson.h>
 ```
 
 **Key Features**:
+
 - **JSON Parsing**: Fast, memory-efficient parser
 - **JSON Generation**: Builder with fluent API
 - **PSRAM Support**: Large documents (64KB+)
 - **Zero-Copy**: Efficient string handling
 
 **Document Sizing**:
+
 ```cpp
 // Small documents (< 1KB) - Stack
 StaticJsonDocument<1024> doc;
@@ -645,6 +693,7 @@ DynamicJsonDocument doc(65536, heap_caps_malloc, MALLOC_CAP_SPIRAM);
 ```
 
 **Usage Example**:
+
 ```cpp
 // Parse JSON
 DynamicJsonDocument doc(2048);
@@ -665,11 +714,11 @@ serializeJson(doc, output);
 
 **Purpose**: Data structures and algorithms
 
-**Provider**: GNU C++ Standard Library (integrated)
-**Version**: C++11/C++14
+**Provider**: GNU C++ Standard Library (integrated) **Version**: C++11/C++14
 **License**: GPL with runtime exception
 
 **Headers Used**:
+
 ```cpp
 #include <vector>
 #include <map>
@@ -684,30 +733,35 @@ serializeJson(doc, output);
 **Key Components**:
 
 **std::vector** - Dynamic arrays:
+
 ```cpp
 std::vector<String> deviceIds;
 std::vector<ModbusRegister> registers;
 ```
 
 **std::map** - Key-value storage:
+
 ```cpp
 std::map<String, DeviceConfig> deviceCache;
 std::map<String, uint32_t> retryTimers;
 ```
 
 **std::queue** - FIFO queues:
+
 ```cpp
 std::queue<BLECommand> commandQueue;
 std::priority_queue<Task> taskQueue;
 ```
 
 **std::deque** - Double-ended queues:
+
 ```cpp
 std::deque<MqttMessage> persistentQueue;
 std::deque<uint32_t> metricsWindow;
 ```
 
 **std::unique_ptr** - Smart pointers:
+
 ```cpp
 std::unique_ptr<ConfigManager> configMgr;
 ```
@@ -722,27 +776,30 @@ std::unique_ptr<ConfigManager> configMgr;
 
 **Purpose**: Flash file system for configuration storage
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: BSD 3-Clause
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: BSD
+3-Clause
 
 **Headers Used**:
+
 ```cpp
 #include <LittleFS.h>
 ```
 
 **Key Features**:
+
 - **Wear Leveling**: Automatic flash wear management
 - **Power-Safe**: Atomic operations with WAL
 - **Crash Recovery**: Automatic filesystem repair
 - **Namespace**: Isolated storage areas
 
 **Configuration**:
+
 ```cpp
 LittleFS.begin(true); // format on mount failure
 ```
 
 **File Structure**:
+
 ```
 /devices.json           → Device configurations
 /server_config.json     → MQTT/HTTP server settings
@@ -753,6 +810,7 @@ LittleFS.begin(true); // format on mount failure
 ```
 
 **Atomic File Operations**:
+
 ```cpp
 // Write-ahead logging pattern
 1. Write to /devices.tmp
@@ -761,7 +819,8 @@ LittleFS.begin(true); // format on mount failure
 4. Remove /devices.wal
 ```
 
-**Related**: [ConfigManager.cpp](../Main/ConfigManager.cpp), [AtomicFileOps.cpp](../Main/AtomicFileOps.cpp)
+**Related**: [ConfigManager.cpp](../Main/ConfigManager.cpp),
+[AtomicFileOps.cpp](../Main/AtomicFileOps.cpp)
 
 ---
 
@@ -769,23 +828,25 @@ LittleFS.begin(true); // format on mount failure
 
 **Purpose**: Heap allocation with PSRAM support
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <esp_heap_caps.h>
 #include <esp_psram.h>
 ```
 
 **Key Features**:
+
 - **PSRAM Allocation**: 8MB external RAM
 - **Heap Caps**: Memory capability flags
 - **Fragmentation Management**: Placement new
 - **Memory Monitoring**: Free/used tracking
 
 **PSRAM Allocation**:
+
 ```cpp
 // Allocate in PSRAM
 void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -799,13 +860,15 @@ new (cfg) ConfigManager();
 ```
 
 **Memory Monitoring**:
+
 ```cpp
 Serial.printf("PSRAM total: %d bytes\n", ESP.getPsramSize());
 Serial.printf("PSRAM free: %d bytes\n", ESP.getFreePsram());
 Serial.printf("Heap free: %d bytes\n", ESP.getFreeHeap());
 ```
 
-**Related**: [MemoryManager.h](../Main/MemoryManager.h), [PSRAMValidator.cpp](../Main/PSRAMValidator.cpp)
+**Related**: [MemoryManager.h](../Main/MemoryManager.h),
+[PSRAMValidator.cpp](../Main/PSRAMValidator.cpp)
 
 ---
 
@@ -813,16 +876,17 @@ Serial.printf("Heap free: %d bytes\n", ESP.getFreeHeap());
 
 **Purpose**: Task monitoring and deadlock prevention
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <esp_task_wdt.h>
 ```
 
 **Configuration**:
+
 ```cpp
 // Enable watchdog for task
 esp_task_wdt_add(NULL);
@@ -844,16 +908,17 @@ esp_task_wdt_delete(NULL);
 
 **Purpose**: System-level functions and utilities
 
-**Provider**: Espressif (integrated)
-**Version**: Built-in
-**License**: Apache 2.0
+**Provider**: Espressif (integrated) **Version**: Built-in **License**: Apache
+2.0
 
 **Headers Used**:
+
 ```cpp
 #include <esp_system.h>
 ```
 
 **Key Functions**:
+
 ```cpp
 // Random number generation
 uint32_t seed = esp_random();
@@ -873,21 +938,25 @@ esp_chip_info(&chip_info);
 ### Arduino IDE Setup
 
 **1. Install Arduino IDE**:
+
 - Download from https://www.arduino.cc/en/software
 - Install version 2.0 or higher
 
 **2. Add ESP32 Board Support**:
+
 ```
 File → Preferences → Additional Boards Manager URLs:
 https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
 ```
 
 **3. Install ESP32 Platform**:
+
 ```
 Tools → Board → Boards Manager → Search "esp32" → Install "esp32 by Espressif Systems"
 ```
 
 **4. Install Required Libraries**:
+
 ```
 Tools → Manage Libraries → Search and install:
 - ArduinoJson (v7.4.2+) by Benoit Blanchon
@@ -901,6 +970,7 @@ Tools → Manage Libraries → Search and install:
 ```
 
 **5. Board Configuration**:
+
 ```
 Tools → Board → ESP32 Arduino → ESP32-S3 Dev Module
 Tools → Flash Size → 16MB (128Mb)
@@ -910,43 +980,46 @@ Tools → Upload Speed → 921600
 Tools → USB CDC On Boot → Enabled
 ```
 
-
 ---
 
 ## Version Compatibility
 
 ### Tested Versions
 
-| Library                | Minimum Version | Tested Version | Status            |
-| ---------------------- | --------------- | -------------- | ----------------- |
-| **Arduino Core ESP32** | 2.0.0           | 2.0.11         | ✅ Stable          |
-| **ArduinoJson**        | 7.4.2           | 7.4.2          | ✅ Stable (v7.x)   |
-| **RTClib**             | 2.1.4           | 2.1.4          | ✅ Stable          |
-| **NTPClient**          | 3.2.1           | 3.2.1          | ✅ Stable          |
-| **Ethernet**           | 2.0.2           | 2.0.2          | ✅ Stable          |
-| **TBPubSubClient**     | 2.12.1          | 2.12.1         | ✅ Stable          |
-| **ArduinoHttpClient**  | 0.6.1           | 0.6.1          | ⚠️ Experimental    |
-| **ModbusMaster**       | 2.0.1           | 2.0.1          | ✅ Stable          |
-| **OneButton**          | 2.0.0           | 2.5.0          | ✅ Stable          |
+| Library                | Minimum Version | Tested Version | Status           |
+| ---------------------- | --------------- | -------------- | ---------------- |
+| **Arduino Core ESP32** | 2.0.0           | 2.0.11         | ✅ Stable        |
+| **ArduinoJson**        | 7.4.2           | 7.4.2          | ✅ Stable (v7.x) |
+| **RTClib**             | 2.1.4           | 2.1.4          | ✅ Stable        |
+| **NTPClient**          | 3.2.1           | 3.2.1          | ✅ Stable        |
+| **Ethernet**           | 2.0.2           | 2.0.2          | ✅ Stable        |
+| **TBPubSubClient**     | 2.12.1          | 2.12.1         | ✅ Stable        |
+| **ArduinoHttpClient**  | 0.6.1           | 0.6.1          | ⚠️ Experimental  |
+| **ModbusMaster**       | 2.0.1           | 2.0.1          | ✅ Stable        |
+| **OneButton**          | 2.0.0           | 2.5.0          | ✅ Stable        |
 
 ### Compatibility Notes
 
 **ArduinoJson v7.x**:
+
 - ✅ **v7.4.2 (Used)**: Latest version with improved performance
 - ⚠️ **v6.x (Legacy)**: Not compatible with this firmware
 - **Migration**: Firmware uses v7 API with JsonDocument
 
 **ESP32 Arduino Core**:
+
 - ✅ **2.0.x**: Fully supported
 - ⚠️ **3.0.x**: Beta, not recommended for production
 
 **TBPubSubClient**:
+
 - ThingsBoard fork with enhanced features
 - Buffer size increased to 2048 bytes (default 256)
 - Socket timeout set to 30 seconds
 - Compatible with all MQTT brokers (not only ThingsBoard)
 
 **ArduinoHttpClient**:
+
 - Experimental status, stable in production
 - WebSocket support available
 - Works with WiFi and Ethernet clients
@@ -959,18 +1032,19 @@ Tools → USB CDC On Boot → Enabled
 
 | Library            | License      | Commercial Use | Attribution Required |
 | ------------------ | ------------ | -------------- | -------------------- |
-| Arduino Core ESP32 | LGPL 2.1     | ✅ Yes          | Yes                  |
-| ArduinoJson        | MIT          | ✅ Yes          | Yes                  |
-| RTClib             | MIT          | ✅ Yes          | Yes                  |
-| NTPClient          | MIT          | ✅ Yes          | Yes                  |
-| Ethernet           | LGPL 2.1     | ✅ Yes          | Yes                  |
-| TBPubSubClient     | MIT          | ✅ Yes          | Yes                  |
-| ArduinoHttpClient  | Apache 2.0   | ✅ Yes          | Yes                  |
-| ModbusMaster       | Apache 2.0   | ✅ Yes          | Yes                  |
-| OneButton          | BSD 3-Clause | ✅ Yes          | Yes                  |
-| FreeRTOS           | MIT          | ✅ Yes          | Yes                  |
+| Arduino Core ESP32 | LGPL 2.1     | ✅ Yes         | Yes                  |
+| ArduinoJson        | MIT          | ✅ Yes         | Yes                  |
+| RTClib             | MIT          | ✅ Yes         | Yes                  |
+| NTPClient          | MIT          | ✅ Yes         | Yes                  |
+| Ethernet           | LGPL 2.1     | ✅ Yes         | Yes                  |
+| TBPubSubClient     | MIT          | ✅ Yes         | Yes                  |
+| ArduinoHttpClient  | Apache 2.0   | ✅ Yes         | Yes                  |
+| ModbusMaster       | Apache 2.0   | ✅ Yes         | Yes                  |
+| OneButton          | BSD 3-Clause | ✅ Yes         | Yes                  |
+| FreeRTOS           | MIT          | ✅ Yes         | Yes                  |
 
-**All libraries are compatible with commercial use in the SRT-MGATE-1210 firmware.**
+**All libraries are compatible with commercial use in the SRT-MGATE-1210
+firmware.**
 
 ---
 
@@ -978,7 +1052,8 @@ Tools → USB CDC On Boot → Enabled
 
 ### Modified Libraries
 
-None of the third-party libraries have been modified. All customizations are implemented in separate wrapper classes:
+None of the third-party libraries have been modified. All customizations are
+implemented in separate wrapper classes:
 
 - **MQTTPersistentQueue**: Custom implementation (not library modification)
 - **NetworkHysteresis**: Custom implementation
@@ -1040,6 +1115,7 @@ Main.ino
 **Problem**: Library not found during compilation
 
 **Solution**:
+
 ```
 Arduino IDE:
 Sketch → Include Library → Manage Libraries → Search library name → Reinstall
@@ -1050,6 +1126,7 @@ Sketch → Include Library → Manage Libraries → Search library name → Rein
 **Problem**: PSRAM allocation fails
 
 **Solution**:
+
 ```cpp
 // Check PSRAM availability
 if (!esp_psram_is_initialized()) {
@@ -1063,6 +1140,7 @@ if (!esp_psram_is_initialized()) {
 **Problem**: Modbus timeout errors
 
 **Solution**:
+
 ```cpp
 // Increase timeout
 node.setTimeout(2000); // 2 seconds
@@ -1085,4 +1163,5 @@ Serial1.updateBaudRate(9600);
 
 **Copyright © 2025 PT Surya Inovasi Prioritas (SURIOTA)**
 
-*This document is part of the SRT-MGATE-1210 firmware documentation. Licensed under MIT License.*
+_This document is part of the SRT-MGATE-1210 firmware documentation. Licensed
+under MIT License._

@@ -8,11 +8,15 @@
 >
 > **Reason:** Most bugs have been resolved in v2.1.0+ releases
 >
-> **Current Documentation:** See [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue diagnostics and [VERSION_HISTORY.md](VERSION_HISTORY.md) for resolved bugs
+> **Current Documentation:** See
+> [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue
+> diagnostics and [VERSION_HISTORY.md](VERSION_HISTORY.md) for resolved bugs
 >
-> **Archive Info:** See [Archive/ARCHIVE_INFO.md](../Archive/ARCHIVE_INFO.md) for more information
+> **Archive Info:** See [Archive/ARCHIVE_INFO.md](../Archive/ARCHIVE_INFO.md)
+> for more information
 >
-> **Note:** Bug status marked as "CONFIRMED" may have been fixed in subsequent versions. Check VERSION_HISTORY.md for fix status.
+> **Note:** Bug status marked as "CONFIRMED" may have been fixed in subsequent
+> versions. Check VERSION_HISTORY.md for fix status.
 
 ---
 
@@ -24,14 +28,14 @@ Analisis mendalam terhadap bug kritis dan potensi masalah dalam firmware.
 
 ## 📋 Executive Summary
 
-| Bug ID | Severity | Component | Status | Impact |
-|--------|----------|-----------|--------|--------|
-| **BUG-001** | 🔴 **CRITICAL** | NetworkManager | ✅ **CONFIRMED** | Total network failure |
-| **BUG-002** | 🔴 **CRITICAL** | Main.ino | ✅ **CONFIRMED** | Memory corruption / crash |
-| **BUG-003** | 🟠 **HIGH** | ConfigManager | ⚠️ **PARTIAL** | Data loss on corrupt file |
-| **BUG-004** | 🟡 **MEDIUM** | ModbusRtuService | ✅ **CONFIRMED** | CPU waste / inefficiency |
-| **BUG-005** | 🟡 **MEDIUM** | RTCManager | ⚠️ **DESIGN ISSUE** | Potential time conflict |
-| **BUG-006** | 🟢 **LOW** | HttpManager | ✅ **CONFIRMED** | Design inconsistency |
+| Bug ID      | Severity        | Component        | Status              | Impact                    |
+| ----------- | --------------- | ---------------- | ------------------- | ------------------------- |
+| **BUG-001** | 🔴 **CRITICAL** | NetworkManager   | ✅ **CONFIRMED**    | Total network failure     |
+| **BUG-002** | 🔴 **CRITICAL** | Main.ino         | ✅ **CONFIRMED**    | Memory corruption / crash |
+| **BUG-003** | 🟠 **HIGH**     | ConfigManager    | ⚠️ **PARTIAL**      | Data loss on corrupt file |
+| **BUG-004** | 🟡 **MEDIUM**   | ModbusRtuService | ✅ **CONFIRMED**    | CPU waste / inefficiency  |
+| **BUG-005** | 🟡 **MEDIUM**   | RTCManager       | ⚠️ **DESIGN ISSUE** | Potential time conflict   |
+| **BUG-006** | 🟢 **LOW**      | HttpManager      | ✅ **CONFIRMED**    | Design inconsistency      |
 
 **Priority**: Fix BUG-001 immediately (blocks all network functionality)
 
@@ -40,14 +44,18 @@ Analisis mendalam terhadap bug kritis dan potensi masalah dalam firmware.
 ## 🔴 BUG-001: CRITICAL - NetworkManager Configuration Read Error
 
 ### Status
+
 ✅ **CONFIRMED** - Verified in code at `NetworkManager.cpp:65-82`
 
 ### Description
-`NetworkManager` gagal membaca konfigurasi WiFi dan Ethernet karena mencari di lokasi yang salah dalam struktur JSON.
+
+`NetworkManager` gagal membaca konfigurasi WiFi dan Ethernet karena mencari di
+lokasi yang salah dalam struktur JSON.
 
 ### Root Cause
 
 **Actual JSON Structure** (from `ServerConfig.cpp:68-82`):
+
 ```json
 {
   "communication": {
@@ -71,6 +79,7 @@ Analisis mendalam terhadap bug kritis dan potensi masalah dalam firmware.
 ```
 
 **Current Code** (NetworkManager.cpp:65-82):
+
 ```cpp
 // ❌ WRONG - Reading from root level
 if (serverRoot["wifi"]) {
@@ -85,6 +94,7 @@ if (serverRoot["ethernet"]) {
 ```
 
 **Result**:
+
 - `wifiConfigPresent` = `false`
 - `ethernetConfigPresent` = `false`
 - `wifiEnabled` = `false`
@@ -93,6 +103,7 @@ if (serverRoot["ethernet"]) {
 - **Gateway NEVER connects to network!**
 
 ### Impact
+
 - ⚠️ **Total network failure**
 - ⚠️ Gateway cannot communicate with MQTT broker
 - ⚠️ Gateway cannot send HTTP requests
@@ -100,12 +111,14 @@ if (serverRoot["ethernet"]) {
 - ⚠️ No cloud connectivity whatsoever
 
 ### Affected Code Locations
+
 - `NetworkManager.cpp` line 65-82
 - `NetworkManager.cpp::init()` function
 
 ### Fix Required
 
 **Option 1: Read from correct location** (Recommended)
+
 ```cpp
 // ✅ CORRECT - Read from communication object
 JsonObject commConfig = serverRoot["communication"].as<JsonObject>();
@@ -134,6 +147,7 @@ bool ethernetEnabled = ethernetConfigPresent && (ethernetConfig["enabled"] | fal
 ```
 
 **Option 2: Use existing getter methods** (Better architecture)
+
 ```cpp
 // Use ServerConfig getter methods instead of direct JSON access
 JsonObject wifiConfig;
@@ -146,7 +160,9 @@ bool ethernetEnabled = ethernetConfigPresent && (ethernetConfig["enabled"] | fal
 ```
 
 ### Verification
+
 After fix, verify with serial output:
+
 ```
 [NetworkMgr] Found 'wifi' config inside 'communication'.
 [NetworkMgr] Found 'ethernet' config inside 'communication'.
@@ -158,14 +174,19 @@ After fix, verify with serial output:
 ## 🔴 BUG-002: CRITICAL - Memory Deallocation Inconsistency
 
 ### Status
+
 ✅ **CONFIRMED** - Verified in code at `Main.ino:55-80` and `Main.ino:112-334`
 
 ### Description
-Fungsi `cleanup()` selalu menggunakan `heap_caps_free()` untuk objek yang mungkin dialokasi dengan `new` standard, menyebabkan undefined behavior atau crash.
+
+Fungsi `cleanup()` selalu menggunakan `heap_caps_free()` untuk objek yang
+mungkin dialokasi dengan `new` standard, menyebabkan undefined behavior atau
+crash.
 
 ### Root Cause
 
 **Mixed Allocation Strategy**:
+
 ```cpp
 // Allocation attempt (PSRAM with fallback)
 configManager = (ConfigManager *)heap_caps_malloc(sizeof(ConfigManager),
@@ -178,6 +199,7 @@ if (configManager) {
 ```
 
 **Cleanup Always Uses heap_caps_free**:
+
 ```cpp
 void cleanup() {
     if (configManager) {
@@ -188,12 +210,14 @@ void cleanup() {
 ```
 
 ### Impact
+
 - ⚠️ **Undefined behavior** if PSRAM allocation fails
 - ⚠️ **Potential crash** when `cleanup()` is called
 - ⚠️ **Memory corruption** in heap
 - ⚠️ Affects: `ConfigManager`, `CRUDHandler`, `BLEManager`
 
 ### Affected Objects
+
 1. `configManager` (Main.ino:112-125)
 2. `crudHandler` (Main.ino:231-246)
 3. `bleManager` (Main.ino:319-334)
@@ -201,6 +225,7 @@ void cleanup() {
 ### Fix Required
 
 **Solution 1: Track allocation method** (Quick fix)
+
 ```cpp
 // Add flags
 bool configManagerInPSRAM = false;
@@ -231,6 +256,7 @@ void cleanup() {
 ```
 
 **Solution 2: Always use delete** (Cleaner, requires operator overload)
+
 ```cpp
 // Overload new/delete operators globally or per-class
 void* operator new(size_t size) {
@@ -253,6 +279,7 @@ delete configManager;  // Always uses overloaded delete
 ```
 
 **Solution 3: No fallback** (Fail fast, recommended for production)
+
 ```cpp
 // Allocation without fallback - fail if PSRAM unavailable
 configManager = (ConfigManager *)heap_caps_malloc(sizeof(ConfigManager),
@@ -275,7 +302,9 @@ void cleanup() {
 ```
 
 ### Recommendation
+
 Use **Solution 3** (no fallback) because:
+
 - ESP32-S3 with 8MB PSRAM is guaranteed
 - Cleaner code without tracking flags
 - Fail-fast is better than subtle corruption
@@ -286,14 +315,18 @@ Use **Solution 3** (no fallback) because:
 ## 🟠 BUG-003: HIGH - ConfigManager Data Loss on Parse Failure
 
 ### Status
+
 ⚠️ **PARTIAL CONFIRMATION** - Logic verified, needs runtime testing
 
 ### Description
-`loadDevicesCache()` marks cache as valid even when JSON parsing fails, causing all device configurations to appear empty.
+
+`loadDevicesCache()` marks cache as valid even when JSON parsing fails, causing
+all device configurations to appear empty.
 
 ### Root Cause
 
 **Current Logic** (ConfigManager.cpp):
+
 ```cpp
 bool ConfigManager::loadDevicesCache() {
     // ...
@@ -313,12 +346,14 @@ bool ConfigManager::loadDevicesCache() {
 ```
 
 ### Impact
+
 - ⚠️ **Data loss** if `devices.json` is temporarily corrupted
 - ⚠️ All devices appear to vanish after reboot
 - ⚠️ Modbus services poll nothing
 - ⚠️ User thinks configuration was deleted
 
 ### Scenarios
+
 1. **File corruption** (power loss during write)
 2. **I/O error** (flash memory issue)
 3. **Invalid JSON** (manual file edit)
@@ -392,14 +427,20 @@ bool ConfigManager::begin() {
 ## 🟡 BUG-004: MEDIUM - Modbus Service Not Using Priority Queue
 
 ### Status
-✅ **CONFIRMED** - Dead code verified in `ModbusRtuService.cpp` and `ModbusTcpService.cpp`
+
+✅ **CONFIRMED** - Dead code verified in `ModbusRtuService.cpp` and
+`ModbusTcpService.cpp`
 
 ### Description
-Sophisticated priority queue scheduler (`refreshDeviceList()`) exists but is never used. Current implementation inefficiently iterates all devices every cycle.
+
+Sophisticated priority queue scheduler (`refreshDeviceList()`) exists but is
+never used. Current implementation inefficiently iterates all devices every
+cycle.
 
 ### Root Cause
 
 **Existing (Unused) Code**:
+
 ```cpp
 // ModbusRtuService.h - Priority queue defined
 std::priority_queue<PollingTask> pollingQueue;
@@ -412,6 +453,7 @@ void ModbusRtuService::refreshDeviceList() {
 ```
 
 **Current Implementation** (inefficient):
+
 ```cpp
 void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
     while (true) {
@@ -432,6 +474,7 @@ void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
 ```
 
 ### Impact
+
 - ⚠️ **CPU waste**: Iterates 100 devices to find 1-2 ready to poll
 - ⚠️ **Memory waste**: Loads full device list every 2 seconds
 - ⚠️ **Scalability issue**: Performance degrades linearly with device count
@@ -440,7 +483,7 @@ void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
 ### Performance Analysis
 
 | Devices | Current (iterations/sec) | With Priority Queue | CPU Savings |
-|---------|--------------------------|---------------------|-------------|
+| ------- | ------------------------ | ------------------- | ----------- |
 | 10      | 5 (10 checks)            | 0.5 (1 check)       | 90%         |
 | 100     | 50 (100 checks)          | 0.5 (1 check)       | 99%         |
 | 1000    | 500 (1000 checks)        | 0.5 (1 check)       | 99.9%       |
@@ -448,6 +491,7 @@ void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
 ### Fix Required
 
 **Replace loop logic**:
+
 ```cpp
 void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
     ModbusRtuService *self = static_cast<ModbusRtuService*>(parameter);
@@ -490,6 +534,7 @@ void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
 ```
 
 ### Benefits After Fix
+
 - ✅ CPU usage reduced by 90-99%
 - ✅ Scalable to 1000+ devices
 - ✅ Automatic priority handling
@@ -500,14 +545,18 @@ void ModbusRtuService::readRtuDevicesLoop(void *parameter) {
 ## 🟡 BUG-005: MEDIUM - RTCManager Race Condition with ESP32 SNTP
 
 ### Status
+
 ⚠️ **DESIGN ISSUE** - Redundant NTP implementation
 
 ### Description
-Manual NTP synchronization loop conflicts with ESP32's built-in SNTP background task.
+
+Manual NTP synchronization loop conflicts with ESP32's built-in SNTP background
+task.
 
 ### Root Cause
 
 **Current Implementation**:
+
 ```cpp
 bool RTCManager::syncWithNTP() {
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2, ntpServer3);
@@ -527,12 +576,14 @@ bool RTCManager::syncWithNTP() {
 ```
 
 **Problem**:
+
 - ESP32 SNTP task runs in background
 - Your manual code also tries to sync
 - Both call `settimeofday()` → race condition
 - Wastes CPU in busy-wait loop
 
 ### Impact
+
 - ⚠️ Time instability (multiple sources updating)
 - ⚠️ CPU waste in sync loop
 - ⚠️ Redundant code (SNTP already handles this)
@@ -540,6 +591,7 @@ bool RTCManager::syncWithNTP() {
 ### Fix Required
 
 **Solution: Use ESP32 SNTP properly**
+
 ```cpp
 #include <esp_sntp.h>
 
@@ -592,14 +644,18 @@ bool RTCManager::init() {
 ## 🟢 BUG-006: LOW - HttpManager Client Inconsistency
 
 ### Status
+
 ✅ **CONFIRMED** - Design inconsistency verified
 
 ### Description
-`HttpManager` requests `activeClient` from `NetworkManager` but doesn't use it, unlike `MqttManager` which correctly uses it.
+
+`HttpManager` requests `activeClient` from `NetworkManager` but doesn't use it,
+unlike `MqttManager` which correctly uses it.
 
 ### Root Cause
 
 **MqttManager (Correct)**:
+
 ```cpp
 bool MqttManager::connectToMqtt() {
     Client* activeClient = networkManager->getActiveClient();  // ✅ Get client
@@ -609,6 +665,7 @@ bool MqttManager::connectToMqtt() {
 ```
 
 **HttpManager (Inconsistent)**:
+
 ```cpp
 bool HttpManager::sendHttpRequest(...) {
     Client* activeClient = networkManager->getActiveClient();  // Gets client
@@ -621,6 +678,7 @@ bool HttpManager::sendHttpRequest(...) {
 ```
 
 ### Impact
+
 - ⚠️ Design inconsistency
 - ⚠️ NetworkManager's client management bypassed
 - ⚠️ May cause issues if NetworkManager tracks connections
@@ -673,6 +731,7 @@ Priority 4 (LOW - Technical Debt):
 ```
 
 ### Estimated Total Fix Time
+
 - **Critical bugs**: 3 hours
 - **All bugs**: 10.5 hours
 
@@ -683,6 +742,7 @@ Priority 4 (LOW - Technical Debt):
 After fixes, verify:
 
 ### BUG-001 Testing
+
 ```cpp
 // Expected serial output:
 [NetworkMgr] Found 'wifi' config inside 'communication'.
@@ -693,6 +753,7 @@ After fixes, verify:
 ```
 
 ### BUG-002 Testing
+
 ```cpp
 // Test PSRAM failure scenario:
 1. Temporarily disable PSRAM in code
@@ -702,6 +763,7 @@ After fixes, verify:
 ```
 
 ### BUG-003 Testing
+
 ```cpp
 // Test corrupt file recovery:
 1. Manually corrupt devices.json
@@ -715,28 +777,34 @@ After fixes, verify:
 ## 📝 Conclusion
 
 ### Bug Severity Summary
+
 - **2 Critical bugs** blocking core functionality
 - **1 High bug** causing potential data loss
 - **2 Medium bugs** reducing efficiency
 - **1 Low bug** causing minor inconsistency
 
 ### Impact Assessment
+
 Without fixes:
+
 - ❌ **Gateway is completely non-functional** (no network)
 - ❌ **Risk of crashes** (memory corruption)
 - ❌ **Poor performance** at scale (inefficient polling)
 
 With fixes:
+
 - ✅ **Full network connectivity** restored
 - ✅ **Stable memory management**
 - ✅ **Scalable to 1000+ devices**
 - ✅ **Production-ready firmware**
 
 ### Recommendation
-**Fix BUG-001 and BUG-002 immediately** before any production deployment. These are blocking issues that prevent basic operation.
+
+**Fix BUG-001 and BUG-002 immediately** before any production deployment. These
+are blocking issues that prevent basic operation.
 
 ---
 
 **Copyright © 2025 PT Surya Inovasi Prioritas (SURIOTA)**
 
-*This document is part of the SRT-MGATE-1210 firmware technical documentation.*
+_This document is part of the SRT-MGATE-1210 firmware technical documentation._

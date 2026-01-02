@@ -34,8 +34,9 @@
 // ============================================
 // Certificate Configuration
 // ============================================
-#define CERT_CUSTOM_PATH "/certs/custom_ca.pem"  // LittleFS path for custom cert
-#define CERT_CHECK_INTERVAL_DAYS 30              // How often to log cert warnings
+#define CERT_CUSTOM_PATH \
+  "/certs/custom_ca.pem"             // LittleFS path for custom cert
+#define CERT_CHECK_INTERVAL_DAYS 30  // How often to log cert warnings
 
 // ============================================
 // Combined Root CA Bundle for GitHub
@@ -160,119 +161,121 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 // Provides certificate management functionality
 // ============================================
 class CertificateManager {
-public:
-    /**
-     * @brief Get the best available CA certificate
-     * Priority: 1. Custom cert from LittleFS, 2. Primary GitHub CA, 3. Fallback CA
-     * @param certBuffer Output buffer for certificate (caller must free if dynamically allocated)
-     * @param useFallback Set to true if primary cert should be skipped
-     * @return Pointer to certificate string (PROGMEM or dynamic)
-     */
-    static const char* getCertificate(bool useFallback = false) {
-        // Try custom certificate from LittleFS first
-        if (LittleFS.exists(CERT_CUSTOM_PATH)) {
-            File f = LittleFS.open(CERT_CUSTOM_PATH, "r");
-            if (f && f.size() > 100) {  // Valid PEM is at least 100 bytes
-                f.close();
-                // Note: For custom certs, caller should use loadCustomCertificate()
-                // This just indicates custom cert is available
-            }
-        }
-
-        // Return appropriate bundled certificate
-        if (useFallback) {
-            return FALLBACK_ROOT_CA;
-        }
-        return GITHUB_ROOT_CA;
-    }
-
-    /**
-     * @brief Load custom certificate from LittleFS
-     * @param buffer Pre-allocated buffer to store certificate
-     * @param bufferSize Size of buffer
-     * @return true if custom cert loaded, false otherwise
-     */
-    static bool loadCustomCertificate(char* buffer, size_t bufferSize) {
-        if (!LittleFS.exists(CERT_CUSTOM_PATH)) {
-            return false;
-        }
-
-        File f = LittleFS.open(CERT_CUSTOM_PATH, "r");
-        if (!f) {
-            return false;
-        }
-
-        size_t bytesRead = f.readBytes(buffer, bufferSize - 1);
-        buffer[bytesRead] = '\0';
+ public:
+  /**
+   * @brief Get the best available CA certificate
+   * Priority: 1. Custom cert from LittleFS, 2. Primary GitHub CA, 3. Fallback
+   * CA
+   * @param certBuffer Output buffer for certificate (caller must free if
+   * dynamically allocated)
+   * @param useFallback Set to true if primary cert should be skipped
+   * @return Pointer to certificate string (PROGMEM or dynamic)
+   */
+  static const char* getCertificate(bool useFallback = false) {
+    // Try custom certificate from LittleFS first
+    if (LittleFS.exists(CERT_CUSTOM_PATH)) {
+      File f = LittleFS.open(CERT_CUSTOM_PATH, "r");
+      if (f && f.size() > 100) {  // Valid PEM is at least 100 bytes
         f.close();
-
-        // Basic validation - check for PEM markers
-        if (strstr(buffer, "-----BEGIN CERTIFICATE-----") == nullptr) {
-            return false;
-        }
-
-        return true;
+        // Note: For custom certs, caller should use loadCustomCertificate()
+        // This just indicates custom cert is available
+      }
     }
 
-    /**
-     * @brief Save custom certificate to LittleFS
-     * Can be used to update certificates via OTA manifest
-     * @param certPem PEM-encoded certificate string
-     * @return true if saved successfully
-     */
-    static bool saveCustomCertificate(const char* certPem) {
-        // Validate input
-        if (!certPem || strstr(certPem, "-----BEGIN CERTIFICATE-----") == nullptr) {
-            return false;
-        }
+    // Return appropriate bundled certificate
+    if (useFallback) {
+      return FALLBACK_ROOT_CA;
+    }
+    return GITHUB_ROOT_CA;
+  }
 
-        // Create directory if needed
-        if (!LittleFS.exists("/certs")) {
-            LittleFS.mkdir("/certs");
-        }
-
-        File f = LittleFS.open(CERT_CUSTOM_PATH, "w");
-        if (!f) {
-            return false;
-        }
-
-        size_t written = f.print(certPem);
-        f.close();
-
-        return written > 0;
+  /**
+   * @brief Load custom certificate from LittleFS
+   * @param buffer Pre-allocated buffer to store certificate
+   * @param bufferSize Size of buffer
+   * @return true if custom cert loaded, false otherwise
+   */
+  static bool loadCustomCertificate(char* buffer, size_t bufferSize) {
+    if (!LittleFS.exists(CERT_CUSTOM_PATH)) {
+      return false;
     }
 
-    /**
-     * @brief Check if certificates are near expiry
-     * @param year Current year (e.g., 2025)
-     * @return Warning message if near expiry, empty string otherwise
-     */
-    static String checkCertificateExpiry(int year) {
-        // USERTrust RSA expires 2028-12-31
-        if (year >= 2028) {
-            return "WARNING: USERTrust RSA certificate expires end of 2028!";
-        }
-        if (year >= 2027) {
-            return "NOTICE: USERTrust RSA certificate expires in less than 2 years";
-        }
-        return "";
+    File f = LittleFS.open(CERT_CUSTOM_PATH, "r");
+    if (!f) {
+      return false;
     }
 
-    /**
-     * @brief Get certificate info string
-     * @return Human-readable certificate info
-     */
-    static String getCertificateInfo() {
-        String info = "CA Certificates:\n";
-        info += "  Primary: USERTrust RSA+ECC (expires 2028/2038)\n";
-        info += "  Fallback: DigiCert G2 + ISRG X1 (expires 2038/2035)\n";
+    size_t bytesRead = f.readBytes(buffer, bufferSize - 1);
+    buffer[bytesRead] = '\0';
+    f.close();
 
-        if (LittleFS.exists(CERT_CUSTOM_PATH)) {
-            info += "  Custom: " + String(CERT_CUSTOM_PATH) + " (loaded)\n";
-        }
-
-        return info;
+    // Basic validation - check for PEM markers
+    if (strstr(buffer, "-----BEGIN CERTIFICATE-----") == nullptr) {
+      return false;
     }
+
+    return true;
+  }
+
+  /**
+   * @brief Save custom certificate to LittleFS
+   * Can be used to update certificates via OTA manifest
+   * @param certPem PEM-encoded certificate string
+   * @return true if saved successfully
+   */
+  static bool saveCustomCertificate(const char* certPem) {
+    // Validate input
+    if (!certPem || strstr(certPem, "-----BEGIN CERTIFICATE-----") == nullptr) {
+      return false;
+    }
+
+    // Create directory if needed
+    if (!LittleFS.exists("/certs")) {
+      LittleFS.mkdir("/certs");
+    }
+
+    File f = LittleFS.open(CERT_CUSTOM_PATH, "w");
+    if (!f) {
+      return false;
+    }
+
+    size_t written = f.print(certPem);
+    f.close();
+
+    return written > 0;
+  }
+
+  /**
+   * @brief Check if certificates are near expiry
+   * @param year Current year (e.g., 2025)
+   * @return Warning message if near expiry, empty string otherwise
+   */
+  static String checkCertificateExpiry(int year) {
+    // USERTrust RSA expires 2028-12-31
+    if (year >= 2028) {
+      return "WARNING: USERTrust RSA certificate expires end of 2028!";
+    }
+    if (year >= 2027) {
+      return "NOTICE: USERTrust RSA certificate expires in less than 2 years";
+    }
+    return "";
+  }
+
+  /**
+   * @brief Get certificate info string
+   * @return Human-readable certificate info
+   */
+  static String getCertificateInfo() {
+    String info = "CA Certificates:\n";
+    info += "  Primary: USERTrust RSA+ECC (expires 2028/2038)\n";
+    info += "  Fallback: DigiCert G2 + ISRG X1 (expires 2038/2035)\n";
+
+    if (LittleFS.exists(CERT_CUSTOM_PATH)) {
+      info += "  Custom: " + String(CERT_CUSTOM_PATH) + " (loaded)\n";
+    }
+
+    return info;
+  }
 };
 
-#endif // GITHUB_TRUST_ANCHORS_H
+#endif  // GITHUB_TRUST_ANCHORS_H

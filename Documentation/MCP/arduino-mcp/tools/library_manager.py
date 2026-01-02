@@ -18,9 +18,7 @@ class LibraryManager:
         """Run a shell command and return results."""
         try:
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
 
             stdout, stderr = await process.communicate()
@@ -28,8 +26,8 @@ class LibraryManager:
             return {
                 "success": process.returncode == 0,
                 "returncode": process.returncode,
-                "stdout": stdout.decode('utf-8', errors='replace'),
-                "stderr": stderr.decode('utf-8', errors='replace')
+                "stdout": stdout.decode("utf-8", errors="replace"),
+                "stderr": stderr.decode("utf-8", errors="replace"),
             }
 
         except FileNotFoundError:
@@ -37,15 +35,10 @@ class LibraryManager:
                 "success": False,
                 "error": "arduino-cli not found. Please install Arduino CLI.",
                 "stdout": "",
-                "stderr": ""
+                "stderr": "",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": ""
-            }
+            return {"success": False, "error": str(e), "stdout": "", "stderr": ""}
 
     async def search_library(self, query: str) -> Dict[str, Any]:
         """
@@ -72,7 +65,7 @@ class LibraryManager:
                         "version": lib.get("latest", {}).get("version", ""),
                         "author": lib.get("latest", {}).get("author", ""),
                         "description": lib.get("latest", {}).get("sentence", ""),
-                        "website": lib.get("latest", {}).get("website", "")
+                        "website": lib.get("latest", {}).get("website", ""),
                     }
                     libraries.append(lib_info)
 
@@ -81,23 +74,25 @@ class LibraryManager:
                     "query": query,
                     "results": libraries,
                     "count": len(libraries),
-                    "message": f"Found {len(libraries)} library(ies) matching '{query}'"
+                    "message": f"Found {len(libraries)} library(ies) matching '{query}'",
                 }
 
             except json.JSONDecodeError:
                 return {
                     "success": False,
                     "error": "Failed to parse library search results",
-                    "raw_output": result["stdout"]
+                    "raw_output": result["stdout"],
                 }
         else:
             return {
                 "success": False,
                 "error": "Library search failed",
-                "details": result.get("stderr", "")
+                "details": result.get("stderr", ""),
             }
 
-    async def install_library(self, library_name: str, version: str = "") -> Dict[str, Any]:
+    async def install_library(
+        self, library_name: str, version: str = ""
+    ) -> Dict[str, Any]:
         """
         Install an Arduino library.
 
@@ -126,7 +121,7 @@ class LibraryManager:
                 "library": library_name,
                 "version": version if version else "latest",
                 "message": f"Successfully installed {lib_spec}",
-                "output": result["stdout"]
+                "output": result["stdout"],
             }
         else:
             error_output = result["stderr"]
@@ -136,14 +131,14 @@ class LibraryManager:
                     "success": True,
                     "library": library_name,
                     "message": f"{library_name} is already installed",
-                    "already_installed": True
+                    "already_installed": True,
                 }
             else:
                 return {
                     "success": False,
                     "library": library_name,
                     "error": "Installation failed",
-                    "details": error_output
+                    "details": error_output,
                 }
 
     async def list_installed(self) -> Dict[str, Any]:
@@ -167,7 +162,7 @@ class LibraryManager:
                         "name": lib.get("library", {}).get("name", ""),
                         "version": lib.get("library", {}).get("version", ""),
                         "author": lib.get("library", {}).get("author", ""),
-                        "location": lib.get("library", {}).get("install_dir", "")
+                        "location": lib.get("library", {}).get("install_dir", ""),
                     }
                     libraries.append(lib_info)
 
@@ -175,20 +170,20 @@ class LibraryManager:
                     "success": True,
                     "libraries": libraries,
                     "count": len(libraries),
-                    "message": f"{len(libraries)} library(ies) installed"
+                    "message": f"{len(libraries)} library(ies) installed",
                 }
 
             except json.JSONDecodeError:
                 return {
                     "success": False,
                     "error": "Failed to parse installed libraries",
-                    "raw_output": result["stdout"]
+                    "raw_output": result["stdout"],
                 }
         else:
             return {
                 "success": False,
                 "error": "Failed to list libraries",
-                "details": result.get("stderr", "")
+                "details": result.get("stderr", ""),
             }
 
     async def update_library(self, library_name: str = "") -> Dict[str, Any]:
@@ -215,14 +210,14 @@ class LibraryManager:
                 "success": True,
                 "library": library_name if library_name else "all",
                 "message": "Update successful",
-                "output": result["stdout"]
+                "output": result["stdout"],
             }
         else:
             return {
                 "success": False,
                 "library": library_name if library_name else "all",
                 "error": "Update failed",
-                "details": result["stderr"]
+                "details": result["stderr"],
             }
 
     async def uninstall_library(self, library_name: str) -> Dict[str, Any]:
@@ -245,12 +240,12 @@ class LibraryManager:
             return {
                 "success": True,
                 "library": library_name,
-                "message": f"Successfully uninstalled {library_name}"
+                "message": f"Successfully uninstalled {library_name}",
             }
         else:
             return {
                 "success": False,
                 "library": library_name,
                 "error": "Uninstall failed",
-                "details": result["stderr"]
+                "details": result["stderr"],
             }

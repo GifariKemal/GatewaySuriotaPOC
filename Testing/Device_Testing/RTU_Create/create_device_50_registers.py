@@ -28,13 +28,26 @@ import sys
 import os
 
 # Add parent directory to path for shared module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from ble_common import (
-    BLEDeviceClient, check_dependencies,
-    print_header, print_section, print_step, print_success, print_error,
-    print_warning, print_info, print_data, print_progress_bar, print_table,
-    print_box, print_summary, countdown, Fore, Style
+    BLEDeviceClient,
+    check_dependencies,
+    print_header,
+    print_section,
+    print_step,
+    print_success,
+    print_error,
+    print_warning,
+    print_info,
+    print_data,
+    print_progress_bar,
+    print_table,
+    print_box,
+    print_summary,
+    countdown,
+    Fore,
+    Style,
 )
 
 # =============================================================================
@@ -53,7 +66,7 @@ DEVICE_CONFIG = {
     "baud_rate": 9600,
     "data_bits": 8,
     "parity": "None",
-    "stop_bits": 1
+    "stop_bits": 1,
 }
 
 # Register definitions
@@ -107,8 +120,9 @@ REGISTERS = [
     {"address": 46, "name": "Register_47", "desc": "Data Point 47", "unit": "unit"},
     {"address": 47, "name": "Register_48", "desc": "Data Point 48", "unit": "unit"},
     {"address": 48, "name": "Register_49", "desc": "Data Point 49", "unit": "unit"},
-    {"address": 49, "name": "Register_50", "desc": "Data Point 50", "unit": "unit"}
+    {"address": 49, "name": "Register_50", "desc": "Data Point 50", "unit": "unit"},
 ]
+
 
 # =============================================================================
 # Main Program
@@ -118,11 +132,7 @@ async def main():
     if not check_dependencies():
         return
 
-    print_header(
-        "RTU Device Creation",
-        f"{NUM_REGISTERS} Input Registers",
-        "2.0.0"
-    )
+    print_header("RTU Device Creation", f"{NUM_REGISTERS} Input Registers", "2.0.0")
 
     client = BLEDeviceClient()
     success_count = 0
@@ -145,16 +155,19 @@ async def main():
         # =====================================================================
         print_section("Step 2: Create RTU Device", "📟")
 
-        print_box("Device Configuration", {
-            "Name": DEVICE_NAME,
-            "Protocol": "Modbus RTU",
-            "Serial Port": "Port 1",
-            "Baud Rate": "9600",
-            "Format": "8N1",
-            "Slave ID": "1",
-            "Timeout": "5000 ms",
-            "Refresh Rate": "2000 ms"
-        })
+        print_box(
+            "Device Configuration",
+            {
+                "Name": DEVICE_NAME,
+                "Protocol": "Modbus RTU",
+                "Serial Port": "Port 1",
+                "Baud Rate": "9600",
+                "Format": "8N1",
+                "Slave ID": "1",
+                "Timeout": "5000 ms",
+                "Refresh Rate": "2000 ms",
+            },
+        )
 
         device_id = await client.create_device(DEVICE_CONFIG, DEVICE_NAME)
 
@@ -184,14 +197,16 @@ async def main():
                 "description": reg["desc"],
                 "unit": reg["unit"],
                 "scale": 1.0,
-                "offset": 0.0
+                "offset": 0.0,
             }
 
             # Progress bar
             progress = int((idx / NUM_REGISTERS) * 100)
             print_progress_bar(progress, prefix=f"Register {idx}/{NUM_REGISTERS}")
 
-            result = await client.create_register(device_id, register_config, reg["name"])
+            result = await client.create_register(
+                device_id, register_config, reg["name"]
+            )
 
             if result:
                 success_count += 1
@@ -215,8 +230,20 @@ async def main():
         headers = ["#", "Address", "Name", "Unit", "Status"]
         rows = []
         for idx, reg in enumerate(REGISTERS):
-            status = f"{Fore.GREEN}OK{Style.RESET_ALL}" if idx < success_count else f"{Fore.RED}FAIL{Style.RESET_ALL}"
-            rows.append([idx+1, reg["address"], reg["name"][:20], reg["unit"], "OK" if idx < success_count else "FAIL"])
+            status = (
+                f"{Fore.GREEN}OK{Style.RESET_ALL}"
+                if idx < success_count
+                else f"{Fore.RED}FAIL{Style.RESET_ALL}"
+            )
+            rows.append(
+                [
+                    idx + 1,
+                    reg["address"],
+                    reg["name"][:20],
+                    reg["unit"],
+                    "OK" if idx < success_count else "FAIL",
+                ]
+            )
 
         # Only show first 10 and last 5 if too many
         if len(rows) > 20:
@@ -226,13 +253,17 @@ async def main():
 
         print_table(headers, display_rows, "Register Status")
 
-        print_summary("Creation Complete", {
-            "Device ID": device_id,
-            "Device Name": DEVICE_NAME,
-            "Protocol": "Modbus RTU",
-            "Registers Created": f"{success_count}/{NUM_REGISTERS}",
-            "Success Rate": f"{(success_count/NUM_REGISTERS)*100:.1f}%"
-        }, all_success)
+        print_summary(
+            "Creation Complete",
+            {
+                "Device ID": device_id,
+                "Device Name": DEVICE_NAME,
+                "Protocol": "Modbus RTU",
+                "Registers Created": f"{success_count}/{NUM_REGISTERS}",
+                "Success Rate": f"{(success_count/NUM_REGISTERS)*100:.1f}%",
+            },
+            all_success,
+        )
 
         if all_success:
             print_info("All registers created successfully!")
@@ -252,9 +283,11 @@ async def main():
     except Exception as e:
         print_error(f"Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await client.disconnect()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

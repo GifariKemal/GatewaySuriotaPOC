@@ -1,17 +1,19 @@
 #ifndef BLE_MANAGER_H
 #define BLE_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include <ArduinoJson.h>
+#include <BLE2902.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
-#include <BLE2902.h>
-#include <ArduinoJson.h>
 #include <freertos/FreeRTOS.h>
-#include "UnifiedErrorCodes.h" // v1.0.2: For standardized error responses
-#include <freertos/task.h>
 #include <freertos/queue.h>
-#include <atomic> // v2.5.36: Thread-safe atomic operations
+#include <freertos/task.h>
+
+#include <atomic>  // v2.5.36: Thread-safe atomic operations
+
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "UnifiedErrorCodes.h"  // v1.0.2: For standardized error responses
 
 // BLE UUIDs
 #define SERVICE_UUID "00001830-0000-1000-8000-00805f9b34fb"
@@ -25,20 +27,26 @@
 // Impact: 21KB payload transmission time: 58s → 2.1s (28x faster)
 #define CHUNK_SIZE 244
 #define FRAGMENT_DELAY_MS 10
-#define COMMAND_BUFFER_SIZE 16384        // 16KB - supports CREATE/UPDATE with ~80 registers (v2.3.1)
-#define BLE_QUEUE_MONITOR_INTERVAL 60000 // Monitor queue every 60 seconds
+#define COMMAND_BUFFER_SIZE \
+  16384  // 16KB - supports CREATE/UPDATE with ~80 registers (v2.3.1)
+#define BLE_QUEUE_MONITOR_INTERVAL 60000  // Monitor queue every 60 seconds
 
 // FIXED BUG #21: Define named constants for magic numbers
-#define BLE_MTU_SAFE_DEFAULT 247       // Conservative MTU for all devices (iOS compatible)
-#define BLE_MTU_MAX_REQUESTED 517      // Maximum MTU we request (not all clients support)
-#define BLE_MTU_MAX_SUPPORTED 512      // Maximum MTU we actually support
-#define MAX_RESPONSE_SIZE_BYTES 204800 // 200KB maximum response size (for full_config backup with 50+ devices)
+#define BLE_MTU_SAFE_DEFAULT \
+  247  // Conservative MTU for all devices (iOS compatible)
+#define BLE_MTU_MAX_REQUESTED \
+  517  // Maximum MTU we request (not all clients support)
+#define BLE_MTU_MAX_SUPPORTED 512  // Maximum MTU we actually support
+#define MAX_RESPONSE_SIZE_BYTES \
+  204800  // 200KB maximum response size (for full_config backup with 50+
+          // devices)
 
 // ============================================
 // ADAPTIVE TRANSMISSION TUNING (v2.3.4 - Option 3)
 // ============================================
 // Problem: Intermittent BLE timeout on 9.4KB payloads (45 registers)
-// Root Cause: 20ms delay too aggressive for mobile OS (iOS/Android scheduler ~30-50ms quantum)
+// Root Cause: 20ms delay too aggressive for mobile OS (iOS/Android scheduler
+// ~30-50ms quantum)
 //
 // Solution: Option 3 - Conservative timing for maximum stability
 //   - Lower LARGE threshold: 5KB → 3KB (catch more medium payloads)
@@ -53,40 +61,45 @@
 //
 // Trade-off: Speed vs Stability - prioritize NO TIMEOUT over fast transmission
 // ============================================
-#define LARGE_PAYLOAD_THRESHOLD 3072   // 3KB threshold for adaptive chunking (medium payloads) - v2.3.4 Option 3: Lowered from 5KB for better stability
-#define XLARGE_PAYLOAD_THRESHOLD 51200 // 50KB threshold for extra-large payloads (backup/restore)
+#define LARGE_PAYLOAD_THRESHOLD \
+  3072  // 3KB threshold for adaptive chunking (medium payloads) - v2.3.4 Option
+        // 3: Lowered from 5KB for better stability
+#define XLARGE_PAYLOAD_THRESHOLD \
+  51200  // 50KB threshold for extra-large payloads (backup/restore)
 #define ADAPTIVE_CHUNK_SIZE_LARGE 100  // Chunk size for large payloads
-#define ADAPTIVE_DELAY_LARGE_MS 35     // Delay for large payload chunks (3-50KB) - v2.3.4 Option 3: Increased from 20ms for mobile OS compatibility
-#define ADAPTIVE_DELAY_XLARGE_MS 60    // Delay for extra-large payload chunks (>50KB) - v2.3.4 Option 3: Increased from 50ms for backup reliability
-#define ERROR_BUFFER_SIZE 256          // Buffer size for error messages
+#define ADAPTIVE_DELAY_LARGE_MS \
+  35  // Delay for large payload chunks (3-50KB) - v2.3.4 Option 3: Increased
+      // from 20ms for mobile OS compatibility
+#define ADAPTIVE_DELAY_XLARGE_MS \
+  60  // Delay for extra-large payload chunks (>50KB) - v2.3.4 Option 3:
+      // Increased from 50ms for backup reliability
+#define ERROR_BUFFER_SIZE 256  // Buffer size for error messages
 
 // MTU Negotiation Timeout Control
-enum MTUNegotiationState
-{
-  MTU_STATE_IDLE = 0,        // No negotiation in progress
-  MTU_STATE_INITIATING = 1,  // Negotiation just started
-  MTU_STATE_IN_PROGRESS = 2, // Waiting for MTU exchange
-  MTU_STATE_COMPLETED = 3,   // Successfully negotiated
-  MTU_STATE_TIMEOUT = 4,     // Negotiation timed out
-  MTU_STATE_FAILED = 5       // Negotiation failed after retries
+enum MTUNegotiationState {
+  MTU_STATE_IDLE = 0,         // No negotiation in progress
+  MTU_STATE_INITIATING = 1,   // Negotiation just started
+  MTU_STATE_IN_PROGRESS = 2,  // Waiting for MTU exchange
+  MTU_STATE_COMPLETED = 3,    // Successfully negotiated
+  MTU_STATE_TIMEOUT = 4,      // Negotiation timed out
+  MTU_STATE_FAILED = 5        // Negotiation failed after retries
 };
 
 // MTU Negotiation Control Structure
-struct MTUNegotiationControl
-{
+struct MTUNegotiationControl {
   MTUNegotiationState state = MTU_STATE_IDLE;
   unsigned long negotiationStartTime = 0;
-  unsigned long negotiationTimeoutMs = 5000; // Phase 4: 5-second timeout (optimized from 3s)
+  unsigned long negotiationTimeoutMs =
+      5000;  // Phase 4: 5-second timeout (optimized from 3s)
   uint8_t retryCount = 0;
-  uint8_t maxRetries = 2;     // Phase 4: 2 retries (optimized from 3, total ~15s)
-  uint16_t fallbackMTU = 100; // Fallback MTU size (min safe value)
+  uint8_t maxRetries = 2;  // Phase 4: 2 retries (optimized from 3, total ~15s)
+  uint16_t fallbackMTU = 100;  // Fallback MTU size (min safe value)
   bool usesFallback = false;
 };
 
 // MTU Metrics Structure
-struct MTUMetrics
-{
-  uint16_t mtuSize = 23; // Default BLE MTU
+struct MTUMetrics {
+  uint16_t mtuSize = 23;  // Default BLE MTU
   uint16_t maxMTUSize = 23;
   unsigned long lastNegotiationTime = 0;
   bool mtuNegotiated = false;
@@ -99,8 +112,7 @@ struct MTUMetrics
 };
 
 // Queue Metrics Structure
-struct QueueMetrics
-{
+struct QueueMetrics {
   uint32_t currentDepth = 0;
   uint32_t maxDepth = 0;
   uint32_t peakDepth = 0;
@@ -112,8 +124,7 @@ struct QueueMetrics
 };
 
 // Connection Metrics Structure
-struct ConnectionMetrics
-{
+struct ConnectionMetrics {
   unsigned long connectionStartTime = 0;
   unsigned long totalConnectionTime = 0;
   uint32_t fragmentsSent = 0;
@@ -123,51 +134,57 @@ struct ConnectionMetrics
   bool isConnected = false;
 };
 
-class CRUDHandler; // Forward declaration
+class CRUDHandler;  // Forward declaration
 
-class BLEManager : public BLEServerCallbacks, public BLECharacteristicCallbacks
-{
-private:
-  BLEServer *pServer;
-  BLEService *pService;
-  BLECharacteristic *pCommandChar;
-  BLECharacteristic *pResponseChar;
+class BLEManager : public BLEServerCallbacks,
+                   public BLECharacteristicCallbacks {
+ private:
+  BLEServer* pServer;
+  BLEService* pService;
+  BLECharacteristic* pCommandChar;
+  BLECharacteristic* pResponseChar;
 
   String serviceName;
-  CRUDHandler *handler;
+  CRUDHandler* handler;
 
   // Command processing
   char commandBuffer[COMMAND_BUFFER_SIZE];
   size_t commandBufferIndex;
-  std::atomic<bool> processing; // v2.5.36 FIX: Atomic for thread-safe access from BLE callbacks
-  unsigned long lastFragmentTime; // CRITICAL FIX: Track last fragment reception time for timeout detection
+  std::atomic<bool> processing;    // v2.5.36 FIX: Atomic for thread-safe access
+                                   // from BLE callbacks
+  unsigned long lastFragmentTime;  // CRITICAL FIX: Track last fragment
+                                   // reception time for timeout detection
   QueueHandle_t commandQueue;
   TaskHandle_t commandTaskHandle;
   TaskHandle_t streamTaskHandle;
-  TaskHandle_t metricsTaskHandle; // Metrics monitoring task
+  TaskHandle_t metricsTaskHandle;  // Metrics monitoring task
 
   // BLE Metrics
   MTUMetrics mtuMetrics;
   QueueMetrics queueMetrics;
   ConnectionMetrics connectionMetrics;
-  mutable SemaphoreHandle_t metricsMutex; // Thread-safe metrics access (mutable for const methods)
+  mutable SemaphoreHandle_t
+      metricsMutex;  // Thread-safe metrics access (mutable for const methods)
 
   // MTU Negotiation Timeout Control
   MTUNegotiationControl mtuControl;
-  mutable SemaphoreHandle_t mtuControlMutex; // Separate mutex for MTU control (mutable for const methods)
+  mutable SemaphoreHandle_t mtuControlMutex;  // Separate mutex for MTU control
+                                              // (mutable for const methods)
 
   // BLE Transmission Protection
-  SemaphoreHandle_t transmissionMutex; // Protect BLE transmission from race conditions
+  SemaphoreHandle_t
+      transmissionMutex;  // Protect BLE transmission from race conditions
 
   // Streaming State Control
-  bool streamingActive;                  // Flag to control streaming state
-  SemaphoreHandle_t streamingStateMutex; // Protect streaming state access
-  uint8_t activeTransmissions;           // Count of in-flight transmissions (protected by transmissionMutex)
+  bool streamingActive;                   // Flag to control streaming state
+  SemaphoreHandle_t streamingStateMutex;  // Protect streaming state access
+  uint8_t activeTransmissions;  // Count of in-flight transmissions (protected
+                                // by transmissionMutex)
 
   // FreeRTOS task functions
-  static void commandProcessingTask(void *parameter);
-  static void streamingTask(void *parameter);
-  static void metricsMonitorTask(void *parameter); // Metrics monitoring
+  static void commandProcessingTask(void* parameter);
+  static void streamingTask(void* parameter);
+  static void metricsMonitorTask(void* parameter);  // Metrics monitoring
 
   // Metrics methods
   void updateQueueMetrics();
@@ -186,42 +203,48 @@ private:
   void setMTUFallback(uint16_t fallbackSize);
 
   // Fragment handling
-  void receiveFragment(const String &fragment);
-  void handleCompleteCommand(const char *command);
-  void sendFragmented(const char *data, size_t length);
+  void receiveFragment(const String& fragment);
+  void handleCompleteCommand(const char* command);
+  void sendFragmented(const char* data, size_t length);
 
-public:
-  BLEManager(const String &name, CRUDHandler *cmdHandler);
+ public:
+  BLEManager(const String& name, CRUDHandler* cmdHandler);
   ~BLEManager();
 
   bool begin();
   void stop();
 
   // Response methods
-  void sendResponse(const JsonDocument &data);
-  void sendError(const String &message, const String &type = "unknown");
-  void sendSuccess(const String &type = "unknown");
+  void sendResponse(const JsonDocument& data);
+  void sendError(const String& message, const String& type = "unknown");
+  void sendSuccess(const String& type = "unknown");
 
   // v1.0.2: Standardized error responses with UnifiedErrorCode
   // These methods include: error_code, domain, severity, message, suggestion
-  void sendError(UnifiedErrorCode code, const String &customMessage = "", const String &type = "");
-  void sendError(UnifiedErrorCode code, const char *customMessage, const char *type = nullptr);
+  void sendError(UnifiedErrorCode code, const String& customMessage = "",
+                 const String& type = "");
+  void sendError(UnifiedErrorCode code, const char* customMessage,
+                 const char* type = nullptr);
 
   // v2.5.37: OTA Progress notification (push notifications during download)
-  void sendOtaProgressNotification(uint8_t progress, size_t bytesDownloaded, size_t totalBytes,
-                                   uint32_t bytesPerSecond, uint32_t etaSeconds,
-                                   const String& state, const String& networkMode);
+  void sendOtaProgressNotification(uint8_t progress, size_t bytesDownloaded,
+                                   size_t totalBytes, uint32_t bytesPerSecond,
+                                   uint32_t etaSeconds, const String& state,
+                                   const String& networkMode);
 
   // v2.5.41: Config Transfer Progress notifications (like OTA progress)
-  void sendConfigDownloadProgress(uint8_t percent, size_t bytesSent, size_t totalBytes);
-  void sendConfigUploadProgress(uint8_t percent, size_t bytesReceived, size_t totalExpected);
-  void sendConfigRestoreProgress(const String& step, uint8_t currentStep, uint8_t totalSteps);
+  void sendConfigDownloadProgress(uint8_t percent, size_t bytesSent,
+                                  size_t totalBytes);
+  void sendConfigUploadProgress(uint8_t percent, size_t bytesReceived,
+                                size_t totalExpected);
+  void sendConfigRestoreProgress(const String& step, uint8_t currentStep,
+                                 uint8_t totalSteps);
 
   // Metrics access methods
   MTUMetrics getMTUMetrics() const;
   QueueMetrics getQueueMetrics() const;
   ConnectionMetrics getConnectionMetrics() const;
-  void reportMetrics(JsonObject &metricsObj);
+  void reportMetrics(JsonObject& metricsObj);
 
   // Streaming state control methods
   void setStreamingActive(bool active);
@@ -229,9 +252,9 @@ public:
   bool waitForTransmissionsComplete(uint32_t timeoutMs = 2000);
 
   // BLE callbacks
-  void onConnect(BLEServer *pServer) override;
-  void onDisconnect(BLEServer *pServer) override;
-  void onWrite(BLECharacteristic *pCharacteristic) override;
+  void onConnect(BLEServer* pServer) override;
+  void onDisconnect(BLEServer* pServer) override;
+  void onWrite(BLECharacteristic* pCharacteristic) override;
 };
 
 #endif

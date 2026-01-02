@@ -14,6 +14,7 @@ COMMAND_CHAR_UUID = "11111111-1111-1111-1111-111111111101"
 RESPONSE_CHAR_UUID = "11111111-1111-1111-1111-111111111102"
 SERVICE_NAME = "SURIOTA GW"
 
+
 class MqttModesTestClient:
     def __init__(self):
         self.client = None
@@ -33,7 +34,9 @@ class MqttModesTestClient:
 
             self.client = BleakClient(device.address)
             await self.client.connect()
-            await self.client.start_notify(RESPONSE_CHAR_UUID, self._notification_handler)
+            await self.client.start_notify(
+                RESPONSE_CHAR_UUID, self._notification_handler
+            )
 
             self.connected = True
             print(f"✅ Connected to {device.name} ({device.address})")
@@ -52,7 +55,7 @@ class MqttModesTestClient:
 
     def _notification_handler(self, sender, data):
         """Handle incoming response fragments"""
-        fragment = data.decode('utf-8')
+        fragment = data.decode("utf-8")
         print(f"📥 Fragment: '{fragment}'")
 
         if fragment == "<END>":
@@ -74,14 +77,14 @@ class MqttModesTestClient:
         if not self.connected:
             raise RuntimeError("Not connected to BLE service")
 
-        json_str = json.dumps(command, separators=(',', ':'))
+        json_str = json.dumps(command, separators=(",", ":"))
         print(f"\n📤 Sending command ({len(json_str)} bytes):")
         print(json.dumps(command, indent=2))
 
         # Send with fragmentation
         chunk_size = 18
         for i in range(0, len(json_str), chunk_size):
-            chunk = json_str[i:i+chunk_size]
+            chunk = json_str[i : i + chunk_size]
             await self.client.write_gatt_char(COMMAND_CHAR_UUID, chunk.encode())
             await asyncio.sleep(0.1)
 
@@ -91,355 +94,352 @@ class MqttModesTestClient:
 
     async def read_mqtt_config(self):
         """Read current MQTT configuration"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("📖 Reading Current MQTT Configuration")
-        print("="*60)
-        await self.send_command({
-            "op": "read",
-            "type": "server_config"
-        })
+        print("=" * 60)
+        await self.send_command({"op": "read", "type": "server_config"})
 
     async def test_default_mode_seconds(self):
         """Test DEFAULT MODE with interval in seconds"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 1: Default Mode - 5 seconds interval")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_default",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "default",
-                    "default_mode": {
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "topic_publish": "v1/devices/me/telemetry",
-                        "topic_subscribe": "device/control",
-                        "interval": 5,
-                        "interval_unit": "s"
-                    },
-                    "customize_mode": {
-                        "enabled": False
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_default",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "default",
+                        "default_mode": {
+                            "enabled": True,
+                            "topic_publish": "v1/devices/me/telemetry",
+                            "topic_subscribe": "device/control",
+                            "interval": 5,
+                            "interval_unit": "s",
+                        },
+                        "customize_mode": {"enabled": False},
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_default_mode_milliseconds(self):
         """Test DEFAULT MODE with interval in milliseconds"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 2: Default Mode - 3000 milliseconds interval")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_default_ms",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "default",
-                    "default_mode": {
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "topic_publish": "v1/devices/me/telemetry",
-                        "topic_subscribe": "device/control",
-                        "interval": 3000,
-                        "interval_unit": "ms"
-                    },
-                    "customize_mode": {
-                        "enabled": False
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_default_ms",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "default",
+                        "default_mode": {
+                            "enabled": True,
+                            "topic_publish": "v1/devices/me/telemetry",
+                            "topic_subscribe": "device/control",
+                            "interval": 3000,
+                            "interval_unit": "ms",
+                        },
+                        "customize_mode": {"enabled": False},
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_default_mode_minutes(self):
         """Test DEFAULT MODE with interval in minutes"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 3: Default Mode - 1 minute interval")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_default_min",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "default",
-                    "default_mode": {
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "topic_publish": "v1/devices/me/telemetry",
-                        "topic_subscribe": "device/control",
-                        "interval": 1,
-                        "interval_unit": "m"
-                    },
-                    "customize_mode": {
-                        "enabled": False
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_default_min",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "default",
+                        "default_mode": {
+                            "enabled": True,
+                            "topic_publish": "v1/devices/me/telemetry",
+                            "topic_subscribe": "device/control",
+                            "interval": 1,
+                            "interval_unit": "m",
+                        },
+                        "customize_mode": {"enabled": False},
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_customize_mode_basic(self):
         """Test CUSTOMIZE MODE with 2 topics"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 4: Customize Mode - 2 Topics (Temperature & Pressure)")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_customize",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "customize",
-                    "default_mode": {
-                        "enabled": False
-                    },
-                    "customize_mode": {
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "custom_topics": [
-                            {
-                                "topic": "sensor/temperature",
-                                "registers": [1, 2, 3],
-                                "interval": 5,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "sensor/pressure",
-                                "registers": [4, 5],
-                                "interval": 10,
-                                "interval_unit": "s"
-                            }
-                        ]
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_customize",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "customize",
+                        "default_mode": {"enabled": False},
+                        "customize_mode": {
+                            "enabled": True,
+                            "custom_topics": [
+                                {
+                                    "topic": "sensor/temperature",
+                                    "registers": [1, 2, 3],
+                                    "interval": 5,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "sensor/pressure",
+                                    "registers": [4, 5],
+                                    "interval": 10,
+                                    "interval_unit": "s",
+                                },
+                            ],
+                        },
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_customize_mode_mixed_intervals(self):
         """Test CUSTOMIZE MODE with mixed interval units"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 5: Customize Mode - Mixed Intervals (ms/s/m)")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_mixed",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "customize",
-                    "default_mode": {
-                        "enabled": False
-                    },
-                    "customize_mode": {
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "custom_topics": [
-                            {
-                                "topic": "alerts/critical",
-                                "registers": [1, 5],
-                                "interval": 500,
-                                "interval_unit": "ms"
-                            },
-                            {
-                                "topic": "dashboard/realtime",
-                                "registers": [1, 2, 3, 4, 5, 6],
-                                "interval": 2,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "database/historical",
-                                "registers": [1, 2, 3, 4, 5, 6],
-                                "interval": 1,
-                                "interval_unit": "m"
-                            }
-                        ]
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_mixed",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "customize",
+                        "default_mode": {"enabled": False},
+                        "customize_mode": {
+                            "enabled": True,
+                            "custom_topics": [
+                                {
+                                    "topic": "alerts/critical",
+                                    "registers": [1, 5],
+                                    "interval": 500,
+                                    "interval_unit": "ms",
+                                },
+                                {
+                                    "topic": "dashboard/realtime",
+                                    "registers": [1, 2, 3, 4, 5, 6],
+                                    "interval": 2,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "database/historical",
+                                    "registers": [1, 2, 3, 4, 5, 6],
+                                    "interval": 1,
+                                    "interval_unit": "m",
+                                },
+                            ],
+                        },
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_customize_mode_register_overlap(self):
         """Test CUSTOMIZE MODE with register overlap"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 6: Customize Mode - Register Overlap")
-        print("="*60)
-        print("Register 1 → 3 topics | Register 2-3 → 2 topics | Register 4-5 → 1 topic")
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_overlap",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "customize",
-                    "default_mode": {
-                        "enabled": False
-                    },
-                    "customize_mode": {
+        print("=" * 60)
+        print(
+            "Register 1 → 3 topics | Register 2-3 → 2 topics | Register 4-5 → 1 topic"
+        )
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "custom_topics": [
-                            {
-                                "topic": "sensor/temperature",
-                                "registers": [1, 2, 3],
-                                "interval": 5,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "sensor/all_sensors",
-                                "registers": [1, 2, 3, 4, 5],
-                                "interval": 10,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "sensor/critical",
-                                "registers": [1],
-                                "interval": 2,
-                                "interval_unit": "s"
-                            }
-                        ]
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_overlap",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "customize",
+                        "default_mode": {"enabled": False},
+                        "customize_mode": {
+                            "enabled": True,
+                            "custom_topics": [
+                                {
+                                    "topic": "sensor/temperature",
+                                    "registers": [1, 2, 3],
+                                    "interval": 5,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "sensor/all_sensors",
+                                    "registers": [1, 2, 3, 4, 5],
+                                    "interval": 10,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "sensor/critical",
+                                    "registers": [1],
+                                    "interval": 2,
+                                    "interval_unit": "s",
+                                },
+                            ],
+                        },
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_warehouse_scenario(self):
         """Test WAREHOUSE scenario with categorized sensors"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 7: Warehouse Monitoring Scenario")
-        print("="*60)
+        print("=" * 60)
         print("Environment: Temp (Reg 1-4), Humidity (Reg 5-8)")
         print("Safety: Smoke (Reg 9-10), CO2 (Reg 11-12)")
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "warehouse_gateway",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "customize",
-                    "default_mode": {
-                        "enabled": False
-                    },
-                    "customize_mode": {
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
                         "enabled": True,
-                        "custom_topics": [
-                            {
-                                "topic": "warehouse/environment/temperature",
-                                "registers": [1, 2, 3, 4],
-                                "interval": 5,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "warehouse/environment/humidity",
-                                "registers": [5, 6, 7, 8],
-                                "interval": 5,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "warehouse/safety/smoke",
-                                "registers": [9, 10],
-                                "interval": 1,
-                                "interval_unit": "s"
-                            },
-                            {
-                                "topic": "warehouse/safety/co2",
-                                "registers": [11, 12],
-                                "interval": 2,
-                                "interval_unit": "s"
-                            }
-                        ]
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "warehouse_gateway",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "customize",
+                        "default_mode": {"enabled": False},
+                        "customize_mode": {
+                            "enabled": True,
+                            "custom_topics": [
+                                {
+                                    "topic": "warehouse/environment/temperature",
+                                    "registers": [1, 2, 3, 4],
+                                    "interval": 5,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "warehouse/environment/humidity",
+                                    "registers": [5, 6, 7, 8],
+                                    "interval": 5,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "warehouse/safety/smoke",
+                                    "registers": [9, 10],
+                                    "interval": 1,
+                                    "interval_unit": "s",
+                                },
+                                {
+                                    "topic": "warehouse/safety/co2",
+                                    "registers": [11, 12],
+                                    "interval": 2,
+                                    "interval_unit": "s",
+                                },
+                            ],
+                        },
                     }
-                }
+                },
             }
-        })
+        )
 
     async def test_disable_both_modes(self):
         """Test disabling both modes (MQTT stays connected)"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🧪 TEST 8: Disable Both Modes (MQTT Connected, No Publish)")
-        print("="*60)
-        await self.send_command({
-            "op": "update",
-            "type": "server_config",
-            "config": {
-                "mqtt_config": {
-                    "enabled": True,
-                    "broker_address": "demo.thingsboard.io",
-                    "broker_port": 1883,
-                    "client_id": "esp32_test_disabled",
-                    "username": "device_token",
-                    "password": "device_password",
-                    "keep_alive": 60,
-                    "clean_session": True,
-                    "use_tls": False,
-                    "publish_mode": "default",
-                    "default_mode": {
-                        "enabled": False
-                    },
-                    "customize_mode": {
-                        "enabled": False
+        print("=" * 60)
+        await self.send_command(
+            {
+                "op": "update",
+                "type": "server_config",
+                "config": {
+                    "mqtt_config": {
+                        "enabled": True,
+                        "broker_address": "demo.thingsboard.io",
+                        "broker_port": 1883,
+                        "client_id": "esp32_test_disabled",
+                        "username": "device_token",
+                        "password": "device_password",
+                        "keep_alive": 60,
+                        "clean_session": True,
+                        "use_tls": False,
+                        "publish_mode": "default",
+                        "default_mode": {"enabled": False},
+                        "customize_mode": {"enabled": False},
                     }
-                }
+                },
             }
-        })
+        )
 
 
 async def run_all_tests(client):
     """Run all test scenarios sequentially"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 RUNNING ALL MQTT PUBLISH MODES TESTS")
-    print("="*60)
+    print("=" * 60)
 
     tests = [
         ("Read Current Config", client.read_mqtt_config),
@@ -447,8 +447,14 @@ async def run_all_tests(client):
         ("Default Mode - Milliseconds", client.test_default_mode_milliseconds),
         ("Default Mode - Minutes", client.test_default_mode_minutes),
         ("Customize Mode - Basic", client.test_customize_mode_basic),
-        ("Customize Mode - Mixed Intervals", client.test_customize_mode_mixed_intervals),
-        ("Customize Mode - Register Overlap", client.test_customize_mode_register_overlap),
+        (
+            "Customize Mode - Mixed Intervals",
+            client.test_customize_mode_mixed_intervals,
+        ),
+        (
+            "Customize Mode - Register Overlap",
+            client.test_customize_mode_register_overlap,
+        ),
         ("Warehouse Scenario", client.test_warehouse_scenario),
         ("Disable Both Modes", client.test_disable_both_modes),
     ]
@@ -460,9 +466,9 @@ async def run_all_tests(client):
         await test_func()
         await asyncio.sleep(3)  # Wait between tests
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ ALL TESTS COMPLETED")
-    print("="*60)
+    print("=" * 60)
 
 
 async def interactive_menu():
@@ -475,9 +481,9 @@ async def interactive_menu():
             return
 
         while True:
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("🧪 MQTT PUBLISH MODES TEST MENU")
-            print("="*60)
+            print("=" * 60)
             print("DEFAULT MODE TESTS:")
             print("  1. Default Mode - 5 seconds")
             print("  2. Default Mode - 3000 milliseconds")
@@ -492,7 +498,7 @@ async def interactive_menu():
             print("  9. Read Current Configuration")
             print("  10. Run All Tests Sequentially")
             print("  0. Exit")
-            print("="*60)
+            print("=" * 60)
 
             choice = input("\n👉 Select option (0-10): ").strip()
 
@@ -529,13 +535,15 @@ async def interactive_menu():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await client.disconnect()
 
 
 if __name__ == "__main__":
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║     MQTT PUBLISH MODES TEST CLIENT                           ║
 ║     SRT-MGATE-1210 Firmware v2.0                            ║
@@ -546,6 +554,7 @@ if __name__ == "__main__":
 ║     • Interval Units (ms/s/m)                               ║
 ║     • Register Overlap                                      ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     asyncio.run(interactive_menu())

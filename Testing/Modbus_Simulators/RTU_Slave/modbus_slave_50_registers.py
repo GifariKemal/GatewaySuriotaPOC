@@ -34,28 +34,55 @@ import os
 import platform
 
 # Add parent directory to path for shared module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 try:
     from simulator_common import (
-        print_header, print_section, print_success, print_error, print_warning,
-        print_info, print_table, print_box, print_register_values,
-        print_connection_info, print_startup_banner, print_ready_message,
-        print_dependencies, Fore, Style
+        print_header,
+        print_section,
+        print_success,
+        print_error,
+        print_warning,
+        print_info,
+        print_table,
+        print_box,
+        print_register_values,
+        print_connection_info,
+        print_startup_banner,
+        print_ready_message,
+        print_dependencies,
+        Fore,
+        Style,
     )
+
     COMMON_AVAILABLE = True
 except ImportError:
     COMMON_AVAILABLE = False
-    def print_header(t, s="", v=""): print(f"\n=== {t} ===")
-    def print_section(t, i=""): print(f"\n--- {t} ---")
-    def print_success(m): print(f"[OK] {m}")
-    def print_error(m): print(f"[ERROR] {m}")
-    def print_warning(m): print(f"[WARN] {m}")
-    def print_info(m): print(f"[INFO] {m}")
+
+    def print_header(t, s="", v=""):
+        print(f"\n=== {t} ===")
+
+    def print_section(t, i=""):
+        print(f"\n--- {t} ---")
+
+    def print_success(m):
+        print(f"[OK] {m}")
+
+    def print_error(m):
+        print(f"[ERROR] {m}")
+
+    def print_warning(m):
+        print(f"[WARN] {m}")
+
+    def print_info(m):
+        print(f"[INFO] {m}")
+
     class Fore:
         RED = GREEN = YELLOW = CYAN = MAGENTA = WHITE = BLUE = RESET = ""
+
     class Style:
         BRIGHT = DIM = RESET_ALL = ""
+
 
 # =============================================================================
 # pymodbus Import (2.x and 3.x compatible)
@@ -63,12 +90,18 @@ except ImportError:
 try:
     try:
         from pymodbus.server import StartSerialServer
+
         PYMODBUS_VERSION = 3
     except ImportError:
         from pymodbus.server.sync import StartSerialServer
+
         PYMODBUS_VERSION = 2
 
-    from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
+    from pymodbus.datastore import (
+        ModbusSequentialDataBlock,
+        ModbusSlaveContext,
+        ModbusServerContext,
+    )
 
     try:
         from pymodbus.transaction import ModbusRtuFramer
@@ -85,14 +118,14 @@ except ImportError as e:
 # =============================================================================
 # Configuration
 # =============================================================================
-if platform.system() == 'Windows':
-    SERIAL_PORT = 'COM8'
+if platform.system() == "Windows":
+    SERIAL_PORT = "COM8"
 else:
-    SERIAL_PORT = '/dev/ttyUSB0'
+    SERIAL_PORT = "/dev/ttyUSB0"
 
 BAUD_RATE = 9600
 DATA_BITS = 8
-PARITY = 'N'
+PARITY = "N"
 STOP_BITS = 1
 SLAVE_ID = 1
 NUM_REGISTERS = 50
@@ -148,7 +181,7 @@ REGISTER_INFO = {
     46: {"name": "Frequency_5", "unit": "Hz", "min": 48, "max": 52, "initial": 50},
     47: {"name": "PowerFactor_5", "unit": "%", "min": 0, "max": 100, "initial": 95},
     48: {"name": "Energy_5", "unit": "kWh", "min": 0, "max": 9999, "initial": 100},
-    49: {"name": "Flow_5", "unit": "L/min", "min": 0, "max": 100, "initial": 50}
+    49: {"name": "Flow_5", "unit": "L/min", "min": 0, "max": 100, "initial": 50},
 }
 
 # Auto-update configuration
@@ -159,11 +192,12 @@ UPDATE_INTERVAL = 2.0
 # Logging
 # =============================================================================
 logging.basicConfig(
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format="%(asctime)s [%(levelname)s] %(message)s",
     level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
+
 
 # =============================================================================
 # Serial Port Check
@@ -172,29 +206,51 @@ def verify_serial_port():
     """Check if serial port is available"""
     try:
         import serial.tools.list_ports
+
         ports = serial.tools.list_ports.comports()
         available = [p.device for p in ports]
 
-        print_section("Available Serial Ports", "[COM]") if COMMON_AVAILABLE else print("\n--- Serial Ports ---")
+        (
+            print_section("Available Serial Ports", "[COM]")
+            if COMMON_AVAILABLE
+            else print("\n--- Serial Ports ---")
+        )
 
         if not available:
-            print_warning("No serial ports detected!") if COMMON_AVAILABLE else print("[WARN] No ports found")
+            (
+                print_warning("No serial ports detected!")
+                if COMMON_AVAILABLE
+                else print("[WARN] No ports found")
+            )
             return False
 
         for port in ports:
             if port.device == SERIAL_PORT:
-                print_success(f"{port.device}: {port.description}") if COMMON_AVAILABLE else print(f"[OK] {port.device}")
+                (
+                    print_success(f"{port.device}: {port.description}")
+                    if COMMON_AVAILABLE
+                    else print(f"[OK] {port.device}")
+                )
             else:
-                print_info(f"{port.device}: {port.description}") if COMMON_AVAILABLE else print(f"[INFO] {port.device}")
+                (
+                    print_info(f"{port.device}: {port.description}")
+                    if COMMON_AVAILABLE
+                    else print(f"[INFO] {port.device}")
+                )
 
         if SERIAL_PORT not in available:
-            print_warning(f"Configured port '{SERIAL_PORT}' not found!") if COMMON_AVAILABLE else print(f"[WARN] {SERIAL_PORT} not found")
+            (
+                print_warning(f"Configured port '{SERIAL_PORT}' not found!")
+                if COMMON_AVAILABLE
+                else print(f"[WARN] {SERIAL_PORT} not found")
+            )
             return False
 
         return True
     except Exception as e:
         log.warning(f"Could not verify serial port: {e}")
         return True
+
 
 # =============================================================================
 # Register Updater Thread
@@ -234,20 +290,26 @@ class RegisterUpdater(threading.Thread):
 
                 values = slave_context.getValues(4, 0, count=NUM_REGISTERS)
                 print(f"\n{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
-                print(f"  {Fore.WHITE}{Style.BRIGHT}Update #{self.update_count:04d} - Slave ID: {SLAVE_ID}{Style.RESET_ALL}")
+                print(
+                    f"  {Fore.WHITE}{Style.BRIGHT}Update #{self.update_count:04d} - Slave ID: {SLAVE_ID}{Style.RESET_ALL}"
+                )
                 print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
 
                 for addr in range(min(10, NUM_REGISTERS)):
                     if addr in REGISTER_INFO:
                         info = REGISTER_INFO[addr]
                         value = values[addr]
-                        print(f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info['unit']}")
+                        print(
+                            f"  [{addr:2d}] {info['name'][:15]:<15s}: {value:5d} {info['unit']}"
+                        )
 
                 if NUM_REGISTERS > 10:
                     print(f"  ... and {NUM_REGISTERS - 10} more registers")
 
                 print(f"{Fore.CYAN}{'='*70}{Style.RESET_ALL}")
-                print(f"  {Fore.GREEN}Waiting for Modbus RTU requests on {SERIAL_PORT}...{Style.RESET_ALL}\n")
+                print(
+                    f"  {Fore.GREEN}Waiting for Modbus RTU requests on {SERIAL_PORT}...{Style.RESET_ALL}\n"
+                )
 
             except Exception as e:
                 log.error(f"Update error: {e}")
@@ -255,24 +317,37 @@ class RegisterUpdater(threading.Thread):
     def stop(self):
         self.running = False
 
+
 # =============================================================================
 # Main Server
 # =============================================================================
 def run_server():
     """Setup and run the Modbus RTU server"""
 
-    print_startup_banner("RTU", NUM_REGISTERS) if COMMON_AVAILABLE else print(f"\n=== RTU Simulator - {NUM_REGISTERS} Registers ===")
+    (
+        print_startup_banner("RTU", NUM_REGISTERS)
+        if COMMON_AVAILABLE
+        else print(f"\n=== RTU Simulator - {NUM_REGISTERS} Registers ===")
+    )
 
     if COMMON_AVAILABLE:
         print_dependencies()
 
     if not verify_serial_port():
-        print_warning("Serial port verification failed") if COMMON_AVAILABLE else print("[WARN] Port check failed")
+        (
+            print_warning("Serial port verification failed")
+            if COMMON_AVAILABLE
+            else print("[WARN] Port check failed")
+        )
         response = input("\nContinue anyway? (y/n): ")
-        if response.lower() != 'y':
+        if response.lower() != "y":
             return
 
-    print_section("Configuration", "[CFG]") if COMMON_AVAILABLE else print("\n--- Configuration ---")
+    (
+        print_section("Configuration", "[CFG]")
+        if COMMON_AVAILABLE
+        else print("\n--- Configuration ---")
+    )
 
     config = {
         "port": SERIAL_PORT,
@@ -281,7 +356,7 @@ def run_server():
         "parity": PARITY,
         "stop_bits": STOP_BITS,
         "slave_id": SLAVE_ID,
-        "num_registers": NUM_REGISTERS
+        "num_registers": NUM_REGISTERS,
     }
 
     if COMMON_AVAILABLE:
@@ -296,28 +371,38 @@ def run_server():
     input_registers = ModbusSequentialDataBlock(0, initial_values)
 
     slave_context = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [0]*100),
-        co=ModbusSequentialDataBlock(0, [0]*100),
-        hr=ModbusSequentialDataBlock(0, [0]*100),
+        di=ModbusSequentialDataBlock(0, [0] * 100),
+        co=ModbusSequentialDataBlock(0, [0] * 100),
+        hr=ModbusSequentialDataBlock(0, [0] * 100),
         ir=input_registers,
-        zero_mode=True
+        zero_mode=True,
     )
 
-    server_context = ModbusServerContext(
-        slaves={SLAVE_ID: slave_context},
-        single=False
-    )
+    server_context = ModbusServerContext(slaves={SLAVE_ID: slave_context}, single=False)
 
-    print_section("Initial Values", "[REG]") if COMMON_AVAILABLE else print("\n--- Initial Values ---")
+    (
+        print_section("Initial Values", "[REG]")
+        if COMMON_AVAILABLE
+        else print("\n--- Initial Values ---")
+    )
 
     headers = ["Addr", "Name", "Value", "Unit", "Range"]
     rows = []
     for addr in range(min(15, NUM_REGISTERS)):
         info = REGISTER_INFO[addr]
-        rows.append([addr, info["name"][:15], info["initial"], info["unit"], f"{info['min']}-{info['max']}"])
+        rows.append(
+            [
+                addr,
+                info["name"][:15],
+                info["initial"],
+                info["unit"],
+                f"{info['min']}-{info['max']}",
+            ]
+        )
 
     if COMMON_AVAILABLE:
         from simulator_common import print_table
+
         print_table(headers, rows)
     else:
         for row in rows:
@@ -330,7 +415,11 @@ def run_server():
     if AUTO_UPDATE:
         updater = RegisterUpdater(server_context, SLAVE_ID)
         updater.start()
-        print_info(f"Auto-update enabled ({UPDATE_INTERVAL}s interval)") if COMMON_AVAILABLE else print(f"[INFO] Auto-update: {UPDATE_INTERVAL}s")
+        (
+            print_info(f"Auto-update enabled ({UPDATE_INTERVAL}s interval)")
+            if COMMON_AVAILABLE
+            else print(f"[INFO] Auto-update: {UPDATE_INTERVAL}s")
+        )
 
     if COMMON_AVAILABLE:
         print_ready_message("RTU", config)
@@ -339,7 +428,9 @@ def run_server():
         print("[INFO] Press Ctrl+C to stop")
 
     try:
-        log.info(f"Starting RTU server on {SERIAL_PORT} (pymodbus {PYMODBUS_VERSION}.x)")
+        log.info(
+            f"Starting RTU server on {SERIAL_PORT} (pymodbus {PYMODBUS_VERSION}.x)"
+        )
         StartSerialServer(
             context=server_context,
             framer=ModbusRtuFramer,
@@ -348,7 +439,7 @@ def run_server():
             bytesize=DATA_BITS,
             parity=PARITY,
             stopbits=STOP_BITS,
-            timeout=1
+            timeout=1,
         )
     except KeyboardInterrupt:
         print("\n\n[INFO] Shutting down...")
@@ -361,9 +452,16 @@ def run_server():
         if updater:
             updater.stop()
         if "could not open port" in str(e).lower():
-            print_error(f"Could not open {SERIAL_PORT}") if COMMON_AVAILABLE else print(f"[ERROR] Port error")
-            print_info("Check: USB adapter connected, port not in use, correct port number")
+            (
+                print_error(f"Could not open {SERIAL_PORT}")
+                if COMMON_AVAILABLE
+                else print(f"[ERROR] Port error")
+            )
+            print_info(
+                "Check: USB adapter connected, port not in use, correct port number"
+            )
         raise
+
 
 # =============================================================================
 # Main

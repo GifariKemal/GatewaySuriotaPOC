@@ -13,15 +13,16 @@ Date: 2025-11-17
 import sys
 import time
 
-print("\n" + "="*70)
+print("\n" + "=" * 70)
 print("  MODBUS RTU SERIAL CONNECTION DIAGNOSTIC")
-print("="*70)
+print("=" * 70)
 
 # Step 1: Check pyserial
 print("\n[STEP 1] Checking pyserial installation...")
 try:
     import serial
     import serial.tools.list_ports
+
     print(f"✓ pyserial {serial.VERSION} installed")
 except ImportError as e:
     print(f"✗ pyserial not installed: {e}")
@@ -62,12 +63,7 @@ if selected_port not in port_list:
 print(f"\n[STEP 4] Testing port {selected_port}...")
 try:
     ser = serial.Serial(
-        port=selected_port,
-        baudrate=9600,
-        bytesize=8,
-        parity='N',
-        stopbits=1,
-        timeout=1
+        port=selected_port, baudrate=9600, bytesize=8, parity="N", stopbits=1, timeout=1
     )
     print(f"✓ Port {selected_port} opened successfully")
     print(f"  Baudrate: {ser.baudrate}")
@@ -111,20 +107,23 @@ except serial.SerialException as e:
 print("\n[STEP 6] Checking pymodbus installation...")
 try:
     import pymodbus
+
     print(f"✓ pymodbus {pymodbus.__version__} installed")
 except ImportError:
     print("✗ pymodbus not installed")
     print("  Run: pip install pymodbus")
 
 # Summary
-print("\n" + "="*70)
+print("\n" + "=" * 70)
 print("  DIAGNOSTIC SUMMARY")
-print("="*70)
+print("=" * 70)
 print(f"✓ Python serial libraries: OK")
 print(f"✓ Available ports: {len(ports)}")
 print(f"✓ Selected port: {selected_port}")
-print(f"{'✓' if data_received else '✗'} Data received: {'YES' if data_received else 'NO'}")
-print("="*70)
+print(
+    f"{'✓' if data_received else '✗'} Data received: {'YES' if data_received else 'NO'}"
+)
+print("=" * 70)
 
 print("\n[NEXT STEPS]")
 if data_received:
@@ -144,4 +143,4 @@ else:
     print("     python modbus_slave_5_registers.py")
     print("  4. Check with multimeter/oscilloscope on A+/B- pins")
 
-print("\n" + "="*70 + "\n")
+print("\n" + "=" * 70 + "\n")

@@ -1,14 +1,25 @@
 # Modbus Test Values untuk SURIOTA Gateway
 
-Dokumen ini berisi daftar nilai yang direkomendasikan untuk pengujian berbagai tipe data Modbus pada firmware SURIOTA Gateway. Untuk setiap tipe data dan nilai yang diuji, disediakan:
-*   **Set Value:** Nilai numerik atau floating-point yang ingin Anda tulis ke perangkat Modbus.
-*   **Modbus Registers (R1, R2, ...):** Representasi heksadesimal dari register 16-bit yang harus Anda tulis ke perangkat Modbus. Ini adalah nilai yang akan dibaca oleh gateway Anda. Urutan register ini mengikuti urutan pembacaan Modbus (R1 adalah register pertama, R2 kedua, dst.).
-*   **Expected Read Value:** Nilai yang diharapkan dibaca oleh gateway Anda setelah pemrosesan.
+Dokumen ini berisi daftar nilai yang direkomendasikan untuk pengujian berbagai
+tipe data Modbus pada firmware SURIOTA Gateway. Untuk setiap tipe data dan nilai
+yang diuji, disediakan:
+
+- **Set Value:** Nilai numerik atau floating-point yang ingin Anda tulis ke
+  perangkat Modbus.
+- **Modbus Registers (R1, R2, ...):** Representasi heksadesimal dari register
+  16-bit yang harus Anda tulis ke perangkat Modbus. Ini adalah nilai yang akan
+  dibaca oleh gateway Anda. Urutan register ini mengikuti urutan pembacaan
+  Modbus (R1 adalah register pertama, R2 kedua, dst.).
+- **Expected Read Value:** Nilai yang diharapkan dibaca oleh gateway Anda
+  setelah pemrosesan.
 
 **Catatan Penting:**
 
-*   **Endianness Register 16-bit:** Setiap register 16-bit (R1, R2, dll.) diasumsikan dalam format Big-Endian (MSB pertama).
-*   **Presisi Floating-Point:** Untuk `DOUBLE64` dan `INT64`/`UINT64` yang sangat besar, nilai yang dibaca mungkin sedikit berbeda dari `Set Value` karena konversi presisi floating-point. Ini adalah batasan yang telah didiskusikan.
+- **Endianness Register 16-bit:** Setiap register 16-bit (R1, R2, dll.)
+  diasumsikan dalam format Big-Endian (MSB pertama).
+- **Presisi Floating-Point:** Untuk `DOUBLE64` dan `INT64`/`UINT64` yang sangat
+  besar, nilai yang dibaca mungkin sedikit berbeda dari `Set Value` karena
+  konversi presisi floating-point. Ini adalah batasan yang telah didiskusikan.
 
 ---
 
@@ -306,7 +317,8 @@ Setiap data type memiliki 4 varian endianness:
 
 - **BE (Big-Endian):** Register dalam urutan standar, MSB pertama
 - **LE (Little-Endian):** Semua byte di-reverse
-- **BS (Byte Swap):** Byte dalam setiap register di-swap, urutan register tetap BE
+- **BS (Byte Swap):** Byte dalam setiap register di-swap, urutan register tetap
+  BE
 
 ### Presisi dan Batasan
 

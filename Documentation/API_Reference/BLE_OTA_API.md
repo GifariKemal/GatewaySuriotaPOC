@@ -22,27 +22,28 @@
 
 ## 1. Overview
 
-BLE OTA allows firmware updates via Bluetooth Low Energy without WiFi/Internet connectivity.
+BLE OTA allows firmware updates via Bluetooth Low Energy without WiFi/Internet
+connectivity.
 
 ### Use Cases
 
-| Scenario | Description |
-|----------|-------------|
-| **Offline Update** | Update devices in locations without internet |
+| Scenario               | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| **Offline Update**     | Update devices in locations without internet   |
 | **Emergency Recovery** | Restore devices when HTTPS certificates expire |
-| **Field Service** | Technicians update devices on-site |
-| **Development** | Quick firmware iteration during development |
+| **Field Service**      | Technicians update devices on-site             |
+| **Development**        | Quick firmware iteration during development    |
 
 ### Specifications
 
-| Parameter | Value |
-|-----------|-------|
-| **BLE Version** | 4.2+ / 5.0 |
-| **MTU Size** | 247-512 bytes (negotiated) |
-| **Chunk Size** | 240 bytes (default) |
-| **Max Firmware Size** | 3 MB |
-| **Transfer Speed** | ~15-25 KB/s |
-| **Estimated Time (2MB)** | 80-130 seconds |
+| Parameter                | Value                      |
+| ------------------------ | -------------------------- |
+| **BLE Version**          | 4.2+ / 5.0                 |
+| **MTU Size**             | 247-512 bytes (negotiated) |
+| **Chunk Size**           | 240 bytes (default)        |
+| **Max Firmware Size**    | 3 MB                       |
+| **Transfer Speed**       | ~15-25 KB/s                |
+| **Estimated Time (2MB)** | 80-130 seconds             |
 
 ---
 
@@ -83,18 +84,18 @@ python ble_ota_upload.py -f SRT-MGATE-1210_v2.5.16.bin
 
 ### OTA Service
 
-| Property | Value |
-|----------|-------|
+| Property         | Value                                  |
+| ---------------- | -------------------------------------- |
 | **Service UUID** | `0000FF00-0000-1000-8000-00805F9B34FB` |
-| **Service Name** | SRT-MGATE OTA |
+| **Service Name** | SRT-MGATE OTA                          |
 
 ### Characteristics
 
-| Characteristic | UUID | Properties | Description |
-|----------------|------|------------|-------------|
-| **Control** | `0000FF01-...` | Write | Send commands (START, VERIFY, APPLY, ABORT, STATUS) |
-| **Data** | `0000FF02-...` | Write No Response | Send firmware chunks (high speed) |
-| **Status** | `0000FF03-...` | Read, Notify | Receive progress and status updates |
+| Characteristic | UUID           | Properties        | Description                                         |
+| -------------- | -------------- | ----------------- | --------------------------------------------------- |
+| **Control**    | `0000FF01-...` | Write             | Send commands (START, VERIFY, APPLY, ABORT, STATUS) |
+| **Data**       | `0000FF02-...` | Write No Response | Send firmware chunks (high speed)                   |
+| **Status**     | `0000FF03-...` | Read, Notify      | Receive progress and status updates                 |
 
 ### UUID Constants
 
@@ -128,12 +129,12 @@ Initialize OTA transfer.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x50` |
-| 1 | 4 | Size | Total firmware size (little-endian) |
-| 5 | 2 | ChunkSize | Expected chunk size (default: 240) |
-| 7 | 32 | SHA256 | Firmware SHA256 hash |
+| Offset | Size | Field     | Description                         |
+| ------ | ---- | --------- | ----------------------------------- |
+| 0      | 1    | Command   | `0x50`                              |
+| 1      | 4    | Size      | Total firmware size (little-endian) |
+| 5      | 2    | ChunkSize | Expected chunk size (default: 240)  |
+| 7      | 32   | SHA256    | Firmware SHA256 hash                |
 
 **Total Length:** 39 bytes
 
@@ -174,11 +175,11 @@ Send firmware chunk.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x51` |
-| 1 | 2 | SeqNum | Chunk sequence number (0, 1, 2, ...) |
-| 3 | N | Data | Firmware chunk data (max 240 bytes) |
+| Offset | Size | Field   | Description                          |
+| ------ | ---- | ------- | ------------------------------------ |
+| 0      | 1    | Command | `0x51`                               |
+| 1      | 2    | SeqNum  | Chunk sequence number (0, 1, 2, ...) |
+| 3      | N    | Data    | Firmware chunk data (max 240 bytes)  |
 
 **Total Length:** 3 + N bytes (max 243)
 
@@ -193,6 +194,7 @@ cmd += chunk
 ```
 
 **Notes:**
+
 - Use **Write Without Response** for speed
 - Device sends status notification every 20 chunks
 - Add small delay (10ms) every 10 chunks to prevent buffer overflow
@@ -205,14 +207,15 @@ Verify received firmware.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x52` |
-| 1 | 32 | SHA256 | Expected SHA256 hash (optional if sent in START) |
+| Offset | Size | Field   | Description                                      |
+| ------ | ---- | ------- | ------------------------------------------------ |
+| 0      | 1    | Command | `0x52`                                           |
+| 1      | 32   | SHA256  | Expected SHA256 hash (optional if sent in START) |
 
 **Total Length:** 1 or 33 bytes
 
 **Response:**
+
 - Success: State = COMPLETE (4)
 - Failure: State = ERROR (5), ErrorCode = CHECKSUM_FAIL (0x05)
 
@@ -224,13 +227,14 @@ Apply update and reboot.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x53` |
+| Offset | Size | Field   | Description |
+| ------ | ---- | ------- | ----------- |
+| 0      | 1    | Command | `0x53`      |
 
 **Total Length:** 1 byte
 
 **Behavior:**
+
 1. Device finalizes OTA partition
 2. Sets boot partition to new firmware
 3. Sends success response
@@ -246,11 +250,12 @@ Cancel ongoing transfer.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x54` |
+| Offset | Size | Field   | Description |
+| ------ | ---- | ------- | ----------- |
+| 0      | 1    | Command | `0x54`      |
 
 **Behavior:**
+
 - Aborts OTA write operation
 - Resets transfer state to IDLE
 - No reboot
@@ -263,9 +268,9 @@ Request current status.
 
 **Request Format:**
 
-| Offset | Size | Field | Description |
-|--------|------|-------|-------------|
-| 0 | 1 | Command | `0x55` |
+| Offset | Size | Field   | Description |
+| ------ | ---- | ------- | ----------- |
+| 0      | 1    | Command | `0x55`      |
 
 **Response:** Status notification with current progress.
 
@@ -277,38 +282,38 @@ Status notifications are sent via the **Status Characteristic** (0000FF03-...).
 
 ### Status Notification Structure
 
-| Offset | Size | Field | Type | Description |
-|--------|------|-------|------|-------------|
-| 0 | 1 | State | uint8 | Current OTA state |
-| 1 | 1 | Progress | uint8 | Progress percentage (0-100) |
-| 2 | 4 | BytesReceived | uint32 | Bytes received so far |
-| 6 | 4 | TotalBytes | uint32 | Total expected bytes |
-| 10 | 1 | ErrorCode | uint8 | Error code (0 = OK) |
+| Offset | Size | Field         | Type   | Description                 |
+| ------ | ---- | ------------- | ------ | --------------------------- |
+| 0      | 1    | State         | uint8  | Current OTA state           |
+| 1      | 1    | Progress      | uint8  | Progress percentage (0-100) |
+| 2      | 4    | BytesReceived | uint32 | Bytes received so far       |
+| 6      | 4    | TotalBytes    | uint32 | Total expected bytes        |
+| 10     | 1    | ErrorCode     | uint8  | Error code (0 = OK)         |
 
 **Total Length:** 11 bytes
 
 ### State Values
 
-| Value | Name | Description |
-|-------|------|-------------|
-| 0 | IDLE | Ready for OTA |
-| 1 | RECEIVING | Receiving firmware chunks |
-| 2 | VERIFYING | Verifying firmware integrity |
-| 3 | APPLYING | Writing to boot partition |
-| 4 | COMPLETE | Ready to apply/reboot |
-| 5 | ERROR | Error occurred |
+| Value | Name      | Description                  |
+| ----- | --------- | ---------------------------- |
+| 0     | IDLE      | Ready for OTA                |
+| 1     | RECEIVING | Receiving firmware chunks    |
+| 2     | VERIFYING | Verifying firmware integrity |
+| 3     | APPLYING  | Writing to boot partition    |
+| 4     | COMPLETE  | Ready to apply/reboot        |
+| 5     | ERROR     | Error occurred               |
 
 ### Error Codes
 
-| Value | Name | Description |
-|-------|------|-------------|
-| 0x00 | OK | Success |
-| 0x01 | ERROR | General error |
-| 0x02 | BUSY | Transfer already in progress |
-| 0x03 | INVALID_STATE | Command not valid in current state |
-| 0x04 | SIZE_ERROR | Invalid firmware size |
-| 0x05 | CHECKSUM_FAIL | SHA256 verification failed |
-| 0x06 | FLASH_ERROR | Flash write/erase error |
+| Value | Name          | Description                        |
+| ----- | ------------- | ---------------------------------- |
+| 0x00  | OK            | Success                            |
+| 0x01  | ERROR         | General error                      |
+| 0x02  | BUSY          | Transfer already in progress       |
+| 0x03  | INVALID_STATE | Command not valid in current state |
+| 0x04  | SIZE_ERROR    | Invalid firmware size              |
+| 0x05  | CHECKSUM_FAIL | SHA256 verification failed         |
+| 0x06  | FLASH_ERROR   | Flash write/erase error            |
 
 ### Parsing Example (Java)
 
@@ -392,13 +397,13 @@ public void onCharacteristicChanged(BluetoothGatt gatt,
 
 ### Common Errors
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| BUSY | Previous transfer not completed | Send OTA_ABORT first |
-| SIZE_ERROR | Firmware > 3MB or size = 0 | Check file size |
-| CHECKSUM_FAIL | Data corrupted during transfer | Retry transfer |
-| FLASH_ERROR | Flash write failed | Check device storage |
-| Timeout | No data received for 30s | Retry or check connection |
+| Error         | Cause                           | Solution                  |
+| ------------- | ------------------------------- | ------------------------- |
+| BUSY          | Previous transfer not completed | Send OTA_ABORT first      |
+| SIZE_ERROR    | Firmware > 3MB or size = 0      | Check file size           |
+| CHECKSUM_FAIL | Data corrupted during transfer  | Retry transfer            |
+| FLASH_ERROR   | Flash write failed              | Check device storage      |
+| Timeout       | No data received for 30s        | Retry or check connection |
 
 ### Retry Strategy
 
@@ -591,19 +596,19 @@ class BleOtaManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
 ### Firmware Verification
 
-| Layer | Method | Purpose |
-|-------|--------|---------|
-| **Integrity** | SHA256 | Detect corruption during transfer |
-| **Authenticity** | ECDSA Signature | Verify firmware is from legitimate source |
-| **Rollback Protection** | Version check | Prevent downgrade attacks |
+| Layer                   | Method          | Purpose                                   |
+| ----------------------- | --------------- | ----------------------------------------- |
+| **Integrity**           | SHA256          | Detect corruption during transfer         |
+| **Authenticity**        | ECDSA Signature | Verify firmware is from legitimate source |
+| **Rollback Protection** | Version check   | Prevent downgrade attacks                 |
 
 ### BLE Security
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| **BLE Pairing** | Optional | Can require PIN for OTA |
-| **Encryption** | BLE 4.2+ | Link layer encryption |
-| **MITM Protection** | Recommended | Use Secure Connections |
+| Feature             | Status      | Notes                   |
+| ------------------- | ----------- | ----------------------- |
+| **BLE Pairing**     | Optional    | Can require PIN for OTA |
+| **Encryption**      | BLE 4.2+    | Link layer encryption   |
+| **MITM Protection** | Recommended | Use Secure Connections  |
 
 ### Best Practices
 
@@ -619,33 +624,34 @@ class BleOtaManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
 
 ### Device Not Found
 
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No devices in scan | BLE disabled on device | Power cycle device |
-| | Device not advertising | Check if in pairing mode |
-| | Wrong scan filter | Use correct device name prefix |
+| Symptom            | Cause                  | Solution                       |
+| ------------------ | ---------------------- | ------------------------------ |
+| No devices in scan | BLE disabled on device | Power cycle device             |
+|                    | Device not advertising | Check if in pairing mode       |
+|                    | Wrong scan filter      | Use correct device name prefix |
 
 ### Connection Issues
 
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| Connect timeout | Device out of range | Move closer |
-| | Too many connections | Disconnect other BLE devices |
-| Disconnect during transfer | Interference | Reduce distance, remove obstacles |
-| | MTU issues | Use smaller chunk size |
+| Symptom                    | Cause                | Solution                          |
+| -------------------------- | -------------------- | --------------------------------- |
+| Connect timeout            | Device out of range  | Move closer                       |
+|                            | Too many connections | Disconnect other BLE devices      |
+| Disconnect during transfer | Interference         | Reduce distance, remove obstacles |
+|                            | MTU issues           | Use smaller chunk size            |
 
 ### Transfer Failures
 
-| Error | Cause | Solution |
-|-------|-------|----------|
-| CHECKSUM_FAIL | Data corrupted | Retry transfer |
-| | Wrong firmware file | Verify file integrity |
-| FLASH_ERROR | Flash wear | Contact support |
-| Timeout | Slow transfer | Increase timeout, reduce chunk size |
+| Error         | Cause               | Solution                            |
+| ------------- | ------------------- | ----------------------------------- |
+| CHECKSUM_FAIL | Data corrupted      | Retry transfer                      |
+|               | Wrong firmware file | Verify file integrity               |
+| FLASH_ERROR   | Flash wear          | Contact support                     |
+| Timeout       | Slow transfer       | Increase timeout, reduce chunk size |
 
 ### Debug Logging
 
 Enable device debug mode for detailed logs:
+
 ```json
 // Send via main BLE service
 {

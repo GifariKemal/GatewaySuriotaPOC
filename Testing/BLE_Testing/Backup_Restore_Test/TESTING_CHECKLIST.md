@@ -1,10 +1,8 @@
 # ✅ TESTING CHECKLIST - BLE Backup & Restore
 
-**Version:** 1.1.0 (BUG #32 FIXED!)
-**Tester:** _________________
-**Date:** ___________________
-**Firmware Version:** ________ (v2.3.1+ required)
-**Gateway SN:** ______________
+**Version:** 1.1.0 (BUG #32 FIXED!) **Tester:** ********\_******** **Date:**
+********\_\_\_******** **Firmware Version:** **\_\_\_\_** (v2.3.1+ required)
+**Gateway SN:** ******\_\_******
 
 ---
 
@@ -27,6 +25,7 @@
 - [ ] MTU negotiation successful (check serial)
 
 **Notes:**
+
 ```
 _____________________________________________________________
 
@@ -39,9 +38,8 @@ _____________________________________________________________
 
 ## 🧪 TEST 1: BACKUP CONFIGURATION
 
-**Test ID:** TEST-BACKUP-001
-**Duration:** ~2-5 minutes
-**Payload:** `{"op": "read", "type": "full_config"}`
+**Test ID:** TEST-BACKUP-001 **Duration:** ~2-5 minutes **Payload:**
+`{"op": "read", "type": "full_config"}`
 
 ### Execution Steps
 
@@ -73,24 +71,27 @@ _____________________________________________________________
 ### Serial Monitor Validation
 
 - [ ] Serial shows: "[CRUD] Full config backup requested"
-- [ ] Serial shows: "[CRUD] Full config backup complete: X devices, Y registers, Z bytes, N ms"
+- [ ] Serial shows: "[CRUD] Full config backup complete: X devices, Y registers,
+      Z bytes, N ms"
 - [ ] No error messages in serial
 
 ### Performance Metrics
 
 **Actual Values:**
-- Total devices: _______
-- Total registers: _______
-- Backup size: _______ bytes (_______ KB)
-- Processing time: _______ ms
-- BLE transfer time: _______ seconds
+
+- Total devices: **\_\_\_**
+- Total registers: **\_\_\_**
+- Backup size: **\_\_\_** bytes (**\_\_\_** KB)
+- Processing time: **\_\_\_** ms
+- BLE transfer time: **\_\_\_** seconds
 
 ### Result
 
 - [ ] ✅ PASSED
-- [ ] ❌ FAILED - Reason: _________________________________
+- [ ] ❌ FAILED - Reason: ****************\_****************
 
 **Notes:**
+
 ```
 _____________________________________________________________
 
@@ -103,9 +104,8 @@ _____________________________________________________________
 
 ## 🧪 TEST 2: RESTORE CONFIGURATION
 
-**Test ID:** TEST-RESTORE-001
-**Duration:** ~3-8 minutes
-**Payload:** `{"op": "system", "type": "restore_config", "config": {...}}`
+**Test ID:** TEST-RESTORE-001 **Duration:** ~3-8 minutes **Payload:**
+`{"op": "system", "type": "restore_config", "config": {...}}`
 
 ### Execution Steps
 
@@ -129,7 +129,7 @@ _____________________________________________________________
 
 ### Serial Monitor Validation
 
-- [ ] Serial shows: "[CONFIG RESTORE] ⚠️  INITIATED by BLE client"
+- [ ] Serial shows: "[CONFIG RESTORE] ⚠️ INITIATED by BLE client"
 - [ ] Serial shows: "[CONFIG RESTORE] [1/3] Restoring devices configuration..."
 - [ ] Serial shows: "[CONFIG RESTORE] Existing devices cleared"
 - [ ] Serial shows: "[CONFIG RESTORE] Restored X devices"
@@ -150,9 +150,10 @@ _____________________________________________________________
 ### Result
 
 - [ ] ✅ PASSED
-- [ ] ❌ FAILED - Reason: _________________________________
+- [ ] ❌ FAILED - Reason: ****************\_****************
 
 **Notes:**
+
 ```
 _____________________________________________________________
 
@@ -165,9 +166,8 @@ _____________________________________________________________
 
 ## 🧪 TEST 3: ERROR HANDLING
 
-**Test ID:** TEST-ERROR-001
-**Duration:** ~1-2 minutes
-**Payload:** `{"op": "system", "type": "restore_config"}` (missing config)
+**Test ID:** TEST-ERROR-001 **Duration:** ~1-2 minutes **Payload:**
+`{"op": "system", "type": "restore_config"}` (missing config)
 
 ### Execution Steps
 
@@ -183,16 +183,18 @@ _____________________________________________________________
 
 ### Serial Monitor Validation
 
-- [ ] Serial shows: "[CONFIG RESTORE] ❌ ERROR: Missing 'config' object in payload"
+- [ ] Serial shows: "[CONFIG RESTORE] ❌ ERROR: Missing 'config' object in
+      payload"
 - [ ] Gateway did not crash
 - [ ] Gateway still responsive after error
 
 ### Result
 
 - [ ] ✅ PASSED
-- [ ] ❌ FAILED - Reason: _________________________________
+- [ ] ❌ FAILED - Reason: ****************\_****************
 
 **Notes:**
+
 ```
 _____________________________________________________________
 
@@ -205,9 +207,8 @@ _____________________________________________________________
 
 ## 🧪 TEST 4: BACKUP-RESTORE-COMPARE CYCLE
 
-**Test ID:** TEST-INTEGRITY-001
-**Duration:** ~10-15 minutes
-**Priority:** ⭐⭐⭐ CRITICAL TEST
+**Test ID:** TEST-INTEGRITY-001 **Duration:** ~10-15 minutes **Priority:**
+⭐⭐⭐ CRITICAL TEST
 
 ### Execution Steps
 
@@ -240,14 +241,16 @@ _____________________________________________________________
 ### Result
 
 - [ ] ✅ PASSED - Data integrity verified
-- [ ] ❌ FAILED - Reason: _________________________________
+- [ ] ❌ FAILED - Reason: ****************\_****************
 
 **Backup File Comparison:**
-- Before file size: _______ bytes
-- After file size: _______ bytes
-- Difference: _______ bytes (_______ %)
+
+- Before file size: **\_\_\_** bytes
+- After file size: **\_\_\_** bytes
+- Difference: **\_\_\_** bytes (**\_\_\_** %)
 
 **Notes:**
+
 ```
 _____________________________________________________________
 
@@ -269,10 +272,11 @@ _____________________________________________________________
 - [ ] No "[MEM] WARNING" warnings (or rare)
 
 **Measurements:**
-- Initial free DRAM: _______ bytes
-- During backup: _______ bytes
-- During restore: _______ bytes
-- After all tests: _______ bytes
+
+- Initial free DRAM: **\_\_\_** bytes
+- During backup: **\_\_\_** bytes
+- During restore: **\_\_\_** bytes
+- After all tests: **\_\_\_** bytes
 
 ### PSRAM Usage
 
@@ -280,9 +284,10 @@ _____________________________________________________________
 - [ ] No "[MEM] PSRAM allocation failed" errors
 
 **Measurements:**
-- Initial free PSRAM: _______ bytes
-- During backup: _______ bytes
-- During restore: _______ bytes
+
+- Initial free PSRAM: **\_\_\_** bytes
+- During backup: **\_\_\_** bytes
+- During restore: **\_\_\_** bytes
 
 ---
 
@@ -291,11 +296,11 @@ _____________________________________________________________
 **Record any errors encountered:**
 
 | Time | Test | Error Description | Resolution |
-|------|------|------------------|------------|
-|      |      |                  |            |
-|      |      |                  |            |
-|      |      |                  |            |
-|      |      |                  |            |
+| ---- | ---- | ----------------- | ---------- |
+|      |      |                   |            |
+|      |      |                   |            |
+|      |      |                   |            |
+|      |      |                   |            |
 
 ---
 
@@ -303,21 +308,19 @@ _____________________________________________________________
 
 ### Test Results Overview
 
-| Test ID | Test Name | Status | Duration | Notes |
-|---------|-----------|--------|----------|-------|
-| TEST-BACKUP-001 | Backup | ⬜ | _____ | _____ |
-| TEST-RESTORE-001 | Restore | ⬜ | _____ | _____ |
-| TEST-ERROR-001 | Error Handling | ⬜ | _____ | _____ |
-| TEST-INTEGRITY-001 | Backup-Restore-Compare | ⬜ | _____ | _____ |
+| Test ID            | Test Name              | Status | Duration | Notes  |
+| ------------------ | ---------------------- | ------ | -------- | ------ |
+| TEST-BACKUP-001    | Backup                 | ⬜     | **\_**   | **\_** |
+| TEST-RESTORE-001   | Restore                | ⬜     | **\_**   | **\_** |
+| TEST-ERROR-001     | Error Handling         | ⬜     | **\_**   | **\_** |
+| TEST-INTEGRITY-001 | Backup-Restore-Compare | ⬜     | **\_**   | **\_** |
 
 **Legend:** ✅ = Passed, ❌ = Failed, ⚠️ = Passed with warnings, ⬜ = Not tested
 
 ### Overall Assessment
 
-**Total Tests:** 4
-**Tests Passed:** _______
-**Tests Failed:** _______
-**Pass Rate:** _______ %
+**Total Tests:** 4 **Tests Passed:** **\_\_\_** **Tests Failed:** **\_\_\_**
+**Pass Rate:** **\_\_\_** %
 
 ### Critical Issues Found
 
@@ -327,6 +330,7 @@ _____________________________________________________________
 - [ ] Critical issues - DO NOT DEPLOY
 
 **Issues:**
+
 ```
 _____________________________________________________________
 
@@ -359,6 +363,7 @@ _____________________________________________________________
 - [ ] File sizes are reasonable
 
 **Files Generated:**
+
 ```
 _____________________________________________________________
 
@@ -378,6 +383,7 @@ _____________________________________________________________
 - [ ] ❌ Not approved - fixes required
 
 **Conditions/Required Fixes:**
+
 ```
 _____________________________________________________________
 
@@ -395,23 +401,22 @@ _____________________________________________________________
 - [ ] Large configuration testing (50+ devices)
 - [ ] Concurrent operations testing
 - [ ] Cross-version compatibility testing
-- [ ] Other: _________________________________________________
+- [ ] Other: ************************\_************************
 
 ---
 
 ## 📋 SIGN-OFF
 
-**Tester Signature:** _____________________
-**Date:** _____________________
+**Tester Signature:** **********\_********** **Date:** **********\_**********
 
-**Reviewer Signature:** _____________________
-**Date:** _____________________
+**Reviewer Signature:** **********\_********** **Date:** **********\_**********
 
-**Approved for Production:** [ ] YES  [ ] NO
+**Approved for Production:** [ ] YES [ ] NO
 
 ---
 
 **Notes for Next Testing Session:**
+
 ```
 _____________________________________________________________
 
@@ -426,5 +431,4 @@ _____________________________________________________________
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-*Empowering Industrial IoT Solutions*
+**Made with ❤️ by SURIOTA R&D Team** _Empowering Industrial IoT Solutions_

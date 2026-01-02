@@ -1,17 +1,20 @@
 # BLE MTU Optimization Guide for Mobile App
 
-**Version:** 1.0 | **Date:** December 12, 2025 | **Target:** Flutter Mobile App (`suriota_mobile_app`)
+**Version:** 1.0 | **Date:** December 12, 2025 | **Target:** Flutter Mobile App
+(`suriota_mobile_app`)
 
 ---
 
 ## Problem Statement
 
 Current BLE transfer is **very slow** because:
+
 - Chunk size hardcoded to **18 bytes**
 - Delay between chunks is **100ms**
 - No MTU negotiation (using default 23 bytes MTU)
 
 **Example from device logs:**
+
 ```
 [BLE] Fragment received (18 bytes, total: 36 bytes)
 [BLE] Fragment received (18 bytes, total: 126 bytes)
@@ -25,14 +28,15 @@ Current BLE transfer is **very slow** because:
 
 ## Solution Overview
 
-Implement **MTU negotiation** and **dynamic chunk sizing** to achieve **~25x faster** transfer speed.
+Implement **MTU negotiation** and **dynamic chunk sizing** to achieve **~25x
+faster** transfer speed.
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| Chunk Size | Fixed 18 bytes | Dynamic 20-200 bytes |
-| Chunk Delay | Fixed 100ms | Dynamic 15-50ms |
-| MTU | Default 23 bytes | Negotiated up to 512 bytes |
-| 1KB Transfer | ~7.7 seconds | ~0.3 seconds |
+| Aspect       | Before           | After                      |
+| ------------ | ---------------- | -------------------------- |
+| Chunk Size   | Fixed 18 bytes   | Dynamic 20-200 bytes       |
+| Chunk Delay  | Fixed 100ms      | Dynamic 15-50ms            |
+| MTU          | Default 23 bytes | Negotiated up to 512 bytes |
+| 1KB Transfer | ~7.7 seconds     | ~0.3 seconds               |
 
 ---
 
@@ -104,6 +108,7 @@ class BleController extends GetxController {
 ```
 
 **DELETE this old constant:**
+
 ```dart
 // DELETE THIS LINE:
 static const int bleChunkSize = 18;
@@ -195,6 +200,7 @@ static const int bleChunkSize = 18;
 ### 3. Update `connectToDevice` Method
 
 **Find this section (around line 586-606):**
+
 ```dart
       await deviceModel.device.connect();
       connectedDevice.value = deviceModel.device;
@@ -216,6 +222,7 @@ static const int bleChunkSize = 18;
 ```
 
 **Replace with:**
+
 ```dart
       await deviceModel.device.connect();
       connectedDevice.value = deviceModel.device;
@@ -247,6 +254,7 @@ static const int bleChunkSize = 18;
 ### 4. Update `disconnectFromDevice` Method
 
 **Find this section (around line 706):**
+
 ```dart
       await deviceModel.device.disconnect();
 
@@ -254,6 +262,7 @@ static const int bleChunkSize = 18;
 ```
 
 **Replace with:**
+
 ```dart
       await deviceModel.device.disconnect();
 
@@ -269,6 +278,7 @@ static const int bleChunkSize = 18;
 ### 5. Update `sendCommand` Method - Use Dynamic Chunk Size
 
 **Find this section (around line 1408-1426):**
+
 ```dart
       // Send command in chunks
       StringBuffer sentCommand = StringBuffer();
@@ -293,6 +303,7 @@ static const int bleChunkSize = 18;
 ```
 
 **Replace with:**
+
 ```dart
       // Send command in chunks - USE DYNAMIC CHUNK SIZE
       StringBuffer sentCommand = StringBuffer();
@@ -317,6 +328,7 @@ static const int bleChunkSize = 18;
 ```
 
 **Also update `totalChunks` calculation (around line 1400):**
+
 ```dart
 // BEFORE:
 int totalChunks = (jsonStr.length / bleChunkSize).ceil() + 1;
@@ -352,6 +364,7 @@ await Future.delayed(_currentChunkDelay);
 ### 7. Update Streaming Methods
 
 **In `startDataStream` (around line 2239-2254):**
+
 ```dart
 // BEFORE:
 const chunkSize = 18;
@@ -363,6 +376,7 @@ await Future.delayed(_currentChunkDelay);
 ```
 
 **In `startEnhancedStreaming` (around line 2578-2593):**
+
 ```dart
 // BEFORE:
 const chunkSize = 18;
@@ -374,6 +388,7 @@ await Future.delayed(_currentChunkDelay);
 ```
 
 **In `_sendCommandManually` (around line 2302-2313):**
+
 ```dart
 // BEFORE:
 for (int i = 0; i < jsonStr.length; i += bleChunkSize) {
@@ -400,8 +415,8 @@ for (int i = 0; i < jsonStr.length; i += _currentChunkSize) {
 
 ## Summary: Files to Modify
 
-| File | Changes |
-|------|---------|
+| File                                       | Changes           |
+| ------------------------------------------ | ----------------- |
 | `lib/core/controllers/ble_controller.dart` | All changes above |
 
 ---
@@ -410,13 +425,13 @@ for (int i = 0; i < jsonStr.length; i += _currentChunkSize) {
 
 Use IDE find & replace for quick updates:
 
-| Find | Replace With |
-|------|--------------|
-| `bleChunkSize` | `_currentChunkSize` |
-| `const chunkSize = 18` | `final chunkSize = _currentChunkSize` |
-| `chunkTransmissionDelay` (in await) | `_currentChunkDelay` |
-| `Duration(milliseconds: 50)` (in chunk loops) | `_currentChunkDelay` |
-| `Duration(milliseconds: 100)` (in chunk loops) | `_currentChunkDelay` |
+| Find                                           | Replace With                          |
+| ---------------------------------------------- | ------------------------------------- |
+| `bleChunkSize`                                 | `_currentChunkSize`                   |
+| `const chunkSize = 18`                         | `final chunkSize = _currentChunkSize` |
+| `chunkTransmissionDelay` (in await)            | `_currentChunkDelay`                  |
+| `Duration(milliseconds: 50)` (in chunk loops)  | `_currentChunkDelay`                  |
+| `Duration(milliseconds: 100)` (in chunk loops) | `_currentChunkDelay`                  |
 
 ---
 
@@ -425,9 +440,11 @@ Use IDE find & replace for quick updates:
 After implementing changes, test on:
 
 - [ ] **Modern Android** (Android 10+) - Should get high MTU (~500 bytes)
-- [ ] **Older Android** (Android 7-9) - May get lower MTU, should fallback gracefully
+- [ ] **Older Android** (Android 7-9) - May get lower MTU, should fallback
+      gracefully
 - [ ] **iOS** - Usually auto-negotiates high MTU
-- [ ] **Large data transfer** (backup config ~50KB) - Should be significantly faster
+- [ ] **Large data transfer** (backup config ~50KB) - Should be significantly
+      faster
 - [ ] **Small commands** (read production_mode) - Should work as before
 - [ ] **Streaming data** - Should be stable with new chunk sizes
 - [ ] **Reconnection** - MTU should re-negotiate properly
@@ -437,6 +454,7 @@ After implementing changes, test on:
 ## Expected Results
 
 **Before optimization (18 bytes, 100ms delay):**
+
 ```
 [BLE] Fragment received (18 bytes, total: 36 bytes)
 [BLE] Fragment received (18 bytes, total: 126 bytes)
@@ -444,6 +462,7 @@ After implementing changes, test on:
 ```
 
 **After optimization (200 bytes, 15ms delay):**
+
 ```
 [BLE] Fragment received (200 bytes, total: 200 bytes)
 [BLE] Fragment received (200 bytes, total: 400 bytes)
@@ -455,6 +474,7 @@ After implementing changes, test on:
 ## Firmware Compatibility
 
 ESP32 firmware already supports high MTU:
+
 - `BLE_MTU_MAX_SUPPORTED = 517` bytes
 - `CHUNK_SIZE = 244` bytes for sending
 - `FRAGMENT_DELAY_MS = 10` ms
@@ -465,20 +485,23 @@ No firmware changes needed.
 
 ## Troubleshooting
 
-**Q: MTU negotiation fails on some devices**
-A: The code automatically falls back to conservative settings (18 bytes, 100ms). Check `mtuNegotiationSuccess.value` in debug logs.
+**Q: MTU negotiation fails on some devices** A: The code automatically falls
+back to conservative settings (18 bytes, 100ms). Check
+`mtuNegotiationSuccess.value` in debug logs.
 
-**Q: Data corruption after increasing chunk size**
-A: Reduce `bleChunkSizeMax` from 200 to 150 or 100. Some older Bluetooth chips have issues with large packets.
+**Q: Data corruption after increasing chunk size** A: Reduce `bleChunkSizeMax`
+from 200 to 150 or 100. Some older Bluetooth chips have issues with large
+packets.
 
-**Q: iOS not getting high MTU**
-A: iOS handles MTU differently. Try calling `requestMtu` after a short delay (500ms) post-connection.
+**Q: iOS not getting high MTU** A: iOS handles MTU differently. Try calling
+`requestMtu` after a short delay (500ms) post-connection.
 
 ---
 
 ## Contact
 
 For questions about firmware BLE implementation:
+
 - Check `Main/BLEManager.cpp` for ESP32 BLE handling
 - Check `Main/BLEManager.h` for MTU constants
 

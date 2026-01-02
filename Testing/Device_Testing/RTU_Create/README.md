@@ -1,15 +1,18 @@
 # Modbus RTU Testing Scripts
 
-Python scripts untuk testing Modbus RTU device creation via BLE pada SRT-MGATE-1210 Gateway.
+Python scripts untuk testing Modbus RTU device creation via BLE pada
+SRT-MGATE-1210 Gateway.
 
 ## Prerequisites
 
 ### Hardware Setup
+
 - **SRT-MGATE-1210 Gateway** (dalam mode Development/BLE ON)
 - **RS485 USB Adapter** terhubung ke PC (COM8)
 - **Modbus Slave Simulator** running di PC
 
 ### Serial Configuration (dari screenshot)
+
 ```
 Port:       COM8
 Baud Rate:  9600
@@ -21,6 +24,7 @@ Flow Ctrl:  RTS Toggle (1ms delay)
 ```
 
 ### Software Requirements
+
 - Python 3.8+
 - Bluetooth adapter di PC
 - Modbus Slave Simulator (untuk simulasi RTU slave)
@@ -28,6 +32,7 @@ Flow Ctrl:  RTS Toggle (1ms delay)
 ## Installation
 
 1. Install Python dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -50,15 +55,19 @@ pip install -r requirements.txt
 ## Available Scripts
 
 ### `create_device_5_registers.py`
+
 Membuat 1 RTU device dengan 5 registers via BLE.
 
 ### `create_device_10_registers.py`
+
 Membuat 1 RTU device dengan 10 registers via BLE.
 
 ### `create_device_50_registers.py`
+
 Membuat 1 RTU device dengan 50 registers via BLE.
 
 **Device Configuration:**
+
 - Device Name: `RTU_Device_Test`
 - Protocol: Modbus RTU
 - Serial Port: 1 (mapped to COM8)
@@ -68,6 +77,7 @@ Membuat 1 RTU device dengan 50 registers via BLE.
 - Refresh Rate: 1000ms
 
 **Registers Created:**
+
 1. Temperature (Address: 0) - °C
 2. Humidity (Address: 1) - %
 3. Pressure (Address: 2) - Pa
@@ -75,11 +85,13 @@ Membuat 1 RTU device dengan 50 registers via BLE.
 5. Current (Address: 4) - A
 
 **Usage:**
+
 ```bash
 python create_device_5_registers.py
 ```
 
 **Expected Output:**
+
 ```
 [SCAN] Scanning for 'SURIOTA GW'...
 [FOUND] SURIOTA GW (XX:XX:XX:XX:XX:XX)
@@ -103,28 +115,36 @@ python create_device_5_registers.py
 ## Troubleshooting
 
 ### Issue: "Service 'SURIOTA GW' not found"
+
 **Solution:**
+
 1. Pastikan Gateway dalam mode Development (BLE ON)
 2. Tekan tombol MODE di Gateway
 3. LED harus steady ON (bukan blinking)
 4. Bluetooth PC sudah enabled
 
 ### Issue: "COM8 not found" di Modbus Slave Simulator
+
 **Solution:**
+
 1. Cek Device Manager → Ports (COM & LPT)
 2. RS485 USB adapter harus terdeteksi sebagai COM port
 3. Update driver jika perlu
 4. Ubah COM port di simulator sesuai yang terdeteksi
 
 ### Issue: RTU polling timeout
+
 **Solution:**
+
 1. Pastikan serial parameters match (9600, 8N1, RTU)
 2. Cek RTS Toggle enabled di simulator
 3. Pastikan slave ID match (1)
 4. Cek kabel RS485 terhubung dengan benar (A to A, B to B)
 
 ### Issue: No data received
+
 **Solution:**
+
 1. Restart Modbus Slave Simulator
 2. Verify register addresses exist (0-4)
 3. Check serial port tidak digunakan aplikasi lain
@@ -152,18 +172,22 @@ python create_device_5_registers.py
 ## Serial Port Mapping
 
 Gateway menggunakan **serial_port: 1** untuk RTU communication, yang di-map ke:
+
 - **Hardware:** ESP32-S3 Serial1 (TX/RX pins)
 - **PC Side:** COM8 (via RS485 USB adapter)
 
 **Connection:**
+
 ```
 Gateway (Serial1) <--RS485--> RS485 Adapter <--USB--> PC (COM8)
 ```
 
 ## Notes
 
-- **No Chunking:** BLE MTU sudah 517 bytes (512 effective), command dikirim langsung tanpa fragmentasi
-- **Batch Tracking:** Gateway menunggu semua 5 registers terbaca sebelum publish MQTT
+- **No Chunking:** BLE MTU sudah 517 bytes (512 effective), command dikirim
+  langsung tanpa fragmentasi
+- **Batch Tracking:** Gateway menunggu semua 5 registers terbaca sebelum publish
+  MQTT
 - **Timeout:** Default 5000ms per register read
 - **Refresh Rate:** Default 2000ms per device polling cycle
 - **Flow Control:** RTS Toggle perlu diaktifkan di simulator untuk compatibility
@@ -176,6 +200,5 @@ Gateway (Serial1) <--RS485--> RS485 Adapter <--USB--> PC (COM8)
 
 ---
 
-**Author:** Kemal - SURIOTA R&D Team
-**Date:** 2025-11-17
-**Firmware Version:** SRT-MGATE-1210 v2.3.0
+**Author:** Kemal - SURIOTA R&D Team **Date:** 2025-11-17 **Firmware Version:**
+SRT-MGATE-1210 v2.3.0

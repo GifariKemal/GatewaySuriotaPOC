@@ -23,6 +23,7 @@ pip install bleak tqdm
 ## Step 2: Prepare Firmware
 
 Make sure you have:
+
 1. Compiled firmware binary: `SRT-MGATE-1210_vX.X.X.bin`
 2. File should be < 3MB
 
@@ -38,6 +39,7 @@ python ble_ota_upload.py
 ```
 
 The script will:
+
 1. Scan for devices
 2. Ask you to select device
 3. Ask for firmware file path
@@ -94,6 +96,7 @@ python ble_ota_upload.py --scan
 ```
 
 Make sure:
+
 - Device is powered on
 - BLE is enabled (default)
 - You're within 10 meters
@@ -127,14 +130,14 @@ Status:   0000FF03-0000-1000-8000-00805F9B34FB  (Notify)
 
 ## Commands Quick Reference
 
-| Command | Code | Description |
-|---------|------|-------------|
-| START | 0x50 | Begin OTA with size + SHA256 |
-| DATA | 0x51 | Send firmware chunk |
-| VERIFY | 0x52 | Verify checksum |
-| APPLY | 0x53 | Apply and reboot |
-| ABORT | 0x54 | Cancel transfer |
-| STATUS | 0x55 | Get progress |
+| Command | Code | Description                  |
+| ------- | ---- | ---------------------------- |
+| START   | 0x50 | Begin OTA with size + SHA256 |
+| DATA    | 0x51 | Send firmware chunk          |
+| VERIFY  | 0x52 | Verify checksum              |
+| APPLY   | 0x53 | Apply and reboot             |
+| ABORT   | 0x54 | Cancel transfer              |
+| STATUS  | 0x55 | Get progress                 |
 
 ---
 

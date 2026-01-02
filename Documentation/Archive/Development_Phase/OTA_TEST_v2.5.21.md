@@ -10,6 +10,7 @@
 ## 📋 Test Objective
 
 Test the OTA update mechanism with the timeout and buffer fixes:
+
 - ✅ Verify update detection (v2.5.20 → v2.5.21)
 - ✅ Verify download completes 100% (no timeout at 97%)
 - ✅ Verify SHA-256 and signature validation
@@ -22,16 +23,19 @@ Test the OTA update mechanism with the timeout and buffer fixes:
 ### **Method 1: Automated Script (Recommended)**
 
 Navigate to test directory:
+
 ```bash
 cd Testing\BLE_Testing\OTA_Test
 ```
 
 Run OTA update:
+
 ```bash
 python ota_update.py --update
 ```
 
 Or use auto mode (no prompts):
+
 ```bash
 python ota_update.py --auto
 ```
@@ -43,12 +47,14 @@ python ota_update.py --menu
 ```
 
 Then select:
+
 1. Check for updates
 2. Full OTA update
 
 ### **Method 3: Check Only**
 
 To just check if update is detected:
+
 ```bash
 python ota_update.py --check
 ```
@@ -70,15 +76,15 @@ python ota_update.py --check
 
   📡 Scanning for BLE devices...
   ✓ Found: SURIOTA GW (XX:XX:XX:XX:XX:XX)
-  
+
   🔗 Connecting to XX:XX:XX:XX:XX:XX...
   ✓ Connected & notifications enabled
-  
+
   📤 Sending: {"op":"ota","type":"check_update"}
   📥 Receiving: .........
-  
+
   ✅ Update available: 2.5.20 → 2.5.21
-  
+
   ┌────────────────────────────────────────────────────────────────┐
   │ 📦 Update Information                                          │
   ├────────────────────────────────────────────────────────────────┤
@@ -98,12 +104,12 @@ python ota_update.py --check
 
   ℹ️  This may take 1-2 minutes depending on network speed...
   ℹ️  Please wait while firmware downloads and verifies...
-  
+
   📤 Sending: {"op":"ota","type":"start_update"}
   📥 Receiving: .......(10s).......(20s).......(30s)...
-  
+
   ✅ Firmware downloaded and verified in 113.5 seconds!
-  
+
   ┌────────────────────────────────────────────────────────────────┐
   │ ✅ Download Complete                                           │
   ├────────────────────────────────────────────────────────────────┤
@@ -123,6 +129,7 @@ python ota_update.py --check
 ```
 
 **Should NOT see:**
+
 ```
 ❌ [WARN][OTA] Connection closed, no data for 1009 ms
 ❌ [ERROR][OTA] Incomplete: 1961619 / 2010336
@@ -138,7 +145,7 @@ python ota_update.py --check
   ════════════════════════════════════════════════════════
   ║  ⚠️  WARNING: Device will REBOOT after applying update!  ║
   ════════════════════════════════════════════════════════
-  
+
   Do you want to apply the update and reboot? (y/n)
   > y
 ```
@@ -154,9 +161,9 @@ python ota_update.py --check
   ⏳ Applying update in 3...
   ⏳ Applying update in 2...
   ⏳ Applying update in 1...
-  
+
   📤 Sending: {"op":"ota","type":"apply_update"}
-  
+
   ════════════════════════════════════════════════════════
   ║  🔄  Device is rebooting with new firmware...         ║
   ════════════════════════════════════════════════════════
@@ -167,6 +174,7 @@ python ota_update.py --check
 ## ✅ Success Criteria
 
 ### **Download Phase**
+
 - [ ] Update detected (v2.5.20 → v2.5.21)
 - [ ] Download starts successfully
 - [ ] Progress reaches **100%** (not stuck at 97%)
@@ -176,11 +184,13 @@ python ota_update.py --check
 - [ ] Signature verification: PASSED
 
 ### **Apply Phase**
+
 - [ ] Device accepts apply command
 - [ ] Device reboots within 5 seconds
 - [ ] Device comes back online after ~30 seconds
 
 ### **Post-Reboot**
+
 - [ ] Device version still shows 2.5.20 (same binary)
 - [ ] All services running normally
 - [ ] No boot errors in logs
@@ -192,11 +202,13 @@ python ota_update.py --check
 ### **Issue: Update Not Detected**
 
 **Symptom:**
+
 ```
 Already running latest version (2.5.20)
 ```
 
 **Solution:**
+
 1. Check manifest on GitHub is v2.5.21
 2. Clear device cache (reboot device)
 3. Check GitHub token is set correctly
@@ -204,11 +216,13 @@ Already running latest version (2.5.20)
 ### **Issue: Download Fails at 97%**
 
 **Symptom:**
+
 ```
 [ERROR][OTA] Incomplete: 1961619 / 2010336
 ```
 
 **Solution:**
+
 - ❌ This means the fix DIDN'T work
 - Check if you flashed the correct v2.5.20 firmware
 - Verify timeout is 5000ms in OTAHttps.cpp
@@ -217,11 +231,13 @@ Already running latest version (2.5.20)
 ### **Issue: Signature Verification Failed**
 
 **Symptom:**
+
 ```
 [ERROR][OTA] Signature verification failed
 ```
 
 **Solution:**
+
 - Binary mismatch between local and GitHub
 - Re-upload binary to GitHub
 - Verify SHA-256 hash matches
@@ -229,9 +245,11 @@ Already running latest version (2.5.20)
 ### **Issue: Device Won't Reboot**
 
 **Symptom:**
+
 - Apply command sent but device doesn't reboot
 
 **Solution:**
+
 - Wait 30 seconds
 - Power cycle device manually
 - Check logs for errors
@@ -306,12 +324,14 @@ Conclusion:
 ## 🎯 Next Steps After Test
 
 ### **If Test PASSES:**
+
 1. ✅ OTA mechanism is working correctly
 2. ✅ Timeout fix is effective
 3. ✅ Buffer optimization is stable
 4. 🎉 Ready for production deployment
 
 ### **If Test FAILS:**
+
 1. Review device logs for error messages
 2. Check network connection stability
 3. Verify firmware was flashed correctly

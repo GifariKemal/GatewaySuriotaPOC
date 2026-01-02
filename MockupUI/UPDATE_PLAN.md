@@ -1,18 +1,20 @@
 # Mockup UI Update Plan - v2.3.0 Features Integration
 
-**Created:** November 21, 2025
-**Firmware Version:** 2.3.0
-**Goal:** Update all mockup UI files to reflect firmware features with responsive Tailwind CSS, interactive animations, and live preview capability
+**Created:** November 21, 2025 **Firmware Version:** 2.3.0 **Goal:** Update all
+mockup UI files to reflect firmware features with responsive Tailwind CSS,
+interactive animations, and live preview capability
 
 ---
 
 ## 📋 Current Mockup Files
 
 1. **Device List (Home Screen).html** - Main dashboard showing all devices
-2. **Device Details.html** - Individual device view with registers and live streaming
+2. **Device Details.html** - Individual device view with registers and live
+   streaming
 3. **Create New Device.html** - Form for creating new devices
 4. **Add Register.html** - Form for adding registers to devices
-5. **Form Server_Configuration.html** - Server configuration (MQTT, HTTP, WiFi, Ethernet)
+5. **Form Server_Configuration.html** - Server configuration (MQTT, HTTP, WiFi,
+   Ethernet)
 6. **Logging Config dan Delete Dialog.html** - Logging settings
 7. **Streaming.html** - Real-time data streaming view
 
@@ -21,6 +23,7 @@
 ## 🆕 New Features to Integrate (v2.3.0)
 
 ### 1. Backup & Restore System
+
 - **API:** `read` → `full_config`, `system` → `restore_config`
 - **Features:**
   - Complete configuration export (200KB response support)
@@ -30,6 +33,7 @@
   - PSRAM optimized for large configs
 
 ### 2. Factory Reset
+
 - **API:** `system` → `factory_reset`
 - **Features:**
   - One-command reset to factory defaults
@@ -38,7 +42,9 @@
   - Optional reason field for audit trail
 
 ### 3. Device Control & Health Metrics
-- **API:** `control` → `enable_device`, `disable_device`, `get_device_status`, `get_all_device_status`
+
+- **API:** `control` → `enable_device`, `disable_device`, `get_device_status`,
+  `get_all_device_status`
 - **Features:**
   - Manual enable/disable devices
   - Health metrics: success rate, response times (avg/min/max)
@@ -47,6 +53,7 @@
   - Protocol-agnostic (RTU & TCP)
 
 ### 4. Advanced BLE Metrics
+
 - **Features:**
   - MTU metrics (current, max, timeout count)
   - Connection metrics (uptime, fragments, bytes)
@@ -59,12 +66,14 @@
 ### File 1: Device List (Home Screen).html
 
 **Current Features:**
+
 - ✅ List of devices with filter (ALL/RTU/TCP)
 - ✅ Search functionality
 - ✅ Add device modal
 - ✅ Device count display
 
 **Features to Add:**
+
 1. **Device Status Indicators**
    - Green dot: Enabled, healthy (success rate > 95%)
    - Yellow dot: Enabled, issues (success rate 90-95%)
@@ -87,6 +96,7 @@
    - BLE metrics view
 
 **UI Enhancements:**
+
 - Animated status indicators (pulsing dots)
 - Skeleton loading states
 - Toast notifications for actions
@@ -97,12 +107,14 @@
 ### File 2: Device Details.html
 
 **Current Features:**
+
 - ✅ Device information display
 - ✅ Register list with search/sort
 - ✅ Live data streaming toggle
 - ✅ Register detail modal
 
 **Features to Add:**
+
 1. **Device Control Section**
    - Enable/disable button with confirmation
    - Clear metrics button
@@ -126,6 +138,7 @@
    - Last read value with timestamp
 
 **UI Enhancements:**
+
 - Animated charts (Chart.js or pure CSS)
 - Progress bars for metrics
 - Color-coded status indicators
@@ -136,13 +149,16 @@
 ### File 3: Create New Device.html
 
 **Current Features:**
+
 - ✅ Basic device creation form
 - ✅ Protocol selection (RTU/TCP)
 
 **Features to Add:**
+
 1. **Complete Form Fields**
    - **Common:** device_name, device_id (auto-generate option), protocol
-   - **RTU Specific:** slave_id (1-247), serial_port (1/2), baud_rate (dropdown: 1200-115200)
+   - **RTU Specific:** slave_id (1-247), serial_port (1/2), baud_rate (dropdown:
+     1200-115200)
    - **TCP Specific:** ip_address, port (502 default)
    - **Common:** timeout_ms, retry_count, refresh_rate_ms
    - **Control:** enabled (toggle, default true)
@@ -162,7 +178,9 @@
    - Copy JSON button
 
 **UI Enhancements:**
-- Multi-step wizard (Step 1: Basic Info, Step 2: Protocol Settings, Step 3: Review)
+
+- Multi-step wizard (Step 1: Basic Info, Step 2: Protocol Settings, Step 3:
+  Review)
 - Animated transitions between steps
 - Inline validation errors
 - Success animation on save
@@ -172,10 +190,12 @@
 ### File 4: Add Register.html
 
 **Current Features:**
+
 - ✅ Basic register form
 - ✅ Some data types
 
 **Features to Add:**
+
 1. **Complete Data Type List (40+ types)**
    - INT16, UINT16, INT32_ABCD, INT32_CDAB, etc.
    - FLOAT32_ABCD, FLOAT32_CDAB, FLOAT32_BADC, FLOAT32_DCBA
@@ -201,6 +221,7 @@
    - Calibration value validation
 
 **UI Enhancements:**
+
 - Data type selector with icons
 - Quantity auto-calculation indicator
 - Calibration calculator
@@ -211,6 +232,7 @@
 ### File 5: Form Server_Configuration.html
 
 **Current Features:**
+
 - ✅ Communication mode (WiFi/Ethernet)
 - ✅ MQTT configuration
 - ✅ HTTP configuration
@@ -218,6 +240,7 @@
 - ✅ Ethernet settings
 
 **Features to Add:**
+
 1. **MQTT Publish Modes (v2.2.0)**
    - **Default Mode:** Single topic with 5s interval
      - topic_publish, topic_subscribe, interval, interval_unit (s/m/h)
@@ -244,6 +267,7 @@
    - Timeout, retry count
 
 **UI Enhancements:**
+
 - Tabbed interface (Network, MQTT, HTTP)
 - Mode toggle with smooth animations
 - Real-time JSON preview
@@ -254,10 +278,12 @@
 ### File 6: Logging Config dan Delete Dialog.html
 
 **Current Features:**
+
 - ✅ Basic logging configuration
 - ✅ Delete confirmation dialog
 
 **Features to Add:**
+
 1. **Logging Configuration**
    - logging_ret (retention): dropdown (1h, 6h, 12h, 1d, 1w, 1m)
    - logging_interval: dropdown (1m, 5m, 10m, 30m, 1h)
@@ -273,6 +299,7 @@
    - Confirmation checkbox ("I understand this action cannot be undone")
 
 **UI Enhancements:**
+
 - Visual log level indicator
 - Preview of log output
 - Animated modal transitions
@@ -282,9 +309,11 @@
 ### File 7: Streaming.html
 
 **Current Features:**
+
 - ✅ Live data streaming view
 
 **Features to Add:**
+
 1. **Enhanced Streaming**
    - Multiple device streaming support
    - Register-level filtering
@@ -302,6 +331,7 @@
    - Auto-scroll toggle
 
 **UI Enhancements:**
+
 - Real-time animated charts
 - Smooth data transitions
 - Performance optimized rendering
@@ -310,9 +340,11 @@
 
 ### File 8: Settings.html (NEW)
 
-**Purpose:** Central settings page for backup, restore, factory reset, and BLE metrics
+**Purpose:** Central settings page for backup, restore, factory reset, and BLE
+metrics
 
 **Features:**
+
 1. **Backup Section**
    - "Create Backup" button
    - Backup list (from localStorage)
@@ -341,6 +373,7 @@
    - Refresh button
 
 **UI Design:**
+
 - Card-based layout
 - Warning colors for destructive actions
 - Confirmation modals with clear messaging
@@ -351,6 +384,7 @@
 ## 🎨 Design System
 
 ### Color Palette
+
 ```css
 Primary (Brand): #2f6f64
 Success: #10b981 (emerald-500)
@@ -361,6 +395,7 @@ Gray: #64748b (slate-500)
 ```
 
 ### Status Colors
+
 ```css
 Enabled + Healthy: #10b981 (green)
 Enabled + Issues: #f59e0b (yellow)
@@ -369,16 +404,19 @@ Disabled: #9ca3af (gray)
 ```
 
 ### Typography
+
 - **Headings:** font-semibold to font-bold
 - **Body:** text-sm to text-base
 - **Captions:** text-xs
 - **Mono:** font-mono for IDs, values
 
 ### Spacing
+
 - **Mobile:** p-3, gap-3, space-y-3
 - **Desktop:** p-6, gap-6, space-y-6
 
 ### Animations
+
 ```css
 Fade In: animate-fade-in (0.3s ease-in-out)
 Slide Down: animate-slide-down (0.3s ease-out)
@@ -391,11 +429,13 @@ Pulse: animate-pulse (2s infinite)
 ## 🔧 Technical Implementation
 
 ### Tailwind CSS
+
 - Use CDN for quick setup: `https://cdn.tailwindcss.com`
 - Custom config for brand colors and animations
 - Responsive breakpoints: sm (640px), md (768px), lg (1024px)
 
 ### JavaScript Pattern
+
 ```javascript
 // Singleton pattern for managers
 class BackupManager {
@@ -407,55 +447,65 @@ class BackupManager {
 }
 
 // Event-driven architecture
-document.addEventListener('deviceUpdated', (e) => {
-  console.log('Device updated:', e.detail);
+document.addEventListener("deviceUpdated", (e) => {
+  console.log("Device updated:", e.detail);
   refreshDeviceList();
 });
 
 // LocalStorage for mock data persistence
-localStorage.setItem('devices', JSON.stringify(devices));
-localStorage.setItem('backups', JSON.stringify(backups));
+localStorage.setItem("devices", JSON.stringify(devices));
+localStorage.setItem("backups", JSON.stringify(backups));
 ```
 
 ### Mock BLE Communication
+
 ```javascript
 class MockBLEManager {
   async sendCommand(command) {
     // Simulate BLE delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // Mock response based on command
-    if (command.op === 'read' && command.type === 'full_config') {
+    if (command.op === "read" && command.type === "full_config") {
       return this.mockFullConfigResponse();
     }
     // ... other commands
   }
 
   mockFullConfigResponse() {
-    const devices = JSON.parse(localStorage.getItem('devices') || '[]');
-    const serverConfig = JSON.parse(localStorage.getItem('serverConfig') || '{}');
+    const devices = JSON.parse(localStorage.getItem("devices") || "[]");
+    const serverConfig = JSON.parse(
+      localStorage.getItem("serverConfig") || "{}",
+    );
 
     return {
-      status: 'ok',
+      status: "ok",
       backup_info: {
         timestamp: Date.now(),
-        firmware_version: '2.3.0',
+        firmware_version: "2.3.0",
         total_devices: devices.length,
-        total_registers: devices.reduce((sum, d) => sum + (d.registers?.length || 0), 0),
+        total_registers: devices.reduce(
+          (sum, d) => sum + (d.registers?.length || 0),
+          0,
+        ),
         processing_time_ms: 350,
-        backup_size_bytes: JSON.stringify({ devices, server_config: serverConfig }).length
+        backup_size_bytes: JSON.stringify({
+          devices,
+          server_config: serverConfig,
+        }).length,
       },
       config: {
         devices,
         server_config: serverConfig,
-        logging_config: { logging_ret: '1w', logging_interval: '5m' }
-      }
+        logging_config: { logging_ret: "1w", logging_interval: "5m" },
+      },
     };
   }
 }
 ```
 
 ### Data Persistence
+
 - Use `localStorage` for mock data
 - Structure:
   ```javascript
@@ -489,6 +539,7 @@ class MockBLEManager {
 ## ✅ Success Criteria
 
 Each updated file must have:
+
 - ✅ Responsive design (mobile-first)
 - ✅ Tailwind CSS styling
 - ✅ Interactive animations
@@ -516,6 +567,4 @@ Each updated file must have:
 
 ---
 
-**Created by:** Claude Code
-**Date:** November 21, 2025
-**Version:** 1.0.0
+**Created by:** Claude Code **Date:** November 21, 2025 **Version:** 1.0.0

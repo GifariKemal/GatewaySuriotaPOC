@@ -10,6 +10,7 @@ import json
 from bleak import BleakClient, BleakScanner
 import sys
 
+
 class ModbusTCPFixer:
     def __init__(self):
         self.client = None
@@ -30,8 +31,7 @@ class ModbusTCPFixer:
 
                 # Start listening for responses
                 await self.client.start_notify(
-                    "11111111-1111-1111-1111-111111111102",
-                    self._notification_handler
+                    "11111111-1111-1111-1111-111111111102", self._notification_handler
                 )
                 print("✓ Connected successfully!")
                 return True
@@ -46,7 +46,7 @@ class ModbusTCPFixer:
 
     def _notification_handler(self, sender, data):
         """Handle BLE notifications"""
-        fragment = data.decode('utf-8')
+        fragment = data.decode("utf-8")
         if fragment == "<END>":
             try:
                 self.last_response = json.loads(self.response_buffer)
@@ -59,7 +59,7 @@ class ModbusTCPFixer:
 
     async def send_command(self, command, label="", wait_time=2.0):
         """Send BLE CRUD command"""
-        json_str = json.dumps(command, separators=(',', ':'))
+        json_str = json.dumps(command, separators=(",", ":"))
 
         if label:
             print(f"\n  {label}")
@@ -70,17 +70,15 @@ class ModbusTCPFixer:
             # Send with fragmentation (18 bytes per chunk as per update_test.py)
             chunk_size = 18
             for i in range(0, len(json_str), chunk_size):
-                chunk = json_str[i:i+chunk_size]
+                chunk = json_str[i : i + chunk_size]
                 await self.client.write_gatt_char(
-                    "11111111-1111-1111-1111-111111111101",
-                    chunk.encode()
+                    "11111111-1111-1111-1111-111111111101", chunk.encode()
                 )
                 await asyncio.sleep(0.05)
 
             # Send end marker
             await self.client.write_gatt_char(
-                "11111111-1111-1111-1111-111111111101",
-                "<END>".encode()
+                "11111111-1111-1111-1111-111111111101", "<END>".encode()
             )
 
             # Wait for response
@@ -102,14 +100,17 @@ class ModbusTCPFixer:
             await asyncio.sleep(1)
         print()
 
+
 async def main():
-    print("""
+    print(
+        """
 ╔════════════════════════════════════════════════════════════╗
 ║     Modbus TCP/IP Troubleshooting & Fix Script             ║
 ║     Device: DN-150 Flowmeter (D65f89)                      ║
 ║     Issue: Flowrate = ERROR                                ║
 ╚════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     fixer = ModbusTCPFixer()
 
@@ -118,35 +119,40 @@ async def main():
         print("\n❌ Failed to connect. Exiting.")
         return
 
-    print("""
+    print(
+        """
 ╔════════════════════════════════════════════════════════════╗
 ║              Testing Sequence (Auto)                       ║
 ║  Total estimated time: ~3 minutes                          ║
 ╚════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     # ============================================================
     # STEP 1: Change slave_id from 5 to 1
     # ============================================================
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("STEP 1/4: Testing slave_id = 1 (changed from 5)")
-    print("="*60)
+    print("=" * 60)
 
-    success = await fixer.send_command({
-        "op": "update",
-        "type": "device",
-        "device_id": "D65f89",
-        "config": {
-            "device_name": "DN-150 Flowmeter",
-            "protocol": "TCP",
-            "ip": "192.168.1.5",
-            "port": 502,
-            "slave_id": 1,  # ← CHANGED from 5
-            "timeout": 3000,
-            "retry_count": 3,
-            "refresh_rate_ms": 1000
-        }
-    }, "Sending update command...")
+    success = await fixer.send_command(
+        {
+            "op": "update",
+            "type": "device",
+            "device_id": "D65f89",
+            "config": {
+                "device_name": "DN-150 Flowmeter",
+                "protocol": "TCP",
+                "ip": "192.168.1.5",
+                "port": 502,
+                "slave_id": 1,  # ← CHANGED from 5
+                "timeout": 3000,
+                "retry_count": 3,
+                "refresh_rate_ms": 1000,
+            },
+        },
+        "Sending update command...",
+    )
 
     if success:
         await fixer.wait_for_values(30)
@@ -160,23 +166,26 @@ async def main():
     # ============================================================
     # STEP 2: Change function_code from 4 to 3
     # ============================================================
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("STEP 2/4: Testing function_code = 3 (changed from 4)")
-    print("="*60)
+    print("=" * 60)
 
-    success = await fixer.send_command({
-        "op": "update",
-        "type": "register",
-        "device_id": "D65f89",
-        "register_id": "Rcf946",
-        "config": {
-            "address": 4112,
-            "register_name": "Flowrate",
-            "function_code": 3,  # ← CHANGED from 4
-            "data_type": "FLOAT32_LE_BS",
-            "refresh_rate_ms": 500
-        }
-    }, "Sending update command...")
+    success = await fixer.send_command(
+        {
+            "op": "update",
+            "type": "register",
+            "device_id": "D65f89",
+            "register_id": "Rcf946",
+            "config": {
+                "address": 4112,
+                "register_name": "Flowrate",
+                "function_code": 3,  # ← CHANGED from 4
+                "data_type": "FLOAT32_LE_BS",
+                "refresh_rate_ms": 500,
+            },
+        },
+        "Sending update command...",
+    )
 
     if success:
         await fixer.wait_for_values(30)
@@ -186,28 +195,31 @@ async def main():
     # ============================================================
     # STEP 3: Test different data types
     # ============================================================
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("STEP 3/4: Testing data type variants")
-    print("="*60)
+    print("=" * 60)
 
     data_types = ["FLOAT32_BE", "FLOAT32_LE", "FLOAT32_BE_BS"]
 
     for idx, dt in enumerate(data_types, 1):
         print(f"\n  3.{idx}) Testing data_type = {dt}")
 
-        success = await fixer.send_command({
-            "op": "update",
-            "type": "register",
-            "device_id": "D65f89",
-            "register_id": "Rcf946",
-            "config": {
-                "address": 4112,
-                "register_name": "Flowrate",
-                "function_code": 3,
-                "data_type": dt,  # ← DIFFERENT
-                "refresh_rate_ms": 500
-            }
-        }, f"Testing {dt}...")
+        success = await fixer.send_command(
+            {
+                "op": "update",
+                "type": "register",
+                "device_id": "D65f89",
+                "register_id": "Rcf946",
+                "config": {
+                    "address": 4112,
+                    "register_name": "Flowrate",
+                    "function_code": 3,
+                    "data_type": dt,  # ← DIFFERENT
+                    "refresh_rate_ms": 500,
+                },
+            },
+            f"Testing {dt}...",
+        )
 
         if success:
             await fixer.wait_for_values(20)
@@ -217,11 +229,12 @@ async def main():
     # ============================================================
     # STEP 4: Summary and next steps
     # ============================================================
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("STEP 4/4: Test Summary & Recommendations")
-    print("="*60)
+    print("=" * 60)
 
-    print("""
+    print(
+        """
 If you saw values (not ERROR):
   ✓ Configuration is fixed!
   ✓ Note which combination worked:
@@ -244,15 +257,17 @@ Next steps if still failing:
   3. Test with different addresses
   4. Enable debug mode in ModbusTcpService.cpp
   5. Use Modbus TCP analyzer tool (Wireshark/etc)
-    """)
+    """
+    )
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✓ Testing Sequence Complete")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     if fixer.client:
         await fixer.client.disconnect()
         print("✓ Disconnected from SURIOTA Gateway")
+
 
 async def run_with_error_handling():
     """Run main with error handling"""
@@ -264,8 +279,10 @@ async def run_with_error_handling():
     except Exception as e:
         print(f"\n❌ Unexpected error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
+
 
 if __name__ == "__main__":
     print("\n⚠ Requirements:")

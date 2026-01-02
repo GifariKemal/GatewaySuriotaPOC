@@ -1,27 +1,31 @@
 # API Reference
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-BLE CRUD API Documentation
+**SRT-MGATE-1210 Modbus IIoT Gateway** BLE CRUD API Documentation
 
 [Home](../../README.md) > [Documentation](../README.md) > API Reference
 
-**Version:** 1.0.2 (December 28, 2025)
-**Developer:** Kemal
-**Last Updated:** December 28, 2025
+**Version:** 1.0.2 (December 28, 2025) **Developer:** Kemal **Last Updated:**
+December 28, 2025
 
 > **What's New in v1.0.2:**
 >
-> - ✅ **Standardized Error Responses** - All errors now include `error_code`, `domain`, `severity`, and `suggestion` fields
-> - ✅ **Numeric Error Codes** - 70+ error codes organized by domain (0-699) for programmatic handling
-> - ✅ **Mobile App Integration** - Easy error handling with consistent response format
+> - ✅ **Standardized Error Responses** - All errors now include `error_code`,
+>   `domain`, `severity`, and `suggestion` fields
+> - ✅ **Numeric Error Codes** - 70+ error codes organized by domain (0-699) for
+>   programmatic handling
+> - ✅ **Mobile App Integration** - Easy error handling with consistent response
+>   format
 >
 > **Previous Release (v1.0.1):**
 >
 > - ✅ **Memory Safety Fix** - Fixed critical PSRAM allocator mismatch bugs
 > - ✅ **Network Failover Task** - Automatic reconnection and failover (v2.5.33)
-> - ✅ **Centralized Product Config** - All identity settings in `ProductConfig.h` (v2.5.32)
-> - ✅ **BLE Name Format** - `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX` (Non-POE)
-> - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full documentation
+> - ✅ **Centralized Product Config** - All identity settings in
+>   `ProductConfig.h` (v2.5.32)
+> - ✅ **BLE Name Format** - `MGate-1210(P)-XXXX` (POE) or `MGate-1210-XXXX`
+>   (Non-POE)
+> - See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for full
+>   documentation
 >
 > **Previous Highlights:**
 >
@@ -31,7 +35,8 @@ BLE CRUD API Documentation
 > - v2.5.10: OTA signature bug fix
 > - v2.3.x: BLE fixes, ModbusTCP optimization, Backup/Restore, Factory Reset
 >
-> See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for complete changelog.
+> See [VERSION_HISTORY.md](../Changelog/VERSION_HISTORY.md) for complete
+> changelog.
 
 ---
 
@@ -53,7 +58,8 @@ BLE CRUD API Documentation
 
 ## 🔍 Overview
 
-The SRT-MGATE-1210 gateway provides a **JSON-based CRUD API** over **BLE** for configuration and real-time data access.
+The SRT-MGATE-1210 gateway provides a **JSON-based CRUD API** over **BLE** for
+configuration and real-time data access.
 
 ### Key Features
 
@@ -98,7 +104,11 @@ For detailed documentation on advanced BLE features, see:
 | **OTA Update**       | [BLE_OTA_API.md](BLE_OTA_API.md)                   | Over-the-air firmware update via BLE                            |
 | **Production Mode**  | [BLE_PRODUCTION_MODE.md](BLE_PRODUCTION_MODE.md)   | Switch between development and production mode                  |
 
-> **💡 New in v2.5.32:** BLE Name Format Changed to `MGate-1210(P)-XXXX` (POE variant) or `MGate-1210-XXXX` (Non-POE variant). Each gateway has a unique 4-character UID from MAC address. See [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration guide.
+> **💡 New in v2.5.32:** BLE Name Format Changed to `MGate-1210(P)-XXXX` (POE
+> variant) or `MGate-1210-XXXX` (Non-POE variant). Each gateway has a unique
+> 4-character UID from MAC address. See
+> [BLE_GATEWAY_IDENTITY.md](BLE_GATEWAY_IDENTITY.md) for mobile app integration
+> guide.
 
 ---
 
@@ -117,7 +127,8 @@ All commands follow a consistent JSON structure:
 }
 ```
 
-**Note:** For advanced `control` and `system` operations, see [Specialized API Documentation](#-specialized-api-documentation).
+**Note:** For advanced `control` and `system` operations, see
+[Specialized API Documentation](#-specialized-api-documentation).
 
 ### Common Fields
 
@@ -361,9 +372,11 @@ Get a compact summary of all devices (minimal fields).
 
 ### List All Devices With Registers
 
-**⭐ NEW API:** Get all devices with their complete register configurations in a single call.
+**⭐ NEW API:** Get all devices with their complete register configurations in a
+single call.
 
-**Use Case:** Perfect for hierarchical UI (Device → Registers selection) in MQTT Customize Mode.
+**Use Case:** Perfect for hierarchical UI (Device → Registers selection) in MQTT
+Customize Mode.
 
 **Request (Full Details):**
 
@@ -394,7 +407,8 @@ Get a compact summary of all devices (minimal fields).
 
 #### 📄 Pagination Support (v2.5.12+)
 
-For large device configurations (e.g., 70 devices × 70 registers), use pagination to reduce payload size and improve BLE reliability.
+For large device configurations (e.g., 70 devices × 70 registers), use
+pagination to reduce payload size and improve BLE reliability.
 
 **Request (Paginated):**
 
@@ -590,10 +604,13 @@ Page 14: {"page": 14, "limit": 5} → devices [] (empty, beyond data)
 
 **Benefits:**
 
-- ✅ **Single API call** instead of N+1 queries (1 for devices + N for each device's registers)
+- ✅ **Single API call** instead of N+1 queries (1 for devices + N for each
+  device's registers)
 - ✅ **Performance:** Reduces BLE transmission overhead significantly
-- ✅ **Perfect for UI:** Directly usable for hierarchical Device → Registers selection widget
-- ✅ **MQTT Customize Mode:** Get all data needed for register selection in one shot
+- ✅ **Perfect for UI:** Directly usable for hierarchical Device → Registers
+  selection widget
+- ✅ **MQTT Customize Mode:** Get all data needed for register selection in one
+  shot
 
 **Typical Usage:**
 
@@ -623,8 +640,10 @@ async function loadDevicesForMqttConfig() {
 
 **Recommendation:**
 
-- ✅ Use `minimal=true` for **MQTT Customize Mode** (only needs `register_id` and `register_name`)
-- ✅ Use `minimal=false` for **detailed register view** (needs all fields like address, data_type, unit, etc.)
+- ✅ Use `minimal=true` for **MQTT Customize Mode** (only needs `register_id`
+  and `register_name`)
+- ✅ Use `minimal=false` for **detailed register view** (needs all fields like
+  address, data_type, unit, etc.)
 
 ---
 
@@ -729,7 +748,8 @@ Remove a device and all its registers.
 - ✅ Enables undo functionality
 - ✅ Audit logging of deleted resources
 
-**Warning:** This operation also deletes all registers associated with the device.
+**Warning:** This operation also deletes all registers associated with the
+device.
 
 ---
 
@@ -1233,7 +1253,8 @@ Modify server and network settings, including MQTT publish modes.
 
 **What's New in v2.2.0:**
 
-- ✅ `http_config.interval` - HTTP transmission interval (moved from root-level `data_interval`)
+- ✅ `http_config.interval` - HTTP transmission interval (moved from root-level
+  `data_interval`)
 - ✅ `http_config.interval_unit` - Interval unit: `"ms"`, `"s"`, or `"m"`
 - ❌ ~~`data_interval`~~ - **REMOVED** (breaking change from v2.1.1)
 
@@ -1290,10 +1311,14 @@ Modify server and network settings, including MQTT publish modes.
 **Notes:**
 
 - ⚠️ **Device ALWAYS restarts** 5 seconds after server_config update
-- **IMPORTANT:** `registers` field uses `register_id` (String), not `register_index` (int)
-- **v2.2.0 Breaking Change:** `data_interval` removed from root level, HTTP now uses `http_config.interval`
-- MQTT intervals are mode-specific (`default_mode.interval` or `customize_mode.custom_topics[].interval`)
-- See [MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md) for detailed MQTT configuration
+- **IMPORTANT:** `registers` field uses `register_id` (String), not
+  `register_index` (int)
+- **v2.2.0 Breaking Change:** `data_interval` removed from root level, HTTP now
+  uses `http_config.interval`
+- MQTT intervals are mode-specific (`default_mode.interval` or
+  `customize_mode.custom_topics[].interval`)
+- See [MQTT_PUBLISH_MODES_DOCUMENTATION.md](MQTT_PUBLISH_MODES_DOCUMENTATION.md)
+  for detailed MQTT configuration
 
 ---
 
@@ -1664,7 +1689,8 @@ Retrieve BLE transmission metrics.
 
 ### Advanced System Operations
 
-For advanced configuration management and device control, see the specialized documentation:
+For advanced configuration management and device control, see the specialized
+documentation:
 
 | Operation Type      | Documentation                                  | Description                                         |
 | ------------------- | ---------------------------------------------- | --------------------------------------------------- |
@@ -1675,12 +1701,16 @@ For advanced configuration management and device control, see the specialized do
 **Example Operations:**
 
 - **Backup Configuration**: `{"op":"system","type":"backup_config"}`
-- **Restore Configuration**: `{"op":"system","type":"restore_config","config":{...}}`
+- **Restore Configuration**:
+  `{"op":"system","type":"restore_config","config":{...}}`
 - **Factory Reset**: `{"op":"system","type":"factory_reset"}`
-- **Enable Device**: `{"op":"control","type":"enable_device","device_id":"D7A3F2"}`
-- **Disable Device**: `{"op":"control","type":"disable_device","device_id":"D7A3F2"}`
+- **Enable Device**:
+  `{"op":"control","type":"enable_device","device_id":"D7A3F2"}`
+- **Disable Device**:
+  `{"op":"control","type":"disable_device","device_id":"D7A3F2"}`
 
-> **💡 New in v2.3.x:** These advanced operations provide enterprise-grade configuration management and device control capabilities.
+> **💡 New in v2.3.x:** These advanced operations provide enterprise-grade
+> configuration management and device control capabilities.
 
 ---
 
@@ -1708,7 +1738,9 @@ Standard success response structure:
 
 ### Error Response
 
-> **v1.0.2 Update:** Error responses now include numeric `error_code`, `domain`, `severity`, and optional `suggestion` fields for programmatic error handling by mobile apps.
+> **v1.0.2 Update:** Error responses now include numeric `error_code`, `domain`,
+> `severity`, and optional `suggestion` fields for programmatic error handling
+> by mobile apps.
 
 Standard error response structure:
 
@@ -1724,16 +1756,15 @@ Standard error response structure:
 }
 ```
 
-**Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `status` | string | ✅ Yes | Always `"error"` for failures |
-| `error_code` | integer | ✅ Yes | Numeric error code (see table below) |
-| `domain` | string | ✅ Yes | Error domain: `NETWORK`, `MQTT`, `BLE`, `MODBUS`, `MEMORY`, `CONFIG`, `SYSTEM` |
-| `severity` | string | ✅ Yes | Severity level: `INFO`, `WARN`, `ERR`, `CRIT` |
-| `message` | string | ✅ Yes | Human-readable error description |
-| `suggestion` | string | ❌ No | Recovery suggestion (when available) |
-| `type` | string | ❌ No | Error type for backward compatibility |
+**Fields:** | Field | Type | Required | Description |
+|-------|------|----------|-------------| | `status` | string | ✅ Yes | Always
+`"error"` for failures | | `error_code` | integer | ✅ Yes | Numeric error code
+(see table below) | | `domain` | string | ✅ Yes | Error domain: `NETWORK`,
+`MQTT`, `BLE`, `MODBUS`, `MEMORY`, `CONFIG`, `SYSTEM` | | `severity` | string |
+✅ Yes | Severity level: `INFO`, `WARN`, `ERR`, `CRIT` | | `message` | string |
+✅ Yes | Human-readable error description | | `suggestion` | string | ❌ No |
+Recovery suggestion (when available) | | `type` | string | ❌ No | Error type
+for backward compatibility |
 
 ---
 
@@ -2131,17 +2162,24 @@ class SuriotaGateway {
 
 ### Advanced BLE Features
 
-- **[Backup & Restore System](BLE_BACKUP_RESTORE.md)** - Complete configuration backup/restore via BLE
-- **[Factory Reset](BLE_FACTORY_RESET.md)** - One-command device reset to factory defaults
-- **[Device Control](BLE_DEVICE_CONTROL.md)** - Enable/disable devices with health metrics
+- **[Backup & Restore System](BLE_BACKUP_RESTORE.md)** - Complete configuration
+  backup/restore via BLE
+- **[Factory Reset](BLE_FACTORY_RESET.md)** - One-command device reset to
+  factory defaults
+- **[Device Control](BLE_DEVICE_CONTROL.md)** - Enable/disable devices with
+  health metrics
 
 ### Technical Guides
 
-- [Hardware Specifications](../Technical_Guides/HARDWARE.md) - GPIO pinout and electrical specs
-- [Protocol Documentation](../Technical_Guides/PROTOCOL.md) - BLE and Modbus protocol details
-- [MQTT Publish Modes](../Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) - MQTT publish modes (Default & Customize)
+- [Hardware Specifications](../Technical_Guides/HARDWARE.md) - GPIO pinout and
+  electrical specs
+- [Protocol Documentation](../Technical_Guides/PROTOCOL.md) - BLE and Modbus
+  protocol details
+- [MQTT Publish Modes](../Technical_Guides/MQTT_PUBLISH_MODES_DOCUMENTATION.md) -
+  MQTT publish modes (Default & Customize)
 - [Logging System](../Technical_Guides/LOGGING.md) - Debug log reference
-- [Troubleshooting Guide](../Technical_Guides/TROUBLESHOOTING.md) - Common issues and solutions
+- [Troubleshooting Guide](../Technical_Guides/TROUBLESHOOTING.md) - Common
+  issues and solutions
 
 ### Getting Started
 
@@ -2150,12 +2188,10 @@ class SuriotaGateway {
 
 ---
 
-**Document Version:** 1.4 (Updated)
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
-**Developer:** Kemal
+**Document Version:** 1.4 (Updated) **Last Updated:** December 10, 2025
+**Firmware Version:** 2.5.34 **Developer:** Kemal
 
 [← Back to Documentation Index](../README.md) | [↑ Top](#api-reference)
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-_For technical support: support@suriota.com_
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

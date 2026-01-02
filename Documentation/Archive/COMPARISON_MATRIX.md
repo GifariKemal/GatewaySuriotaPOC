@@ -8,7 +8,9 @@
 >
 > **Reason:** Streaming data fix has been integrated into v2.0.0+
 >
-> **Current Documentation:** See [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue diagnostics
+> **Current Documentation:** See
+> [TROUBLESHOOTING.md](../Technical_Guides/TROUBLESHOOTING.md) for current issue
+> diagnostics
 >
 > **Archive Info:** [ARCHIVE_INFO.md](ARCHIVE_INFO.md)
 
@@ -18,14 +20,14 @@
 
 ### Key Metrics
 
-| Metric | Original | Fixed |
-|--------|----------|-------|
-| **Streaming Data Received** | ❌ 0 entries | ✅ Multiple entries |
-| **Format Handling** | ❌ Wrong expectation | ✅ Correct unwrapping |
-| **Logging Visibility** | ❌ None | ✅ Comprehensive |
-| **Error Detection** | ❌ Silent failures | ✅ Clear error messages |
-| **Debugging Difficulty** | 🔴 Very hard | 🟢 Very easy |
-| **Code Readability** | ⚠️ Medium | ✅ High |
+| Metric                      | Original             | Fixed                   |
+| --------------------------- | -------------------- | ----------------------- |
+| **Streaming Data Received** | ❌ 0 entries         | ✅ Multiple entries     |
+| **Format Handling**         | ❌ Wrong expectation | ✅ Correct unwrapping   |
+| **Logging Visibility**      | ❌ None              | ✅ Comprehensive        |
+| **Error Detection**         | ❌ Silent failures   | ✅ Clear error messages |
+| **Debugging Difficulty**    | 🔴 Very hard         | 🟢 Very easy            |
+| **Code Readability**        | ⚠️ Medium            | ✅ High                 |
 
 ---
 
@@ -74,6 +76,7 @@ Future<void> startDataStream(String type, String deviceId) async {
 ```
 
 **Problem Visualized**:
+
 ```
 decoded = {
   "status": "data",              ← EXISTS
@@ -188,6 +191,7 @@ void _processStreamDataObjectFixed(
 ```
 
 **Fix Visualized**:
+
 ```
 decoded = {
   "status": "data",              ← DETECTED
@@ -378,39 +382,40 @@ Streaming started...
 
 ### JSON Parsing
 
-| Aspect | Original | Fixed |
-|--------|----------|-------|
-| **Handles wrapped format** | ❌ No | ✅ Yes (unwraps) |
-| **Handles raw format** | ✅ Yes | ✅ Yes |
-| **Handles List format** | ⚠️ Partial | ✅ Yes |
-| **Error messages** | ❌ Silent | ✅ Detailed |
-| **Format validation** | ❌ None | ✅ Comprehensive |
-| **Device ID validation** | ❌ No | ✅ Yes |
+| Aspect                     | Original   | Fixed            |
+| -------------------------- | ---------- | ---------------- |
+| **Handles wrapped format** | ❌ No      | ✅ Yes (unwraps) |
+| **Handles raw format**     | ✅ Yes     | ✅ Yes           |
+| **Handles List format**    | ⚠️ Partial | ✅ Yes           |
+| **Error messages**         | ❌ Silent  | ✅ Detailed      |
+| **Format validation**      | ❌ None    | ✅ Comprehensive |
+| **Device ID validation**   | ❌ No      | ✅ Yes           |
 
 ### Error Handling
 
-| Scenario | Original | Fixed |
-|----------|----------|-------|
-| **Empty buffer** | ❌ Exception caught, silent | ✅ Logged with details |
-| **Missing fields** | ❌ Silent skip | ✅ Logged error |
-| **Invalid JSON** | ❌ Exception caught, silent | ✅ Logged with buffer content |
-| **Device mismatch** | ❌ Processed anyway | ✅ Skipped with logging |
-| **Network error** | ❌ Vague error | ✅ Clear error message |
+| Scenario            | Original                    | Fixed                         |
+| ------------------- | --------------------------- | ----------------------------- |
+| **Empty buffer**    | ❌ Exception caught, silent | ✅ Logged with details        |
+| **Missing fields**  | ❌ Silent skip              | ✅ Logged error               |
+| **Invalid JSON**    | ❌ Exception caught, silent | ✅ Logged with buffer content |
+| **Device mismatch** | ❌ Processed anyway         | ✅ Skipped with logging       |
+| **Network error**   | ❌ Vague error              | ✅ Clear error message        |
 
 ### Performance
 
-| Metric | Original | Fixed | Impact |
-|--------|----------|-------|--------|
-| **Memory usage** | ~same | ~same | Negligible |
-| **CPU overhead** | ~same | ~same | Negligible (logging is async) |
-| **Latency** | ~same | ~same | No impact on data processing |
-| **Throughput** | 0 data/sec | Multiple/sec | **Critical improvement** |
+| Metric           | Original   | Fixed        | Impact                        |
+| ---------------- | ---------- | ------------ | ----------------------------- |
+| **Memory usage** | ~same      | ~same        | Negligible                    |
+| **CPU overhead** | ~same      | ~same        | Negligible (logging is async) |
+| **Latency**      | ~same      | ~same        | No impact on data processing  |
+| **Throughput**   | 0 data/sec | Multiple/sec | **Critical improvement**      |
 
 ---
 
 ## 📈 Real-World Test Results
 
 ### Test Environment
+
 - **Device**: ESP32-S3 Dev Module
 - **Registers**: 4 active Modbus registers
 - **Polling Rate**: ~1Hz from ESP32
@@ -447,29 +452,30 @@ Detailed logging shows:
 
 ## 💡 Key Improvements Summary
 
-| Category | Original | Fixed | Improvement |
-|----------|----------|-------|-------------|
-| **Functionality** | ❌ Broken | ✅ Working | +∞% |
-| **Debuggability** | 🔴 Impossible | 🟢 Easy | Critical |
-| **Error Visibility** | 0% | 100% | +100% |
-| **Code Clarity** | Medium | High | Better |
-| **Learning Value** | Low | High | Educational |
+| Category             | Original      | Fixed      | Improvement |
+| -------------------- | ------------- | ---------- | ----------- |
+| **Functionality**    | ❌ Broken     | ✅ Working | +∞%         |
+| **Debuggability**    | 🔴 Impossible | 🟢 Easy    | Critical    |
+| **Error Visibility** | 0%            | 100%       | +100%       |
+| **Code Clarity**     | Medium        | High       | Better      |
+| **Learning Value**   | Low           | High       | Educational |
 
 ---
 
 ## 📝 Conclusions
 
 ### Original Implementation Issues
+
 1. ❌ **Format mismatch**: Expect unwrapped but receive wrapped
 2. ❌ **Silent failure**: No logging to understand why it failed
 3. ❌ **Poor debugging**: Impossible to trace issue without adding logs manually
 4. ❌ **Hard to learn from**: Code doesn't show what it's trying to do
 
 ### Fixed Implementation Benefits
+
 1. ✅ **Correct format handling**: Properly unwraps nested response
 2. ✅ **Full visibility**: Every step logged with timestamps
 3. ✅ **Easy debugging**: Filter logs by [STREAM_*] pattern
 4. ✅ **Educational**: Code comments explain each step
 5. ✅ **Robust**: Handle multiple format variations
 6. ✅ **Safe**: Device ID validation, input checking
-

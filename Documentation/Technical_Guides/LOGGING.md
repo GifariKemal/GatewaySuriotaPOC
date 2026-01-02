@@ -1,9 +1,9 @@
 # 📝 Logging Reference
 
-**SRT-MGATE-1210 Modbus IIoT Gateway**
-Debug and Log Message Documentation
+**SRT-MGATE-1210 Modbus IIoT Gateway** Debug and Log Message Documentation
 
-[Home](../../README.md) > [Documentation](../README.md) > [Technical Guides](README.md) > Logging Reference
+[Home](../../README.md) > [Documentation](../README.md) >
+[Technical Guides](README.md) > Logging Reference
 
 ---
 
@@ -28,7 +28,8 @@ Debug and Log Message Documentation
 
 ## 🔍 Overview
 
-The SRT-MGATE-1210 firmware provides comprehensive logging for debugging and monitoring system behavior.
+The SRT-MGATE-1210 firmware provides comprehensive logging for debugging and
+monitoring system behavior.
 
 ### Log Levels
 
@@ -68,6 +69,7 @@ Logging can be configured via BLE:
 ```
 
 **Examples:**
+
 ```
 [BLE] Manager initialized
 [CRUD] Device created: D7A3F2
@@ -81,6 +83,7 @@ Logging can be configured via BLE:
 ```
 
 **Examples:**
+
 ```
 [LED] State changed to: FAST_BLINK (MQTT:ON HTTP:OFF)
 [RTU] Reconfiguring Serial1 from 9600 to 19200 baud
@@ -94,6 +97,7 @@ Logging can be configured via BLE:
 ```
 
 **Examples:**
+
 ```
 [BLE] ERROR: Fragmentation failed (Size:1024 Max:512)
 [RTU] ERROR: Invalid baudrate 7200
@@ -621,7 +625,8 @@ Modbus RTU service started successfully
   └─ Recovery: Check device power, wiring, and slave ID configuration
 ```
 
-**Meaning**: Structured error with timestamp, severity, domain, and recovery suggestion.
+**Meaning**: Structured error with timestamp, severity, domain, and recovery
+suggestion.
 
 ---
 
@@ -742,6 +747,7 @@ BLE CRUD Manager started successfully
 ```
 
 **Development Mode (0):**
+
 - Serial output: **ENABLED**
 - BLE: **Always ON**
 - Button: **Disabled**
@@ -753,6 +759,7 @@ Serial.println("Development mode - full logging enabled");
 ```
 
 **Production Mode (1):**
+
 - Serial output: **DISABLED** (via `Serial.end()`)
 - BLE: **Controlled by button**
 - Button: **Active** (long press/double click)
@@ -771,6 +778,7 @@ Serial.println("Development mode - full logging enabled");
 ### Performance Monitoring
 
 **Command Processing Time:**
+
 ```
 [CRUD] Command received at: 1234567890
 [CRUD] Command queued at: 1234567891 (1ms)
@@ -782,6 +790,7 @@ Serial.println("Development mode - full logging enabled");
 ---
 
 **BLE Transmission:**
+
 ```
 [BLE] Sending response (234 bytes)
 [BLE] Fragmentation: 11 fragments × 23 bytes
@@ -795,6 +804,7 @@ Serial.println("Development mode - full logging enabled");
 ### Troubleshooting Patterns
 
 **Pattern 1: Device Timeout Loop**
+
 ```
 [RTU] Device D7A3F2 timeout
 [RTU] Retry attempt 1/3
@@ -805,11 +815,13 @@ Serial.println("Development mode - full logging enabled");
 [RTU] Device D7A3F2 disabled
 ```
 
-**Diagnosis**: Device permanently offline. **Action**: Check physical connection.
+**Diagnosis**: Device permanently offline. **Action**: Check physical
+connection.
 
 ---
 
 **Pattern 2: Network Flapping**
+
 ```
 [NETWORK] WiFi connected
 [NETWORK] WiFi disconnected
@@ -817,11 +829,13 @@ Serial.println("Development mode - full logging enabled");
 [NETWORK] WiFi disconnected
 ```
 
-**Diagnosis**: Weak signal or interference. **Action**: Move gateway closer to AP.
+**Diagnosis**: Weak signal or interference. **Action**: Move gateway closer to
+AP.
 
 ---
 
 **Pattern 3: Memory Leak**
+
 ```
 [SYSTEM] Free heap: 102400 bytes
 [SYSTEM] Free heap: 98304 bytes (30s later)
@@ -829,7 +843,8 @@ Serial.println("Development mode - full logging enabled");
 [SYSTEM] Free heap: 90112 bytes (90s later)
 ```
 
-**Diagnosis**: Gradual memory decrease. **Action**: Check for unfreed allocations.
+**Diagnosis**: Gradual memory decrease. **Action**: Check for unfreed
+allocations.
 
 ---
 
@@ -862,22 +877,24 @@ tail -f /dev/ttyUSB0
 ## Related Documentation
 
 - **[Documentation Index](../README.md)** - Main documentation hub
-- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference (including log level commands)
+- **[API Reference](../API_Reference/API.md)** - Complete BLE API reference
+  (including log level commands)
 - **[PROTOCOL.md](PROTOCOL.md)** - Communication protocols
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Issue diagnosis using logs
 - **[HARDWARE.md](HARDWARE.md)** - Hardware specifications
-- **[Best Practices](../BEST_PRACTICES.md)** - Production logging recommendations
-- **[Optimization Documentation](../Optimizing/README.md)** - Log system implementation history
+- **[Best Practices](../BEST_PRACTICES.md)** - Production logging
+  recommendations
+- **[Optimization Documentation](../Optimizing/README.md)** - Log system
+  implementation history
 
 ---
 
-**Document Version:** 1.1
-**Last Updated:** December 10, 2025
-**Firmware Version:** 2.5.34
+**Document Version:** 1.1 **Last Updated:** December 10, 2025 **Firmware
+Version:** 2.5.34
 
 [← Back to Technical Guides](README.md) | [↑ Top](#-logging-reference)
 
 ---
 
-**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team**
-*For technical support: support@suriota.com*
+**© 2025 PT Surya Inovasi Prioritas (SURIOTA) - R&D Team** _For technical
+support: support@suriota.com_

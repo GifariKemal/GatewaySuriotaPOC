@@ -52,13 +52,19 @@ try:
     # Try pymodbus 3.x import first
     try:
         from pymodbus.server import StartSerialServer
+
         PYMODBUS_VERSION = 3
     except ImportError:
         # Fall back to pymodbus 2.x import
         from pymodbus.server.sync import StartSerialServer
+
         PYMODBUS_VERSION = 2
 
-    from pymodbus.datastore import ModbusSequentialDataBlock, ModbusSlaveContext, ModbusServerContext
+    from pymodbus.datastore import (
+        ModbusSequentialDataBlock,
+        ModbusSlaveContext,
+        ModbusServerContext,
+    )
 
     # ModbusRtuFramer import handling for version compatibility
     try:
@@ -69,53 +75,54 @@ try:
 
     PYMODBUS_IMPORTED = True
 except ImportError as e:
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  ERROR: Required libraries not installed!")
-    print("="*70)
+    print("=" * 70)
     print(f"\n  {e}\n")
     print("  Please install required packages:")
     print("  → pip install pymodbus pyserial")
     print("\n  Or:")
     print("  → pip3 install pymodbus pyserial")
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
     sys.exit(1)
 
 try:
     import serial
+
     PYSERIAL_IMPORTED = True
 except ImportError as e:
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  ERROR: pyserial not installed!")
-    print("="*70)
+    print("=" * 70)
     print(f"\n  {e}\n")
     print("  Please install pyserial:")
     print("  → pip install pyserial")
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
     sys.exit(1)
 
 # =============================================================================
 # Configuration (Match with Device_Testing/RTU/create_device_5_registers.py)
 # =============================================================================
 # Serial Port Configuration - ADJUST FOR YOUR SYSTEM
-if platform.system() == 'Windows':
-    SERIAL_PORT = 'COM8'  # MUST match device_testing configuration
+if platform.system() == "Windows":
+    SERIAL_PORT = "COM8"  # MUST match device_testing configuration
 else:
-    SERIAL_PORT = '/dev/ttyUSB0'  # Linux/Raspberry Pi
+    SERIAL_PORT = "/dev/ttyUSB0"  # Linux/Raspberry Pi
 
-BAUD_RATE = 9600       # MUST match device config
-DATA_BITS = 8          # MUST match device config (8N1)
-PARITY = 'N'           # None parity (8N1)
-STOP_BITS = 1          # MUST match device config
-SLAVE_ID = 1           # MUST match device config slave_id
-NUM_REGISTERS = 5      # 5 Input Registers
+BAUD_RATE = 9600  # MUST match device config
+DATA_BITS = 8  # MUST match device config (8N1)
+PARITY = "N"  # None parity (8N1)
+STOP_BITS = 1  # MUST match device config
+SLAVE_ID = 1  # MUST match device config slave_id
+NUM_REGISTERS = 5  # 5 Input Registers
 
 # Register definitions (matching create_device_5_registers.py)
 REGISTER_INFO = {
-    0: {"name": "Temperature", "unit": "°C",  "min": 20,   "max": 35,   "initial": 25},
-    1: {"name": "Humidity",    "unit": "%",   "min": 40,   "max": 80,   "initial": 60},
-    2: {"name": "Pressure",    "unit": "Pa",  "min": 900,  "max": 1100, "initial": 1000},
-    3: {"name": "Voltage",     "unit": "V",   "min": 220,  "max": 240,  "initial": 230},
-    4: {"name": "Current",     "unit": "A",   "min": 1,    "max": 10,   "initial": 5}
+    0: {"name": "Temperature", "unit": "°C", "min": 20, "max": 35, "initial": 25},
+    1: {"name": "Humidity", "unit": "%", "min": 40, "max": 80, "initial": 60},
+    2: {"name": "Pressure", "unit": "Pa", "min": 900, "max": 1100, "initial": 1000},
+    3: {"name": "Voltage", "unit": "V", "min": 220, "max": 240, "initial": 230},
+    4: {"name": "Current", "unit": "A", "min": 1, "max": 10, "initial": 5},
 }
 
 # Auto-update configuration
@@ -126,11 +133,12 @@ UPDATE_INTERVAL = 5.0  # Update every 5 seconds (gateway polls every 2s)
 # Logging Configuration
 # =============================================================================
 logging.basicConfig(
-    format='%(asctime)s [%(levelname)s] %(message)s',
+    format="%(asctime)s [%(levelname)s] %(message)s",
     level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger(__name__)
+
 
 # =============================================================================
 # Display Banner
@@ -139,20 +147,22 @@ def print_banner():
     """Display startup banner with configuration"""
     try:
         import pymodbus
+
         pymodbus_version = f"{pymodbus.__version__} (API v{PYMODBUS_VERSION}.x)"
     except:
         pymodbus_version = f"Unknown (API v{PYMODBUS_VERSION}.x)"
 
     try:
         import serial
+
         pyserial_version = serial.VERSION
     except:
         pyserial_version = "Unknown"
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  MODBUS RTU SLAVE SIMULATOR")
     print("  SRT-MGATE-1210 Testing - 5 Input Registers")
-    print("="*70)
+    print("=" * 70)
     print(f"  Serial Configuration:")
     print(f"  - Port:           {SERIAL_PORT}")
     print(f"  - Baud Rate:      {BAUD_RATE}")
@@ -176,8 +186,9 @@ def print_banner():
     print(f"  - PyModbus:       v{pymodbus_version}")
     print(f"  - PySerial:       v{pyserial_version}")
     print(f"  - Platform:       {platform.system()}")
-    print("="*70)
+    print("=" * 70)
     print("\n[INFO] Initializing Modbus RTU slave server...")
+
 
 # =============================================================================
 # Verify Serial Port Availability
@@ -186,6 +197,7 @@ def verify_serial_port():
     """Check if the specified serial port is available"""
     try:
         import serial.tools.list_ports
+
         ports = serial.tools.list_ports.comports()
         available_ports = [port.device for port in ports]
 
@@ -197,8 +209,10 @@ def verify_serial_port():
         for port in ports:
             print(f"  → {port.device}: {port.description}")
 
-        if SERIAL_PORT not in available_ports and platform.system() == 'Windows':
-            print(f"\n[WARNING] Configured port '{SERIAL_PORT}' not found in available ports!")
+        if SERIAL_PORT not in available_ports and platform.system() == "Windows":
+            print(
+                f"\n[WARNING] Configured port '{SERIAL_PORT}' not found in available ports!"
+            )
             print(f"[WARNING] Please check:")
             print(f"  1. USB-to-RS485 adapter is connected")
             print(f"  2. Driver is installed correctly")
@@ -211,6 +225,7 @@ def verify_serial_port():
     except Exception as e:
         log.warning(f"Could not verify serial port: {e}")
         return True  # Continue anyway on Linux
+
 
 # =============================================================================
 # Auto-Update Thread
@@ -279,23 +294,29 @@ class RegisterUpdater(threading.Thread):
 
                 # Print detailed values every update
                 print(f"\n{'─'*70}")
-                print(f"  Update #{self.update_count:04d} - Register Values (Slave ID: {SLAVE_ID}):")
+                print(
+                    f"  Update #{self.update_count:04d} - Register Values (Slave ID: {SLAVE_ID}):"
+                )
                 print(f"{'─'*70}")
                 for addr in range(NUM_REGISTERS):
                     info = REGISTER_INFO[addr]
                     value = values[addr]
-                    print(f"  [{addr}] {info['name']:12s}: {value:5d} {info['unit']:4s}")
+                    print(
+                        f"  [{addr}] {info['name']:12s}: {value:5d} {info['unit']:4s}"
+                    )
                 print(f"{'─'*70}")
                 print(f"[INFO] Waiting for Modbus RTU requests on {SERIAL_PORT}...\n")
 
             except Exception as e:
                 log.error(f"Error in auto-update thread: {e}")
                 import traceback
+
                 traceback.print_exc()
 
     def stop(self):
         """Stop the update thread"""
         self.running = False
+
 
 # =============================================================================
 # Main Server Setup
@@ -310,7 +331,7 @@ def run_server():
         print("\n[ERROR] Serial port verification failed!")
         print("[INFO] You can still try to run the server, but connection may fail.")
         response = input("\nContinue anyway? (y/n): ")
-        if response.lower() != 'y':
+        if response.lower() != "y":
             print("[INFO] Exiting...")
             sys.exit(1)
 
@@ -318,41 +339,39 @@ def run_server():
     initial_values = [REGISTER_INFO[i]["initial"] for i in range(NUM_REGISTERS)]
 
     # Create data blocks for Input Registers (function code 4)
-    input_registers = ModbusSequentialDataBlock(
-        0,  # Starting address
-        initial_values
-    )
+    input_registers = ModbusSequentialDataBlock(0, initial_values)  # Starting address
 
     # Create slave context with only Input Registers
     slave_context = ModbusSlaveContext(
-        di=ModbusSequentialDataBlock(0, [0]*100),  # Discrete Inputs (not used)
-        co=ModbusSequentialDataBlock(0, [0]*100),  # Coils (not used)
-        hr=ModbusSequentialDataBlock(0, [0]*100),  # Holding Registers (not used)
-        ir=input_registers,                         # Input Registers (USED)
-        zero_mode=True  # Use 0-based addressing
+        di=ModbusSequentialDataBlock(0, [0] * 100),  # Discrete Inputs (not used)
+        co=ModbusSequentialDataBlock(0, [0] * 100),  # Coils (not used)
+        hr=ModbusSequentialDataBlock(0, [0] * 100),  # Holding Registers (not used)
+        ir=input_registers,  # Input Registers (USED)
+        zero_mode=True,  # Use 0-based addressing
     )
 
     # Create server context with single slave
-    server_context = ModbusServerContext(
-        slaves={SLAVE_ID: slave_context},
-        single=False
-    )
+    server_context = ModbusServerContext(slaves={SLAVE_ID: slave_context}, single=False)
 
     # Display initial register values
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  INITIAL REGISTER VALUES (Input Registers)")
-    print("="*70)
+    print("=" * 70)
     print(f"  {'Addr':<6} {'Name':<15} {'Value':<10} {'Unit':<10} {'Range':<20}")
-    print("─"*70)
+    print("─" * 70)
     for addr in range(NUM_REGISTERS):
         info = REGISTER_INFO[addr]
         value = info["initial"]
         range_str = f"{info['min']}-{info['max']}"
-        print(f"  {addr:<6} {info['name']:<15} {value:<10} {info['unit']:<10} {range_str:<20}")
-    print("="*70)
+        print(
+            f"  {addr:<6} {info['name']:<15} {value:<10} {info['unit']:<10} {range_str:<20}"
+        )
+    print("=" * 70)
 
     print(f"\n[INFO] Server listening on {SERIAL_PORT}")
-    print(f"[INFO] Baud Rate: {BAUD_RATE}, Format: {DATA_BITS}{PARITY}{STOP_BITS}, Framer: RTU")
+    print(
+        f"[INFO] Baud Rate: {BAUD_RATE}, Format: {DATA_BITS}{PARITY}{STOP_BITS}, Framer: RTU"
+    )
     print(f"[INFO] Slave ID: {SLAVE_ID}")
     print(f"[INFO] Function Code: 4 (Read Input Registers)")
     print(f"[INFO] Register Addresses: 0-{NUM_REGISTERS-1}")
@@ -368,7 +387,10 @@ def run_server():
     if AUTO_UPDATE:
         updater = RegisterUpdater(server_context, SLAVE_ID)
         updater.start()
-        log.info("Auto-update enabled - register values will change every %.1fs", UPDATE_INTERVAL)
+        log.info(
+            "Auto-update enabled - register values will change every %.1fs",
+            UPDATE_INTERVAL,
+        )
 
     try:
         # Start RTU Serial server (blocks until stopped)
@@ -386,7 +408,7 @@ def run_server():
                 bytesize=DATA_BITS,
                 parity=PARITY,
                 stopbits=STOP_BITS,
-                timeout=1  # 1 second timeout for serial reads
+                timeout=1,  # 1 second timeout for serial reads
             )
         else:
             # pymodbus 2.x API
@@ -398,7 +420,7 @@ def run_server():
                 bytesize=DATA_BITS,
                 parity=PARITY,
                 stopbits=STOP_BITS,
-                timeout=1  # 1 second timeout for serial reads
+                timeout=1,  # 1 second timeout for serial reads
             )
 
     except KeyboardInterrupt:
@@ -411,15 +433,16 @@ def run_server():
     except Exception as e:
         log.error(f"Server error: {e}")
         import traceback
+
         traceback.print_exc()
         if updater:
             updater.stop()
 
         # Check for common errors
         if "could not open port" in str(e).lower():
-            print("\n" + "="*70)
+            print("\n" + "=" * 70)
             print("  SERIAL PORT ERROR")
-            print("="*70)
+            print("=" * 70)
             print(f"\n  Could not open {SERIAL_PORT}")
             print(f"\n  Common causes:")
             print(f"  1. Port is already in use by another program")
@@ -427,17 +450,18 @@ def run_server():
             print(f"  3. Incorrect COM port number")
             print(f"  4. Insufficient permissions (try running as Administrator)")
             print(f"  5. Driver not installed correctly")
-            print("\n" + "="*70 + "\n")
+            print("\n" + "=" * 70 + "\n")
         raise
+
 
 # =============================================================================
 # Main Entry Point
 # =============================================================================
 if __name__ == "__main__":
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  MODBUS RTU SLAVE SIMULATOR")
     print("  SRT-MGATE-1210 Firmware Testing Tool")
-    print("="*70)
+    print("=" * 70)
     print(f"\n  Configuration:")
     print(f"  ├─ Port:         {SERIAL_PORT}")
     print(f"  ├─ Baud Rate:    {BAUD_RATE}")
@@ -449,7 +473,9 @@ if __name__ == "__main__":
     print(f"\n  Register Mapping:")
     for addr in range(NUM_REGISTERS):
         info = REGISTER_INFO[addr]
-        print(f"  [{addr}] {info['name']:12s} - {info['unit']:4s} ({info['min']}-{info['max']})")
+        print(
+            f"  [{addr}] {info['name']:12s} - {info['unit']:4s} ({info['min']}-{info['max']})"
+        )
 
     print(f"\n  Gateway Configuration (use in Device_Testing/RTU):")
     print(f"  ├─ Serial Port:  COM8 (or Port 2 on ESP32)")
@@ -461,7 +487,7 @@ if __name__ == "__main__":
     print(f"  ├─ Protocol:     RTU")
     print(f"  └─ Function:     Read Input Registers (FC 4)")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("\n  This simulator matches the configuration from:")
     print("  Device_Testing/RTU/create_device_5_registers.py")
     print("\n  IMPORTANT:")
@@ -469,7 +495,7 @@ if __name__ == "__main__":
     print("  - Configure Modbus Slave Simulator settings as shown in screenshot")
     print("  - RTS Toggle with 1ms disable delay")
     print("  - No other program should use COM8")
-    print("\n" + "="*70 + "\n")
+    print("\n" + "=" * 70 + "\n")
 
     input("Press Enter to start server...")
 

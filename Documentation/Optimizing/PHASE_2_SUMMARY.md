@@ -2,7 +2,8 @@
 
 ## ✅ Overview
 
-Phase 2 implements automatic memory monitoring and recovery to prevent crashes during sustained high load operations.
+Phase 2 implements automatic memory monitoring and recovery to prevent crashes
+during sustained high load operations.
 
 ---
 
@@ -38,20 +39,22 @@ Phase 2 implements automatic memory monitoring and recovery to prevent crashes d
 
 ### Automatic Monitoring
 
-Every 5 seconds, `MemoryRecovery::checkAndRecover()` checks DRAM/PSRAM levels from:
+Every 5 seconds, `MemoryRecovery::checkAndRecover()` checks DRAM/PSRAM levels
+from:
+
 - RTU polling task (Core 0)
 - TCP polling task (Core 0)
 - MQTT publishing task (Core 1)
 
 ### Tiered Recovery Strategy
 
-| DRAM Free | Tier        | Action                                          | Log Level |
-|-----------|-------------|-------------------------------------------------|-----------|
-| > 50KB    | HEALTHY     | No action, reset counters                       | INFO      |
-| < 30KB    | WARNING     | Clear expired MQTT messages                     | WARN      |
-| < 15KB    | CRITICAL    | Flush 20 oldest queue entries + MQTT cleanup    | ERROR     |
-| < 10KB    | EMERGENCY   | All recovery actions + prepare for restart      | ERROR     |
-| < 10KB 3× | FATAL       | Auto-restart ESP32                              | ERROR     |
+| DRAM Free | Tier      | Action                                       | Log Level |
+| --------- | --------- | -------------------------------------------- | --------- |
+| > 50KB    | HEALTHY   | No action, reset counters                    | INFO      |
+| < 30KB    | WARNING   | Clear expired MQTT messages                  | WARN      |
+| < 15KB    | CRITICAL  | Flush 20 oldest queue entries + MQTT cleanup | ERROR     |
+| < 10KB    | EMERGENCY | All recovery actions + prepare for restart   | ERROR     |
+| < 10KB 3× | FATAL     | Auto-restart ESP32                           | ERROR     |
 
 ### Recovery Actions (in priority order)
 
@@ -106,11 +109,13 @@ Compile Log Level: VERBOSE (development)
 ### Manual Test 1: Memory Status Logging
 
 In your code, call:
+
 ```cpp
 MemoryRecovery::logMemoryStatus("TEST");
 ```
 
 Expected output:
+
 ```
 [INFO][MEM] [TEST] DRAM: 250000 bytes (37.5% used), PSRAM: 8000000 bytes (4.6% used)
 ```
@@ -118,6 +123,7 @@ Expected output:
 ### Manual Test 2: Force Recovery
 
 To test recovery manually:
+
 ```cpp
 // Test queue flush
 MemoryRecovery::forceRecovery(RECOVERY_FLUSH_OLD_QUEUE);
@@ -131,7 +137,8 @@ MemoryRecovery::forceRecovery(RECOVERY_FORCE_GARBAGE_COLLECT);
 
 ### Stress Test: Simulate Low Memory
 
-To trigger automatic recovery during normal operation, monitor logs during 50+ register polling:
+To trigger automatic recovery during normal operation, monitor logs during 50+
+register polling:
 
 ```
 [WARN][MEM] LOW DRAM: 28000 bytes (threshold: 30000). Triggering proactive cleanup... (event #1)
@@ -143,13 +150,13 @@ To trigger automatic recovery during normal operation, monitor logs during 50+ r
 
 ## 📈 Performance Impact
 
-| Metric                | Value              | Status |
-|-----------------------|--------------------|--------|
-| Overhead per check    | ~0.1ms             | ✅ Negligible |
-| Check frequency       | Every 5 seconds    | ✅ Low impact |
-| Recovery latency      | < 50ms             | ✅ Fast |
-| False positives       | None (tiered)      | ✅ Reliable |
-| Memory overhead       | ~2KB Flash         | ✅ Minimal |
+| Metric             | Value           | Status        |
+| ------------------ | --------------- | ------------- |
+| Overhead per check | ~0.1ms          | ✅ Negligible |
+| Check frequency    | Every 5 seconds | ✅ Low impact |
+| Recovery latency   | < 50ms          | ✅ Fast       |
+| False positives    | None (tiered)   | ✅ Reliable   |
+| Memory overhead    | ~2KB Flash      | ✅ Minimal    |
 
 ---
 
@@ -192,37 +199,44 @@ Memory recovery is automatically called from:
 
 ## 🎯 Success Criteria
 
-✅ **Compilation**: No errors
-✅ **Runtime**: No crashes during 50-register test
-✅ **Logging**: Memory stats visible at INFO level
-✅ **Recovery**: Automatic cleanup when DRAM < 30KB
-✅ **Stability**: No restarts during normal operation
+✅ **Compilation**: No errors ✅ **Runtime**: No crashes during 50-register test
+✅ **Logging**: Memory stats visible at INFO level ✅ **Recovery**: Automatic
+cleanup when DRAM < 30KB ✅ **Stability**: No restarts during normal operation
 
 ---
 
 ## 🐞 Troubleshooting
 
 **Issue**: "MemoryRecovery.h: No such file"
+
 - **Fix**: Ensure MemoryRecovery.h and MemoryRecovery.cpp are in Main/ folder
 
 **Issue**: "undefined reference to MemoryRecovery::checkAndRecover()"
-- **Fix**: Verify MemoryRecovery.cpp is included in Arduino IDE (appears in tab bar)
+
+- **Fix**: Verify MemoryRecovery.cpp is included in Arduino IDE (appears in tab
+  bar)
 
 **Issue**: "QueueManager not available during recovery"
-- **Fix**: Recovery will skip queue flush and try other actions (graceful degradation)
+
+- **Fix**: Recovery will skip queue flush and try other actions (graceful
+  degradation)
 
 **Issue**: Frequent WARNING logs during normal operation
-- **Fix**: This is expected if DRAM usage is borderline (~25-35KB). Recovery will keep system stable.
+
+- **Fix**: This is expected if DRAM usage is borderline (~25-35KB). Recovery
+  will keep system stable.
 
 ---
 
 ## 📝 Next Steps: Phase 3 & 4
 
 **Phase 3**: RTC Timestamps in Logs (low priority)
+
 - Add `[2025-11-17 20:15:48]` timestamps to all logs
 - Helps with production debugging
 
 **Phase 4**: BLE MTU Timeout Optimization (low priority)
+
 - Reduce MTU negotiation timeout from 40s → 15s
 - Faster client connection detection
 
@@ -230,13 +244,15 @@ Memory recovery is automatically called from:
 
 ## ✨ Phase 2 Complete!
 
-You can now upload the firmware and test with your 50-register RTU setup. The memory recovery system will automatically:
+You can now upload the firmware and test with your 50-register RTU setup. The
+memory recovery system will automatically:
 
 1. Log memory status every 5s (via checkAndRecover)
 2. Proactively clean up when DRAM < 30KB
 3. Emergency restart if DRAM < 10KB for 3 consecutive checks
 
-**Expected log change**: You'll see periodic memory recovery messages if DRAM gets low, confirming the system is protecting against crashes!
+**Expected log change**: You'll see periodic memory recovery messages if DRAM
+gets low, confirming the system is protecting against crashes!
 
 ---
 

@@ -1,0 +1,42 @@
+{
+  "product": {
+    "name": "SRT-MGATE-1210",
+    "model": "MGate-1210(P)",
+    "manufacturer": "SURIOTA IoT Solutions",
+    "copyright": "Copyright (c) 2026 Suriota IoT Solutions. All rights reserved."
+  },
+  "version": "1.1.0",
+  "build_number": 110,
+  "release_date": "2025-12-27",
+  "min_version": "0.1.0",
+  "firmware": {
+    "url": "https://api.github.com/repos/GifariKemal/GatewaySuriotaOTA/contents/releases/v1.0.3/MGATE-1210_P_v1.0.3.bin?ref=main",
+    "filename": "MGATE-1210_P_v1.0.3.bin",
+    "size": 2047712,
+    "sha256": "a6625d983574315bba40f0e28cec8dac3bb08eee57436c4bf6dedbb8e3f60fa0",
+    "signature": "304402201e81b7c676a8295b4dc862a5c8cbe7fc9aa0d59b7084efc5c154bd8a8975bee202203b067364734990391352516cbefa9bd802221afb24f50c01fbb7f95bd509f4d5"
+  },
+  "changelog": [
+    "VERSION 1.0.3 - CONFIG TRANSFER PROGRESS",
+    "",
+    "NEW FEATURES:",
+    "- config_download_progress: Real-time progress during backup (every 10%)",
+    "- config_restore_progress: Step-by-step restore progress (devices, server, logging)",
+    "",
+    "BREAKING CHANGE:",
+    "- Mobile app MUST be updated to filter new notification types",
+    "- Without update, backup/restore JSON responses will be corrupted",
+    "",
+    "MOBILE APP REQUIRED CHANGES:",
+    "- Filter config_download_progress from response buffer",
+    "- Filter config_restore_progress from response buffer",
+    "- See CONFIG_TRANSFER_PROGRESS_FEATURE_REQUEST.md for implementation guide",
+    "",
+    "Previous: v1.0.2 (preparation), v1.0.1 (config change fix), v1.0.0 (production)",
+    "",
+    "Copyright (c) 2026 Suriota IoT Solutions",
+    "www.suriota.com | support@suriota.com"
+  ],
+  "mandatory": false,
+  "notes": "Config transfer progress notifications activated. Mobile app update required."
+}

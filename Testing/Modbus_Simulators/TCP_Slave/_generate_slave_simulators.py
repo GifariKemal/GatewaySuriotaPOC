@@ -310,6 +310,7 @@ if __name__ == "__main__":
     run_server()
 '''
 
+
 def generate_programs():
     """Generate TCP slave programs for different register counts"""
 
@@ -324,24 +325,24 @@ def generate_programs():
         register_desc_lines = []
         for i in range(num_regs):
             name = f"Temp_Zone_{i+1}"
-            register_lines.append(f'    {i}: {{"name": "{name}", "unit": "degC", "min": 20, "max": 35, "initial": 25}}')
+            register_lines.append(
+                f'    {i}: {{"name": "{name}", "unit": "degC", "min": 20, "max": 35, "initial": 25}}'
+            )
             register_desc_lines.append(f"    - Address {i}: {name} (degC)")
 
-        register_dict = ',\n'.join(register_lines)
-        register_desc = '\n'.join(register_desc_lines[:10])
+        register_dict = ",\n".join(register_lines)
+        register_desc = "\n".join(register_desc_lines[:10])
         if num_regs > 10:
             register_desc += f"\n    ... and {num_regs - 10} more registers"
 
         # Create file content
         content = TEMPLATE.format(
-            num_regs=num_regs,
-            register_dict=register_dict,
-            register_desc=register_desc
+            num_regs=num_regs, register_dict=register_dict, register_desc=register_desc
         )
 
         # Write file
-        filename = f'modbus_slave_{num_regs}_registers.py'
-        with open(filename, 'w', encoding='utf-8') as f:
+        filename = f"modbus_slave_{num_regs}_registers.py"
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
 
         try:
@@ -356,6 +357,7 @@ def generate_programs():
     for num_regs in register_counts:
         print(f"    - modbus_slave_{num_regs}_registers.py")
     print()
+
 
 if __name__ == "__main__":
     print()

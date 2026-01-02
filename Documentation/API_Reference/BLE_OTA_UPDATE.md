@@ -1,13 +1,13 @@
 # BLE OTA Update API Reference
 
-**Version:** 2.5.38
-**Last Updated:** December 19, 2025
+**Version:** 2.5.38 **Last Updated:** December 19, 2025
 
 ---
 
 ## Overview
 
-The OTA (Over-The-Air) Update API allows firmware updates via BLE CRUD commands. The system supports two update transports:
+The OTA (Over-The-Air) Update API allows firmware updates via BLE CRUD commands.
+The system supports two update transports:
 
 1. **HTTPS OTA** - Download firmware from GitHub via WiFi/Ethernet
 2. **BLE OTA** - Transfer firmware directly via BLE from smartphone app
@@ -18,28 +18,30 @@ All OTA commands use the operation type `"op": "ota"`.
 
 ## Quick Reference
 
-| Command            | Type               | Operation | Description                           |
-| ------------------ | ------------------ | --------- | ------------------------------------- |
-| Get Network Status | `get_network_status` | `control` | Check network before OTA (v2.5.38)   |
-| Check Update       | `check_update`     | `ota`     | Query GitHub for new firmware version |
-| Start Update       | `start_update`     | `ota`     | Begin HTTPS firmware download         |
-| Get Status         | `ota_status`       | `ota`     | Get current OTA state and progress    |
-| Abort Update       | `abort_update`     | `ota`     | Cancel ongoing update                 |
-| Apply Update       | `apply_update`     | `ota`     | Install firmware and reboot           |
-| Enable BLE OTA     | `enable_ble_ota`   | `ota`     | Activate BLE transfer mode            |
-| Disable BLE OTA    | `disable_ble_ota`  | `ota`     | Deactivate BLE transfer mode          |
-| Rollback           | `rollback`         | `ota`     | Revert to previous/factory firmware   |
-| Get Config         | `get_config`       | `ota`     | View OTA configuration                |
-| Set GitHub Repo    | `set_github_repo`  | `ota`     | Configure firmware source             |
-| Set GitHub Token   | `set_github_token` | `ota`     | Set token for private repos           |
+| Command            | Type                 | Operation | Description                           |
+| ------------------ | -------------------- | --------- | ------------------------------------- |
+| Get Network Status | `get_network_status` | `control` | Check network before OTA (v2.5.38)    |
+| Check Update       | `check_update`       | `ota`     | Query GitHub for new firmware version |
+| Start Update       | `start_update`       | `ota`     | Begin HTTPS firmware download         |
+| Get Status         | `ota_status`         | `ota`     | Get current OTA state and progress    |
+| Abort Update       | `abort_update`       | `ota`     | Cancel ongoing update                 |
+| Apply Update       | `apply_update`       | `ota`     | Install firmware and reboot           |
+| Enable BLE OTA     | `enable_ble_ota`     | `ota`     | Activate BLE transfer mode            |
+| Disable BLE OTA    | `disable_ble_ota`    | `ota`     | Deactivate BLE transfer mode          |
+| Rollback           | `rollback`           | `ota`     | Revert to previous/factory firmware   |
+| Get Config         | `get_config`         | `ota`     | View OTA configuration                |
+| Set GitHub Repo    | `set_github_repo`    | `ota`     | Configure firmware source             |
+| Set GitHub Token   | `set_github_token`   | `ota`     | Set token for private repos           |
 
 ---
 
 ## 0. Pre-OTA Network Check (v2.5.38)
 
-Check network connectivity before starting OTA update. **Recommended to call before `start_update`.**
+Check network connectivity before starting OTA update. **Recommended to call
+before `start_update`.**
 
-> **Note:** This uses `"op": "control"` (not `"op": "ota"`) because it's a general network status command.
+> **Note:** This uses `"op": "control"` (not `"op": "ota"`) because it's a
+> general network status command.
 
 ### Request
 
@@ -134,17 +136,18 @@ Check network connectivity before starting OTA update. **Recommended to call bef
 
 ### OTA Readiness Logic
 
-| Condition | `ota_ready` | Recommendation |
-|-----------|-------------|----------------|
-| No network | `false` | Connect to WiFi or Ethernet |
-| Ethernet connected | `true` | Recommended for OTA |
-| WiFi signal ≥ 50% | `true` | OK for OTA |
-| WiFi signal 30-49% | `true` | OTA may be slow |
-| WiFi signal < 30% | `false` | Not recommended, use Ethernet |
+| Condition          | `ota_ready` | Recommendation                |
+| ------------------ | ----------- | ----------------------------- |
+| No network         | `false`     | Connect to WiFi or Ethernet   |
+| Ethernet connected | `true`      | Recommended for OTA           |
+| WiFi signal ≥ 50%  | `true`      | OK for OTA                    |
+| WiFi signal 30-49% | `true`      | OTA may be slow               |
+| WiFi signal < 30%  | `false`     | Not recommended, use Ethernet |
 
 ### Mobile App Integration
 
 Use this API to:
+
 1. **Pre-check before OTA** - Show network status before user initiates update
 2. **Display warnings** - Alert user if WiFi signal is weak
 3. **Recommend Ethernet** - Suggest Ethernet for more reliable OTA
@@ -238,7 +241,8 @@ Begin downloading firmware from GitHub or custom URL.
 }
 ```
 
-> **v2.5.38:** Response now includes `network_mode`, `ip_address`, and `wifi_signal_quality` (for WiFi).
+> **v2.5.38:** Response now includes `network_mode`, `ip_address`, and
+> `wifi_signal_quality` (for WiFi).
 
 ### Response (No Network - v2.5.38)
 
@@ -251,7 +255,8 @@ Begin downloading firmware from GitHub or custom URL.
 }
 ```
 
-> **v2.5.38:** `start_update` now performs automatic network pre-check and fails immediately if no network is available.
+> **v2.5.38:** `start_update` now performs automatic network pre-check and fails
+> immediately if no network is available.
 
 ### Response (Weak WiFi Warning)
 
@@ -328,33 +333,33 @@ Get current OTA state, progress, and version information.
 
 ### Response Fields (v2.5.37)
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `state` | int | State enum value (0-6) |
-| `state_name` | string | Human-readable state name |
-| `progress` | int | Download progress (0-100%) |
-| `bytes_downloaded` | int | Bytes downloaded so far |
-| `total_bytes` | int | Total firmware size in bytes |
-| `bytes_per_second` | int | Current download speed (bytes/sec) |
-| `eta_seconds` | int | Estimated time remaining (seconds) |
-| `network_mode` | string | Network interface ("WiFi" or "Ethernet") |
-| `retry_count` | int | Current retry attempt (0 = first attempt) |
-| `max_retries` | int | Maximum retry attempts configured |
-| `current_version` | string | Current firmware version |
-| `target_version` | string | Target firmware version |
-| `update_available` | bool | Whether an update is available |
+| Field              | Type   | Description                               |
+| ------------------ | ------ | ----------------------------------------- |
+| `state`            | int    | State enum value (0-6)                    |
+| `state_name`       | string | Human-readable state name                 |
+| `progress`         | int    | Download progress (0-100%)                |
+| `bytes_downloaded` | int    | Bytes downloaded so far                   |
+| `total_bytes`      | int    | Total firmware size in bytes              |
+| `bytes_per_second` | int    | Current download speed (bytes/sec)        |
+| `eta_seconds`      | int    | Estimated time remaining (seconds)        |
+| `network_mode`     | string | Network interface ("WiFi" or "Ethernet")  |
+| `retry_count`      | int    | Current retry attempt (0 = first attempt) |
+| `max_retries`      | int    | Maximum retry attempts configured         |
+| `current_version`  | string | Current firmware version                  |
+| `target_version`   | string | Target firmware version                   |
+| `update_available` | bool   | Whether an update is available            |
 
 ### State Values
 
-| Value | State Name | Description |
-| ----- | ---------- | -------------------------------------- |
-| 0 | `IDLE` | No OTA in progress, ready for commands |
-| 1 | `CHECKING` | Checking GitHub for updates |
-| 2 | `DOWNLOADING` | Downloading firmware via HTTPS |
-| 3 | `VALIDATING` | Verifying signature and checksum |
-| 4 | `APPLYING` | Writing firmware to flash |
-| 5 | `REBOOTING` | About to reboot with new firmware |
-| 6 | `ERROR` | Error occurred (check error_code) |
+| Value | State Name    | Description                            |
+| ----- | ------------- | -------------------------------------- |
+| 0     | `IDLE`        | No OTA in progress, ready for commands |
+| 1     | `CHECKING`    | Checking GitHub for updates            |
+| 2     | `DOWNLOADING` | Downloading firmware via HTTPS         |
+| 3     | `VALIDATING`  | Verifying signature and checksum       |
+| 4     | `APPLYING`    | Writing firmware to flash              |
+| 5     | `REBOOTING`   | About to reboot with new firmware      |
+| 6     | `ERROR`       | Error occurred (check error_code)      |
 
 ### Error Response (when state = ERROR)
 
@@ -384,8 +389,8 @@ Get current OTA state, progress, and version information.
 
 ## 3.1 OTA Progress Notifications (v2.5.37 - Push)
 
-**NEW:** The gateway automatically sends progress notifications during HTTPS OTA download.
-This allows the mobile app to show real-time progress without polling.
+**NEW:** The gateway automatically sends progress notifications during HTTPS OTA
+download. This allows the mobile app to show real-time progress without polling.
 
 ### How It Works
 
@@ -941,7 +946,8 @@ asyncio.run(check_ota_update())
 
 ### Python BLE OTA Testing Tool (v2.0.0)
 
-A comprehensive Python testing tool is available at `Testing/BLE_Testing/OTA_Test/ota_update.py`:
+A comprehensive Python testing tool is available at
+`Testing/BLE_Testing/OTA_Test/ota_update.py`:
 
 ```bash
 cd Testing/BLE_Testing/OTA_Test
@@ -953,6 +959,7 @@ python ota_update.py --update           # Full update flow
 ```
 
 **Features (v2.0.0):**
+
 - Automatic BLE device scanning
 - Step-by-step OTA flow (Check → Download → Apply)
 - **Real-time progress notifications** from device (push)
@@ -964,15 +971,18 @@ python ota_update.py --update           # Full update flow
 - Beautiful terminal UI
 
 **Sample Progress Display:**
+
 ```
   [██████████████░░░░░░░░░░░░░░░░]  45% | 707.8 KB/1.5 MB | ⚡28.5 KB/s | ⏱️ 35s | 📡WiFi
 ```
 
 ### MockupUI Reference
 
-For Android developers, an OTA UI mockup is available at `MockupUI/OTA Update.html`:
+For Android developers, an OTA UI mockup is available at
+`MockupUI/OTA Update.html`:
 
 **States Visualized:**
+
 - Idle, Checking, Available, Downloading
 - Verifying, Ready, Installing, Success, Error
 
@@ -980,9 +990,11 @@ For Android developers, an OTA UI mockup is available at `MockupUI/OTA Update.ht
 
 ## Related Documentation
 
-- [OTA Technical Guide](../Technical_Guides/OTA_FIRMWARE_GUIDE.md) - Step-by-step firmware preparation
+- [OTA Technical Guide](../Technical_Guides/OTA_FIRMWARE_GUIDE.md) -
+  Step-by-step firmware preparation
 - [OTA_UPDATE.md](../Technical_Guides/OTA_UPDATE.md) - System architecture
-- [OTA Deployment Guide](../Technical_Guides/OTA_DEPLOYMENT_GUIDE.md) - Full deployment workflow
+- [OTA Deployment Guide](../Technical_Guides/OTA_DEPLOYMENT_GUIDE.md) - Full
+  deployment workflow
 - [API.md](API.md) - Main BLE CRUD API reference
 
 ---

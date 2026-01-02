@@ -16,33 +16,32 @@
 #define ATOMIC_FILE_OPS_H
 
 #include <Arduino.h>
-#include <LittleFS.h>
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
-#include <vector>
+#include <LittleFS.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+
+#include <vector>
+
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
 
 /**
  * @brief Write-Ahead Log Entry for tracking incomplete operations
  */
-struct WALEntry
-{
-  String operation;        // "write", "delete", etc
-  String targetFile;       // File being modified
-  String tempFile;         // Temporary file (if applicable)
-  unsigned long timestamp; // When operation started
-  String checksum;         // For verification
-  bool completed = false;  // Mark as completed after successful write
-  uint8_t retryCount = 0;  // Retry tracking
+struct WALEntry {
+  String operation;         // "write", "delete", etc
+  String targetFile;        // File being modified
+  String tempFile;          // Temporary file (if applicable)
+  unsigned long timestamp;  // When operation started
+  String checksum;          // For verification
+  bool completed = false;   // Mark as completed after successful write
+  uint8_t retryCount = 0;   // Retry tracking
 
   // Calculate hash for this entry
-  String getHash() const
-  {
+  String getHash() const {
     String data = operation + "|" + targetFile + "|" + String(timestamp);
     uint32_t hash = 0;
-    for (char c : data)
-    {
+    for (char c : data) {
       hash = ((hash << 1) ^ c) & 0xFFFFFFFF;
     }
     return String(hash, HEX);
@@ -55,23 +54,22 @@ struct WALEntry
  * Provides safe file operations with automatic recovery.
  * Uses Write-Ahead Logging to ensure data integrity even with power loss.
  */
-class AtomicFileOps
-{
-private:
-  static const char *WAL_FILE;
+class AtomicFileOps {
+ private:
+  static const char* WAL_FILE;
   std::vector<WALEntry> walLog;
   SemaphoreHandle_t walMutex;
   bool recoveryAttempted = false;
 
   // Private helper methods
-  String calculateChecksum(const JsonDocument &doc);
-  String calculateFileChecksum(const String &filename);
-  bool verifyFileIntegrity(const String &filename);
-  void appendToWAL(const WALEntry &entry);
-  void markWALEntryCompleted(const String &filename);
+  String calculateChecksum(const JsonDocument& doc);
+  String calculateFileChecksum(const String& filename);
+  bool verifyFileIntegrity(const String& filename);
+  void appendToWAL(const WALEntry& entry);
+  void markWALEntryCompleted(const String& filename);
   void clearWAL();
 
-public:
+ public:
   AtomicFileOps();
   ~AtomicFileOps();
 
@@ -91,18 +89,19 @@ public:
    * If power is lost during step 1, recovery will clean up .tmp
    * If power is lost during step 2, recovery will complete the rename
    *
-   * @param filename Target filename (must be absolute path like "/devices.json")
+   * @param filename Target filename (must be absolute path like
+   * "/devices.json")
    * @param doc JsonDocument to write
    * @return true if write successful
    */
-  bool writeAtomic(const String &filename, const JsonDocument &doc);
+  bool writeAtomic(const String& filename, const JsonDocument& doc);
 
   /**
    * @brief Perform atomic delete of file
    * @param filename File to delete
    * @return true if delete successful
    */
-  bool deleteAtomic(const String &filename);
+  bool deleteAtomic(const String& filename);
 
   /**
    * @brief Recover from incomplete operations
@@ -133,4 +132,4 @@ public:
   void printWALStatus();
 };
 
-#endif // ATOMIC_FILE_OPS_H
+#endif  // ATOMIC_FILE_OPS_H

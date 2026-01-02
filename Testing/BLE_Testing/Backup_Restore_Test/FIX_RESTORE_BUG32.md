@@ -1,15 +1,15 @@
 # FIX: BUG #32 - Restore Config Failure for Large JSON Payloads
 
-**Date:** 2025-11-22
-**Issue:** Restore configuration fails with "Missing 'config' object in payload"
-**Root Cause:** JsonDocument dynamic allocation too slow for 3420-byte restore payload
-**Status:** ✅ FIXED
+**Date:** 2025-11-22 **Issue:** Restore configuration fails with "Missing
+'config' object in payload" **Root Cause:** JsonDocument dynamic allocation too
+slow for 3420-byte restore payload **Status:** ✅ FIXED
 
 ---
 
 ## 🐛 **Problem Description**
 
 ### **Symptoms:**
+
 ```
 Python Test Output:
 ✅ Backup: SUCCESS (3519 bytes, 2 devices, 10 registers)
@@ -27,6 +27,7 @@ Serial Monitor Output:
    - Transmission time: 19 seconds (190 × 100ms delay)
 
 2. **JsonDocument Allocation Issue:**
+
    ```cpp
    // OLD CODE (BUG):
    auto doc = make_psram_unique<JsonDocument>();  // No size parameter!
@@ -40,6 +41,7 @@ Serial Monitor Output:
    - Result: "config" key gets truncated/lost
 
 3. **Serial.printf Buffer Overflow:**
+
    ```cpp
    // OLD CODE (BUG):
    Serial.printf("[BLE CMD] Raw JSON: %s\n", command);  // Truncates at ~1KB!
@@ -63,12 +65,14 @@ DeserializationError error = deserializeJson(doc, command);
 ```
 
 **Why This Works:**
+
 - `SpiRamJsonDocument` uses `PSRAMAllocator` (from JsonDocumentPSRAM.h)
 - Allocator automatically grows in PSRAM as needed
 - No size limit (up to 8MB PSRAM available)
 - Fast dynamic allocation optimized for ESP32
 
-**Result:** JSON parsing in BLEManager now works (tested with 3415-byte restore command)
+**Result:** JSON parsing in BLEManager now works (tested with 3415-byte restore
+command)
 
 ---
 
@@ -95,16 +99,19 @@ if (!cmd.payload->set(command)) {
 ```
 
 **Why This is Critical:**
+
 - ArduinoJson v7's `.set()` returns `bool` (true=success, false=failure)
 - If deep copy fails due to memory issues, it returns `false`
 - Without checking, code continues with INCOMPLETE payload
 - Result: "Missing 'config' object in payload" error
 
 **Fixed in TWO locations:**
+
 1. `CRUDHandler::enqueueCommand()` line ~1046 (queue insertion)
 2. `CRUDHandler::processPriorityQueue()` line ~1127 (queue extraction)
 
 **Added Features:**
+
 - Size measurement with `measureJson()` before copying
 - Error logging with payload size
 - PSRAM free memory reporting on failure
@@ -135,6 +142,7 @@ size_t cmdLen = strlen(command);
 ```
 
 **Benefits:**
+
 - No serial buffer overflow
 - Shows command length for debugging
 - Preview mode for large commands
@@ -155,6 +163,7 @@ if (cmdLen > COMMAND_BUFFER_SIZE) {
 ```
 
 **Benefits:**
+
 - Early detection of oversized commands
 - Clear error message
 - Prevents buffer overflow
@@ -184,6 +193,7 @@ if (error) {
 ```
 
 **Benefits:**
+
 - Detailed error diagnostics
 - Shows where parsing failed
 - Easier debugging
@@ -193,6 +203,7 @@ if (error) {
 ## 📊 **Performance Comparison**
 
 ### **Before Fix:**
+
 ```
 Command: 3420 bytes (restore_config)
 Allocation: make_psram_unique<JsonDocument>() - dynamic, no size
@@ -202,6 +213,7 @@ Debug Info: Minimal
 ```
 
 ### **After Fix:**
+
 ```
 Command: 3420 bytes (restore_config)
 Allocation: SpiRamJsonDocument - PSRAM allocator, dynamic growth
@@ -234,6 +246,7 @@ python test_backup_restore.py
 ### **3. Expected Results:**
 
 **Python Output:**
+
 ```
 [STEP 1/4] Creating initial backup...
 ✅ TEST PASSED: Backup successful (2 devices, 10 registers, 3519 bytes)
@@ -249,6 +262,7 @@ python test_backup_restore.py
 ```
 
 **Serial Monitor Output:**
+
 ```
 [BLE CMD] Received 3420 bytes JSON (preview): {"op":"system","type":"restore_config","config":{"devices":[{"device_id":"D7227b"...
 [BLE CMD] JSON parsed successfully (3420 bytes input)
@@ -276,12 +290,18 @@ python test_backup_restore.py
 ```
 
 **New Diagnostic Logs (Development Mode):**
-- `[CRUD QUEUE] Copying command payload (N bytes JSON)...` - Shows payload size being copied to queue
-- `[CRUD QUEUE] Command payload copied successfully (N bytes)` - Confirms successful copy
-- `[CRUD EXEC] Copying payload from queue (N bytes JSON)...` - Shows payload being extracted from queue
-- `[CRUD EXEC] Payload copied successfully (N bytes)` - Confirms successful extraction
+
+- `[CRUD QUEUE] Copying command payload (N bytes JSON)...` - Shows payload size
+  being copied to queue
+- `[CRUD QUEUE] Command payload copied successfully (N bytes)` - Confirms
+  successful copy
+- `[CRUD EXEC] Copying payload from queue (N bytes JSON)...` - Shows payload
+  being extracted from queue
+- `[CRUD EXEC] Payload copied successfully (N bytes)` - Confirms successful
+  extraction
 
 **If Copy Fails (Will Now Be Detected):**
+
 ```
 [CRUD QUEUE] ERROR: Failed to copy command payload (3420 bytes)!
 [CRUD QUEUE] Free PSRAM: 8234567 bytes
@@ -302,6 +322,7 @@ Overhead: ~32% (ArduinoJson internal structures)
 ```
 
 **Why PSRAM?**
+
 - Large allocations (>1KB) should use PSRAM
 - DRAM (512KB) reserved for critical operations
 - PSRAM (8MB) perfect for large JSON documents
@@ -314,7 +335,8 @@ Overhead: ~32% (ArduinoJson internal structures)
 ### **Modified Files:**
 
 1. **Main/BLEManager.cpp** - `handleCompleteCommand()` (Lines 352-429)
-   - ✅ Changed from `make_psram_unique<JsonDocument>()` to `SpiRamJsonDocument doc`
+   - ✅ Changed from `make_psram_unique<JsonDocument>()` to
+     `SpiRamJsonDocument doc`
    - ✅ Added command length logging (preview mode for large commands)
    - ✅ Added command length validation
    - ✅ Enhanced error reporting with context
@@ -362,11 +384,13 @@ After applying fix:
 ## 📝 **Related Issues**
 
 ### **BUG #31: PSRAM Allocator for JsonDocument**
+
 - **Status:** ✅ FIXED (v2.3.0)
 - **Solution:** Created `JsonDocumentPSRAM.h` with `PSRAMAllocator`
 - **Related:** This fix builds on BUG #31 foundation
 
 ### **BUG #9: Response Size Check**
+
 - **Status:** ✅ FIXED (v2.2.0)
 - **Solution:** Check size before allocating String
 - **Related:** Similar pattern (validate before allocate)
@@ -376,6 +400,7 @@ After applying fix:
 ## 🎯 **Best Practices Learned**
 
 1. **Always use SpiRamJsonDocument for large JSON (>1KB)**
+
    ```cpp
    // GOOD:
    SpiRamJsonDocument doc;  // Dynamic PSRAM allocation
@@ -385,6 +410,7 @@ After applying fix:
    ```
 
 2. **Validate input size before processing**
+
    ```cpp
    if (cmdLen > COMMAND_BUFFER_SIZE) {
      sendError("Command too large");
@@ -393,6 +419,7 @@ After applying fix:
    ```
 
 3. **Log length, not full content for large data**
+
    ```cpp
    Serial.printf("[BLE CMD] Received %u bytes\n", cmdLen);  // GOOD
    Serial.printf("[BLE CMD] Data: %s\n", largeData);         // BAD (truncates)
@@ -415,6 +442,5 @@ After applying fix:
 
 ---
 
-**Last Updated:** 2025-11-22
-**Author:** Kemal (Suriota R&D) + Claude (AI Assistant)
-**Firmware Version:** 2.3.1+
+**Last Updated:** 2025-11-22 **Author:** Kemal (Suriota R&D) + Claude (AI
+Assistant) **Firmware Version:** 2.3.1+

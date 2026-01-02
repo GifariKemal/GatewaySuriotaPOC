@@ -1,36 +1,34 @@
 #include "ProductionLogger.h"
+
 #include "RTCManager.h"
 
 // Static instance
-ProductionLogger *ProductionLogger::instance = nullptr;
+ProductionLogger* ProductionLogger::instance = nullptr;
 
 // Helper function to get ISO 8601 timestamp
-String getTimestampISO()
-{
-    RTCManager *rtc = RTCManager::getInstance();
-    if (rtc)
-    {
-        // Try to get RTC time
-        DateTime now = rtc->getCurrentTime();
+String getTimestampISO() {
+  RTCManager* rtc = RTCManager::getInstance();
+  if (rtc) {
+    // Try to get RTC time
+    DateTime now = rtc->getCurrentTime();
 
-        // Check if time is valid (year > 2020 indicates RTC is initialized)
-        if (now.year() > 2020)
-        {
-            char timestamp[32];
-            snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02dT%02d:%02d:%02d",
-                     now.year(), now.month(), now.day(),
-                     now.hour(), now.minute(), now.second());
-            return String(timestamp);
-        }
+    // Check if time is valid (year > 2020 indicates RTC is initialized)
+    if (now.year() > 2020) {
+      char timestamp[32];
+      snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02dT%02d:%02d:%02d",
+               now.year(), now.month(), now.day(), now.hour(), now.minute(),
+               now.second());
+      return String(timestamp);
     }
+  }
 
-    // Fallback to uptime in seconds if RTC not available
-    return String(millis() / 1000);
+  // Fallback to uptime in seconds if RTC not available
+  return String(millis() / 1000);
 }
 
 ProductionLogger::ProductionLogger()
     : logMutex(nullptr),
-      heartbeatIntervalMs(60000), // Default: 1 minute
+      heartbeatIntervalMs(60000),  // Default: 1 minute
       enabled(true),
       jsonFormat(true),
       bootTime(0),
@@ -46,362 +44,284 @@ ProductionLogger::ProductionLogger()
       httpStatus(ProtoStatus::OFF),
       activeProtocol("none"),
       firmwareVersion("0.0.0"),
-      deviceId("UNKNOWN")
-{
+      deviceId("UNKNOWN") {
+  logMutex = xSemaphoreCreateMutex();
+}
+
+ProductionLogger::~ProductionLogger() {
+  if (logMutex) {
+    vSemaphoreDelete(logMutex);
+    logMutex = nullptr;
+  }
+}
+
+ProductionLogger* ProductionLogger::getInstance() {
+  if (!instance) {
+    instance = new ProductionLogger();
+  }
+  return instance;
+}
+
+bool ProductionLogger::begin(const String& version, const String& devId) {
+  if (!logMutex) {
     logMutex = xSemaphoreCreateMutex();
+  }
+
+  firmwareVersion = version;
+  deviceId = devId;
+  bootTime = millis();
+  errorCount = 0;
+  warnCount = 0;
+
+  return true;
 }
 
-ProductionLogger::~ProductionLogger()
-{
-    if (logMutex)
-    {
-        vSemaphoreDelete(logMutex);
-        logMutex = nullptr;
+void ProductionLogger::stop() { enabled = false; }
+
+void ProductionLogger::setHeartbeatInterval(uint32_t intervalMs) {
+  heartbeatIntervalMs = intervalMs;
+}
+
+void ProductionLogger::setEnabled(bool enable) { enabled = enable; }
+
+void ProductionLogger::setJsonFormat(bool useJson) { jsonFormat = useJson; }
+
+void ProductionLogger::setNetworkStatus(NetStatus status) {
+  if (currentNetStatus != status) {
+    if (currentNetStatus != NetStatus::NONE && status != NetStatus::NONE) {
+      networkReconnectCount++;
     }
-}
+    currentNetStatus = status;
 
-ProductionLogger *ProductionLogger::getInstance()
-{
-    if (!instance)
-    {
-        instance = new ProductionLogger();
+    // Log network change
+    if (enabled && xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+      if (jsonFormat) {
+        Serial.printf(
+            "{\"ts\":\"%s\",\"t\":\"NET\",\"up\":%lu,\"net\":\"%s\",\"rc\":%lu}"
+            "\n",
+            getTimestampISO().c_str(), getUptime(), netStatusStr(status),
+            networkReconnectCount);
+      } else {
+        Serial.printf("[%lu][NET] Status: %s (reconnects: %lu)\n", getUptime(),
+                      netStatusStr(status), networkReconnectCount);
+      }
+      xSemaphoreGive(logMutex);
     }
-    return instance;
+  }
 }
 
-bool ProductionLogger::begin(const String &version, const String &devId)
-{
-    if (!logMutex)
-    {
-        logMutex = xSemaphoreCreateMutex();
+void ProductionLogger::setMqttStatus(ProtoStatus status) {
+  if (mqttStatus != status) {
+    if (mqttStatus == ProtoStatus::ERROR ||
+        mqttStatus == ProtoStatus::CONNECTING) {
+      if (status == ProtoStatus::OK) {
+        protocolReconnectCount++;
+      }
     }
-
-    firmwareVersion = version;
-    deviceId = devId;
-    bootTime = millis();
-    errorCount = 0;
-    warnCount = 0;
-
-    return true;
+    mqttStatus = status;
+  }
 }
 
-void ProductionLogger::stop()
-{
-    enabled = false;
+void ProductionLogger::setHttpStatus(ProtoStatus status) {
+  if (httpStatus != status) {
+    httpStatus = status;
+  }
 }
 
-void ProductionLogger::setHeartbeatInterval(uint32_t intervalMs)
-{
-    heartbeatIntervalMs = intervalMs;
+void ProductionLogger::setActiveProtocol(const String& protocol) {
+  activeProtocol = protocol;
 }
 
-void ProductionLogger::setEnabled(bool enable)
-{
-    enabled = enable;
+uint32_t ProductionLogger::getUptime() {
+  return (millis() - bootTime) / 1000;  // Return seconds
 }
 
-void ProductionLogger::setJsonFormat(bool useJson)
-{
-    jsonFormat = useJson;
-}
-
-void ProductionLogger::setNetworkStatus(NetStatus status)
-{
-    if (currentNetStatus != status)
-    {
-        if (currentNetStatus != NetStatus::NONE && status != NetStatus::NONE)
-        {
-            networkReconnectCount++;
-        }
-        currentNetStatus = status;
-
-        // Log network change
-        if (enabled && xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-        {
-            if (jsonFormat)
-            {
-                Serial.printf("{\"ts\":\"%s\",\"t\":\"NET\",\"up\":%lu,\"net\":\"%s\",\"rc\":%lu}\n",
-                              getTimestampISO().c_str(), getUptime(), netStatusStr(status), networkReconnectCount);
-            }
-            else
-            {
-                Serial.printf("[%lu][NET] Status: %s (reconnects: %lu)\n",
-                              getUptime(), netStatusStr(status), networkReconnectCount);
-            }
-            xSemaphoreGive(logMutex);
-        }
-    }
-}
-
-void ProductionLogger::setMqttStatus(ProtoStatus status)
-{
-    if (mqttStatus != status)
-    {
-        if (mqttStatus == ProtoStatus::ERROR || mqttStatus == ProtoStatus::CONNECTING)
-        {
-            if (status == ProtoStatus::OK)
-            {
-                protocolReconnectCount++;
-            }
-        }
-        mqttStatus = status;
-    }
-}
-
-void ProductionLogger::setHttpStatus(ProtoStatus status)
-{
-    if (httpStatus != status)
-    {
-        httpStatus = status;
-    }
-}
-
-void ProductionLogger::setActiveProtocol(const String &protocol)
-{
-    activeProtocol = protocol;
-}
-
-uint32_t ProductionLogger::getUptime()
-{
-    return (millis() - bootTime) / 1000; // Return seconds
-}
-
-const char *ProductionLogger::netStatusStr(NetStatus status)
-{
-    switch (status)
-    {
+const char* ProductionLogger::netStatusStr(NetStatus status) {
+  switch (status) {
     case NetStatus::WIFI:
-        return "WIFI";
+      return "WIFI";
     case NetStatus::ETHERNET:
-        return "ETH";
+      return "ETH";
     default:
-        return "NONE";
-    }
+      return "NONE";
+  }
 }
 
-const char *ProductionLogger::protoStatusStr(ProtoStatus status)
-{
-    switch (status)
-    {
+const char* ProductionLogger::protoStatusStr(ProtoStatus status) {
+  switch (status) {
     case ProtoStatus::OK:
-        return "OK";
+      return "OK";
     case ProtoStatus::CONNECTING:
-        return "CONN";
+      return "CONN";
     case ProtoStatus::ERROR:
-        return "ERR";
+      return "ERR";
     default:
-        return "OFF";
-    }
+      return "OFF";
+  }
 }
 
-const char *ProductionLogger::logTypeStr(ProdLogType type)
-{
-    switch (type)
-    {
+const char* ProductionLogger::logTypeStr(ProdLogType type) {
+  switch (type) {
     case ProdLogType::HEARTBEAT:
-        return "HB";
+      return "HB";
     case ProdLogType::ERROR:
-        return "ERR";
+      return "ERR";
     case ProdLogType::WARNING:
-        return "WARN";
+      return "WARN";
     case ProdLogType::SYSTEM:
-        return "SYS";
+      return "SYS";
     case ProdLogType::MODBUS:
-        return "MB";
+      return "MB";
     case ProdLogType::NETWORK:
-        return "NET";
+      return "NET";
     case ProdLogType::PROTOCOL:
-        return "PROTO";
+      return "PROTO";
     default:
-        return "UNK";
+      return "UNK";
+  }
+}
+
+void ProductionLogger::logBoot() {
+  if (!enabled) return;
+
+  if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT) -
+                      heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
+    if (jsonFormat) {
+      Serial.println();
+      Serial.printf(
+          "{\"ts\":\"%s\",\"t\":\"SYS\",\"e\":\"BOOT\",\"v\":\"%s\",\"id\":\"%"
+          "s\",\"mem\":{\"d\":%d,\"p\":%d}}\n",
+          getTimestampISO().c_str(), firmwareVersion.c_str(), deviceId.c_str(),
+          freeDram, freePsram);
+    } else {
+      Serial.println();
+      Serial.println("========================================");
+      Serial.printf("[SYS] BOOT - SRT-MGATE-1210 v%s\n",
+                    firmwareVersion.c_str());
+      Serial.printf("[SYS] Device ID: %s\n", deviceId.c_str());
+      Serial.printf("[SYS] Memory - DRAM: %d, PSRAM: %d\n", freeDram,
+                    freePsram);
+      Serial.println("========================================");
     }
+    xSemaphoreGive(logMutex);
+  }
 }
 
-void ProductionLogger::logBoot()
-{
-    if (!enabled)
-        return;
+void ProductionLogger::heartbeat() {
+  if (!enabled) return;
 
-    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-    {
-        size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT) -
-                          heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-        size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+  uint32_t now = millis();
+  if (now - lastHeartbeat < heartbeatIntervalMs) return;
 
-        if (jsonFormat)
-        {
-            Serial.println();
-            Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"e\":\"BOOT\",\"v\":\"%s\",\"id\":\"%s\",\"mem\":{\"d\":%d,\"p\":%d}}\n",
-                          getTimestampISO().c_str(),
-                          firmwareVersion.c_str(),
-                          deviceId.c_str(),
-                          freeDram,
-                          freePsram);
-        }
-        else
-        {
-            Serial.println();
-            Serial.println("========================================");
-            Serial.printf("[SYS] BOOT - SRT-MGATE-1210 v%s\n", firmwareVersion.c_str());
-            Serial.printf("[SYS] Device ID: %s\n", deviceId.c_str());
-            Serial.printf("[SYS] Memory - DRAM: %d, PSRAM: %d\n", freeDram, freePsram);
-            Serial.println("========================================");
-        }
-        xSemaphoreGive(logMutex);
+  lastHeartbeat = now;
+
+  if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT) -
+                      heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+
+    // Get protocol status based on active protocol
+    const char* protoStat = "OFF";
+    if (activeProtocol == "mqtt") {
+      protoStat = protoStatusStr(mqttStatus);
+    } else if (activeProtocol == "http") {
+      protoStat = protoStatusStr(httpStatus);
     }
-}
 
-void ProductionLogger::heartbeat()
-{
-    if (!enabled)
-        return;
-
-    uint32_t now = millis();
-    if (now - lastHeartbeat < heartbeatIntervalMs)
-        return;
-
-    lastHeartbeat = now;
-
-    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-    {
-        size_t freeDram = heap_caps_get_free_size(MALLOC_CAP_8BIT) -
-                          heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-        size_t freePsram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-
-        // Get protocol status based on active protocol
-        const char *protoStat = "OFF";
-        if (activeProtocol == "mqtt")
-        {
-            protoStat = protoStatusStr(mqttStatus);
-        }
-        else if (activeProtocol == "http")
-        {
-            protoStat = protoStatusStr(httpStatus);
-        }
-
-        if (jsonFormat)
-        {
-            // Compact JSON format for easy parsing
-            // {"ts":"2025-11-26T07:40:06","t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
-            Serial.printf("{\"ts\":\"%s\",\"t\":\"HB\",\"up\":%lu,\"mem\":{\"d\":%d,\"p\":%d},\"net\":\"%s\",\"proto\":\"%s\",\"st\":\"%s\",\"err\":%lu,\"mb\":{\"ok\":%lu,\"er\":%lu}}\n",
-                          getTimestampISO().c_str(),
-                          getUptime(),
-                          freeDram,
-                          freePsram,
-                          netStatusStr(currentNetStatus),
-                          activeProtocol.c_str(),
-                          protoStat,
-                          errorCount,
-                          modbusSuccessCount,
-                          modbusErrorCount);
-        }
-        else
-        {
-            // Human-readable format
-            Serial.printf("[%lu][HB] NET:%s PROTO:%s/%s MEM:D%d/P%d ERR:%lu MB:%lu/%lu\n",
-                          getUptime(),
-                          netStatusStr(currentNetStatus),
-                          activeProtocol.c_str(),
-                          protoStat,
-                          freeDram / 1000, // KB
-                          freePsram / 1000,
-                          errorCount,
-                          modbusSuccessCount,
-                          modbusErrorCount);
-        }
-        xSemaphoreGive(logMutex);
+    if (jsonFormat) {
+      // Compact JSON format for easy parsing
+      // {"ts":"2025-11-26T07:40:06","t":"HB","up":3600,"mem":{"d":150000,"p":7500000},"net":"ETH","proto":"mqtt","st":"OK","err":0,"mb":{"ok":100,"er":2}}
+      Serial.printf(
+          "{\"ts\":\"%s\",\"t\":\"HB\",\"up\":%lu,\"mem\":{\"d\":%d,\"p\":%d},"
+          "\"net\":\"%s\",\"proto\":\"%s\",\"st\":\"%s\",\"err\":%lu,\"mb\":{"
+          "\"ok\":%lu,\"er\":%lu}}\n",
+          getTimestampISO().c_str(), getUptime(), freeDram, freePsram,
+          netStatusStr(currentNetStatus), activeProtocol.c_str(), protoStat,
+          errorCount, modbusSuccessCount, modbusErrorCount);
+    } else {
+      // Human-readable format
+      Serial.printf(
+          "[%lu][HB] NET:%s PROTO:%s/%s MEM:D%d/P%d ERR:%lu MB:%lu/%lu\n",
+          getUptime(), netStatusStr(currentNetStatus), activeProtocol.c_str(),
+          protoStat,
+          freeDram / 1000,  // KB
+          freePsram / 1000, errorCount, modbusSuccessCount, modbusErrorCount);
     }
+    xSemaphoreGive(logMutex);
+  }
 }
 
-void ProductionLogger::forceHeartbeat()
-{
-    lastHeartbeat = 0; // Reset timer to force next heartbeat
-    heartbeat();
+void ProductionLogger::forceHeartbeat() {
+  lastHeartbeat = 0;  // Reset timer to force next heartbeat
+  heartbeat();
 }
 
-void ProductionLogger::logError(const char *module, const char *message)
-{
-    if (!enabled)
-        return;
+void ProductionLogger::logError(const char* module, const char* message) {
+  if (!enabled) return;
 
-    errorCount++;
+  errorCount++;
 
-    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-    {
-        if (jsonFormat)
-        {
-            Serial.printf("{\"ts\":\"%s\",\"t\":\"ERR\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\",\"cnt\":%lu}\n",
-                          getTimestampISO().c_str(), getUptime(), module, message, errorCount);
-        }
-        else
-        {
-            Serial.printf("[%lu][ERR][%s] %s (#%lu)\n",
-                          getUptime(), module, message, errorCount);
-        }
-        xSemaphoreGive(logMutex);
+  if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    if (jsonFormat) {
+      Serial.printf(
+          "{\"ts\":\"%s\",\"t\":\"ERR\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\","
+          "\"cnt\":%lu}\n",
+          getTimestampISO().c_str(), getUptime(), module, message, errorCount);
+    } else {
+      Serial.printf("[%lu][ERR][%s] %s (#%lu)\n", getUptime(), module, message,
+                    errorCount);
     }
+    xSemaphoreGive(logMutex);
+  }
 }
 
-void ProductionLogger::logWarning(const char *module, const char *message)
-{
-    if (!enabled)
-        return;
+void ProductionLogger::logWarning(const char* module, const char* message) {
+  if (!enabled) return;
 
-    warnCount++;
+  warnCount++;
 
-    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-    {
-        if (jsonFormat)
-        {
-            Serial.printf("{\"ts\":\"%s\",\"t\":\"WARN\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%s\"}\n",
-                          getTimestampISO().c_str(), getUptime(), module, message);
-        }
-        else
-        {
-            Serial.printf("[%lu][WARN][%s] %s\n",
-                          getUptime(), module, message);
-        }
-        xSemaphoreGive(logMutex);
+  if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    if (jsonFormat) {
+      Serial.printf(
+          "{\"ts\":\"%s\",\"t\":\"WARN\",\"up\":%lu,\"m\":\"%s\",\"msg\":\"%"
+          "s\"}\n",
+          getTimestampISO().c_str(), getUptime(), module, message);
+    } else {
+      Serial.printf("[%lu][WARN][%s] %s\n", getUptime(), module, message);
     }
+    xSemaphoreGive(logMutex);
+  }
 }
 
-void ProductionLogger::logSystem(const char *event, const char *detail)
-{
-    if (!enabled)
-        return;
+void ProductionLogger::logSystem(const char* event, const char* detail) {
+  if (!enabled) return;
 
-    if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE)
-    {
-        if (jsonFormat)
-        {
-            if (detail)
-            {
-                Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\",\"d\":\"%s\"}\n",
-                              getTimestampISO().c_str(), getUptime(), event, detail);
-            }
-            else
-            {
-                Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\"}\n",
-                              getTimestampISO().c_str(), getUptime(), event);
-            }
-        }
-        else
-        {
-            if (detail)
-            {
-                Serial.printf("[%lu][SYS] %s: %s\n", getUptime(), event, detail);
-            }
-            else
-            {
-                Serial.printf("[%lu][SYS] %s\n", getUptime(), event);
-            }
-        }
-        xSemaphoreGive(logMutex);
+  if (xSemaphoreTake(logMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+    if (jsonFormat) {
+      if (detail) {
+        Serial.printf(
+            "{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\",\"d\":\"%s\"}"
+            "\n",
+            getTimestampISO().c_str(), getUptime(), event, detail);
+      } else {
+        Serial.printf("{\"ts\":\"%s\",\"t\":\"SYS\",\"up\":%lu,\"e\":\"%s\"}\n",
+                      getTimestampISO().c_str(), getUptime(), event);
+      }
+    } else {
+      if (detail) {
+        Serial.printf("[%lu][SYS] %s: %s\n", getUptime(), event, detail);
+      } else {
+        Serial.printf("[%lu][SYS] %s\n", getUptime(), event);
+      }
     }
+    xSemaphoreGive(logMutex);
+  }
 }
 
-void ProductionLogger::logModbusStats(uint32_t success, uint32_t errors)
-{
-    modbusSuccessCount = success;
-    modbusErrorCount = errors;
+void ProductionLogger::logModbusStats(uint32_t success, uint32_t errors) {
+  modbusSuccessCount = success;
+  modbusErrorCount = errors;
 }

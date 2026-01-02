@@ -1,11 +1,10 @@
 # MQTT Payload Corruption Fix - Position 2005 Error
 
-**Date:** 2025-11-22
-**Issue:** Subscriber receives corrupted payload at position ~2005
-**Error:** `SyntaxError: Expected ',' or '}' after property value in JSON at position 2005`
-**Corrupted Data:** `...,"Temp_Zone_1":{"value":21�0�v1/devices`
-**Developer:** Kemal
-**Status:** ✅ FIXED (3 critical fixes applied)
+**Date:** 2025-11-22 **Issue:** Subscriber receives corrupted payload at
+position ~2005 **Error:**
+`SyntaxError: Expected ',' or '}' after property value in JSON at position 2005`
+**Corrupted Data:** `...,"Temp_Zone_1":{"value":21�0�v1/devices` **Developer:**
+Kemal **Status:** ✅ FIXED (3 critical fixes applied)
 
 ---
 
@@ -14,11 +13,13 @@
 ### **Symptom**
 
 **Subscriber receives:**
+
 ```json
 ...,"Temp_Zone_1":{"value":21�0�v1/devices
 ```
 
 **Analysis:**
+
 - Valid JSON until position **2005 bytes**
 - Corruption: `21�0�v1/devices`
   - `21` = valid value
@@ -46,6 +47,7 @@ mqttClient.publish(
 ```
 
 **MQTT Packet Construction Process:**
+
 ```
 ┌─────────────────────────────────────────┐
 │ PubSubClient Internal Buffer (6500 bytes)
@@ -62,6 +64,7 @@ mqttClient.publish(
 ## ✅ SOLUTION 1: Separate Buffers (CRITICAL!)
 
 **Before:**
+
 ```cpp
 bool published = mqttClient.publish(
     defaultTopicPublish.c_str(),              // String pointer (unstable!)
@@ -71,6 +74,7 @@ bool published = mqttClient.publish(
 ```
 
 **After:**
+
 ```cpp
 // CRITICAL FIX: Copy topic to separate buffer
 char topicBuffer[128];
@@ -100,6 +104,7 @@ heap_caps_free(payloadBuffer);
 ```
 
 **Benefits:**
+
 - ✅ **No memory overlap** between topic and payload
 - ✅ **Stable pointers** (not dependent on String internals)
 - ✅ **Clean memory** (freed after publish)
@@ -132,6 +137,7 @@ if (payload.charAt(0) != '{' || payload.charAt(payload.length() - 1) != '}') {
 ```
 
 **Benefits:**
+
 - ✅ Detects serialization failures BEFORE publish
 - ✅ Validates JSON structure (must start with `{` and end with `}`)
 - ✅ Provides detailed error logging for debugging
@@ -159,6 +165,7 @@ if (mqttPacketSize > cachedBufferSize) {
 ```
 
 **Benefits:**
+
 - ✅ Prevents buffer overflow
 - ✅ Catches oversized packets BEFORE publish
 - ✅ Clear error messaging for debugging
@@ -189,6 +196,7 @@ Serial.printf("[MQTT] Topic: %s (length: %d)\n",
 ```
 
 **Benefits:**
+
 - ✅ Can verify payload END is valid (not just first 500 chars)
 - ✅ Memory addresses help debug corruption
 - ✅ Topic length visible for packet size verification
@@ -217,6 +225,7 @@ Serial.printf("[MQTT] Topic: %s (length: %d)\n",
 ```
 
 **Key Changes:**
+
 1. ✅ **LAST 200 chars** shown (can verify complete JSON with closing `}}}`)
 2. ✅ **Topic length: 30** (for packet size calculation)
 3. ✅ **Total MQTT packet: 2068 bytes** (5 + 2 + 30 + 2031)
@@ -229,6 +238,7 @@ Serial.printf("[MQTT] Topic: %s (length: %d)\n",
 ### **Test 1: Verify Payload Complete on Subscriber**
 
 **Terminal 1 - MQTT Subscriber:**
+
 ```bash
 mosquitto_sub -h broker.hivemq.com -p 1883 \
               -t "v1/devices/me/telemetry/gwsrt" \
@@ -236,6 +246,7 @@ mosquitto_sub -h broker.hivemq.com -p 1883 \
 ```
 
 **Expected:**
+
 ```json
 {
   "timestamp": "22/11/2025 06:03:51",
@@ -250,6 +261,7 @@ mosquitto_sub -h broker.hivemq.com -p 1883 \
 ```
 
 **Verification:**
+
 ```bash
 # Parse JSON to verify validity
 cat received_payload.json | python -m json.tool
@@ -262,6 +274,7 @@ cat received_payload.json | grep -o '"value"' | wc -l
 ### **Test 2: Compare Serial Log vs Subscriber**
 
 **Python Script:**
+
 ```python
 import json
 
@@ -292,6 +305,7 @@ else:
 ```
 
 **Expected Output:**
+
 ```
 ✅ Received 50 registers
 ✅ Last register: Temp_Zone_1
@@ -302,22 +316,26 @@ else:
 ### **Test 3: Check Connection Stability**
 
 **Monitor serial log for connection lost:**
+
 ```
 [MQTT] Publish result: SUCCESS (return value: 1)
 [MQTT] MQTT state after publish: 0 (0=connected)
 ```
 
 **If you see:**
+
 ```
 [MQTT] Connection lost, attempting reconnect...
 ```
 
 **This indicates broker disconnect. Possible causes:**
+
 1. Broker rejected malformed packet
 2. Keep-alive timeout
 3. Broker overload (broker.hivemq.com is public)
 
 **Solution:** Test with private broker:
+
 ```bash
 # Run local Mosquitto broker
 docker run -it -p 1883:1883 eclipse-mosquitto
@@ -356,6 +374,7 @@ docker run -it -p 1883:1883 eclipse-mosquitto
 ## 🔍 WHY THIS FIXES THE ISSUE
 
 ### **Before Fix:**
+
 ```
 ESP32 Memory:
 ┌──────────────────────────┐
@@ -376,6 +395,7 @@ ESP32 Memory:
 ```
 
 ### **After Fix:**
+
 ```
 ESP32 Memory:
 ┌──────────────────────────┐
@@ -404,11 +424,15 @@ ESP32 Memory:
 
 ## 🎯 CONCLUSION
 
-**Root Cause:** ESP32 String `c_str()` returns **unstable pointers** for large strings (>2KB), causing **memory overlap** during MQTT packet construction. Topic name overwrites payload at position ~2005.
+**Root Cause:** ESP32 String `c_str()` returns **unstable pointers** for large
+strings (>2KB), causing **memory overlap** during MQTT packet construction.
+Topic name overwrites payload at position ~2005.
 
-**Solution:** Allocate **separate dedicated buffers** for topic and payload BEFORE publish, eliminating memory overlap and pointer instability.
+**Solution:** Allocate **separate dedicated buffers** for topic and payload
+BEFORE publish, eliminating memory overlap and pointer instability.
 
 **Expected Result:**
+
 - ✅ Subscriber receives **COMPLETE 50 registers**
 - ✅ **NO corruption** characters (`�`)
 - ✅ Valid JSON structure (parseable)
@@ -417,14 +441,17 @@ ESP32 Memory:
 ---
 
 **Reference:**
-- ESP32 String Implementation: https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/WString.cpp
-- PubSubClient MQTT Packet Construction: https://github.com/knolleary/pubsubclient/blob/master/src/PubSubClient.cpp#L423
+
+- ESP32 String Implementation:
+  https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/WString.cpp
+- PubSubClient MQTT Packet Construction:
+  https://github.com/knolleary/pubsubclient/blob/master/src/PubSubClient.cpp#L423
 
 **Related Files:**
+
 - `Main/MqttManager.cpp` (Line 732-851)
 - `Documentation/Technical_Guides/MQTT_SUBSCRIBER_FIX.md`
 
 ---
 
-**Made with ❤️ by SURIOTA R&D Team**
-*Empowering Industrial IoT Solutions*
+**Made with ❤️ by SURIOTA R&D Team** _Empowering Industrial IoT Solutions_

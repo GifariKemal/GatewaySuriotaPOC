@@ -1,69 +1,74 @@
 #ifndef NETWORK_MANAGER_H
 #define NETWORK_MANAGER_H
 
-#include "JsonDocumentPSRAM.h" // BUG #31: MUST BE BEFORE ArduinoJson.h
 #include <ArduinoJson.h>
-#include "WiFiManager.h"
-#include "EthernetManager.h"
-#include "ServerConfig.h" // Added for ServerConfig declaration
+#include <freertos/semphr.h>  // For mutex (Bug #6 fix)
+
 #include <vector>
-#include <freertos/semphr.h> // For mutex (Bug #6 fix)
 
-class NetworkMgr
-{
-private:
-  static NetworkMgr *instance;
-  WiFiManager *wifiManager;
-  EthernetManager *ethernetManager;
+#include "EthernetManager.h"
+#include "JsonDocumentPSRAM.h"  // BUG #31: MUST BE BEFORE ArduinoJson.h
+#include "ServerConfig.h"       // Added for ServerConfig declaration
+#include "WiFiManager.h"
 
-  String primaryMode;    // Configured primary mode (e.g., "ETH", "WIFI")
-  String activeMode;     // Currently active mode
-  bool networkAvailable; // Overall network availability
+class NetworkMgr {
+ private:
+  static NetworkMgr* instance;
+  WiFiManager* wifiManager;
+  EthernetManager* ethernetManager;
 
-  SemaphoreHandle_t modeMutex; // FIXED Bug #6: Protect activeMode from race conditions
+  String primaryMode;     // Configured primary mode (e.g., "ETH", "WIFI")
+  String activeMode;      // Currently active mode
+  bool networkAvailable;  // Overall network availability
+
+  SemaphoreHandle_t
+      modeMutex;  // FIXED Bug #6: Protect activeMode from race conditions
 
   TaskHandle_t failoverTaskHandle;
-  static void failoverTask(void *parameter);
+  static void failoverTask(void* parameter);
   void failoverLoop();
 
-  WiFiClient _wifiClient;         // Internal WiFiClient for MQTT/HTTP
-  EthernetClient _ethernetClient; // Internal EthernetClient for MQTT/HTTP
+  WiFiClient _wifiClient;          // Internal WiFiClient for MQTT/HTTP
+  EthernetClient _ethernetClient;  // Internal EthernetClient for MQTT/HTTP
 
   // Configurable failover timeouts (milliseconds)
-  uint32_t failoverCheckInterval = 5000;       // How often to check failover (5 seconds)
-  uint32_t failoverSwitchDelay = 1000;         // Delay before switching modes (1 second)
-  uint32_t signalStrengthCheckInterval = 2000; // Check WiFi signal every 2 seconds
+  uint32_t failoverCheckInterval =
+      5000;  // How often to check failover (5 seconds)
+  uint32_t failoverSwitchDelay =
+      1000;  // Delay before switching modes (1 second)
+  uint32_t signalStrengthCheckInterval =
+      2000;  // Check WiFi signal every 2 seconds
 
   // v2.5.33: Network reconnect settings
-  uint32_t reconnectInterval = 30000;          // How often to try reconnect (30 seconds)
-  unsigned long lastReconnectAttempt = 0;      // Last reconnect attempt timestamp
+  uint32_t reconnectInterval =
+      30000;  // How often to try reconnect (30 seconds)
+  unsigned long lastReconnectAttempt = 0;  // Last reconnect attempt timestamp
 
   // Signal strength monitoring
-  struct SignalStrengthMetrics
-  {
-    int32_t rssi = 0;                  // WiFi RSSI (dBm)
-    uint8_t signalQuality = 0;         // 0-100% quality
-    unsigned long lastChecked = 0;     // Timestamp of last check
-    uint32_t rssiCheckInterval = 2000; // Check interval (2 seconds)
+  struct SignalStrengthMetrics {
+    int32_t rssi = 0;                   // WiFi RSSI (dBm)
+    uint8_t signalQuality = 0;          // 0-100% quality
+    unsigned long lastChecked = 0;      // Timestamp of last check
+    uint32_t rssiCheckInterval = 2000;  // Check interval (2 seconds)
   } wifiSignalMetrics;
 
   // Connection pooling for clients
-  struct PooledClientConnection
-  {
-    String clientId;        // Unique client identifier
-    Client *client;         // Pointer to client (WiFi or Ethernet)
-    bool isConnected;       // Current connection status
-    unsigned long lastUsed; // Timestamp of last use
-    uint32_t requestCount;  // Total requests via this client
+  struct PooledClientConnection {
+    String clientId;         // Unique client identifier
+    Client* client;          // Pointer to client (WiFi or Ethernet)
+    bool isConnected;        // Current connection status
+    unsigned long lastUsed;  // Timestamp of last use
+    uint32_t requestCount;   // Total requests via this client
   };
-  std::vector<PooledClientConnection> clientPool; // Pool of reusable clients
-  uint8_t maxPoolSize = 5;                        // Maximum clients in pool
+  std::vector<PooledClientConnection> clientPool;  // Pool of reusable clients
+  uint8_t maxPoolSize = 5;                         // Maximum clients in pool
 
   NetworkMgr();
-  bool initWiFi(const JsonObject &wifiConfig);
-  bool initEthernet(bool useDhcp, IPAddress staticIp, IPAddress gateway, IPAddress subnet);
+  bool initWiFi(const JsonObject& wifiConfig);
+  bool initEthernet(bool useDhcp, IPAddress staticIp, IPAddress gateway,
+                    IPAddress subnet);
   void startFailoverTask();
-  void switchMode(const String &newMode);
+  void switchMode(const String& newMode);
 
   // Signal strength monitoring methods
   void updateWiFiSignalStrength();
@@ -71,20 +76,20 @@ private:
   uint8_t calculateSignalQuality(int32_t rssi) const;
 
   // Connection pooling methods
-  PooledClientConnection *getPooledClient(const String &clientId);
-  void releasePooledClient(const String &clientId);
+  PooledClientConnection* getPooledClient(const String& clientId);
+  void releasePooledClient(const String& clientId);
   void cleanupPooledClients();
 
-public:
-  static NetworkMgr *getInstance();
+ public:
+  static NetworkMgr* getInstance();
 
-  bool init(ServerConfig *serverConfig); // Changed parameter type
+  bool init(ServerConfig* serverConfig);  // Changed parameter type
   bool isAvailable();
   IPAddress getLocalIP();
   String getCurrentMode();
-  Client *getActiveClient(); // New method to get active client
+  Client* getActiveClient();  // New method to get active client
   void cleanup();
-  void getStatus(JsonObject &status);
+  void getStatus(JsonObject& status);
 
   // Configurable timeout methods
   void setFailoverCheckInterval(uint32_t intervalMs);
@@ -102,7 +107,7 @@ public:
 
   // Connection pooling query methods
   int getPooledClientCount() const;
-  void getPoolStats(JsonObject &stats) const;
+  void getPoolStats(JsonObject& stats) const;
 
   // Network status methods
   void printNetworkStatus() const;
