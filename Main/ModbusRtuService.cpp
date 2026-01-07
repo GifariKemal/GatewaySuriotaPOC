@@ -93,8 +93,8 @@ void ModbusRtuService::start() {
   running = true;
   BaseType_t result = xTaskCreatePinnedToCore(
       readRtuDevicesTask, "MODBUS_RTU_TASK",
-      10240,  // STACK OVERFLOW FIX (v2.3.8): Increased from 8KB to 10KB for
-              // very safe operation
+      12288,  // v1.0.6: Increased from 10KB to 12KB for handling 50+ registers
+              // per device with safety margin
       this, 2,
       &rtuTaskHandle,  // Store the task handle
       1);
@@ -293,10 +293,12 @@ void ModbusRtuService::readRtuDevicesLoop() {
     xSemaphoreGiveRecursive(vectorMutex);
 
     // FIXED ISSUE #2 (REVISED): Constant short delay (non-blocking approach)
-    // Loop runs every 100ms to check if any device is ready
+    // v1.0.6 OPTIMIZED: Increased from 100ms to 150ms for 33% context switch reduction
+    // Loop runs every 150ms to check if any device is ready
     // Per-device timing handled by shouldPollDevice() with millis()
     // This allows accurate, independent timing for each device without blocking
-    vTaskDelay(pdMS_TO_TICKS(100));
+    // Note: 150ms is still responsive enough for typical 5000ms+ refresh rates
+    vTaskDelay(pdMS_TO_TICKS(150));
   }
 
   // CRITICAL FIX: Task must self-delete when loop exits to prevent FreeRTOS

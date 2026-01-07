@@ -275,16 +275,16 @@ void MqttManager::mqttLoop() {
       }
 
       // Process MQTT events and publish data
+      // v1.0.6 OPTIMIZED: Consolidated delays for better responsiveness
+      // Previous: loop() + 10ms + publish() + 10ms + 50ms = 70ms per iteration
+      // New: loop() + publish() + 30ms = 30ms per iteration (2.3x faster)
       mqttClient.loop();
-      vTaskDelay(pdMS_TO_TICKS(10));
-
       publishQueueData();
-      vTaskDelay(pdMS_TO_TICKS(10));
+      vTaskDelay(pdMS_TO_TICKS(30));  // Single consolidated delay
     }
 
-    // v2.3.7 OPTIMIZED: Reduced from 100ms to 50ms for better timing precision
-    // This improves interval detection accuracy from ±100ms to ±50ms
-    vTaskDelay(pdMS_TO_TICKS(50));
+    // v1.0.6: Base delay moved inside conditions for better control
+    // Connected: 30ms (above), Disconnected: 50-100ms (reconnect logic)
   }
 
   // v2.5.1 FIX: Signal that task has exited (for safe stop() synchronization)

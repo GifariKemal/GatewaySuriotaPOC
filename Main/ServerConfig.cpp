@@ -206,12 +206,15 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
   }
 
   // 2. Validate protocol value
+  // v1.0.6 FIX: Case-insensitive comparison
   String protocol = cfg["protocol"] | "";
-  if (protocol != "mqtt" && protocol != "http") {
+  if (!protocol.equalsIgnoreCase("mqtt") && !protocol.equalsIgnoreCase("http")) {
     return ConfigValidationResult::error(
         509, "Invalid protocol value. Must be 'mqtt' or 'http'", "protocol",
         "Set protocol to 'mqtt' or 'http'");
   }
+  bool isMqttProtocol = protocol.equalsIgnoreCase("mqtt");
+  bool isHttpProtocol = protocol.equalsIgnoreCase("http");
 
   // 3. Validate communication mode
   JsonObjectConst comm = cfg["communication"];
@@ -222,14 +225,22 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
                                          "Set mode to 'ETH' or 'WiFi'");
   }
 
-  if (mode != "ETH" && mode != "WiFi") {
+  // v1.0.6 FIX: Case-insensitive comparison for communication mode
+  // Accept: "WIFI", "WiFi", "wifi" → WiFi mode
+  // Accept: "ETH", "eth", "Eth" → ETH mode
+  if (!mode.equalsIgnoreCase("ETH") && !mode.equalsIgnoreCase("WiFi") &&
+      !mode.equalsIgnoreCase("WIFI")) {
     return ConfigValidationResult::error(
         509, "Invalid communication mode. Must be 'ETH' or 'WiFi'",
         "communication.mode", "Set mode to 'ETH' or 'WiFi'");
   }
 
+  // Normalize mode for consistent checks below
+  bool isWiFiMode = mode.equalsIgnoreCase("WiFi") || mode.equalsIgnoreCase("WIFI");
+  bool isEthMode = mode.equalsIgnoreCase("ETH");
+
   // 4. WiFi validation (when mode is WiFi)
-  if (mode == "WiFi") {
+  if (isWiFiMode) {
     JsonObjectConst wifi = cfg["wifi"];
     if (!wifi) {
       return ConfigValidationResult::error(
@@ -268,7 +279,7 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
   }
 
   // 5. Ethernet validation (when mode is ETH)
-  if (mode == "ETH") {
+  if (isEthMode) {
     JsonObjectConst eth = cfg["ethernet"];
     if (!eth) {
       return ConfigValidationResult::error(
@@ -335,7 +346,7 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
   }
 
   // 6. MQTT validation (when protocol is mqtt)
-  if (protocol == "mqtt") {
+  if (isMqttProtocol) {
     JsonObjectConst mqtt = cfg["mqtt_config"];
     // mqtt_config is optional, but if enabled, must have valid broker
     if (mqtt) {
@@ -365,8 +376,10 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
         }
 
         // Validate publish_mode if present
+        // v1.0.6 FIX: Case-insensitive comparison
         String publishMode = mqtt["publish_mode"] | "default";
-        if (publishMode != "default" && publishMode != "customize") {
+        if (!publishMode.equalsIgnoreCase("default") &&
+            !publishMode.equalsIgnoreCase("customize")) {
           return ConfigValidationResult::error(
               509, "Invalid publish_mode. Must be 'default' or 'customize'",
               "mqtt_config.publish_mode",
@@ -374,11 +387,13 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
         }
 
         // Validate interval_unit if present
+        // v1.0.6 FIX: Case-insensitive comparison
         JsonObjectConst defaultMode = mqtt["default_mode"];
         if (defaultMode) {
           String intervalUnit = defaultMode["interval_unit"] | "s";
-          if (intervalUnit != "ms" && intervalUnit != "s" &&
-              intervalUnit != "m") {
+          if (!intervalUnit.equalsIgnoreCase("ms") &&
+              !intervalUnit.equalsIgnoreCase("s") &&
+              !intervalUnit.equalsIgnoreCase("m")) {
             return ConfigValidationResult::error(
                 509, "Invalid interval_unit. Must be 'ms', 's', or 'm'",
                 "mqtt_config.default_mode.interval_unit",
@@ -399,7 +414,7 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
   }
 
   // 7. HTTP validation (when protocol is http)
-  if (protocol == "http") {
+  if (isHttpProtocol) {
     JsonObjectConst http = cfg["http_config"];
     // http_config is optional, but if enabled, must have valid URL
     if (http) {
@@ -421,9 +436,11 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
         }
 
         // Validate HTTP method
+        // v1.0.6 FIX: Case-insensitive comparison
         String method = http["method"] | "POST";
-        if (method != "GET" && method != "POST" && method != "PUT" &&
-            method != "PATCH" && method != "DELETE") {
+        if (!method.equalsIgnoreCase("GET") && !method.equalsIgnoreCase("POST") &&
+            !method.equalsIgnoreCase("PUT") && !method.equalsIgnoreCase("PATCH") &&
+            !method.equalsIgnoreCase("DELETE")) {
           return ConfigValidationResult::error(
               509,
               "Invalid HTTP method. Must be GET, POST, PUT, PATCH, or DELETE",
@@ -449,9 +466,11 @@ ConfigValidationResult ServerConfig::validateConfigEnhanced(
         }
 
         // Validate interval_unit if present
+        // v1.0.6 FIX: Case-insensitive comparison
         String intervalUnit = http["interval_unit"] | "s";
-        if (intervalUnit != "ms" && intervalUnit != "s" &&
-            intervalUnit != "m") {
+        if (!intervalUnit.equalsIgnoreCase("ms") &&
+            !intervalUnit.equalsIgnoreCase("s") &&
+            !intervalUnit.equalsIgnoreCase("m")) {
           return ConfigValidationResult::error(
               509, "Invalid interval_unit. Must be 'ms', 's', or 'm'",
               "http_config.interval_unit",
