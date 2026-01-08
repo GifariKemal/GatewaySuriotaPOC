@@ -1132,6 +1132,14 @@ bool ModbusTcpService::storeRegisterValue(const char* deviceId,
   float offset = reg["offset"] | 0.0;
   double calibratedValue = (value * scale) + offset;
 
+  // v1.0.7: Apply decimal precision if specified
+  // -1 = auto (no rounding), 0-6 = fixed decimal places
+  int decimals = reg["decimals"] | -1;
+  if (decimals >= 0 && decimals <= 6) {
+    double multiplier = pow(10.0, decimals);
+    calibratedValue = round(calibratedValue * multiplier) / multiplier;
+  }
+
   RTCManager* rtc = RTCManager::getInstance();
   if (rtc) {
     DateTime now = rtc->getCurrentTime();

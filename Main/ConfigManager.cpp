@@ -780,6 +780,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray& result,
           registerInfo["description"] = reg["description"];
           registerInfo["scale"] = reg["scale"];
           registerInfo["offset"] = reg["offset"];
+          registerInfo["decimals"] = reg["decimals"] | -1;  // v1.0.7
           registerInfo["register_index"] = reg["register_index"];
         }
       }
@@ -899,6 +900,14 @@ String ConfigManager::createRegister(const String& deviceId,
       float value = kv.value().is<String>() ? kv.value().as<String>().toFloat()
                                             : kv.value().as<float>();
       newRegister[kv.key()] = value;
+    } else if (key == "decimals") {
+      // v1.0.7: Convert and validate decimals (-1 to 6)
+      int value = kv.value().is<String>() ? kv.value().as<String>().toInt()
+                                          : kv.value().as<int>();
+      // Clamp to valid range: -1 (auto) to 6 (max precision)
+      if (value < -1) value = -1;
+      if (value > 6) value = 6;
+      newRegister[kv.key()] = value;
     } else {
       newRegister[kv.key()] = kv.value();
     }
@@ -920,6 +929,11 @@ String ConfigManager::createRegister(const String& deviceId,
   }
   if (newRegister["unit"].isNull()) {
     newRegister["unit"] = "";
+  }
+  // v1.0.7: Add default decimals value for display precision control
+  // -1 = auto (no rounding), 0-6 = fixed decimal places
+  if (newRegister["decimals"].isNull()) {
+    newRegister["decimals"] = -1;
   }
 
   // Save to file and keep cache valid
@@ -990,6 +1004,10 @@ bool ConfigManager::getRegistersSummary(const String& deviceId,
         regSummary["address"] = reg["address"];
         regSummary["data_type"] = reg["data_type"];
         regSummary["description"] = reg["description"];
+        regSummary["scale"] = reg["scale"] | 1.0;
+        regSummary["offset"] = reg["offset"] | 0.0;
+        regSummary["decimals"] = reg["decimals"] | -1;  // v1.0.7
+        regSummary["unit"] = reg["unit"] | "";
       }
       return true;
     }
@@ -1058,6 +1076,14 @@ bool ConfigManager::updateRegister(const String& deviceId,
           float value = kv.value().is<String>()
                             ? kv.value().as<String>().toFloat()
                             : kv.value().as<float>();
+          reg[kv.key()] = value;
+        } else if (key == "decimals") {
+          // v1.0.7: Convert and validate decimals (-1 to 6)
+          int value = kv.value().is<String>() ? kv.value().as<String>().toInt()
+                                              : kv.value().as<int>();
+          // Clamp to valid range: -1 (auto) to 6 (max precision)
+          if (value < -1) value = -1;
+          if (value > 6) value = 6;
           reg[kv.key()] = value;
         } else {
           reg[kv.key()] = kv.value();
@@ -1223,6 +1249,14 @@ bool ConfigManager::loadDevicesCache() {
             reg["unit"] = "";
             needsSave = true;
             Serial.printf("[MIGRATION] Added unit=\"\" to register %s\n",
+                          reg["register_id"].as<String>().c_str());
+          }
+          // v1.0.7 Migration: Add decimals field for display precision control
+          // -1 = auto (no rounding, use full precision)
+          if (reg["decimals"].isNull()) {
+            reg["decimals"] = -1;
+            needsSave = true;
+            Serial.printf("[MIGRATION] Added decimals=-1 to register %s\n",
                           reg["register_id"].as<String>().c_str());
           }
 

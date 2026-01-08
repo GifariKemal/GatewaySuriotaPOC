@@ -773,6 +773,7 @@ Add a new register to an existing device.
     "data_type": "FLOAT32_BE",
     "scale": 1.0,
     "offset": 0.0,
+    "decimals": 2,
     "unit": "°C",
     "refresh_rate_ms": 1000
   }
@@ -789,6 +790,7 @@ Add a new register to an existing device.
 | `data_type`       | string  | ✅ Yes   | -        | See [Data Types](#supported-data-types)        |
 | `scale`           | float   | ❌ No    | 1.0      | Multiplier for raw value                       |
 | `offset`          | float   | ❌ No    | 0.0      | Offset added after scaling                     |
+| `decimals`        | integer | ❌ No    | -1       | Decimal precision: -1=auto, 0-6=fixed places   |
 | `unit`            | string  | ❌ No    | ""       | Measurement unit                               |
 | `refresh_rate_ms` | integer | ❌ No    | (device) | Override device refresh rate                   |
 
@@ -861,6 +863,7 @@ Add a new register to an existing device.
     "data_type": "FLOAT32_BE",
     "scale": 1.0,
     "offset": 0.0,
+    "decimals": 2,
     "unit": "°C",
     "refresh_rate_ms": 1000,
     "register_index": 0

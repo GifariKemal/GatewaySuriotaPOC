@@ -6,6 +6,97 @@
 
 ---
 
+## Version 1.0.7 (Decimal Precision Control)
+
+**Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**
+Calibration System Enhancement
+
+### Feature: Per-Register Decimal Precision
+
+**Background:** Users need control over how many decimal places are displayed in
+the UI and transmitted via MQTT/HTTP. Previously, values used ArduinoJson's
+default precision (~7 significant digits), which could result in noisy data like
+`24.560001` instead of `24.56`.
+
+### What's New
+
+**1. New `decimals` Field in Register Schema**
+
+| Field      | Type    | Default | Range  | Description                        |
+| ---------- | ------- | ------- | ------ | ---------------------------------- |
+| `decimals` | integer | -1      | -1 to 6 | -1 = auto (no rounding), 0-6 = fixed decimal places |
+
+**Example Configuration:**
+
+```json
+{
+  "register_name": "Battery Voltage",
+  "address": 40001,
+  "data_type": "UINT16",
+  "scale": 0.01,
+  "offset": 0.0,
+  "decimals": 2,
+  "unit": "V"
+}
+```
+
+**2. Calibration Formula with Precision**
+
+```
+final_value = round((raw_value × scale + offset), decimals)
+```
+
+| Raw Value | Scale | Offset | Decimals | Output    |
+| --------- | ----- | ------ | -------- | --------- |
+| 2456      | 0.01  | 0      | 2        | `24.56`   |
+| 2456      | 0.01  | 0      | 1        | `24.6`    |
+| 2456      | 0.01  | 0      | 0        | `25`      |
+| 27.567891 | 1.0   | 0      | 3        | `27.568`  |
+| 27.567891 | 1.0   | 0      | -1       | `27.567891` (auto) |
+
+**3. Auto-Migration for Existing Registers**
+
+Existing registers automatically receive `decimals: -1` (auto mode) during
+startup migration. No configuration changes required for backward compatibility.
+
+### Files Modified
+
+| File                  | Changes                                      |
+| --------------------- | -------------------------------------------- |
+| `ConfigManager.cpp`   | Auto-migration, create/update register logic |
+| `ModbusRtuService.cpp`| Apply decimal precision after calibration    |
+| `ModbusTcpService.cpp`| Apply decimal precision after calibration    |
+| `API.md`              | Updated register schema documentation        |
+
+### API Changes
+
+**Create/Update Register Request:**
+
+```json
+{
+  "op": "create",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "config": {
+    "register_name": "temperature",
+    "address": 0,
+    "data_type": "FLOAT32_BE",
+    "scale": 1.0,
+    "offset": 0.0,
+    "decimals": 2,
+    "unit": "°C"
+  }
+}
+```
+
+### Backward Compatibility
+
+- ✅ Existing configs work unchanged (auto-migration adds `decimals: -1`)
+- ✅ Omitting `decimals` field defaults to -1 (no rounding)
+- ✅ Invalid values clamped to valid range (-1 to 6)
+
+---
+
 ## Version 1.0.6 (Performance & Capacity Optimization)
 
 **Release Date:** January 2, 2026 (Thursday) **Status:** Production **Related:**
