@@ -2188,9 +2188,9 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
   double rawValue = ModbusUtils::reverseCalibration(value, scale, offset);
   LOG_TCP_INFO("[TCP_WRITE] Reverse calibration: %.4f -> %.4f\n", value, rawValue);
 
-  // 7. Get or create TCP connection
-  WiFiClient* client = getOrCreateConnection(ipAddress, port);
-  if (!client || !client->connected()) {
+  // 7. Get pooled TCP connection
+  TCPClient* pooledClient = getPooledConnection(ipAddress, port);
+  if (!pooledClient || !pooledClient->connected()) {
     response["status"] = "error";
     response["error"] = "Failed to connect to device";
     response["error_code"] = 307;
@@ -2269,28 +2269,28 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
 
   // 10. Send request and receive response
   unsigned long startTime = millis();
-  client->write(request, reqLen);
-  client->flush();
+  pooledClient->write(request, reqLen);
 
   // Wait for response (timeout 5s)
   unsigned long timeout = 5000;
-  while (client->available() < 8 && (millis() - startTime) < timeout) {
+  while (pooledClient->available() < 8 && (millis() - startTime) < timeout) {
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 
   unsigned long responseTime = millis() - startTime;
 
-  if (client->available() < 8) {
+  if (pooledClient->available() < 8) {
     response["status"] = "error";
     response["error"] = "Response timeout";
     response["error_code"] = 309;
     response["response_time_ms"] = responseTime;
+    returnPooledConnection(ipAddress, port, pooledClient, false);
     return false;
   }
 
   // Read response
   uint8_t respBuffer[32];
-  int respLen = client->read(respBuffer, sizeof(respBuffer));
+  int respLen = pooledClient->read(respBuffer, sizeof(respBuffer));
 
   // 11. Parse response
   if (respLen >= 8) {
@@ -2322,6 +2322,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
           break;
       }
       LOG_TCP_ERROR("[TCP_WRITE] Exception %d\n", exceptionCode);
+      returnPooledConnection(ipAddress, port, pooledClient, true);
       return false;
     }
 
@@ -2334,12 +2335,14 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
     response["response_time_ms"] = responseTime;
     LOG_TCP_INFO("[TCP_WRITE] SUCCESS - wrote %.4f to %s:%s in %lu ms\n",
                  value, deviceId, registerId, responseTime);
+    returnPooledConnection(ipAddress, port, pooledClient, true);
     return true;
   }
 
   response["status"] = "error";
   response["error"] = "Invalid response";
   response["error_code"] = 320;
+  returnPooledConnection(ipAddress, port, pooledClient, false);
   return false;
 }
 

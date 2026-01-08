@@ -1049,11 +1049,12 @@ void CRUDHandler::setupCommandHandlers() {
 
     // Determine device protocol (RTU or TCP)
     JsonDocument deviceDoc;
+    JsonObject deviceObj = deviceDoc.to<JsonObject>();
     bool isRtu = false;
     bool isTcp = false;
 
-    if (configManager->getDeviceById(deviceId, deviceDoc)) {
-      String protocol = deviceDoc["protocol"] | "RTU";
+    if (configManager->readDevice(deviceId, deviceObj)) {
+      String protocol = deviceObj["protocol"] | "RTU";
       protocol.toUpperCase();
       isRtu = (protocol == "RTU");
       isTcp = (protocol == "TCP");
@@ -1079,9 +1080,7 @@ void CRUDHandler::setupCommandHandlers() {
     }
 
     // Send response
-    String responseStr;
-    serializeJson(*response, responseStr);
-    manager->sendResponse(responseStr);
+    manager->sendResponse(*response);
 
     LOG_BLE_INFO("[WRITE_REGISTER] device=%s, register=%s, value=%.4f, success=%d\n",
                  deviceId.c_str(), registerId.c_str(), value, success);
