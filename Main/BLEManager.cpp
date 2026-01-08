@@ -341,6 +341,28 @@ void BLEManager::receiveFragment(const String& fragment) {
     return;
   }
 
+  // v1.0.9: Handle <CANCEL> command from mobile app
+  // Stops ongoing transmission and clears buffers
+  if (fragment == "<CANCEL>") {
+    LOG_BLE_INFO("[BLE] <CANCEL> received - stopping transmission\n");
+
+    // Set cancellation flag (atomic for thread safety)
+    transmissionCancelled.store(true);
+
+    // Clear command buffer
+    commandBufferIndex = 0;
+    memset(commandBuffer, 0, COMMAND_BUFFER_SIZE);
+    processing = false;
+
+    // Send acknowledgment
+    if (pResponseChar) {
+      pResponseChar->setValue("<ACK>");
+      pResponseChar->notify();
+    }
+
+    return;
+  }
+
   if (fragment == "<END>") {
     // Validate buffer has data before processing
     if (commandBufferIndex == 0) {
@@ -970,7 +992,23 @@ void BLEManager::sendFragmented(const char* data, size_t length) {
   // Allocate static buffer for chunks to avoid repeated allocations
   char chunkBuffer[256];  // Max chunk size + safety margin
 
+  // v1.0.9: Reset cancellation flag at start of new transmission
+  transmissionCancelled.store(false);
+
   while (i < dataLen) {
+    // v1.0.9: Check for cancellation request from mobile app
+    if (transmissionCancelled.load()) {
+      LOG_BLE_INFO(
+          "[BLE] Transmission cancelled at %zu/%zu bytes (%.1f%%)\n", i, dataLen,
+          (float)i * 100 / dataLen);
+      // Send cancelled marker instead of END
+      pResponseChar->setValue("<CANCELLED>");
+      pResponseChar->notify();
+      xSemaphoreGive(transmissionMutex);
+      __atomic_sub_fetch(&activeTransmissions, 1, __ATOMIC_SEQ_CST);
+      return;
+    }
+
     size_t chunkLen = min(adaptiveChunkSize, dataLen - i);
 
     // SAFETY: Ensure chunk size doesn't exceed buffer
@@ -1541,4 +1579,20 @@ void BLEManager::setMTUFallback(uint16_t fallbackSize) {
   mtuControl.fallbackMTU = fallbackSize;
 
   xSemaphoreGive(mtuControlMutex);
+}
+
+// ============================================================================
+// v1.0.9: TRANSMISSION CANCELLATION SUPPORT
+// ============================================================================
+// Allows mobile app to cancel ongoing chunked transmissions by sending <CANCEL>
+// This prevents wasted bandwidth and improves UX when user navigates away
+
+void BLEManager::cancelTransmission() {
+  // Set atomic flag to signal transmission loop to stop
+  transmissionCancelled.store(true);
+  LOG_BLE_INFO("[BLE] Transmission cancellation requested\n");
+}
+
+bool BLEManager::isTransmissionCancelled() const {
+  return transmissionCancelled.load();
 }

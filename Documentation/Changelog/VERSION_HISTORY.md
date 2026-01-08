@@ -6,6 +6,118 @@
 
 ---
 
+## Version 1.0.9 (BLE Cancel Command)
+
+**Release Date:** January 9, 2026 (Thursday) **Status:** Development **Related:**
+BLE Transmission Optimization
+
+### Feature: Cancel Ongoing BLE Transmissions
+
+**Background:** When mobile app sends a command that triggers a large response
+(e.g., backup, device list with many registers), the response is sent in chunks due
+to MTU limitations. If the user navigates away or sends a new command, the gateway
+continues sending chunks of the old response, causing:
+
+- Mixed responses between commands
+- Wasted BLE bandwidth
+- JSON parsing errors on mobile
+- Poor user experience
+
+### What's New
+
+**1. `<CANCEL>` Command Support**
+
+Mobile app can now send `<CANCEL>` to stop ongoing transmission:
+
+| Command | Direction | Description |
+|---------|-----------|-------------|
+| `<CANCEL>` | Mobile -> Gateway | Stop current chunked transmission |
+| `<ACK>` | Gateway -> Mobile | Cancel acknowledged |
+| `<CANCELLED>` | Gateway -> Mobile | Transmission was cancelled (instead of `<END>`) |
+
+**2. Atomic Cancellation Flag**
+
+Thread-safe cancellation using `std::atomic<bool>`:
+
+```cpp
+// BLEManager.h
+std::atomic<bool> transmissionCancelled{false};
+
+// Methods
+void cancelTransmission();
+bool isTransmissionCancelled() const;
+```
+
+**3. Cancellation Check in sendFragmented()**
+
+The transmission loop checks for cancellation on each chunk:
+
+```cpp
+while (i < dataLen) {
+  if (transmissionCancelled.load()) {
+    pResponseChar->setValue("<CANCELLED>");
+    pResponseChar->notify();
+    return;
+  }
+  // ... send chunk
+}
+```
+
+### Protocol Flow
+
+**Normal Transmission:**
+
+```
+Mobile                          Gateway
+  |--- {"op":"read",...} --->     |
+  |<---- chunk1 -------------     |
+  |<---- chunk2 -------------     |
+  |<---- ...   -------------      |
+  |<---- <END> -------------      |
+```
+
+**Cancelled Transmission:**
+
+```
+Mobile                          Gateway
+  |--- {"op":"read",...} --->     |
+  |<---- chunk1 -------------     |
+  |<---- chunk2 -------------     |
+  |--- <CANCEL> ----------->      |
+  |<---- <ACK> -------------      |
+  |<---- <CANCELLED> -------      |  (instead of more chunks + <END>)
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `BLEManager.h` | Added `transmissionCancelled` atomic flag, `cancelTransmission()`, `isTransmissionCancelled()` |
+| `BLEManager.cpp` | Handle `<CANCEL>` in `receiveFragment()`, cancellation check in `sendFragmented()`, method implementations |
+
+### Mobile App Integration
+
+See [FLUTTER_BLE_CANCEL_GUIDE.md](../API_Reference/FLUTTER_BLE_CANCEL_GUIDE.md)
+for complete Flutter implementation guide.
+
+**Key Integration Points:**
+
+1. **Page dispose** - Cancel when leaving page
+2. **Navigation** - Cancel before navigating to new page
+3. **App lifecycle** - Cancel when app goes to background
+4. **Timeout** - Auto-cancel after timeout (e.g., 30s)
+5. **New command** - Cancel previous before sending new
+
+### Testing Recommendations
+
+- [ ] Navigate away during device list loading
+- [ ] Send new command while previous is responding
+- [ ] Disconnect during transmission
+- [ ] Cancel at various progress points (10%, 50%, 90%)
+- [ ] Rapid cancel/send cycles
+
+---
+
 ## Version 1.0.8 (Write Register Support)
 
 **Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**
