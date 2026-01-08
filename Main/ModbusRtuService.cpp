@@ -1475,6 +1475,238 @@ void ModbusRtuService::getAggregatedStats(uint32_t& totalSuccess,
   }
 }
 
+// ============================================================================
+// v1.0.8: WRITE REGISTER SUPPORT
+// ============================================================================
+
+bool ModbusRtuService::writeRegisterValue(const char* deviceId,
+                                          const char* registerId, double value,
+                                          JsonObject& response) {
+  LOG_RTU_INFO("[RTU_WRITE] Writing to device %s, register %s, value %.4f\n",
+               deviceId, registerId, value);
+
+  // 1. Find device and register configuration
+  if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+    response["status"] = "error";
+    response["error"] = "Failed to acquire mutex";
+    response["error_code"] = 301;
+    return false;
+  }
+
+  // Find the device
+  JsonObject deviceConfig;
+  JsonObject registerConfig;
+  bool found = false;
+
+  for (auto& device : rtuDevices) {
+    if (strcmp(device.deviceId.c_str(), deviceId) == 0) {
+      deviceConfig = device.doc->as<JsonObject>();
+      JsonArray registers = deviceConfig["registers"];
+      for (JsonVariant reg : registers) {
+        if (strcmp(reg["register_id"].as<const char*>(), registerId) == 0) {
+          registerConfig = reg.as<JsonObject>();
+          found = true;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  if (!found) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Device or register not found";
+    response["error_code"] = 302;
+    return false;
+  }
+
+  // 2. Check if register is writable
+  uint8_t readFC = registerConfig["function_code"] | 3;
+  if (!ModbusUtils::isWritableType(readFC)) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Register is read-only (FC2 or FC4)";
+    response["error_code"] = 303;
+    return false;
+  }
+
+  // 3. Check writable flag if present
+  bool writable = registerConfig["writable"] | true;  // Default true for backward compat
+  if (!writable) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Register marked as not writable";
+    response["error_code"] = 304;
+    return false;
+  }
+
+  // 4. Validate min/max if specified
+  if (!registerConfig["min_value"].isNull()) {
+    double minVal = registerConfig["min_value"].as<double>();
+    if (value < minVal) {
+      xSemaphoreGive(vectorMutex);
+      response["status"] = "error";
+      response["error"] = "Value below minimum";
+      response["error_code"] = 305;
+      response["min_value"] = minVal;
+      response["provided_value"] = value;
+      return false;
+    }
+  }
+  if (!registerConfig["max_value"].isNull()) {
+    double maxVal = registerConfig["max_value"].as<double>();
+    if (value > maxVal) {
+      xSemaphoreGive(vectorMutex);
+      response["status"] = "error";
+      response["error"] = "Value above maximum";
+      response["error_code"] = 306;
+      response["max_value"] = maxVal;
+      response["provided_value"] = value;
+      return false;
+    }
+  }
+
+  // 5. Get device parameters
+  uint8_t slaveId = deviceConfig["slave_id"] | 1;
+  int serialPort = deviceConfig["serial_port"] | 1;
+  uint16_t baudRate = deviceConfig["baud_rate"] | 9600;
+  uint16_t address = registerConfig["address"] | 0;
+  const char* dataType = registerConfig["data_type"] | "UINT16";
+  float scale = registerConfig["scale"] | 1.0f;
+  float offset = registerConfig["offset"] | 0.0f;
+
+  // Extract endianness from data_type (e.g., "FLOAT32_BE" -> "BE")
+  char endianness[8] = "BE";
+  const char* underscore = strchr(dataType, '_');
+  if (underscore) {
+    strncpy(endianness, underscore + 1, sizeof(endianness) - 1);
+    endianness[sizeof(endianness) - 1] = '\0';
+  }
+
+  xSemaphoreGive(vectorMutex);
+
+  // 6. Reverse calibration
+  double rawValue = ModbusUtils::reverseCalibration(value, scale, offset);
+  LOG_RTU_INFO("[RTU_WRITE] Reverse calibration: %.4f -> %.4f (scale=%.4f, offset=%.4f)\n",
+               value, rawValue, scale, offset);
+
+  // 7. Configure baudrate
+  configureBaudRate(serialPort, baudRate);
+
+  // 8. Get Modbus instance
+  ModbusMaster* modbus = getModbusForBus(serialPort);
+  if (!modbus) {
+    response["status"] = "error";
+    response["error"] = "Invalid serial port";
+    response["error_code"] = 307;
+    return false;
+  }
+
+  // 9. Set slave ID
+  modbus->begin(slaveId, serialPort == 1 ? *serial1 : *serial2);
+
+  // 10. Determine write function code and perform write
+  uint8_t writeFC = ModbusUtils::getWriteFunctionCode(readFC, dataType);
+  int regCount = ModbusUtils::getRegisterCount(dataType);
+
+  unsigned long startTime = millis();
+  uint8_t result = 0;
+
+  if (writeFC == 5) {
+    // FC5: Write Single Coil
+    uint16_t coilValue = (rawValue != 0) ? 0xFF00 : 0x0000;
+    result = modbus->writeSingleCoil(address, coilValue);
+    LOG_RTU_INFO("[RTU_WRITE] FC5 writeSingleCoil addr=%d, value=0x%04X\n",
+                 address, coilValue);
+  } else if (writeFC == 6) {
+    // FC6: Write Single Register
+    uint16_t regValue = ModbusUtils::convertToSingleRegister(rawValue, dataType);
+    result = modbus->writeSingleRegister(address, regValue);
+    LOG_RTU_INFO("[RTU_WRITE] FC6 writeSingleRegister addr=%d, value=%d (0x%04X)\n",
+                 address, regValue, regValue);
+  } else if (writeFC == 15) {
+    // FC15: Write Multiple Coils (not commonly used, implement if needed)
+    response["status"] = "error";
+    response["error"] = "FC15 not yet implemented";
+    response["error_code"] = 308;
+    return false;
+  } else if (writeFC == 16) {
+    // FC16: Write Multiple Registers
+    uint16_t values[4];
+    int count = 0;
+    ModbusUtils::convertToMultiRegister(rawValue, dataType, endianness, values, count);
+
+    // Load values into transmit buffer
+    for (int i = 0; i < count; i++) {
+      modbus->setTransmitBuffer(i, values[i]);
+    }
+    result = modbus->writeMultipleRegisters(address, count);
+    LOG_RTU_INFO("[RTU_WRITE] FC16 writeMultipleRegisters addr=%d, count=%d\n",
+                 address, count);
+  } else {
+    response["status"] = "error";
+    response["error"] = "Invalid write function code";
+    response["error_code"] = 309;
+    return false;
+  }
+
+  unsigned long responseTime = millis() - startTime;
+
+  // 11. Check result
+  if (result == modbus->ku8MBSuccess) {
+    response["status"] = "ok";
+    response["device_id"] = deviceId;
+    response["register_id"] = registerId;
+    response["value_written"] = value;
+    response["raw_value"] = rawValue;
+    response["response_time_ms"] = responseTime;
+    LOG_RTU_INFO("[RTU_WRITE] SUCCESS - wrote %.4f to %s:%s in %lu ms\n",
+                 value, deviceId, registerId, responseTime);
+    return true;
+  } else {
+    response["status"] = "error";
+    response["device_id"] = deviceId;
+    response["register_id"] = registerId;
+    response["error_code"] = 310 + result;
+    response["modbus_error"] = result;
+    response["response_time_ms"] = responseTime;
+
+    // Map Modbus errors
+    switch (result) {
+      case 0x01:
+        response["error"] = "Illegal Function";
+        break;
+      case 0x02:
+        response["error"] = "Illegal Data Address";
+        break;
+      case 0x03:
+        response["error"] = "Illegal Data Value";
+        break;
+      case 0x04:
+        response["error"] = "Slave Device Failure";
+        break;
+      case 0xE0:
+        response["error"] = "Invalid Slave ID";
+        break;
+      case 0xE1:
+        response["error"] = "Invalid Function";
+        break;
+      case 0xE2:
+        response["error"] = "Response Timeout";
+        break;
+      case 0xE3:
+        response["error"] = "Invalid CRC";
+        break;
+      default:
+        response["error"] = "Unknown Modbus Error";
+        break;
+    }
+    LOG_RTU_ERROR("[RTU_WRITE] FAILED - error code %d\n", result);
+    return false;
+  }
+}
+
 ModbusRtuService::~ModbusRtuService() {
   stop();
 

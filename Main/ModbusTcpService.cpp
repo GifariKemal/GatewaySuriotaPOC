@@ -2073,6 +2073,276 @@ void ModbusTcpService::getAggregatedStats(uint32_t& totalSuccess,
   }
 }
 
+// ============================================================================
+// v1.0.8: WRITE REGISTER SUPPORT
+// ============================================================================
+
+bool ModbusTcpService::writeRegisterValue(const char* deviceId,
+                                          const char* registerId, double value,
+                                          JsonObject& response) {
+  LOG_TCP_INFO("[TCP_WRITE] Writing to device %s, register %s, value %.4f\n",
+               deviceId, registerId, value);
+
+  // 1. Find device and register configuration
+  if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+    response["status"] = "error";
+    response["error"] = "Failed to acquire mutex";
+    response["error_code"] = 301;
+    return false;
+  }
+
+  // Find the device
+  JsonObject deviceConfig;
+  JsonObject registerConfig;
+  bool found = false;
+
+  for (auto& device : tcpDevices) {
+    if (strcmp(device.deviceId.c_str(), deviceId) == 0) {
+      deviceConfig = device.doc->as<JsonObject>();
+      JsonArray registers = deviceConfig["registers"];
+      for (JsonVariant reg : registers) {
+        if (strcmp(reg["register_id"].as<const char*>(), registerId) == 0) {
+          registerConfig = reg.as<JsonObject>();
+          found = true;
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  if (!found) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Device or register not found";
+    response["error_code"] = 302;
+    return false;
+  }
+
+  // 2. Check if register is writable
+  uint8_t readFC = registerConfig["function_code"] | 3;
+  if (!ModbusUtils::isWritableType(readFC)) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Register is read-only (FC2 or FC4)";
+    response["error_code"] = 303;
+    return false;
+  }
+
+  // 3. Check writable flag if present
+  bool writable = registerConfig["writable"] | true;
+  if (!writable) {
+    xSemaphoreGive(vectorMutex);
+    response["status"] = "error";
+    response["error"] = "Register marked as not writable";
+    response["error_code"] = 304;
+    return false;
+  }
+
+  // 4. Validate min/max if specified
+  if (!registerConfig["min_value"].isNull()) {
+    double minVal = registerConfig["min_value"].as<double>();
+    if (value < minVal) {
+      xSemaphoreGive(vectorMutex);
+      response["status"] = "error";
+      response["error"] = "Value below minimum";
+      response["error_code"] = 305;
+      response["min_value"] = minVal;
+      response["provided_value"] = value;
+      return false;
+    }
+  }
+  if (!registerConfig["max_value"].isNull()) {
+    double maxVal = registerConfig["max_value"].as<double>();
+    if (value > maxVal) {
+      xSemaphoreGive(vectorMutex);
+      response["status"] = "error";
+      response["error"] = "Value above maximum";
+      response["error_code"] = 306;
+      response["max_value"] = maxVal;
+      response["provided_value"] = value;
+      return false;
+    }
+  }
+
+  // 5. Get device parameters
+  const char* ipAddress = deviceConfig["ip_address"] | "";
+  uint16_t port = deviceConfig["port"] | 502;
+  uint8_t unitId = deviceConfig["slave_id"] | 1;
+  uint16_t address = registerConfig["address"] | 0;
+  const char* dataType = registerConfig["data_type"] | "UINT16";
+  float scale = registerConfig["scale"] | 1.0f;
+  float offset = registerConfig["offset"] | 0.0f;
+
+  // Extract endianness from data_type
+  char endianness[8] = "BE";
+  const char* underscore = strchr(dataType, '_');
+  if (underscore) {
+    strncpy(endianness, underscore + 1, sizeof(endianness) - 1);
+    endianness[sizeof(endianness) - 1] = '\0';
+  }
+
+  xSemaphoreGive(vectorMutex);
+
+  // 6. Reverse calibration
+  double rawValue = ModbusUtils::reverseCalibration(value, scale, offset);
+  LOG_TCP_INFO("[TCP_WRITE] Reverse calibration: %.4f -> %.4f\n", value, rawValue);
+
+  // 7. Get or create TCP connection
+  WiFiClient* client = getOrCreateConnection(ipAddress, port);
+  if (!client || !client->connected()) {
+    response["status"] = "error";
+    response["error"] = "Failed to connect to device";
+    response["error_code"] = 307;
+    return false;
+  }
+
+  // 8. Determine write function code
+  uint8_t writeFC = ModbusUtils::getWriteFunctionCode(readFC, dataType);
+  int regCount = ModbusUtils::getRegisterCount(dataType);
+
+  // 9. Build Modbus TCP write request
+  uint16_t transactionId = getNextTransactionId();
+  uint8_t request[256];
+  int reqLen = 0;
+
+  // MBAP Header (7 bytes)
+  request[0] = (transactionId >> 8) & 0xFF;  // Transaction ID high
+  request[1] = transactionId & 0xFF;         // Transaction ID low
+  request[2] = 0x00;                         // Protocol ID high
+  request[3] = 0x00;                         // Protocol ID low
+  // Length will be filled after building PDU
+  request[6] = unitId;  // Unit ID
+
+  if (writeFC == 5) {
+    // FC5: Write Single Coil
+    uint16_t coilValue = (rawValue != 0) ? 0xFF00 : 0x0000;
+    request[7] = 0x05;                      // Function code
+    request[8] = (address >> 8) & 0xFF;     // Address high
+    request[9] = address & 0xFF;            // Address low
+    request[10] = (coilValue >> 8) & 0xFF;  // Value high
+    request[11] = coilValue & 0xFF;         // Value low
+    reqLen = 12;
+    // Set length (6 bytes after MBAP header start)
+    request[4] = 0x00;
+    request[5] = 0x06;
+  } else if (writeFC == 6) {
+    // FC6: Write Single Register
+    uint16_t regValue = ModbusUtils::convertToSingleRegister(rawValue, dataType);
+    request[7] = 0x06;                     // Function code
+    request[8] = (address >> 8) & 0xFF;    // Address high
+    request[9] = address & 0xFF;           // Address low
+    request[10] = (regValue >> 8) & 0xFF;  // Value high
+    request[11] = regValue & 0xFF;         // Value low
+    reqLen = 12;
+    request[4] = 0x00;
+    request[5] = 0x06;
+  } else if (writeFC == 16) {
+    // FC16: Write Multiple Registers
+    uint16_t values[4];
+    int count = 0;
+    ModbusUtils::convertToMultiRegister(rawValue, dataType, endianness, values, count);
+
+    request[7] = 0x10;                    // Function code
+    request[8] = (address >> 8) & 0xFF;   // Address high
+    request[9] = address & 0xFF;          // Address low
+    request[10] = (count >> 8) & 0xFF;    // Quantity high
+    request[11] = count & 0xFF;           // Quantity low
+    request[12] = count * 2;              // Byte count
+
+    // Add register values
+    for (int i = 0; i < count; i++) {
+      request[13 + i * 2] = (values[i] >> 8) & 0xFF;
+      request[14 + i * 2] = values[i] & 0xFF;
+    }
+    reqLen = 13 + count * 2;
+    // Set length
+    uint16_t pduLen = 7 + count * 2;
+    request[4] = (pduLen >> 8) & 0xFF;
+    request[5] = pduLen & 0xFF;
+  } else {
+    response["status"] = "error";
+    response["error"] = "Invalid write function code";
+    response["error_code"] = 308;
+    return false;
+  }
+
+  // 10. Send request and receive response
+  unsigned long startTime = millis();
+  client->write(request, reqLen);
+  client->flush();
+
+  // Wait for response (timeout 5s)
+  unsigned long timeout = 5000;
+  while (client->available() < 8 && (millis() - startTime) < timeout) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+
+  unsigned long responseTime = millis() - startTime;
+
+  if (client->available() < 8) {
+    response["status"] = "error";
+    response["error"] = "Response timeout";
+    response["error_code"] = 309;
+    response["response_time_ms"] = responseTime;
+    return false;
+  }
+
+  // Read response
+  uint8_t respBuffer[32];
+  int respLen = client->read(respBuffer, sizeof(respBuffer));
+
+  // 11. Parse response
+  if (respLen >= 8) {
+    uint8_t respFC = respBuffer[7];
+
+    // Check for exception response (FC + 0x80)
+    if (respFC & 0x80) {
+      uint8_t exceptionCode = respBuffer[8];
+      response["status"] = "error";
+      response["error_code"] = 310 + exceptionCode;
+      response["modbus_exception"] = exceptionCode;
+      response["response_time_ms"] = responseTime;
+
+      switch (exceptionCode) {
+        case 0x01:
+          response["error"] = "Illegal Function";
+          break;
+        case 0x02:
+          response["error"] = "Illegal Data Address";
+          break;
+        case 0x03:
+          response["error"] = "Illegal Data Value";
+          break;
+        case 0x04:
+          response["error"] = "Slave Device Failure";
+          break;
+        default:
+          response["error"] = "Unknown Exception";
+          break;
+      }
+      LOG_TCP_ERROR("[TCP_WRITE] Exception %d\n", exceptionCode);
+      return false;
+    }
+
+    // Success
+    response["status"] = "ok";
+    response["device_id"] = deviceId;
+    response["register_id"] = registerId;
+    response["value_written"] = value;
+    response["raw_value"] = rawValue;
+    response["response_time_ms"] = responseTime;
+    LOG_TCP_INFO("[TCP_WRITE] SUCCESS - wrote %.4f to %s:%s in %lu ms\n",
+                 value, deviceId, registerId, responseTime);
+    return true;
+  }
+
+  response["status"] = "error";
+  response["error"] = "Invalid response";
+  response["error_code"] = 320;
+  return false;
+}
+
 ModbusTcpService::~ModbusTcpService() {
   stop();
 

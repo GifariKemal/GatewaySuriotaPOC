@@ -67,6 +67,71 @@ class ModbusUtils {
                                           const char* baseType,
                                           const char* endianness_variant);
 
+  // =========================================================================
+  // v1.0.8: WRITE REGISTER SUPPORT
+  // =========================================================================
+
+  /**
+   * Reverse calibration: Convert user value to raw Modbus value
+   * Formula: raw_value = (user_value - offset) / scale
+   *
+   * @param userValue Calibrated value from user (e.g., 24.56)
+   * @param scale Scale factor from register config (default 1.0)
+   * @param offset Offset from register config (default 0.0)
+   * @return Raw value to write to Modbus register
+   */
+  static double reverseCalibration(double userValue, float scale, float offset);
+
+  /**
+   * Convert value to single register format (16-bit)
+   *
+   * @param rawValue Raw value after reverse calibration
+   * @param dataType Data type string ("INT16", "UINT16", "BOOL")
+   * @return 16-bit value ready for Modbus write
+   */
+  static uint16_t convertToSingleRegister(double rawValue, const char* dataType);
+
+  /**
+   * Convert value to multi-register format (32-bit or 64-bit)
+   *
+   * @param rawValue Raw value after reverse calibration
+   * @param dataType Data type string ("INT32", "UINT32", "FLOAT32", etc.)
+   * @param endianness Byte order ("BE", "LE", "BE_BS", "LE_BS")
+   * @param outValues Output array for register values (must be pre-allocated)
+   * @param outCount Output: number of registers written
+   * @return true if conversion successful
+   */
+  static bool convertToMultiRegister(double rawValue, const char* dataType,
+                                     const char* endianness, uint16_t* outValues,
+                                     int& outCount);
+
+  /**
+   * Get the appropriate write function code based on read function code and
+   * data type
+   *
+   * @param readFunctionCode Original read FC (1, 2, 3, 4)
+   * @param dataType Data type string
+   * @return Write function code (5, 6, 15, 16) or 0 if not writable
+   */
+  static uint8_t getWriteFunctionCode(uint8_t readFunctionCode,
+                                      const char* dataType);
+
+  /**
+   * Get number of registers needed for a data type
+   *
+   * @param dataType Data type string
+   * @return Number of 16-bit registers (1, 2, or 4)
+   */
+  static int getRegisterCount(const char* dataType);
+
+  /**
+   * Check if a data type is writable (output type)
+   *
+   * @param readFunctionCode Original read FC
+   * @return true if writable (FC1 coils, FC3 holding registers)
+   */
+  static bool isWritableType(uint8_t readFunctionCode);
+
  private:
   // Private constructor (utility class, no instances)
   ModbusUtils() {}

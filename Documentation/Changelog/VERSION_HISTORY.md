@@ -6,6 +6,123 @@
 
 ---
 
+## Version 1.0.8 (Write Register Support)
+
+**Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**
+Modbus Write Operations Enhancement
+
+### Feature: Write Values to Modbus Registers
+
+**Background:** Users need the ability to write values to Modbus devices, not just
+read. This enables control scenarios like setting setpoints, toggling outputs, and
+adjusting parameters via the mobile app.
+
+### What's New
+
+**1. New `write` Operation for Registers**
+
+| Operation | Type     | Description                              |
+| --------- | -------- | ---------------------------------------- |
+| `write`   | register | Write value to holding register or coil  |
+
+**BLE Command Example:**
+
+```json
+{
+  "op": "write",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "value": 25.5
+}
+```
+
+**2. New Register Schema Fields**
+
+| Field       | Type    | Default | Description                              |
+| ----------- | ------- | ------- | ---------------------------------------- |
+| `writable`  | boolean | false   | Enable write operations for this register|
+| `min_value` | float   | -       | Minimum allowed value (optional)         |
+| `max_value` | float   | -       | Maximum allowed value (optional)         |
+
+**3. Reverse Calibration**
+
+When writing, user values are reverse-calibrated before transmission:
+
+```
+raw_value = (user_value - offset) / scale
+```
+
+| User Value | Scale | Offset | Raw Value Sent |
+| ---------- | ----- | ------ | -------------- |
+| 25.5       | 0.1   | 0      | 255            |
+| 100.0      | 0.01  | -10    | 11000          |
+| true       | 1.0   | 0      | 1 (coil)       |
+
+**4. Automatic Write Function Code Selection**
+
+| Read FC | Data Type       | Write FC | Description              |
+| ------- | --------------- | -------- | ------------------------ |
+| FC1     | BOOL (coil)     | FC5      | Write Single Coil        |
+| FC3     | 16-bit types    | FC6      | Write Single Register    |
+| FC3     | 32/64-bit types | FC16     | Write Multiple Registers |
+
+**Note:** FC2 (Discrete Inputs) and FC4 (Input Registers) are read-only by design.
+
+### Files Modified
+
+| File                  | Changes                                      |
+| --------------------- | -------------------------------------------- |
+| `CRUDHandler.h`       | Added writeHandlers map                      |
+| `CRUDHandler.cpp`     | Write handler and routing logic              |
+| `ModbusUtils.h/cpp`   | Reverse calibration, value conversion funcs  |
+| `ModbusRtuService.cpp`| writeRegisterValue() implementation          |
+| `ModbusTcpService.cpp`| writeRegisterValue() implementation          |
+| `ConfigManager.cpp`   | New field handling in create/update register |
+| `API.md`              | Write Register API documentation             |
+
+### API Response
+
+**Success Response:**
+
+```json
+{
+  "status": "ok",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "message": "Write successful",
+  "data": {
+    "register_name": "setpoint_temperature",
+    "written_value": 25.5,
+    "raw_value": 255,
+    "function_code": 6,
+    "address": 100
+  }
+}
+```
+
+**Error Responses:**
+
+| Error Code | Description                                |
+| ---------- | ------------------------------------------ |
+| 315        | Register not writable                      |
+| 316        | Value out of range (min/max validation)    |
+| 317        | Unsupported data type for write            |
+| 318        | Write operation failed (device error)      |
+
+### Mobile App Integration
+
+To enable write functionality:
+
+1. Update register with `writable: true`
+2. Optionally set `min_value` and `max_value` for validation
+3. Use `op: "write"` command with target value
+
+See [MOBILE_WRITE_FEATURE.md](../API_Reference/MOBILE_WRITE_FEATURE.md) for
+complete mobile integration guide.
+
+---
+
 ## Version 1.0.7 (Decimal Precision Control)
 
 **Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**

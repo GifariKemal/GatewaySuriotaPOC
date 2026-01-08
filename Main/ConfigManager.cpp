@@ -908,6 +908,18 @@ String ConfigManager::createRegister(const String& deviceId,
       if (value < -1) value = -1;
       if (value > 6) value = 6;
       newRegister[kv.key()] = value;
+    } else if (key == "writable") {
+      // v1.0.8: Boolean flag for write capability
+      bool value = kv.value().is<String>()
+                       ? (kv.value().as<String>() == "true" ||
+                          kv.value().as<String>() == "1")
+                       : kv.value().as<bool>();
+      newRegister[kv.key()] = value;
+    } else if (key == "min_value" || key == "max_value") {
+      // v1.0.8: Float values for write validation bounds
+      float value = kv.value().is<String>() ? kv.value().as<String>().toFloat()
+                                            : kv.value().as<float>();
+      newRegister[kv.key()] = value;
     } else {
       newRegister[kv.key()] = kv.value();
     }
@@ -935,6 +947,12 @@ String ConfigManager::createRegister(const String& deviceId,
   if (newRegister["decimals"].isNull()) {
     newRegister["decimals"] = -1;
   }
+  // v1.0.8: Add default writable value (false = read-only by default)
+  if (newRegister["writable"].isNull()) {
+    newRegister["writable"] = false;
+  }
+  // v1.0.8: min_value and max_value are optional, no defaults needed
+  // If not set, validation is skipped in writeRegisterValue()
 
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache)) {
@@ -1008,6 +1026,14 @@ bool ConfigManager::getRegistersSummary(const String& deviceId,
         regSummary["offset"] = reg["offset"] | 0.0;
         regSummary["decimals"] = reg["decimals"] | -1;  // v1.0.7
         regSummary["unit"] = reg["unit"] | "";
+        regSummary["writable"] = reg["writable"] | false;  // v1.0.8
+        // v1.0.8: Include min/max if present (optional fields)
+        if (!reg["min_value"].isNull()) {
+          regSummary["min_value"] = reg["min_value"];
+        }
+        if (!reg["max_value"].isNull()) {
+          regSummary["max_value"] = reg["max_value"];
+        }
       }
       return true;
     }
@@ -1084,6 +1110,19 @@ bool ConfigManager::updateRegister(const String& deviceId,
           // Clamp to valid range: -1 (auto) to 6 (max precision)
           if (value < -1) value = -1;
           if (value > 6) value = 6;
+          reg[kv.key()] = value;
+        } else if (key == "writable") {
+          // v1.0.8: Boolean flag for write capability
+          bool value = kv.value().is<String>()
+                           ? (kv.value().as<String>() == "true" ||
+                              kv.value().as<String>() == "1")
+                           : kv.value().as<bool>();
+          reg[kv.key()] = value;
+        } else if (key == "min_value" || key == "max_value") {
+          // v1.0.8: Float values for write validation bounds
+          float value = kv.value().is<String>()
+                            ? kv.value().as<String>().toFloat()
+                            : kv.value().as<float>();
           reg[kv.key()] = value;
         } else {
           reg[kv.key()] = kv.value();
