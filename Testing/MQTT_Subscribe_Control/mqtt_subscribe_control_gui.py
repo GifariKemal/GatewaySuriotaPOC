@@ -1,915 +1,674 @@
 #!/usr/bin/env python3
 """
-MQTT Subscribe Control - GUI Testing Application
-=================================================
-Version: 1.1.0
-Date: January 2026
+MQTT Subscribe Control - Professional Testing GUI
+==================================================
+Version: 2.0.0
 
-Interactive GUI for testing MQTT Subscribe Control feature.
-Allows sending write commands to gateway registers via MQTT.
-
-Features:
-- Connect to any MQTT broker
-- Configure gateway/device/register targets
-- Send write commands with various payload formats
-- View request/response in real-time
-- JSON syntax highlighting
-- Connection status monitoring
-- Message history log
-
-Requirements:
-    pip install paho-mqtt
-
-Usage:
-    python mqtt_subscribe_control_gui.py
+Modern, professional GUI for testing MQTT Subscribe Control feature.
+Designed as a reference for mobile app developers.
 
 Author: SURIOTA R&D Team
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, font as tkfont
 import json
 import time
+import uuid
 import threading
-import queue
 from datetime import datetime
-from typing import Optional, Callable
 
-# Try to import paho-mqtt
 try:
     import paho.mqtt.client as mqtt
+    from paho.mqtt.enums import CallbackAPIVersion
+    PAHO_V2 = True
 except ImportError:
-    print("=" * 60)
-    print("ERROR: paho-mqtt library not found!")
-    print("Please install it using: pip install paho-mqtt")
-    print("=" * 60)
-    exit(1)
+    try:
+        import paho.mqtt.client as mqtt
+        PAHO_V2 = False
+    except ImportError:
+        print("=" * 60)
+        print("ERROR: paho-mqtt library not found!")
+        print("Please install it using: pip install paho-mqtt")
+        print("=" * 60)
+        exit(1)
 
 
-# ============================================================================
-# CONSTANTS & STYLING
-# ============================================================================
+class Colors:
+    """Modern color palette - Sleek dark theme."""
+    BG_PRIMARY = "#0d1117"
+    BG_SECONDARY = "#161b22"
+    BG_TERTIARY = "#21262d"
+    BG_INPUT = "#0d1117"
+    BG_HOVER = "#30363d"
 
-APP_TITLE = "MQTT Subscribe Control - GUI Tester v1.1.0"
-APP_WIDTH = 1200
-APP_HEIGHT = 800
+    ACCENT = "#58a6ff"
+    ACCENT_HOVER = "#79b8ff"
+    SUCCESS = "#3fb950"
+    ERROR = "#f85149"
+    WARNING = "#d29922"
 
-# Color scheme (Modern Dark Theme)
-COLORS = {
-    "bg_dark": "#1e1e1e",
-    "bg_medium": "#252526",
-    "bg_light": "#2d2d30",
-    "bg_input": "#3c3c3c",
-    "fg_primary": "#ffffff",
-    "fg_secondary": "#cccccc",
-    "fg_muted": "#808080",
-    "accent_blue": "#0078d4",
-    "accent_green": "#4ec9b0",
-    "accent_orange": "#ce9178",
-    "accent_red": "#f14c4c",
-    "accent_yellow": "#dcdcaa",
-    "accent_purple": "#c586c0",
-    "border": "#3c3c3c",
-    "success": "#4caf50",
-    "error": "#f44336",
-    "warning": "#ff9800",
-}
+    TEXT_PRIMARY = "#f0f6fc"
+    TEXT_SECONDARY = "#8b949e"
+    TEXT_MUTED = "#6e7681"
 
-# JSON syntax colors
-JSON_COLORS = {
-    "key": "#9cdcfe",
-    "string": "#ce9178",
-    "number": "#b5cea8",
-    "boolean": "#569cd6",
-    "null": "#569cd6",
-    "bracket": "#ffd700",
-}
+    BORDER = "#30363d"
+    BORDER_FOCUS = "#58a6ff"
 
 
-# ============================================================================
-# MQTT CLIENT WRAPPER
-# ============================================================================
+class StyledFrame(tk.Frame):
+    """Card-style frame with rounded appearance."""
 
-class MQTTClientWrapper:
-    """Wrapper for paho-mqtt client with thread-safe message handling."""
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, bg=Colors.BG_SECONDARY, **kwargs)
+        self.configure(highlightbackground=Colors.BORDER,
+                      highlightthickness=1)
 
-    def __init__(self, message_callback: Callable[[str, str], None]):
-        self.client: Optional[mqtt.Client] = None
+
+class StyledLabel(tk.Label):
+    """Styled label with consistent typography."""
+
+    def __init__(self, parent, text="", style="default", **kwargs):
+        styles = {
+            "default": {"fg": Colors.TEXT_PRIMARY, "font": ("Segoe UI", 10)},
+            "header": {"fg": Colors.TEXT_PRIMARY, "font": ("Segoe UI", 13, "bold")},
+            "title": {"fg": Colors.TEXT_PRIMARY, "font": ("Segoe UI", 20, "bold")},
+            "subtitle": {"fg": Colors.TEXT_SECONDARY, "font": ("Segoe UI", 10)},
+            "muted": {"fg": Colors.TEXT_MUTED, "font": ("Segoe UI", 9)},
+            "accent": {"fg": Colors.ACCENT, "font": ("Segoe UI", 10, "bold")},
+        }
+        config = styles.get(style, styles["default"])
+        super().__init__(parent, text=text, bg=parent.cget("bg"), **config, **kwargs)
+
+
+class StyledEntry(tk.Frame):
+    """Modern styled entry with label and border effect."""
+
+    def __init__(self, parent, label="", width=30, **kwargs):
+        super().__init__(parent, bg=parent.cget("bg"))
+
+        if label:
+            lbl = StyledLabel(self, text=label, style="muted")
+            lbl.pack(anchor="w", pady=(0, 6))
+
+        self.border_frame = tk.Frame(self, bg=Colors.BORDER, padx=1, pady=1)
+        self.border_frame.pack(fill="x")
+
+        self.entry = tk.Entry(self.border_frame, bg=Colors.BG_INPUT,
+                             fg=Colors.TEXT_PRIMARY,
+                             insertbackground=Colors.TEXT_PRIMARY,
+                             font=("Segoe UI", 11), relief="flat",
+                             width=width)
+        self.entry.pack(fill="x", padx=10, pady=10)
+
+        self.entry.bind("<FocusIn>", lambda e: self.border_frame.config(bg=Colors.BORDER_FOCUS))
+        self.entry.bind("<FocusOut>", lambda e: self.border_frame.config(bg=Colors.BORDER))
+
+    def get(self):
+        return self.entry.get()
+
+    def set(self, value):
+        self.entry.delete(0, "end")
+        self.entry.insert(0, value)
+
+    def config(self, **kwargs):
+        self.entry.config(**kwargs)
+
+
+class StyledButton(tk.Canvas):
+    """Modern button with hover effects."""
+
+    def __init__(self, parent, text, command=None, width=140, height=42,
+                 style="primary", **kwargs):
+        super().__init__(parent, width=width, height=height,
+                        bg=parent.cget("bg"), highlightthickness=0, **kwargs)
+
+        styles = {
+            "primary": (Colors.ACCENT, Colors.ACCENT_HOVER, Colors.TEXT_PRIMARY),
+            "success": (Colors.SUCCESS, "#4cd964", Colors.TEXT_PRIMARY),
+            "danger": (Colors.ERROR, "#ff6b6b", Colors.TEXT_PRIMARY),
+            "ghost": (Colors.BG_TERTIARY, Colors.BG_HOVER, Colors.TEXT_PRIMARY),
+        }
+
+        self.bg_color, self.hover_color, self.fg = styles.get(style, styles["primary"])
+        self.text = text
+        self.command = command
+        self.width = width
+        self.height = height
+        self._enabled = True
+
+        self._draw(self.bg_color)
+
+        self.bind("<Enter>", lambda e: self._draw(self.hover_color) if self._enabled else None)
+        self.bind("<Leave>", lambda e: self._draw(self.bg_color) if self._enabled else None)
+        self.bind("<Button-1>", lambda e: self.command() if self._enabled and self.command else None)
+
+    def _draw(self, color):
+        self.delete("all")
+        r = 8
+        self._rounded_rect(2, 2, self.width-2, self.height-2, r, color)
+        self.create_text(self.width//2, self.height//2, text=self.text,
+                        fill=self.fg, font=("Segoe UI", 10, "bold"))
+
+    def _rounded_rect(self, x1, y1, x2, y2, r, color):
+        points = [x1+r, y1, x2-r, y1, x2, y1, x2, y1+r, x2, y2-r, x2, y2,
+                  x2-r, y2, x1+r, y2, x1, y2, x1, y2-r, x1, y1+r, x1, y1]
+        self.create_polygon(points, fill=color, smooth=True)
+
+    def set_enabled(self, enabled):
+        self._enabled = enabled
+        self._draw(self.bg_color if enabled else Colors.BG_TERTIARY)
+        self.config(cursor="hand2" if enabled else "")
+
+
+class StatusDot(tk.Canvas):
+    """Connection status indicator."""
+
+    def __init__(self, parent, size=10, **kwargs):
+        super().__init__(parent, width=size, height=size,
+                        bg=parent.cget("bg"), highlightthickness=0, **kwargs)
+        self.size = size
+        self.set_status("offline")
+
+    def set_status(self, status):
+        self.delete("all")
+        colors = {"online": Colors.SUCCESS, "connecting": Colors.WARNING, "offline": Colors.ERROR}
+        self.create_oval(1, 1, self.size-1, self.size-1,
+                        fill=colors.get(status, Colors.TEXT_MUTED), outline="")
+
+
+class CodeViewer(tk.Frame):
+    """JSON/Code viewer with syntax highlighting."""
+
+    def __init__(self, parent, title="", **kwargs):
+        super().__init__(parent, bg=Colors.BG_SECONDARY)
+
+        header = tk.Frame(self, bg=Colors.BG_SECONDARY)
+        header.pack(fill="x", pady=(0, 8))
+
+        StyledLabel(header, text=title, style="header").pack(side="left")
+        self.status_lbl = StyledLabel(header, text="", style="muted")
+        self.status_lbl.pack(side="right")
+
+        text_border = tk.Frame(self, bg=Colors.BORDER, padx=1, pady=1)
+        text_border.pack(fill="both", expand=True)
+
+        self.text = tk.Text(text_border, bg=Colors.BG_INPUT, fg=Colors.TEXT_PRIMARY,
+                           font=("JetBrains Mono", 10), relief="flat",
+                           padx=16, pady=12, wrap="word",
+                           insertbackground=Colors.TEXT_PRIMARY)
+        self.text.pack(fill="both", expand=True)
+
+        self.text.tag_configure("key", foreground="#79c0ff")
+        self.text.tag_configure("string", foreground="#a5d6ff")
+        self.text.tag_configure("number", foreground="#56d364")
+        self.text.tag_configure("bool", foreground="#ff7b72")
+        self.text.tag_configure("null", foreground="#8b949e")
+        self.text.tag_configure("bracket", foreground="#d2a8ff")
+
+    def set_json(self, data, status=""):
+        self.text.config(state="normal")
+        self.text.delete("1.0", "end")
+
+        if data:
+            if isinstance(data, str):
+                try:
+                    data = json.loads(data)
+                except:
+                    self.text.insert("1.0", data)
+                    self.text.config(state="disabled")
+                    return
+
+            formatted = json.dumps(data, indent=2, ensure_ascii=False)
+            self._highlight_json(formatted)
+
+        self.text.config(state="disabled")
+        self.status_lbl.config(text=status)
+
+    def _highlight_json(self, text):
+        i = 0
+        while i < len(text):
+            c = text[i]
+            if c == '"':
+                end = i + 1
+                while end < len(text) and text[end] != '"':
+                    if text[end] == '\\':
+                        end += 1
+                    end += 1
+                end += 1
+                s = text[i:end]
+                tag = "key" if text[end:].lstrip().startswith(':') else "string"
+                self.text.insert("end", s, tag)
+                i = end
+            elif c in '{}[]':
+                self.text.insert("end", c, "bracket")
+                i += 1
+            elif c == '-' or c.isdigit():
+                end = i + 1
+                while end < len(text) and (text[end].isdigit() or text[end] in '.eE+-'):
+                    end += 1
+                self.text.insert("end", text[i:end], "number")
+                i = end
+            elif text[i:i+4] in ('true', 'null') or text[i:i+5] == 'false':
+                word = 'true' if text[i:i+4] == 'true' else ('null' if text[i:i+4] == 'null' else 'false')
+                tag = "null" if word == "null" else "bool"
+                self.text.insert("end", word, tag)
+                i += len(word)
+            else:
+                self.text.insert("end", c)
+                i += 1
+
+    def clear(self):
+        self.text.config(state="normal")
+        self.text.delete("1.0", "end")
+        self.text.config(state="disabled")
+        self.status_lbl.config(text="")
+
+
+class LogPanel(tk.Frame):
+    """Message log panel."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, bg=Colors.BG_SECONDARY)
+
+        header = tk.Frame(self, bg=Colors.BG_SECONDARY)
+        header.pack(fill="x", pady=(0, 8))
+
+        StyledLabel(header, text="Activity Log", style="header").pack(side="left")
+
+        clear_lbl = tk.Label(header, text="Clear", bg=Colors.BG_SECONDARY,
+                            fg=Colors.ACCENT, font=("Segoe UI", 9), cursor="hand2")
+        clear_lbl.pack(side="right")
+        clear_lbl.bind("<Button-1>", lambda e: self.clear())
+
+        log_border = tk.Frame(self, bg=Colors.BORDER, padx=1, pady=1)
+        log_border.pack(fill="both", expand=True)
+
+        self.log = tk.Text(log_border, bg=Colors.BG_INPUT, fg=Colors.TEXT_SECONDARY,
+                          font=("JetBrains Mono", 9), relief="flat", height=6,
+                          padx=12, pady=8, state="disabled")
+        self.log.pack(fill="both", expand=True)
+
+        self.log.tag_configure("time", foreground=Colors.TEXT_MUTED)
+        self.log.tag_configure("info", foreground=Colors.ACCENT)
+        self.log.tag_configure("success", foreground=Colors.SUCCESS)
+        self.log.tag_configure("error", foreground=Colors.ERROR)
+        self.log.tag_configure("warning", foreground=Colors.WARNING)
+
+    def add(self, msg, level="info"):
+        self.log.config(state="normal")
+        ts = datetime.now().strftime("%H:%M:%S")
+        self.log.insert("end", f"[{ts}] ", "time")
+        self.log.insert("end", f"{msg}\n", level)
+        self.log.see("end")
+        self.log.config(state="disabled")
+
+    def clear(self):
+        self.log.config(state="normal")
+        self.log.delete("1.0", "end")
+        self.log.config(state="disabled")
+
+
+class MQTTSubscribeControlGUI:
+    """Main application."""
+
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("MQTT Subscribe Control Tester")
+        self.root.geometry("1150x780")
+        self.root.configure(bg=Colors.BG_PRIMARY)
+        self.root.minsize(1000, 650)
+
+        self.client = None
         self.connected = False
-        self.message_callback = message_callback
-        self.message_queue = queue.Queue()
+        self.response_topic = None
 
-    def connect(self, broker: str, port: int, client_id: str,
-                username: str = "", password: str = "") -> bool:
-        """Connect to MQTT broker."""
+        self._build_ui()
+        self._center_window()
+
+    def _center_window(self):
+        self.root.update_idletasks()
+        x = (self.root.winfo_screenwidth() - 1150) // 2
+        y = (self.root.winfo_screenheight() - 780) // 2
+        self.root.geometry(f"+{x}+{y}")
+
+    def _build_ui(self):
+        main = tk.Frame(self.root, bg=Colors.BG_PRIMARY)
+        main.pack(fill="both", expand=True, padx=24, pady=24)
+
+        self._build_header(main)
+
+        content = tk.Frame(main, bg=Colors.BG_PRIMARY)
+        content.pack(fill="both", expand=True, pady=(24, 0))
+
+        left = tk.Frame(content, bg=Colors.BG_PRIMARY, width=400)
+        left.pack(side="left", fill="y")
+        left.pack_propagate(False)
+
+        self._build_connection(left)
+        self._build_target(left)
+        self._build_payload(left)
+
+        right = tk.Frame(content, bg=Colors.BG_PRIMARY)
+        right.pack(side="left", fill="both", expand=True, padx=(24, 0))
+
+        self._build_panels(right)
+
+        self._build_log(main)
+
+    def _build_header(self, parent):
+        header = tk.Frame(parent, bg=Colors.BG_PRIMARY)
+        header.pack(fill="x")
+
+        title_frame = tk.Frame(header, bg=Colors.BG_PRIMARY)
+        title_frame.pack(side="left")
+
+        StyledLabel(title_frame, text="MQTT Subscribe Control", style="title").pack(anchor="w")
+        StyledLabel(title_frame, text="Remote Register Write Testing Tool v2.0",
+                   style="subtitle").pack(anchor="w", pady=(4, 0))
+
+        status_frame = tk.Frame(header, bg=Colors.BG_PRIMARY)
+        status_frame.pack(side="right")
+
+        self.status_dot = StatusDot(status_frame)
+        self.status_dot.pack(side="left", padx=(0, 8))
+
+        self.status_lbl = StyledLabel(status_frame, text="Offline", style="muted")
+        self.status_lbl.pack(side="left")
+
+    def _build_card(self, parent, title):
+        card = StyledFrame(parent)
+        card.pack(fill="x", pady=(0, 16))
+
+        inner = tk.Frame(card, bg=Colors.BG_SECONDARY)
+        inner.pack(fill="x", padx=20, pady=20)
+
+        StyledLabel(inner, text=title, style="accent").pack(anchor="w", pady=(0, 16))
+        return inner
+
+    def _build_connection(self, parent):
+        card = self._build_card(parent, "CONNECTION")
+
+        row = tk.Frame(card, bg=Colors.BG_SECONDARY)
+        row.pack(fill="x", pady=(0, 12))
+
+        self.broker_entry = StyledEntry(row, label="Broker", width=22)
+        self.broker_entry.pack(side="left", fill="x", expand=True)
+        self.broker_entry.set("broker.hivemq.com")
+
+        tk.Frame(row, bg=Colors.BG_SECONDARY, width=12).pack(side="left")
+
+        self.port_entry = StyledEntry(row, label="Port", width=8)
+        self.port_entry.pack(side="left")
+        self.port_entry.set("1883")
+
+        btn_frame = tk.Frame(card, bg=Colors.BG_SECONDARY)
+        btn_frame.pack(fill="x")
+
+        self.connect_btn = StyledButton(btn_frame, "Connect", self._toggle_connection,
+                                        width=120, style="primary")
+        self.connect_btn.pack(side="left")
+
+    def _build_target(self, parent):
+        card = self._build_card(parent, "TARGET")
+
+        self.gateway_entry = StyledEntry(card, label="Gateway ID")
+        self.gateway_entry.pack(fill="x", pady=(0, 12))
+        self.gateway_entry.set("MGate1210_A3B4C5")
+
+        self.device_entry = StyledEntry(card, label="Device ID")
+        self.device_entry.pack(fill="x", pady=(0, 12))
+        self.device_entry.set("D7A3F2")
+
+        self.topic_entry = StyledEntry(card, label="Topic Suffix")
+        self.topic_entry.pack(fill="x", pady=(0, 12))
+        self.topic_entry.set("temp_setpoint")
+
+        qos_frame = tk.Frame(card, bg=Colors.BG_SECONDARY)
+        qos_frame.pack(fill="x")
+
+        StyledLabel(qos_frame, text="QoS", style="muted").pack(anchor="w", pady=(0, 6))
+
+        self.qos_var = tk.IntVar(value=1)
+        qos_opts = tk.Frame(qos_frame, bg=Colors.BG_SECONDARY)
+        qos_opts.pack(anchor="w")
+
+        for i in range(3):
+            rb = tk.Radiobutton(qos_opts, text=str(i), variable=self.qos_var, value=i,
+                               bg=Colors.BG_SECONDARY, fg=Colors.TEXT_PRIMARY,
+                               selectcolor=Colors.BG_INPUT, activebackground=Colors.BG_SECONDARY,
+                               activeforeground=Colors.TEXT_PRIMARY, font=("Segoe UI", 10),
+                               highlightthickness=0)
+            rb.pack(side="left", padx=(0, 20))
+
+    def _build_payload(self, parent):
+        card = self._build_card(parent, "PAYLOAD")
+
+        fmt_frame = tk.Frame(card, bg=Colors.BG_SECONDARY)
+        fmt_frame.pack(fill="x", pady=(0, 12))
+
+        StyledLabel(fmt_frame, text="Format", style="muted").pack(anchor="w", pady=(0, 6))
+
+        self.format_var = tk.StringVar(value="raw")
+
+        style = ttk.Style()
+        style.configure("Dark.TCombobox", fieldbackground=Colors.BG_INPUT,
+                       background=Colors.BG_TERTIARY, foreground=Colors.TEXT_PRIMARY)
+
+        fmt_combo = ttk.Combobox(fmt_frame, textvariable=self.format_var,
+                                values=["raw", "json", "json + uuid"],
+                                state="readonly", font=("Segoe UI", 10),
+                                style="Dark.TCombobox")
+        fmt_combo.pack(fill="x")
+
+        self.value_entry = StyledEntry(card, label="Value")
+        self.value_entry.pack(fill="x", pady=(0, 16))
+        self.value_entry.set("25.5")
+
+        self.send_btn = StyledButton(card, "Send Write Command", self._send_command,
+                                     width=360, height=48, style="success")
+        self.send_btn.pack(fill="x")
+        self.send_btn.set_enabled(False)
+
+    def _build_panels(self, parent):
+        self.request_viewer = CodeViewer(parent, title="Request")
+        self.request_viewer.pack(fill="x", pady=(0, 16))
+
+        self.response_viewer = CodeViewer(parent, title="Response")
+        self.response_viewer.pack(fill="both", expand=True)
+
+    def _build_log(self, parent):
+        self.log_panel = LogPanel(parent)
+        self.log_panel.pack(fill="x", pady=(16, 0))
+
+    def _toggle_connection(self):
+        if self.connected:
+            self._disconnect()
+        else:
+            self._connect()
+
+    def _connect(self):
+        broker = self.broker_entry.get()
         try:
-            # Create new client instance
-            self.client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+            port = int(self.port_entry.get())
+        except ValueError:
+            self.log_panel.add("Invalid port number", "error")
+            return
 
-            # Set credentials if provided
-            if username and password:
-                self.client.username_pw_set(username, password)
+        self.status_dot.set_status("connecting")
+        self.status_lbl.config(text="Connecting...")
+        self.log_panel.add(f"Connecting to {broker}:{port}...")
 
-            # Set callbacks
-            self.client.on_connect = self._on_connect
-            self.client.on_disconnect = self._on_disconnect
-            self.client.on_message = self._on_message
+        def do_connect():
+            try:
+                client_id = f"suriota_gui_{int(time.time())}"
 
-            # Connect
-            self.client.connect(broker, port, keepalive=60)
-            self.client.loop_start()
+                if PAHO_V2:
+                    self.client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2,
+                                             client_id=client_id, protocol=mqtt.MQTTv311)
+                    self.client.on_connect = self._on_connect_v2
+                    self.client.on_message = self._on_message_v2
+                    self.client.on_disconnect = self._on_disconnect_v2
+                else:
+                    self.client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
+                    self.client.on_connect = self._on_connect_v1
+                    self.client.on_message = self._on_message_v1
+                    self.client.on_disconnect = self._on_disconnect_v1
 
-            # Wait for connection
-            timeout = 5
-            start = time.time()
-            while not self.connected and (time.time() - start) < timeout:
-                time.sleep(0.1)
+                self.client.connect(broker, port, keepalive=60)
+                self.client.loop_start()
 
-            return self.connected
+            except Exception as e:
+                self.root.after(0, lambda: self._connection_failed(str(e)))
 
-        except Exception as e:
-            print(f"Connection error: {e}")
-            return False
+        threading.Thread(target=do_connect, daemon=True).start()
 
-    def disconnect(self):
-        """Disconnect from MQTT broker."""
+    def _disconnect(self):
         if self.client:
             self.client.loop_stop()
             self.client.disconnect()
-            self.connected = False
+            self.client = None
 
-    def subscribe(self, topic: str, qos: int = 1) -> bool:
-        """Subscribe to a topic."""
-        if self.client and self.connected:
-            result, _ = self.client.subscribe(topic, qos)
-            return result == mqtt.MQTT_ERR_SUCCESS
-        return False
-
-    def publish(self, topic: str, payload: str, qos: int = 1) -> bool:
-        """Publish a message."""
-        if self.client and self.connected:
-            result = self.client.publish(topic, payload, qos)
-            return result.rc == mqtt.MQTT_ERR_SUCCESS
-        return False
-
-    def _on_connect(self, client, userdata, flags, rc):
-        """Callback when connected."""
-        if rc == 0:
-            self.connected = True
-            print("Connected to MQTT broker")
-        else:
-            print(f"Connection failed with code: {rc}")
-
-    def _on_disconnect(self, client, userdata, rc):
-        """Callback when disconnected."""
         self.connected = False
-        print("Disconnected from MQTT broker")
+        self.status_dot.set_status("offline")
+        self.status_lbl.config(text="Offline")
+        self.connect_btn.text = "Connect"
+        self.connect_btn._draw(Colors.ACCENT)
+        self.send_btn.set_enabled(False)
+        self.log_panel.add("Disconnected", "warning")
 
-    def _on_message(self, client, userdata, msg):
-        """Callback when message received."""
+    def _connection_failed(self, error):
+        self.status_dot.set_status("offline")
+        self.status_lbl.config(text="Offline")
+        self.log_panel.add(f"Connection failed: {error}", "error")
+
+    def _on_connect_v2(self, client, userdata, flags, reason_code, properties):
+        self.root.after(0, self._handle_connected)
+
+    def _on_message_v2(self, client, userdata, msg):
+        self.root.after(0, lambda: self._handle_message(msg))
+
+    def _on_disconnect_v2(self, client, userdata, flags, reason_code, properties):
+        self.root.after(0, self._handle_disconnected)
+
+    def _on_connect_v1(self, client, userdata, flags, rc):
+        if rc == 0:
+            self.root.after(0, self._handle_connected)
+
+    def _on_message_v1(self, client, userdata, msg):
+        self.root.after(0, lambda: self._handle_message(msg))
+
+    def _on_disconnect_v1(self, client, userdata, rc):
+        self.root.after(0, self._handle_disconnected)
+
+    def _handle_connected(self):
+        self.connected = True
+        self.status_dot.set_status("online")
+        self.status_lbl.config(text="Online")
+        self.connect_btn.text = "Disconnect"
+        self.connect_btn.bg_color = Colors.ERROR
+        self.connect_btn.hover_color = "#ff6b6b"
+        self.connect_btn._draw(Colors.ERROR)
+        self.send_btn.set_enabled(True)
+        self.log_panel.add("Connected to broker", "success")
+
+    def _handle_disconnected(self):
+        if self.connected:
+            self.connected = False
+            self.status_dot.set_status("offline")
+            self.status_lbl.config(text="Offline")
+            self.connect_btn.text = "Connect"
+            self.connect_btn.bg_color = Colors.ACCENT
+            self.connect_btn.hover_color = Colors.ACCENT_HOVER
+            self.connect_btn._draw(Colors.ACCENT)
+            self.send_btn.set_enabled(False)
+            self.log_panel.add("Connection lost", "warning")
+
+    def _handle_message(self, msg):
         try:
             payload = msg.payload.decode('utf-8')
-            self.message_callback(msg.topic, payload)
+
+            if msg.topic == self.response_topic:
+                try:
+                    data = json.loads(payload)
+                    status = data.get("status", "unknown")
+
+                    if status == "ok":
+                        self.response_viewer.set_json(data, "SUCCESS")
+                        self.log_panel.add(f"Write successful: {data.get('written_value', 'N/A')}", "success")
+                    else:
+                        self.response_viewer.set_json(data, "FAILED")
+                        self.log_panel.add(f"Write failed: {data.get('error', 'Unknown')}", "error")
+                except:
+                    self.response_viewer.set_json({"raw": payload}, "RAW")
+
         except Exception as e:
-            print(f"Message decode error: {e}")
+            self.log_panel.add(f"Message error: {e}", "error")
 
+    def _send_command(self):
+        if not self.connected:
+            self.log_panel.add("Not connected", "error")
+            return
 
-# ============================================================================
-# CUSTOM WIDGETS
-# ============================================================================
-
-class JsonTextWidget(scrolledtext.ScrolledText):
-    """Text widget with JSON syntax highlighting."""
-
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, **kwargs)
-
-        # Configure tags for syntax highlighting
-        self.tag_configure("key", foreground=JSON_COLORS["key"])
-        self.tag_configure("string", foreground=JSON_COLORS["string"])
-        self.tag_configure("number", foreground=JSON_COLORS["number"])
-        self.tag_configure("boolean", foreground=JSON_COLORS["boolean"])
-        self.tag_configure("null", foreground=JSON_COLORS["null"])
-        self.tag_configure("bracket", foreground=JSON_COLORS["bracket"])
-
-    def set_json(self, data, indent: int = 2):
-        """Set JSON content with syntax highlighting."""
-        self.config(state=tk.NORMAL)
-        self.delete("1.0", tk.END)
-
-        if isinstance(data, str):
-            try:
-                data = json.loads(data)
-            except json.JSONDecodeError:
-                self.insert(tk.END, data)
-                self.config(state=tk.DISABLED)
-                return
-
-        json_str = json.dumps(data, indent=indent, ensure_ascii=False)
-        self.insert(tk.END, json_str)
-        self._apply_syntax_highlighting()
-        self.config(state=tk.DISABLED)
-
-    def _apply_syntax_highlighting(self):
-        """Apply syntax highlighting to JSON content."""
-        content = self.get("1.0", tk.END)
-
-        # Remove all existing tags
-        for tag in ["key", "string", "number", "boolean", "null", "bracket"]:
-            self.tag_remove(tag, "1.0", tk.END)
-
-        # Highlight brackets
-        for char in "{}[]":
-            start = "1.0"
-            while True:
-                pos = self.search(char, start, tk.END)
-                if not pos:
-                    break
-                self.tag_add("bracket", pos, f"{pos}+1c")
-                start = f"{pos}+1c"
-
-        # Highlight strings (keys and values)
-        import re
-        for match in re.finditer(r'"([^"\\]|\\.)*"', content):
-            start_idx = f"1.0+{match.start()}c"
-            end_idx = f"1.0+{match.end()}c"
-
-            # Check if it's a key (followed by :)
-            after_match = content[match.end():match.end() + 2].strip()
-            if after_match.startswith(":"):
-                self.tag_add("key", start_idx, end_idx)
-            else:
-                self.tag_add("string", start_idx, end_idx)
-
-        # Highlight numbers
-        for match in re.finditer(r'\b-?\d+\.?\d*\b', content):
-            start_idx = f"1.0+{match.start()}c"
-            end_idx = f"1.0+{match.end()}c"
-            self.tag_add("number", start_idx, end_idx)
-
-        # Highlight booleans
-        for match in re.finditer(r'\b(true|false)\b', content):
-            start_idx = f"1.0+{match.start()}c"
-            end_idx = f"1.0+{match.end()}c"
-            self.tag_add("boolean", start_idx, end_idx)
-
-        # Highlight null
-        for match in re.finditer(r'\bnull\b', content):
-            start_idx = f"1.0+{match.start()}c"
-            end_idx = f"1.0+{match.end()}c"
-            self.tag_add("null", start_idx, end_idx)
-
-
-class StatusIndicator(tk.Canvas):
-    """Connection status indicator widget."""
-
-    def __init__(self, parent, size: int = 12, **kwargs):
-        super().__init__(parent, width=size, height=size,
-                         highlightthickness=0, **kwargs)
-        self.size = size
-        self.set_status("disconnected")
-
-    def set_status(self, status: str):
-        """Set status: connected, disconnected, connecting."""
-        self.delete("all")
-        colors = {
-            "connected": COLORS["success"],
-            "disconnected": COLORS["error"],
-            "connecting": COLORS["warning"],
-        }
-        color = colors.get(status, COLORS["fg_muted"])
-        padding = 2
-        self.create_oval(padding, padding, self.size - padding,
-                         self.size - padding, fill=color, outline="")
-
-
-# ============================================================================
-# MAIN APPLICATION
-# ============================================================================
-
-class MQTTSubscribeControlGUI:
-    """Main GUI Application for MQTT Subscribe Control Testing."""
-
-    def __init__(self, root: tk.Tk):
-        self.root = root
-        self.root.title(APP_TITLE)
-        self.root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}")
-        self.root.configure(bg=COLORS["bg_dark"])
-
-        # MQTT client
-        self.mqtt_client = MQTTClientWrapper(self._on_mqtt_message)
-
-        # Message history
-        self.message_history = []
-
-        # Apply dark theme
-        self._setup_styles()
-
-        # Build UI
-        self._build_ui()
-
-        # Bind window close
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-
-    def _setup_styles(self):
-        """Setup ttk styles for dark theme."""
-        style = ttk.Style()
-        style.theme_use('clam')
-
-        # Configure styles
-        style.configure("Dark.TFrame", background=COLORS["bg_dark"])
-        style.configure("Medium.TFrame", background=COLORS["bg_medium"])
-        style.configure("Light.TFrame", background=COLORS["bg_light"])
-
-        style.configure("Dark.TLabel",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["fg_primary"],
-                        font=("Segoe UI", 10))
-
-        style.configure("Header.TLabel",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["fg_primary"],
-                        font=("Segoe UI", 12, "bold"))
-
-        style.configure("Muted.TLabel",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["fg_muted"],
-                        font=("Segoe UI", 9))
-
-        style.configure("Dark.TEntry",
-                        fieldbackground=COLORS["bg_input"],
-                        foreground=COLORS["fg_primary"],
-                        insertcolor=COLORS["fg_primary"])
-
-        style.configure("Dark.TButton",
-                        background=COLORS["accent_blue"],
-                        foreground=COLORS["fg_primary"],
-                        font=("Segoe UI", 10, "bold"),
-                        padding=(15, 8))
-
-        style.map("Dark.TButton",
-                  background=[("active", "#1a8cff"), ("disabled", COLORS["bg_light"])])
-
-        style.configure("Success.TButton",
-                        background=COLORS["success"],
-                        foreground=COLORS["fg_primary"],
-                        font=("Segoe UI", 10, "bold"),
-                        padding=(15, 8))
-
-        style.configure("Danger.TButton",
-                        background=COLORS["error"],
-                        foreground=COLORS["fg_primary"],
-                        font=("Segoe UI", 10, "bold"),
-                        padding=(15, 8))
-
-        style.configure("Dark.TLabelframe",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["fg_primary"])
-
-        style.configure("Dark.TLabelframe.Label",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["accent_blue"],
-                        font=("Segoe UI", 10, "bold"))
-
-        style.configure("Dark.TCombobox",
-                        fieldbackground=COLORS["bg_input"],
-                        background=COLORS["bg_input"],
-                        foreground=COLORS["fg_primary"])
-
-        style.configure("Dark.TRadiobutton",
-                        background=COLORS["bg_dark"],
-                        foreground=COLORS["fg_primary"])
-
-    def _build_ui(self):
-        """Build the main UI."""
-        # Main container
-        main_frame = ttk.Frame(self.root, style="Dark.TFrame")
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Header
-        self._build_header(main_frame)
-
-        # Content area (split into left and right panels)
-        content_frame = ttk.Frame(main_frame, style="Dark.TFrame")
-        content_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
-
-        # Left panel (Configuration)
-        left_panel = ttk.Frame(content_frame, style="Dark.TFrame", width=400)
-        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        left_panel.pack_propagate(False)
-
-        self._build_connection_panel(left_panel)
-        self._build_target_panel(left_panel)
-        self._build_payload_panel(left_panel)
-
-        # Right panel (Request/Response)
-        right_panel = ttk.Frame(content_frame, style="Dark.TFrame")
-        right_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        self._build_request_response_panel(right_panel)
-
-        # Bottom panel (Log)
-        self._build_log_panel(main_frame)
-
-    def _build_header(self, parent):
-        """Build header section."""
-        header_frame = ttk.Frame(parent, style="Dark.TFrame")
-        header_frame.pack(fill=tk.X, pady=(0, 10))
-
-        # Title
-        title_label = ttk.Label(header_frame,
-                                text="🔌 MQTT Subscribe Control Tester",
-                                style="Header.TLabel",
-                                font=("Segoe UI", 16, "bold"))
-        title_label.pack(side=tk.LEFT)
-
-        # Status indicator
-        status_frame = ttk.Frame(header_frame, style="Dark.TFrame")
-        status_frame.pack(side=tk.RIGHT)
-
-        self.status_indicator = StatusIndicator(status_frame,
-                                                bg=COLORS["bg_dark"])
-        self.status_indicator.pack(side=tk.LEFT, padx=(0, 5))
-
-        self.status_label = ttk.Label(status_frame,
-                                      text="Disconnected",
-                                      style="Muted.TLabel")
-        self.status_label.pack(side=tk.LEFT)
-
-    def _build_connection_panel(self, parent):
-        """Build MQTT connection configuration panel."""
-        frame = ttk.LabelFrame(parent, text="📡 MQTT Connection",
-                               style="Dark.TLabelframe", padding=10)
-        frame.pack(fill=tk.X, pady=(0, 10))
-
-        # Broker
-        ttk.Label(frame, text="Broker:", style="Dark.TLabel").grid(
-            row=0, column=0, sticky=tk.W, pady=2)
-        self.broker_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.broker_entry.insert(0, "broker.hivemq.com")
-        self.broker_entry.grid(row=0, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Port
-        ttk.Label(frame, text="Port:", style="Dark.TLabel").grid(
-            row=1, column=0, sticky=tk.W, pady=2)
-        self.port_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.port_entry.insert(0, "1883")
-        self.port_entry.grid(row=1, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Client ID
-        ttk.Label(frame, text="Client ID:", style="Dark.TLabel").grid(
-            row=2, column=0, sticky=tk.W, pady=2)
-        self.client_id_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.client_id_entry.insert(0, f"mqtt_tester_{int(time.time())}")
-        self.client_id_entry.grid(row=2, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Username (optional)
-        ttk.Label(frame, text="Username:", style="Dark.TLabel").grid(
-            row=3, column=0, sticky=tk.W, pady=2)
-        self.username_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.username_entry.grid(row=3, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Password (optional)
-        ttk.Label(frame, text="Password:", style="Dark.TLabel").grid(
-            row=4, column=0, sticky=tk.W, pady=2)
-        self.password_entry = ttk.Entry(frame, width=30, style="Dark.TEntry", show="*")
-        self.password_entry.grid(row=4, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Connect/Disconnect buttons
-        btn_frame = ttk.Frame(frame, style="Dark.TFrame")
-        btn_frame.grid(row=5, column=0, columnspan=2, pady=(10, 0))
-
-        self.connect_btn = ttk.Button(btn_frame, text="Connect",
-                                      style="Success.TButton",
-                                      command=self._on_connect)
-        self.connect_btn.pack(side=tk.LEFT, padx=(0, 5))
-
-        self.disconnect_btn = ttk.Button(btn_frame, text="Disconnect",
-                                         style="Danger.TButton",
-                                         command=self._on_disconnect,
-                                         state=tk.DISABLED)
-        self.disconnect_btn.pack(side=tk.LEFT)
-
-        frame.columnconfigure(1, weight=1)
-
-    def _build_target_panel(self, parent):
-        """Build target configuration panel."""
-        frame = ttk.LabelFrame(parent, text="🎯 Target Configuration",
-                               style="Dark.TLabelframe", padding=10)
-        frame.pack(fill=tk.X, pady=(0, 10))
-
-        # Gateway ID
-        ttk.Label(frame, text="Gateway ID:", style="Dark.TLabel").grid(
-            row=0, column=0, sticky=tk.W, pady=2)
-        self.gateway_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.gateway_entry.insert(0, "MGate1210_A3B4C5")
-        self.gateway_entry.grid(row=0, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Device ID
-        ttk.Label(frame, text="Device ID:", style="Dark.TLabel").grid(
-            row=1, column=0, sticky=tk.W, pady=2)
-        self.device_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.device_entry.insert(0, "D7A3F2")
-        self.device_entry.grid(row=1, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # Topic Suffix (Register)
-        ttk.Label(frame, text="Topic Suffix:", style="Dark.TLabel").grid(
-            row=2, column=0, sticky=tk.W, pady=2)
-        self.topic_suffix_entry = ttk.Entry(frame, width=30, style="Dark.TEntry")
-        self.topic_suffix_entry.insert(0, "temp_setpoint")
-        self.topic_suffix_entry.grid(row=2, column=1, sticky=tk.EW, pady=2, padx=(5, 0))
-
-        # QoS
-        ttk.Label(frame, text="QoS:", style="Dark.TLabel").grid(
-            row=3, column=0, sticky=tk.W, pady=2)
-        self.qos_var = tk.StringVar(value="1")
-        qos_frame = ttk.Frame(frame, style="Dark.TFrame")
-        qos_frame.grid(row=3, column=1, sticky=tk.W, pady=2, padx=(5, 0))
-        for i, qos in enumerate(["0", "1", "2"]):
-            ttk.Radiobutton(qos_frame, text=qos, value=qos,
-                            variable=self.qos_var,
-                            style="Dark.TRadiobutton").pack(side=tk.LEFT, padx=(0, 10))
-
-        # Generated Topic Preview
-        ttk.Label(frame, text="Full Topic:", style="Muted.TLabel").grid(
-            row=4, column=0, sticky=tk.W, pady=(10, 2))
-        self.topic_preview = ttk.Label(frame, text="", style="Muted.TLabel",
-                                       wraplength=350)
-        self.topic_preview.grid(row=4, column=1, sticky=tk.W, pady=(10, 2), padx=(5, 0))
-
-        # Update preview on change
-        for entry in [self.gateway_entry, self.device_entry, self.topic_suffix_entry]:
-            entry.bind("<KeyRelease>", self._update_topic_preview)
-
-        self._update_topic_preview()
-
-        frame.columnconfigure(1, weight=1)
-
-    def _build_payload_panel(self, parent):
-        """Build payload configuration panel."""
-        frame = ttk.LabelFrame(parent, text="📦 Payload",
-                               style="Dark.TLabelframe", padding=10)
-        frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # Payload format selection
-        format_frame = ttk.Frame(frame, style="Dark.TFrame")
-        format_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Label(format_frame, text="Format:", style="Dark.TLabel").pack(side=tk.LEFT)
-
-        self.payload_format = tk.StringVar(value="raw")
-        formats = [
-            ("Raw Value", "raw"),
-            ("JSON {value}", "json_simple"),
-            ("JSON with UUID", "json_uuid"),
-        ]
-        for text, value in formats:
-            ttk.Radiobutton(format_frame, text=text, value=value,
-                            variable=self.payload_format,
-                            style="Dark.TRadiobutton",
-                            command=self._update_payload_preview).pack(side=tk.LEFT, padx=(10, 0))
-
-        # Value input
-        value_frame = ttk.Frame(frame, style="Dark.TFrame")
-        value_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Label(value_frame, text="Value:", style="Dark.TLabel").pack(side=tk.LEFT)
-        self.value_entry = ttk.Entry(value_frame, width=20, style="Dark.TEntry")
-        self.value_entry.insert(0, "25.5")
-        self.value_entry.pack(side=tk.LEFT, padx=(10, 0))
-        self.value_entry.bind("<KeyRelease>", self._update_payload_preview)
-
-        # Payload preview
-        ttk.Label(frame, text="Payload Preview:", style="Muted.TLabel").pack(
-            anchor=tk.W, pady=(0, 5))
-
-        self.payload_preview = JsonTextWidget(frame, height=4, width=40,
-                                              bg=COLORS["bg_input"],
-                                              fg=COLORS["fg_primary"],
-                                              insertbackground=COLORS["fg_primary"],
-                                              font=("Consolas", 10),
-                                              relief=tk.FLAT)
-        self.payload_preview.pack(fill=tk.BOTH, expand=True)
-
-        self._update_payload_preview()
-
-        # Send button
-        self.send_btn = ttk.Button(frame, text="📤 Send Write Command",
-                                   style="Dark.TButton",
-                                   command=self._on_send,
-                                   state=tk.DISABLED)
-        self.send_btn.pack(fill=tk.X, pady=(10, 0))
-
-    def _build_request_response_panel(self, parent):
-        """Build request/response display panel."""
-        # Request panel
-        req_frame = ttk.LabelFrame(parent, text="📤 Request",
-                                   style="Dark.TLabelframe", padding=10)
-        req_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        self.request_text = JsonTextWidget(req_frame, height=10,
-                                           bg=COLORS["bg_input"],
-                                           fg=COLORS["fg_primary"],
-                                           insertbackground=COLORS["fg_primary"],
-                                           font=("Consolas", 10),
-                                           relief=tk.FLAT)
-        self.request_text.pack(fill=tk.BOTH, expand=True)
-
-        # Response panel
-        resp_frame = ttk.LabelFrame(parent, text="📥 Response",
-                                    style="Dark.TLabelframe", padding=10)
-        resp_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.response_text = JsonTextWidget(resp_frame, height=10,
-                                            bg=COLORS["bg_input"],
-                                            fg=COLORS["fg_primary"],
-                                            insertbackground=COLORS["fg_primary"],
-                                            font=("Consolas", 10),
-                                            relief=tk.FLAT)
-        self.response_text.pack(fill=tk.BOTH, expand=True)
-
-        # Response status
-        self.response_status = ttk.Label(resp_frame, text="Waiting for response...",
-                                         style="Muted.TLabel")
-        self.response_status.pack(anchor=tk.W, pady=(5, 0))
-
-    def _build_log_panel(self, parent):
-        """Build message log panel."""
-        frame = ttk.LabelFrame(parent, text="📋 Message Log",
-                               style="Dark.TLabelframe", padding=10)
-        frame.pack(fill=tk.X, pady=(10, 0))
-
-        self.log_text = scrolledtext.ScrolledText(frame, height=6,
-                                                  bg=COLORS["bg_input"],
-                                                  fg=COLORS["fg_secondary"],
-                                                  font=("Consolas", 9),
-                                                  relief=tk.FLAT)
-        self.log_text.pack(fill=tk.BOTH, expand=True)
-
-        # Configure log tags
-        self.log_text.tag_configure("info", foreground=COLORS["fg_secondary"])
-        self.log_text.tag_configure("success", foreground=COLORS["success"])
-        self.log_text.tag_configure("error", foreground=COLORS["error"])
-        self.log_text.tag_configure("warning", foreground=COLORS["warning"])
-        self.log_text.tag_configure("timestamp", foreground=COLORS["fg_muted"])
-
-        # Clear button
-        clear_btn = ttk.Button(frame, text="Clear Log",
-                               command=self._clear_log)
-        clear_btn.pack(anchor=tk.E, pady=(5, 0))
-
-    def _update_topic_preview(self, event=None):
-        """Update the topic preview label."""
         gateway = self.gateway_entry.get()
         device = self.device_entry.get()
-        suffix = self.topic_suffix_entry.get()
-
-        write_topic = f"suriota/{gateway}/write/{device}/{suffix}"
-        response_topic = f"{write_topic}/response"
-
-        self.topic_preview.config(
-            text=f"Write: {write_topic}\nResponse: {response_topic}")
-
-    def _update_payload_preview(self, event=None):
-        """Update the payload preview."""
-        value = self.value_entry.get()
-        format_type = self.payload_format.get()
+        topic = self.topic_entry.get()
+        value_str = self.value_entry.get()
+        qos = self.qos_var.get()
+        fmt = self.format_var.get()
 
         try:
-            # Try to parse as number
-            if '.' in value:
-                num_value = float(value)
-            else:
-                num_value = int(value)
-        except ValueError:
-            num_value = value
+            value = float(value_str) if '.' in value_str else int(value_str)
+        except:
+            value = value_str
 
-        if format_type == "raw":
-            payload = str(num_value)
-        elif format_type == "json_simple":
-            payload = {"value": num_value}
-        elif format_type == "json_uuid":
-            import uuid
-            payload = {
-                "value": num_value,
-                "uuid": str(uuid.uuid4())
-            }
+        write_topic = f"suriota/{gateway}/write/{device}/{topic}"
+        self.response_topic = f"{write_topic}/response"
+
+        if fmt == "raw":
+            payload = str(value)
+        elif fmt == "json":
+            payload = json.dumps({"value": value})
         else:
-            payload = str(num_value)
+            payload = json.dumps({"value": value, "uuid": str(uuid.uuid4())[:8]})
 
-        self.payload_preview.set_json(payload)
-
-    def _generate_payload(self) -> str:
-        """Generate the payload string."""
-        value = self.value_entry.get()
-        format_type = self.payload_format.get()
-
-        try:
-            if '.' in value:
-                num_value = float(value)
-            else:
-                num_value = int(value)
-        except ValueError:
-            num_value = value
-
-        if format_type == "raw":
-            return str(num_value)
-        elif format_type == "json_simple":
-            return json.dumps({"value": num_value})
-        elif format_type == "json_uuid":
-            import uuid
-            return json.dumps({
-                "value": num_value,
-                "uuid": str(uuid.uuid4())
-            })
-        else:
-            return str(num_value)
-
-    def _on_connect(self):
-        """Handle connect button click."""
-        broker = self.broker_entry.get()
-        port = int(self.port_entry.get())
-        client_id = self.client_id_entry.get()
-        username = self.username_entry.get()
-        password = self.password_entry.get()
-
-        self._log("Connecting to MQTT broker...", "info")
-        self._update_status("connecting")
-
-        # Connect in background thread
-        def connect_thread():
-            success = self.mqtt_client.connect(broker, port, client_id,
-                                               username, password)
-            self.root.after(0, lambda: self._on_connect_result(success))
-
-        threading.Thread(target=connect_thread, daemon=True).start()
-
-    def _on_connect_result(self, success: bool):
-        """Handle connection result."""
-        if success:
-            self._update_status("connected")
-            self._log("Connected to MQTT broker", "success")
-
-            # Subscribe to response topic
-            gateway = self.gateway_entry.get()
-            device = self.device_entry.get()
-            suffix = self.topic_suffix_entry.get()
-            response_topic = f"suriota/{gateway}/write/{device}/{suffix}/response"
-
-            # Subscribe to wildcard for all responses
-            wildcard_topic = f"suriota/{gateway}/write/+/+/response"
-            if self.mqtt_client.subscribe(wildcard_topic):
-                self._log(f"Subscribed to: {wildcard_topic}", "info")
-
-            # Update UI
-            self.connect_btn.config(state=tk.DISABLED)
-            self.disconnect_btn.config(state=tk.NORMAL)
-            self.send_btn.config(state=tk.NORMAL)
-        else:
-            self._update_status("disconnected")
-            self._log("Failed to connect to MQTT broker", "error")
-
-    def _on_disconnect(self):
-        """Handle disconnect button click."""
-        self.mqtt_client.disconnect()
-        self._update_status("disconnected")
-        self._log("Disconnected from MQTT broker", "warning")
-
-        # Update UI
-        self.connect_btn.config(state=tk.NORMAL)
-        self.disconnect_btn.config(state=tk.DISABLED)
-        self.send_btn.config(state=tk.DISABLED)
-
-    def _on_send(self):
-        """Handle send button click."""
-        gateway = self.gateway_entry.get()
-        device = self.device_entry.get()
-        suffix = self.topic_suffix_entry.get()
-        qos = int(self.qos_var.get())
-
-        topic = f"suriota/{gateway}/write/{device}/{suffix}"
-        payload = self._generate_payload()
-
-        # Update request display
-        request_info = {
-            "topic": topic,
+        request = {
+            "topic": write_topic,
+            "response_topic": self.response_topic,
             "qos": qos,
-            "payload": payload if not payload.startswith("{") else json.loads(payload),
-            "timestamp": datetime.now().isoformat()
+            "payload": json.loads(payload) if payload.startswith("{") else payload
         }
-        self.request_text.set_json(request_info)
 
-        # Clear response
-        self.response_text.config(state=tk.NORMAL)
-        self.response_text.delete("1.0", tk.END)
-        self.response_text.config(state=tk.DISABLED)
-        self.response_status.config(text="Waiting for response...")
+        self.request_viewer.set_json(request, f"QoS {qos}")
+        self.response_viewer.clear()
+        self.response_viewer.status_lbl.config(text="Waiting...")
 
-        # Publish
-        if self.mqtt_client.publish(topic, payload, qos):
-            self._log(f"Published to {topic}: {payload}", "success")
+        self.client.subscribe(self.response_topic, qos)
+        result = self.client.publish(write_topic, payload, qos)
+
+        if result.rc == mqtt.MQTT_ERR_SUCCESS:
+            self.log_panel.add(f"Published to {write_topic}", "info")
+            self.root.after(5000, self._check_timeout)
         else:
-            self._log(f"Failed to publish to {topic}", "error")
+            self.log_panel.add("Publish failed", "error")
 
-    def _on_mqtt_message(self, topic: str, payload: str):
-        """Handle incoming MQTT message."""
-        # Update UI in main thread
-        self.root.after(0, lambda: self._handle_message(topic, payload))
+    def _check_timeout(self):
+        if self.response_viewer.status_lbl.cget("text") == "Waiting...":
+            self.response_viewer.set_json({
+                "status": "timeout",
+                "error": "No response received within 5 seconds"
+            }, "TIMEOUT")
+            self.log_panel.add("Response timeout", "warning")
 
-    def _handle_message(self, topic: str, payload: str):
-        """Process received message."""
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        self._log(f"Received from {topic}", "info")
+    def run(self):
+        self.log_panel.add("Application started", "info")
+        self.root.mainloop()
 
-        try:
-            payload_obj = json.loads(payload)
-            response_info = {
-                "topic": topic,
-                "received_at": timestamp,
-                "payload": payload_obj
-            }
-        except json.JSONDecodeError:
-            response_info = {
-                "topic": topic,
-                "received_at": timestamp,
-                "payload": payload
-            }
-
-        self.response_text.set_json(response_info)
-
-        # Update status based on response
-        if isinstance(response_info.get("payload"), dict):
-            status = response_info["payload"].get("status", "unknown")
-            if status == "ok":
-                self.response_status.config(text="✅ Write successful",
-                                            foreground=COLORS["success"])
-                self._log("Write command successful", "success")
-            elif status == "error":
-                error = response_info["payload"].get("error", "Unknown error")
-                self.response_status.config(text=f"❌ Error: {error}",
-                                            foreground=COLORS["error"])
-                self._log(f"Write command failed: {error}", "error")
-            else:
-                self.response_status.config(text=f"Response received (status: {status})",
-                                            foreground=COLORS["fg_secondary"])
-
-    def _update_status(self, status: str):
-        """Update connection status display."""
-        self.status_indicator.set_status(status)
-        status_texts = {
-            "connected": "Connected",
-            "disconnected": "Disconnected",
-            "connecting": "Connecting...",
-        }
-        self.status_label.config(text=status_texts.get(status, status))
-
-    def _log(self, message: str, level: str = "info"):
-        """Add message to log."""
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.insert(tk.END, f"[{timestamp}] ", "timestamp")
-        self.log_text.insert(tk.END, f"{message}\n", level)
-        self.log_text.see(tk.END)
-        self.log_text.config(state=tk.DISABLED)
-
-    def _clear_log(self):
-        """Clear the log."""
-        self.log_text.config(state=tk.NORMAL)
-        self.log_text.delete("1.0", tk.END)
-        self.log_text.config(state=tk.DISABLED)
-
-    def _on_close(self):
-        """Handle window close."""
-        self.mqtt_client.disconnect()
-        self.root.destroy()
-
-
-# ============================================================================
-# ENTRY POINT
-# ============================================================================
-
-def main():
-    """Main entry point."""
-    root = tk.Tk()
-
-    # Set window icon (if available)
-    try:
-        root.iconbitmap("mqtt_icon.ico")
-    except:
-        pass
-
-    # Create application
-    app = MQTTSubscribeControlGUI(root)
-
-    # Center window on screen
-    root.update_idletasks()
-    x = (root.winfo_screenwidth() - APP_WIDTH) // 2
-    y = (root.winfo_screenheight() - APP_HEIGHT) // 2
-    root.geometry(f"{APP_WIDTH}x{APP_HEIGHT}+{x}+{y}")
-
-    # Run
-    root.mainloop()
+        if self.client:
+            self.client.loop_stop()
+            self.client.disconnect()
 
 
 if __name__ == "__main__":
-    main()
+    app = MQTTSubscribeControlGUI()
+    app.run()
