@@ -35,14 +35,14 @@
 // Format: MAJOR.MINOR.PATCH
 // Update this for every release
 
-#define FIRMWARE_VERSION "1.0.6"
+#define FIRMWARE_VERSION "1.1.0"
 #define FIRMWARE_VERSION_MAJOR 1
-#define FIRMWARE_VERSION_MINOR 0
-#define FIRMWARE_VERSION_PATCH 6
+#define FIRMWARE_VERSION_MINOR 1
+#define FIRMWARE_VERSION_PATCH 0
 
-// Build number: Derived from version (1.0.6 = 106)
+// Build number: Derived from version (1.1.0 = 110)
 // Used for OTA version comparison
-#define FIRMWARE_BUILD_NUMBER 106
+#define FIRMWARE_BUILD_NUMBER 110
 
 // ============================================================================
 // PRODUCT MODEL & VARIANT

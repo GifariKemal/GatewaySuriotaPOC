@@ -24,6 +24,10 @@
 #include "QueueManager.h"
 #include "ServerConfig.h"
 
+// v1.1.0: Forward declarations for MQTT Subscribe Control
+class ModbusRtuService;
+class ModbusTcpService;
+
 // FIXED BUG #21: Define named constants for magic numbers
 // FIXED BUG #27: Increased BYTES_PER_REGISTER for accurate buffer sizing
 // FIXED BUG #28 + #29: Increased MQTT_TASK_STACK_SIZE for ArduinoJson v7
@@ -120,6 +124,24 @@ class MqttManager {
   // Connection state - replaces static in mqttLoop()
   unsigned long lastDebugTime;
 
+  // v1.1.0: MQTT Subscribe Control - Remote write register via MQTT
+  // Per-register topic approach: suriota/{gateway_id}/write/{device_id}/{topic_suffix}
+  bool subscribeControlEnabled;
+  String subscribeTopicPrefix;  // Base topic prefix for write commands
+  bool responseEnabled;         // Publish write responses
+  uint8_t defaultSubscribeQos;  // Default QoS for subscriptions (0, 1, or 2)
+
+  // v1.1.0: Track subscribed registers for write control
+  struct SubscribedRegister {
+    String deviceId;
+    String registerId;
+    String topicSuffix;
+    String fullTopic;
+    uint8_t qos;
+  };
+  std::vector<SubscribedRegister> subscribedRegisters;
+  SemaphoreHandle_t subscribeControlMutex;  // Thread safety for subscribe operations
+
   MqttManager(ConfigManager* config, ServerConfig* serverCfg,
               NetworkMgr* netMgr);
 
@@ -165,6 +187,21 @@ class MqttManager {
   uint32_t determineTimeoutStrategy(uint32_t totalRegisters,
                                     uint32_t maxRefreshRate, bool hasSlowRTU);
 
+  // v1.1.0: MQTT Subscribe Control - Private methods
+  static void onMqttMessage(char* topic, byte* payload, unsigned int length);
+  void loadSubscribeControlConfig(JsonObject& mqttConfig);
+  void initializeSubscriptions();
+  void subscribeToRegister(const String& deviceId, const String& registerId,
+                           const String& topicSuffix, uint8_t qos);
+  void unsubscribeFromRegister(const String& deviceId, const String& registerId);
+  void handleWriteCommand(const String& topic, const String& payload);
+  void publishWriteResponse(const String& deviceId, const String& topicSuffix,
+                            bool success, JsonDocument& response);
+  bool findRegisterByTopicSuffix(const String& deviceId,
+                                 const String& topicSuffix, JsonDocument& regDoc,
+                                 String& registerId);
+  bool parsePayloadValue(const String& payload, float& value);
+
  public:
   static MqttManager* getInstance(ConfigManager* config = nullptr,
                                   ServerConfig* serverCfg = nullptr,
@@ -185,6 +222,13 @@ class MqttManager {
   MQTTPersistentQueue* getPersistentQueue() const;
   void printQueueStatus() const;
   uint32_t getQueuedMessageCount() const;
+
+  // v1.1.0: MQTT Subscribe Control - Public methods
+  bool isSubscribeControlEnabled() const;
+  void setSubscribeControlEnabled(bool enable);
+  void resubscribeAll();  // Re-subscribe to all registers after reconnect
+  uint32_t getSubscribedRegisterCount() const;
+  void getSubscribeControlStatus(JsonObject& status);
 
   ~MqttManager();
 };

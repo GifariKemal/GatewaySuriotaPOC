@@ -920,6 +920,24 @@ String ConfigManager::createRegister(const String& deviceId,
       float value = kv.value().is<String>() ? kv.value().as<String>().toFloat()
                                             : kv.value().as<float>();
       newRegister[kv.key()] = value;
+    } else if (key == "mqtt_subscribe") {
+      // v1.1.0: MQTT Subscribe Control - nested object for per-register MQTT
+      // control
+      if (kv.value().is<JsonObjectConst>()) {
+        JsonObject mqttSub = newRegister["mqtt_subscribe"].to<JsonObject>();
+        JsonObjectConst srcObj = kv.value().as<JsonObjectConst>();
+        // enabled: boolean (required)
+        mqttSub["enabled"] = srcObj["enabled"] | false;
+        // topic_suffix: string (optional, defaults to register_id)
+        if (!srcObj["topic_suffix"].isNull()) {
+          mqttSub["topic_suffix"] = srcObj["topic_suffix"].as<String>();
+        }
+        // qos: integer 0-2 (optional, defaults to 1)
+        int qos = srcObj["qos"] | 1;
+        if (qos < 0) qos = 0;
+        if (qos > 2) qos = 2;
+        mqttSub["qos"] = qos;
+      }
     } else {
       newRegister[kv.key()] = kv.value();
     }
@@ -1034,6 +1052,16 @@ bool ConfigManager::getRegistersSummary(const String& deviceId,
         if (!reg["max_value"].isNull()) {
           regSummary["max_value"] = reg["max_value"];
         }
+        // v1.1.0: Include mqtt_subscribe if present
+        if (!reg["mqtt_subscribe"].isNull()) {
+          JsonObject mqttSub = regSummary["mqtt_subscribe"].to<JsonObject>();
+          mqttSub["enabled"] = reg["mqtt_subscribe"]["enabled"] | false;
+          if (!reg["mqtt_subscribe"]["topic_suffix"].isNull()) {
+            mqttSub["topic_suffix"] =
+                reg["mqtt_subscribe"]["topic_suffix"].as<String>();
+          }
+          mqttSub["qos"] = reg["mqtt_subscribe"]["qos"] | 1;
+        }
       }
       return true;
     }
@@ -1124,6 +1152,26 @@ bool ConfigManager::updateRegister(const String& deviceId,
                             ? kv.value().as<String>().toFloat()
                             : kv.value().as<float>();
           reg[kv.key()] = value;
+        } else if (key == "mqtt_subscribe") {
+          // v1.1.0: MQTT Subscribe Control - nested object for per-register
+          // MQTT control
+          if (kv.value().is<JsonObjectConst>()) {
+            // Remove existing mqtt_subscribe if present
+            reg.remove("mqtt_subscribe");
+            JsonObject mqttSub = reg["mqtt_subscribe"].to<JsonObject>();
+            JsonObjectConst srcObj = kv.value().as<JsonObjectConst>();
+            // enabled: boolean (required)
+            mqttSub["enabled"] = srcObj["enabled"] | false;
+            // topic_suffix: string (optional, defaults to register_id)
+            if (!srcObj["topic_suffix"].isNull()) {
+              mqttSub["topic_suffix"] = srcObj["topic_suffix"].as<String>();
+            }
+            // qos: integer 0-2 (optional, defaults to 1)
+            int qos = srcObj["qos"] | 1;
+            if (qos < 0) qos = 0;
+            if (qos > 2) qos = 2;
+            mqttSub["qos"] = qos;
+          }
         } else {
           reg[kv.key()] = kv.value();
         }

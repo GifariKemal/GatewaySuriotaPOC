@@ -117,6 +117,13 @@ void ServerConfig::createDefaultConfig() {
   customizeMode["enabled"] = false;
   customizeMode["custom_topics"].to<JsonArray>();
 
+  // v1.1.0: Subscribe control configuration (remote write via MQTT)
+  JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
+  subscribeControl["enabled"] = false;
+  subscribeControl["topic_prefix"] = "";  // Auto-generated if empty
+  subscribeControl["response_enabled"] = true;
+  subscribeControl["default_qos"] = 1;
+
   // HTTP config
   JsonObject http = root["http_config"].to<JsonObject>();
   http["enabled"] = false;
@@ -541,6 +548,15 @@ bool ServerConfig::getConfig(JsonObject& result) {
     customizeMode["custom_topics"].to<JsonArray>();
   }
 
+  // v1.1.0: Ensure subscribe_control exists (remote write via MQTT)
+  if (!mqtt["subscribe_control"]) {
+    JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
+    subscribeControl["enabled"] = false;
+    subscribeControl["topic_prefix"] = "";
+    subscribeControl["response_enabled"] = true;
+    subscribeControl["default_qos"] = 1;
+  }
+
   // Defensive: Ensure communication config exists (mobile app structure)
   if (!result["communication"]) {
     result["communication"].to<JsonObject>();
@@ -641,6 +657,15 @@ bool ServerConfig::updateConfig(JsonObjectConst newConfig) {
       JsonObject customizeMode = mqtt["customize_mode"].to<JsonObject>();
       customizeMode["enabled"] = false;
       customizeMode["custom_topics"].to<JsonArray>();
+    }
+
+    // v1.1.0: Ensure subscribe_control exists
+    if (!mqtt["subscribe_control"]) {
+      JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
+      subscribeControl["enabled"] = false;
+      subscribeControl["topic_prefix"] = "";
+      subscribeControl["response_enabled"] = true;
+      subscribeControl["default_qos"] = 1;
     }
   }
 
