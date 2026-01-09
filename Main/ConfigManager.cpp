@@ -780,6 +780,7 @@ void ConfigManager::getAllDevicesWithRegisters(JsonArray& result,
           registerInfo["description"] = reg["description"];
           registerInfo["scale"] = reg["scale"];
           registerInfo["offset"] = reg["offset"];
+          registerInfo["decimals"] = reg["decimals"] | -1;  // v1.0.7
           registerInfo["register_index"] = reg["register_index"];
         }
       }
@@ -899,6 +900,44 @@ String ConfigManager::createRegister(const String& deviceId,
       float value = kv.value().is<String>() ? kv.value().as<String>().toFloat()
                                             : kv.value().as<float>();
       newRegister[kv.key()] = value;
+    } else if (key == "decimals") {
+      // v1.0.7: Convert and validate decimals (-1 to 6)
+      int value = kv.value().is<String>() ? kv.value().as<String>().toInt()
+                                          : kv.value().as<int>();
+      // Clamp to valid range: -1 (auto) to 6 (max precision)
+      if (value < -1) value = -1;
+      if (value > 6) value = 6;
+      newRegister[kv.key()] = value;
+    } else if (key == "writable") {
+      // v1.0.8: Boolean flag for write capability
+      bool value = kv.value().is<String>()
+                       ? (kv.value().as<String>() == "true" ||
+                          kv.value().as<String>() == "1")
+                       : kv.value().as<bool>();
+      newRegister[kv.key()] = value;
+    } else if (key == "min_value" || key == "max_value") {
+      // v1.0.8: Float values for write validation bounds
+      float value = kv.value().is<String>() ? kv.value().as<String>().toFloat()
+                                            : kv.value().as<float>();
+      newRegister[kv.key()] = value;
+    } else if (key == "mqtt_subscribe") {
+      // v1.1.0: MQTT Subscribe Control - nested object for per-register MQTT
+      // control
+      if (kv.value().is<JsonObjectConst>()) {
+        JsonObject mqttSub = newRegister["mqtt_subscribe"].to<JsonObject>();
+        JsonObjectConst srcObj = kv.value().as<JsonObjectConst>();
+        // enabled: boolean (required)
+        mqttSub["enabled"] = srcObj["enabled"] | false;
+        // topic_suffix: string (optional, defaults to register_id)
+        if (!srcObj["topic_suffix"].isNull()) {
+          mqttSub["topic_suffix"] = srcObj["topic_suffix"].as<String>();
+        }
+        // qos: integer 0-2 (optional, defaults to 1)
+        int qos = srcObj["qos"] | 1;
+        if (qos < 0) qos = 0;
+        if (qos > 2) qos = 2;
+        mqttSub["qos"] = qos;
+      }
     } else {
       newRegister[kv.key()] = kv.value();
     }
@@ -921,6 +960,17 @@ String ConfigManager::createRegister(const String& deviceId,
   if (newRegister["unit"].isNull()) {
     newRegister["unit"] = "";
   }
+  // v1.0.7: Add default decimals value for display precision control
+  // -1 = auto (no rounding), 0-6 = fixed decimal places
+  if (newRegister["decimals"].isNull()) {
+    newRegister["decimals"] = -1;
+  }
+  // v1.0.8: Add default writable value (false = read-only by default)
+  if (newRegister["writable"].isNull()) {
+    newRegister["writable"] = false;
+  }
+  // v1.0.8: min_value and max_value are optional, no defaults needed
+  // If not set, validation is skipped in writeRegisterValue()
 
   // Save to file and keep cache valid
   if (saveJson(DEVICES_FILE, *devicesCache)) {
@@ -990,6 +1040,28 @@ bool ConfigManager::getRegistersSummary(const String& deviceId,
         regSummary["address"] = reg["address"];
         regSummary["data_type"] = reg["data_type"];
         regSummary["description"] = reg["description"];
+        regSummary["scale"] = reg["scale"] | 1.0;
+        regSummary["offset"] = reg["offset"] | 0.0;
+        regSummary["decimals"] = reg["decimals"] | -1;  // v1.0.7
+        regSummary["unit"] = reg["unit"] | "";
+        regSummary["writable"] = reg["writable"] | false;  // v1.0.8
+        // v1.0.8: Include min/max if present (optional fields)
+        if (!reg["min_value"].isNull()) {
+          regSummary["min_value"] = reg["min_value"];
+        }
+        if (!reg["max_value"].isNull()) {
+          regSummary["max_value"] = reg["max_value"];
+        }
+        // v1.1.0: Include mqtt_subscribe if present
+        if (!reg["mqtt_subscribe"].isNull()) {
+          JsonObject mqttSub = regSummary["mqtt_subscribe"].to<JsonObject>();
+          mqttSub["enabled"] = reg["mqtt_subscribe"]["enabled"] | false;
+          if (!reg["mqtt_subscribe"]["topic_suffix"].isNull()) {
+            mqttSub["topic_suffix"] =
+                reg["mqtt_subscribe"]["topic_suffix"].as<String>();
+          }
+          mqttSub["qos"] = reg["mqtt_subscribe"]["qos"] | 1;
+        }
       }
       return true;
     }
@@ -1059,6 +1131,47 @@ bool ConfigManager::updateRegister(const String& deviceId,
                             ? kv.value().as<String>().toFloat()
                             : kv.value().as<float>();
           reg[kv.key()] = value;
+        } else if (key == "decimals") {
+          // v1.0.7: Convert and validate decimals (-1 to 6)
+          int value = kv.value().is<String>() ? kv.value().as<String>().toInt()
+                                              : kv.value().as<int>();
+          // Clamp to valid range: -1 (auto) to 6 (max precision)
+          if (value < -1) value = -1;
+          if (value > 6) value = 6;
+          reg[kv.key()] = value;
+        } else if (key == "writable") {
+          // v1.0.8: Boolean flag for write capability
+          bool value = kv.value().is<String>()
+                           ? (kv.value().as<String>() == "true" ||
+                              kv.value().as<String>() == "1")
+                           : kv.value().as<bool>();
+          reg[kv.key()] = value;
+        } else if (key == "min_value" || key == "max_value") {
+          // v1.0.8: Float values for write validation bounds
+          float value = kv.value().is<String>()
+                            ? kv.value().as<String>().toFloat()
+                            : kv.value().as<float>();
+          reg[kv.key()] = value;
+        } else if (key == "mqtt_subscribe") {
+          // v1.1.0: MQTT Subscribe Control - nested object for per-register
+          // MQTT control
+          if (kv.value().is<JsonObjectConst>()) {
+            // Remove existing mqtt_subscribe if present
+            reg.remove("mqtt_subscribe");
+            JsonObject mqttSub = reg["mqtt_subscribe"].to<JsonObject>();
+            JsonObjectConst srcObj = kv.value().as<JsonObjectConst>();
+            // enabled: boolean (required)
+            mqttSub["enabled"] = srcObj["enabled"] | false;
+            // topic_suffix: string (optional, defaults to register_id)
+            if (!srcObj["topic_suffix"].isNull()) {
+              mqttSub["topic_suffix"] = srcObj["topic_suffix"].as<String>();
+            }
+            // qos: integer 0-2 (optional, defaults to 1)
+            int qos = srcObj["qos"] | 1;
+            if (qos < 0) qos = 0;
+            if (qos > 2) qos = 2;
+            mqttSub["qos"] = qos;
+          }
         } else {
           reg[kv.key()] = kv.value();
         }
@@ -1223,6 +1336,14 @@ bool ConfigManager::loadDevicesCache() {
             reg["unit"] = "";
             needsSave = true;
             Serial.printf("[MIGRATION] Added unit=\"\" to register %s\n",
+                          reg["register_id"].as<String>().c_str());
+          }
+          // v1.0.7 Migration: Add decimals field for display precision control
+          // -1 = auto (no rounding, use full precision)
+          if (reg["decimals"].isNull()) {
+            reg["decimals"] = -1;
+            needsSave = true;
+            Serial.printf("[MIGRATION] Added decimals=-1 to register %s\n",
                           reg["register_id"].as<String>().c_str());
           }
 

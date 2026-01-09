@@ -181,6 +181,10 @@ class BLEManager : public BLEServerCallbacks,
   uint8_t activeTransmissions;  // Count of in-flight transmissions (protected
                                 // by transmissionMutex)
 
+  // v1.0.9: Transmission Cancellation Support
+  // Allows mobile app to cancel ongoing chunked transmission
+  std::atomic<bool> transmissionCancelled{false};
+
   // FreeRTOS task functions
   static void commandProcessingTask(void* parameter);
   static void streamingTask(void* parameter);
@@ -250,6 +254,10 @@ class BLEManager : public BLEServerCallbacks,
   void setStreamingActive(bool active);
   bool isStreamingActive() const;
   bool waitForTransmissionsComplete(uint32_t timeoutMs = 2000);
+
+  // v1.0.9: Transmission cancellation methods
+  void cancelTransmission();
+  bool isTransmissionCancelled() const;
 
   // BLE callbacks
   void onConnect(BLEServer* pServer) override;

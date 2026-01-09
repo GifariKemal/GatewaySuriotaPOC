@@ -62,7 +62,7 @@ CRUD_Processor, Network_Monitor, LED, Button (priority 2)
   (1200-115200)
 - **Modbus TCP** - Connection pooling, auto-reconnect, multi-device support
 - **40+ Data Types** - INT16, UINT32, FLOAT32, SWAP variants, BCD, ASCII
-- **Calibration** - Per-register scale and offset support
+- **Calibration** - Per-register scale, offset, and decimal precision support
 - **Device Failure Tracking** - Exponential backoff, auto-disable, health
   metrics
 
@@ -321,7 +321,7 @@ See `/Documentation/API_Reference/API.md` for complete schemas:
 - **Device:** `device_name`, `protocol` (RTU/TCP), `slave_id`, `baud_rate`,
   `timeout`, `retry_count`, `refresh_rate_ms`, `enabled`, `registers[]`
 - **Register:** `register_name`, `address`, `function_code` (1-4), `data_type`
-  (see MODBUS_DATATYPES.md), `quantity`, `calibration` (optional)
+  (see MODBUS_DATATYPES.md), `quantity`, `scale`, `offset`, `decimals` (-1 to 6)
 - **Server:** `protocol` (mqtt/http), `mqtt{}`, `http{}`, `data_interval_ms`
 
 **ALWAYS notify services after config changes:**

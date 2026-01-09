@@ -118,11 +118,12 @@ All commands follow a consistent JSON structure:
 
 ```json
 {
-  "op": "create|read|update|delete|control|system|batch",
+  "op": "create|read|update|delete|write|control|system|batch",
   "type": "device|register|server|logging|data|status|metrics",
   "device_id": "string (optional)",
   "register_id": "string (optional)",
   "config": {},
+  "value": 0.0,
   "priority": "high|normal|low (optional)"
 }
 ```
@@ -773,6 +774,7 @@ Add a new register to an existing device.
     "data_type": "FLOAT32_BE",
     "scale": 1.0,
     "offset": 0.0,
+    "decimals": 2,
     "unit": "°C",
     "refresh_rate_ms": 1000
   }
@@ -789,8 +791,12 @@ Add a new register to an existing device.
 | `data_type`       | string  | ✅ Yes   | -        | See [Data Types](#supported-data-types)        |
 | `scale`           | float   | ❌ No    | 1.0      | Multiplier for raw value                       |
 | `offset`          | float   | ❌ No    | 0.0      | Offset added after scaling                     |
+| `decimals`        | integer | ❌ No    | -1       | Decimal precision: -1=auto, 0-6=fixed places   |
 | `unit`            | string  | ❌ No    | ""       | Measurement unit                               |
 | `refresh_rate_ms` | integer | ❌ No    | (device) | Override device refresh rate                   |
+| `writable`        | boolean | ❌ No    | false    | Enable write operations for this register      |
+| `min_value`       | float   | ❌ No    | -        | Minimum allowed value for write validation     |
+| `max_value`       | float   | ❌ No    | -        | Maximum allowed value for write validation     |
 
 **Supported Data Types:**
 
@@ -861,6 +867,7 @@ Add a new register to an existing device.
     "data_type": "FLOAT32_BE",
     "scale": 1.0,
     "offset": 0.0,
+    "decimals": 2,
     "unit": "°C",
     "refresh_rate_ms": 1000,
     "register_index": 0
@@ -1080,6 +1087,129 @@ Remove a register from a device.
 - ✅ Returns register data before deletion
 - ✅ Useful for undo functionality
 - ✅ Audit trail of deleted configuration
+
+---
+
+### Write Register Value (v1.0.8+)
+
+Write a value to a Modbus register. The register must be configured with
+`writable: true` and must be on a holding register (FC3) or coil (FC1).
+
+**Request:**
+
+```json
+{
+  "op": "write",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "value": 25.5
+}
+```
+
+**Request Fields:**
+
+| Field         | Type   | Required | Description                              |
+| ------------- | ------ | -------- | ---------------------------------------- |
+| `op`          | string | ✅ Yes   | Must be `"write"`                        |
+| `type`        | string | ✅ Yes   | Must be `"register"`                     |
+| `device_id`   | string | ✅ Yes   | Target device ID                         |
+| `register_id` | string | ✅ Yes   | Target register ID                       |
+| `value`       | number | ✅ Yes   | Value to write (calibrated/user units)   |
+
+**Response (Success):**
+
+```json
+{
+  "status": "ok",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "message": "Write successful",
+  "data": {
+    "register_name": "setpoint_temperature",
+    "written_value": 25.5,
+    "raw_value": 255,
+    "function_code": 6,
+    "address": 100
+  }
+}
+```
+
+**Response Fields:**
+
+| Field                | Type   | Description                           |
+| -------------------- | ------ | ------------------------------------- |
+| `written_value`      | number | User value that was written           |
+| `raw_value`          | number | Raw Modbus value (after calibration)  |
+| `function_code`      | number | FC used: 5 (coil), 6 (single), 16 (multi) |
+| `address`            | number | Modbus register address               |
+
+**Error Responses:**
+
+Register not writable:
+```json
+{
+  "status": "error",
+  "error_code": 315,
+  "domain": "MODBUS",
+  "message": "Register not writable"
+}
+```
+
+Value out of range (when `min_value`/`max_value` configured):
+```json
+{
+  "status": "error",
+  "error_code": 316,
+  "domain": "MODBUS",
+  "message": "Value 150.0 out of range [0.0 - 100.0]"
+}
+```
+
+**Write Function Codes:**
+
+The gateway automatically selects the appropriate Modbus write function code:
+
+| Register Type | Data Type         | Write FC | Description             |
+| ------------- | ----------------- | -------- | ----------------------- |
+| Coil (FC1)    | BOOL              | FC5      | Write Single Coil       |
+| Holding (FC3) | INT16, UINT16     | FC6      | Write Single Register   |
+| Holding (FC3) | 32-bit, 64-bit    | FC16     | Write Multiple Registers|
+
+**Calibration (Reverse):**
+
+When writing, the value is reverse-calibrated before being sent to the device:
+
+```
+raw_value = (user_value - offset) / scale
+```
+
+Example: If `scale=0.1` and `offset=0`, writing `25.5` sends `255` to the device.
+
+**Register Configuration for Writing:**
+
+To enable writing on a register, update its configuration:
+
+```json
+{
+  "op": "update",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "config": {
+    "writable": true,
+    "min_value": 0.0,
+    "max_value": 100.0
+  }
+}
+```
+
+**Notes:**
+
+- ⚠️ Only **holding registers (FC3)** and **coils (FC1)** can be written
+- ❌ Input registers (FC4) and discrete inputs (FC2) are read-only by design
+- ✅ `min_value` and `max_value` are optional - if not set, no range validation
+- ✅ Reverse calibration is applied automatically using register's scale/offset
 
 ---
 

@@ -441,6 +441,105 @@ void CRUDHandler::setupCommandHandlers() {
     }
   };
 
+  // v1.1.0: List writable registers for MQTT Subscribe Control configuration
+  // Returns only registers with writable: true, grouped by device
+  // Mobile app uses this to display UI for configuring mqtt_subscribe
+  readHandlers["writable_registers"] = [this](BLEManager* manager,
+                                              const JsonDocument& command) {
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    JsonArray devices = (*response)["devices"].to<JsonArray>();
+
+    // Get all devices with registers
+    JsonDocument devicesDoc;
+    JsonArray allDevices = devicesDoc.to<JsonArray>();
+    configManager->getAllDevicesWithRegisters(allDevices, false);
+
+    int totalWritable = 0;
+    int totalMqttEnabled = 0;
+
+    for (JsonVariant deviceVar : allDevices) {
+      JsonObject device = deviceVar.as<JsonObject>();
+      String deviceId = device["device_id"] | "";
+      String deviceName = device["device_name"] | "";
+      bool deviceEnabled = device["enabled"] | true;
+
+      if (deviceId.isEmpty() || !deviceEnabled) continue;
+
+      // Collect writable registers for this device
+      JsonDocument writableDoc;
+      JsonArray writableRegs = writableDoc.to<JsonArray>();
+
+      JsonArray registers = device["registers"];
+      for (JsonVariant regVar : registers) {
+        JsonObject reg = regVar.as<JsonObject>();
+        bool writable = reg["writable"] | false;
+
+        if (writable) {
+          // Create summary object for writable register
+          JsonDocument regSummary;
+          regSummary["register_id"] = reg["register_id"] | "";
+          regSummary["register_name"] = reg["register_name"] | "";
+          regSummary["address"] = reg["address"] | 0;
+          regSummary["data_type"] = reg["data_type"] | "INT16";
+
+          // Include min/max if present
+          if (!reg["min_value"].isNull()) {
+            regSummary["min_value"] = reg["min_value"];
+          }
+          if (!reg["max_value"].isNull()) {
+            regSummary["max_value"] = reg["max_value"];
+          }
+
+          // Include mqtt_subscribe status
+          if (!reg["mqtt_subscribe"].isNull()) {
+            JsonObject mqttSub = regSummary["mqtt_subscribe"].to<JsonObject>();
+            mqttSub["enabled"] = reg["mqtt_subscribe"]["enabled"] | false;
+            if (!reg["mqtt_subscribe"]["topic_suffix"].isNull()) {
+              mqttSub["topic_suffix"] =
+                  reg["mqtt_subscribe"]["topic_suffix"].as<String>();
+            }
+            mqttSub["qos"] = reg["mqtt_subscribe"]["qos"] | 1;
+
+            if (reg["mqtt_subscribe"]["enabled"] | false) {
+              totalMqttEnabled++;
+            }
+          } else {
+            // No mqtt_subscribe config yet
+            JsonObject mqttSub = regSummary["mqtt_subscribe"].to<JsonObject>();
+            mqttSub["enabled"] = false;
+          }
+
+          writableRegs.add(regSummary);
+          totalWritable++;
+        }
+      }
+
+      // Only add device if it has writable registers
+      if (writableRegs.size() > 0) {
+        JsonObject deviceSummary = devices.add<JsonObject>();
+        deviceSummary["device_id"] = deviceId;
+        deviceSummary["device_name"] = deviceName;
+        deviceSummary["writable_count"] = writableRegs.size();
+        JsonArray regsArray = deviceSummary["registers"].to<JsonArray>();
+        for (JsonVariant r : writableRegs) {
+          regsArray.add(r);
+        }
+      }
+    }
+
+    // Add summary counts
+    (*response)["total_writable"] = totalWritable;
+    (*response)["total_mqtt_enabled"] = totalMqttEnabled;
+
+    LOG_CRUD_INFO(
+        "[CRUD] Writable registers: %d total, %d mqtt_enabled across %d "
+        "devices\n",
+        totalWritable, totalMqttEnabled, devices.size());
+
+    manager->sendResponse(*response);
+  };
+
   readHandlers["server_config"] = [this](BLEManager* manager,
                                          const JsonDocument& command) {
     auto response = make_psram_unique<JsonDocument>();
@@ -1019,6 +1118,71 @@ void CRUDHandler::setupCommandHandlers() {
     } else {
       manager->sendError("Register deletion failed", "registers");
     }
+  };
+
+  // === WRITE HANDLERS (v1.0.8: Write Register Support) ===
+
+  writeHandlers["register"] = [this](BLEManager* manager,
+                                     const JsonDocument& command) {
+    String deviceId = command["device_id"] | "";
+    String registerId = command["register_id"] | "";
+
+    auto response = make_psram_unique<JsonDocument>();
+
+    if (deviceId.isEmpty()) {
+      manager->sendError("device_id is required", "register");
+      return;
+    }
+
+    if (registerId.isEmpty()) {
+      manager->sendError("register_id is required", "register");
+      return;
+    }
+
+    if (command["value"].isNull()) {
+      manager->sendError("value is required", "register");
+      return;
+    }
+
+    double value = command["value"].as<double>();
+
+    // Determine device protocol (RTU or TCP)
+    JsonDocument deviceDoc;
+    JsonObject deviceObj = deviceDoc.to<JsonObject>();
+    bool isRtu = false;
+    bool isTcp = false;
+
+    if (configManager->readDevice(deviceId, deviceObj)) {
+      String protocol = deviceObj["protocol"] | "RTU";
+      protocol.toUpperCase();
+      isRtu = (protocol == "RTU");
+      isTcp = (protocol == "TCP");
+    } else {
+      manager->sendError("Device not found: " + deviceId, "register");
+      return;
+    }
+
+    JsonObject respObj = response->to<JsonObject>();
+    bool success = false;
+
+    if (isRtu && modbusRtuService) {
+      success = modbusRtuService->writeRegisterValue(deviceId.c_str(),
+                                                     registerId.c_str(), value,
+                                                     respObj);
+    } else if (isTcp && modbusTcpService) {
+      success = modbusTcpService->writeRegisterValue(deviceId.c_str(),
+                                                     registerId.c_str(), value,
+                                                     respObj);
+    } else {
+      manager->sendError("No Modbus service available for device", "register");
+      return;
+    }
+
+    // Send response
+    manager->sendResponse(*response);
+
+    LOG_BLE_INFO("[WRITE_REGISTER] device=%s, register=%s, value=%.4f, success=%d\n",
+                 deviceId.c_str(), registerId.c_str(), value, success);
   };
 
   // === CONTROL HANDLERS (Device Enable/Disable/Status) ===
@@ -2097,6 +2261,9 @@ void CRUDHandler::processPriorityQueue() {
   } else if (op == "delete" && deleteHandlers.count(type)) {
     deleteHandlers[type](cmd.manager, payload);
     handlerFound = true;
+  } else if (op == "write" && writeHandlers.count(type)) {
+    writeHandlers[type](cmd.manager, payload);
+    handlerFound = true;
   } else if (op == "control" && controlHandlers.count(type)) {
     controlHandlers[type](cmd.manager, payload);
     handlerFound = true;
@@ -2243,6 +2410,9 @@ void CRUDHandler::executeBatchSequential(BLEManager* manager,
     } else if (op == "delete" && deleteHandlers.count(type)) {
       deleteHandlers[type](manager, *cmdDoc);
       success = true;
+    } else if (op == "write" && writeHandlers.count(type)) {
+      writeHandlers[type](manager, *cmdDoc);
+      success = true;
     } else if (op == "control" && controlHandlers.count(type)) {
       controlHandlers[type](manager, *cmdDoc);
       success = true;
@@ -2313,6 +2483,8 @@ void CRUDHandler::executeBatchAtomic(BLEManager* manager, const String& batchId,
       handlerExists = updateHandlers.count(type) > 0;
     } else if (op == "delete") {
       handlerExists = deleteHandlers.count(type) > 0;
+    } else if (op == "write") {
+      handlerExists = writeHandlers.count(type) > 0;
     } else if (op == "control") {
       handlerExists = controlHandlers.count(type) > 0;
     } else if (op == "system") {
@@ -2354,6 +2526,9 @@ void CRUDHandler::executeBatchAtomic(BLEManager* manager, const String& batchId,
         completed++;
       } else if (op == "delete" && deleteHandlers.count(type)) {
         deleteHandlers[type](manager, *cmdDoc);
+        completed++;
+      } else if (op == "write" && writeHandlers.count(type)) {
+        writeHandlers[type](manager, *cmdDoc);
         completed++;
       } else if (op == "control" && controlHandlers.count(type)) {
         controlHandlers[type](manager, *cmdDoc);

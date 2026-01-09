@@ -746,6 +746,90 @@ class BLEDeviceClient:
             print_warning(f"Register creation issue: {error}")
             return False
 
+    async def update_register(self, device_id, register_id, config):
+        """Update an existing register configuration (v1.0.8+)"""
+        cmd = json.dumps(
+            {
+                "op": "update",
+                "type": "register",
+                "device_id": device_id,
+                "register_id": register_id,
+                "config": config,
+            },
+            separators=(",", ":"),
+        )
+
+        response = await self.send_command(cmd, timeout=15)
+
+        if response and response.get("status") == "ok":
+            return True, response
+        else:
+            error = (
+                response.get("error", "Unknown error") if response else "No response"
+            )
+            print_warning(f"Register update issue: {error}")
+            return False, response
+
+    async def write_register(self, device_id, register_id, value):
+        """Write a value to a Modbus register (v1.0.8+)
+
+        Args:
+            device_id: Target device ID
+            register_id: Target register ID
+            value: Value to write (in user/display units, will be reverse-calibrated)
+
+        Returns:
+            tuple: (success: bool, response: dict)
+        """
+        cmd = json.dumps(
+            {
+                "op": "write",
+                "type": "register",
+                "device_id": device_id,
+                "register_id": register_id,
+                "value": value,
+            },
+            separators=(",", ":"),
+        )
+
+        print_info(f"Writing value {value} to {device_id}/{register_id}...")
+        response = await self.send_command(cmd, timeout=15)
+
+        if response and response.get("status") == "ok":
+            written_value = response.get("value_written", value)
+            raw_value = response.get("raw_value", "N/A")
+            print_success(f"Write successful: {written_value} (raw: {raw_value})")
+            return True, response
+        else:
+            error = (
+                response.get("error", "Unknown error") if response else "No response"
+            )
+            error_code = response.get("error_code", "N/A") if response else "N/A"
+            print_error(f"Write failed: {error} (code: {error_code})")
+            return False, response
+
+    async def read_registers(self, device_id):
+        """Read all registers for a device"""
+        cmd = json.dumps(
+            {
+                "op": "read",
+                "type": "register",
+                "device_id": device_id,
+            },
+            separators=(",", ":"),
+        )
+
+        response = await self.send_command(cmd, timeout=15)
+
+        if response and response.get("status") == "ok":
+            return response.get("registers", [])
+        else:
+            error = (
+                response.get("error", "Unknown error") if response else "No response"
+            )
+            print_warning(f"Read registers issue: {error}")
+            return []
+
     async def disconnect(self):
         """Disconnect from device"""
         if self.client and self.client.is_connected:

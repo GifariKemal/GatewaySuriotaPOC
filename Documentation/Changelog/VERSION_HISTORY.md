@@ -6,6 +6,444 @@
 
 ---
 
+## Version 1.1.0 (MQTT Subscribe Control)
+
+**Release Date:** January 9, 2026 (Thursday) **Status:** Development **Related:**
+Remote Write Control via MQTT
+
+### Feature: Remote Write Control via MQTT Subscribe
+
+**Background:** The v1.0.8 Write Register Support enabled local control via BLE for
+writable registers (setpoints, coils, etc.). This feature extends that capability to
+allow remote control via MQTT, enabling cloud/IoT platforms, SCADA systems, and
+dashboards to write values to Modbus registers.
+
+### Design Principle: Per-Register Topic
+
+**1 Topic = 1 Register** - Each controllable register has its own MQTT topic for
+safety, clarity, and easy ACL management.
+
+```
+# Write Command (Cloud → Gateway)
+suriota/{gateway_id}/write/{device_id}/{topic_suffix}
+
+# Write Response (Gateway → Cloud)
+suriota/{gateway_id}/write/{device_id}/{topic_suffix}/response
+
+# Example:
+suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint      ← Subscribe
+suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint/response → Publish
+```
+
+### Safety Requirements
+
+Register must meet BOTH conditions to be controllable via MQTT:
+
+1. `writable: true` - Register must be writable
+2. `mqtt_subscribe.enabled: true` - Explicit opt-in required
+
+### What's New
+
+**1. Register-Level MQTT Subscribe Configuration**
+
+```json
+{
+  "register_id": "R3C8D1",
+  "register_name": "temp_setpoint",
+  "writable": true,
+  "mqtt_subscribe": {
+    "enabled": true,
+    "topic_suffix": "temp_setpoint",
+    "qos": 1
+  }
+}
+```
+
+**2. Server-Level Subscribe Control Configuration**
+
+```json
+{
+  "mqtt_config": {
+    "subscribe_control": {
+      "enabled": true,
+      "topic_prefix": "suriota/MGate1210_A3B4C5/write",
+      "response_enabled": true,
+      "default_qos": 1
+    }
+  }
+}
+```
+
+**3. Payload Format Options**
+
+```
+# Raw value (simplest)
+25.5
+
+# JSON with value
+{"value": 25.5}
+
+# JSON with tracking UUID
+{"value": 25.5, "uuid": "550e8400-..."}
+```
+
+**4. Write Response**
+
+```json
+{
+  "status": "ok",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "register_name": "temp_setpoint",
+  "written_value": 25.5,
+  "raw_value": 255,
+  "timestamp": 1704067200000
+}
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `MqttManager.h` | Added subscribe control fields, `SubscribedRegister` struct, callback and methods |
+| `MqttManager.cpp` | Implemented `loadSubscribeControlConfig()`, `initializeSubscriptions()`, `onMqttMessage()`, `handleWriteCommand()`, etc. |
+| `ConfigManager.cpp` | Added `mqtt_subscribe` field handling in `createRegister()`, `updateRegister()`, `readRegister()` |
+| `ServerConfig.cpp` | Added `subscribe_control` section in default config, `getConfig()`, `updateConfig()` |
+| `CRUDHandler.cpp` | Added `writable_registers` read handler for mobile app UI |
+
+### Integration with v1.0.8 Write Register
+
+- Reuses existing `writeRegisterValue()` logic from ModbusRtuService/ModbusTcpService
+- Same validation rules apply (min/max value, data type)
+- Same reverse calibration (scale/offset) applied automatically
+
+### Documentation
+
+See [MQTT_SUBSCRIBE_CONTROL.md](../Technical_Guides/MQTT_SUBSCRIBE_CONTROL.md) for
+full implementation details, protocol specification, and testing guide.
+
+---
+
+## Version 1.0.9 (BLE Cancel Command)
+
+**Release Date:** January 9, 2026 (Thursday) **Status:** Development **Related:**
+BLE Transmission Optimization
+
+### Feature: Cancel Ongoing BLE Transmissions
+
+**Background:** When mobile app sends a command that triggers a large response
+(e.g., backup, device list with many registers), the response is sent in chunks due
+to MTU limitations. If the user navigates away or sends a new command, the gateway
+continues sending chunks of the old response, causing:
+
+- Mixed responses between commands
+- Wasted BLE bandwidth
+- JSON parsing errors on mobile
+- Poor user experience
+
+### What's New
+
+**1. `<CANCEL>` Command Support**
+
+Mobile app can now send `<CANCEL>` to stop ongoing transmission:
+
+| Command | Direction | Description |
+|---------|-----------|-------------|
+| `<CANCEL>` | Mobile -> Gateway | Stop current chunked transmission |
+| `<ACK>` | Gateway -> Mobile | Cancel acknowledged |
+| `<CANCELLED>` | Gateway -> Mobile | Transmission was cancelled (instead of `<END>`) |
+
+**2. Atomic Cancellation Flag**
+
+Thread-safe cancellation using `std::atomic<bool>`:
+
+```cpp
+// BLEManager.h
+std::atomic<bool> transmissionCancelled{false};
+
+// Methods
+void cancelTransmission();
+bool isTransmissionCancelled() const;
+```
+
+**3. Cancellation Check in sendFragmented()**
+
+The transmission loop checks for cancellation on each chunk:
+
+```cpp
+while (i < dataLen) {
+  if (transmissionCancelled.load()) {
+    pResponseChar->setValue("<CANCELLED>");
+    pResponseChar->notify();
+    return;
+  }
+  // ... send chunk
+}
+```
+
+### Protocol Flow
+
+**Normal Transmission:**
+
+```
+Mobile                          Gateway
+  |--- {"op":"read",...} --->     |
+  |<---- chunk1 -------------     |
+  |<---- chunk2 -------------     |
+  |<---- ...   -------------      |
+  |<---- <END> -------------      |
+```
+
+**Cancelled Transmission:**
+
+```
+Mobile                          Gateway
+  |--- {"op":"read",...} --->     |
+  |<---- chunk1 -------------     |
+  |<---- chunk2 -------------     |
+  |--- <CANCEL> ----------->      |
+  |<---- <ACK> -------------      |
+  |<---- <CANCELLED> -------      |  (instead of more chunks + <END>)
+```
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `BLEManager.h` | Added `transmissionCancelled` atomic flag, `cancelTransmission()`, `isTransmissionCancelled()` |
+| `BLEManager.cpp` | Handle `<CANCEL>` in `receiveFragment()`, cancellation check in `sendFragmented()`, method implementations |
+
+### Mobile App Integration
+
+See [FLUTTER_BLE_CANCEL_GUIDE.md](../API_Reference/FLUTTER_BLE_CANCEL_GUIDE.md)
+for complete Flutter implementation guide.
+
+**Key Integration Points:**
+
+1. **Page dispose** - Cancel when leaving page
+2. **Navigation** - Cancel before navigating to new page
+3. **App lifecycle** - Cancel when app goes to background
+4. **Timeout** - Auto-cancel after timeout (e.g., 30s)
+5. **New command** - Cancel previous before sending new
+
+### Testing Recommendations
+
+- [ ] Navigate away during device list loading
+- [ ] Send new command while previous is responding
+- [ ] Disconnect during transmission
+- [ ] Cancel at various progress points (10%, 50%, 90%)
+- [ ] Rapid cancel/send cycles
+
+---
+
+## Version 1.0.8 (Write Register Support)
+
+**Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**
+Modbus Write Operations Enhancement
+
+### Feature: Write Values to Modbus Registers
+
+**Background:** Users need the ability to write values to Modbus devices, not just
+read. This enables control scenarios like setting setpoints, toggling outputs, and
+adjusting parameters via the mobile app.
+
+### What's New
+
+**1. New `write` Operation for Registers**
+
+| Operation | Type     | Description                              |
+| --------- | -------- | ---------------------------------------- |
+| `write`   | register | Write value to holding register or coil  |
+
+**BLE Command Example:**
+
+```json
+{
+  "op": "write",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "value": 25.5
+}
+```
+
+**2. New Register Schema Fields**
+
+| Field       | Type    | Default | Description                              |
+| ----------- | ------- | ------- | ---------------------------------------- |
+| `writable`  | boolean | false   | Enable write operations for this register|
+| `min_value` | float   | -       | Minimum allowed value (optional)         |
+| `max_value` | float   | -       | Maximum allowed value (optional)         |
+
+**3. Reverse Calibration**
+
+When writing, user values are reverse-calibrated before transmission:
+
+```
+raw_value = (user_value - offset) / scale
+```
+
+| User Value | Scale | Offset | Raw Value Sent |
+| ---------- | ----- | ------ | -------------- |
+| 25.5       | 0.1   | 0      | 255            |
+| 100.0      | 0.01  | -10    | 11000          |
+| true       | 1.0   | 0      | 1 (coil)       |
+
+**4. Automatic Write Function Code Selection**
+
+| Read FC | Data Type       | Write FC | Description              |
+| ------- | --------------- | -------- | ------------------------ |
+| FC1     | BOOL (coil)     | FC5      | Write Single Coil        |
+| FC3     | 16-bit types    | FC6      | Write Single Register    |
+| FC3     | 32/64-bit types | FC16     | Write Multiple Registers |
+
+**Note:** FC2 (Discrete Inputs) and FC4 (Input Registers) are read-only by design.
+
+### Files Modified
+
+| File                  | Changes                                      |
+| --------------------- | -------------------------------------------- |
+| `CRUDHandler.h`       | Added writeHandlers map                      |
+| `CRUDHandler.cpp`     | Write handler and routing logic              |
+| `ModbusUtils.h/cpp`   | Reverse calibration, value conversion funcs  |
+| `ModbusRtuService.cpp`| writeRegisterValue() implementation          |
+| `ModbusTcpService.cpp`| writeRegisterValue() implementation          |
+| `ConfigManager.cpp`   | New field handling in create/update register |
+| `API.md`              | Write Register API documentation             |
+
+### API Response
+
+**Success Response:**
+
+```json
+{
+  "status": "ok",
+  "device_id": "D7A3F2",
+  "register_id": "R3C8D1",
+  "message": "Write successful",
+  "data": {
+    "register_name": "setpoint_temperature",
+    "written_value": 25.5,
+    "raw_value": 255,
+    "function_code": 6,
+    "address": 100
+  }
+}
+```
+
+**Error Responses:**
+
+| Error Code | Description                                |
+| ---------- | ------------------------------------------ |
+| 315        | Register not writable                      |
+| 316        | Value out of range (min/max validation)    |
+| 317        | Unsupported data type for write            |
+| 318        | Write operation failed (device error)      |
+
+### Mobile App Integration
+
+To enable write functionality:
+
+1. Update register with `writable: true`
+2. Optionally set `min_value` and `max_value` for validation
+3. Use `op: "write"` command with target value
+
+See [MOBILE_WRITE_FEATURE.md](../API_Reference/MOBILE_WRITE_FEATURE.md) for
+complete mobile integration guide.
+
+---
+
+## Version 1.0.7 (Decimal Precision Control)
+
+**Release Date:** January 8, 2026 (Wednesday) **Status:** Development **Related:**
+Calibration System Enhancement
+
+### Feature: Per-Register Decimal Precision
+
+**Background:** Users need control over how many decimal places are displayed in
+the UI and transmitted via MQTT/HTTP. Previously, values used ArduinoJson's
+default precision (~7 significant digits), which could result in noisy data like
+`24.560001` instead of `24.56`.
+
+### What's New
+
+**1. New `decimals` Field in Register Schema**
+
+| Field      | Type    | Default | Range  | Description                        |
+| ---------- | ------- | ------- | ------ | ---------------------------------- |
+| `decimals` | integer | -1      | -1 to 6 | -1 = auto (no rounding), 0-6 = fixed decimal places |
+
+**Example Configuration:**
+
+```json
+{
+  "register_name": "Battery Voltage",
+  "address": 40001,
+  "data_type": "UINT16",
+  "scale": 0.01,
+  "offset": 0.0,
+  "decimals": 2,
+  "unit": "V"
+}
+```
+
+**2. Calibration Formula with Precision**
+
+```
+final_value = round((raw_value × scale + offset), decimals)
+```
+
+| Raw Value | Scale | Offset | Decimals | Output    |
+| --------- | ----- | ------ | -------- | --------- |
+| 2456      | 0.01  | 0      | 2        | `24.56`   |
+| 2456      | 0.01  | 0      | 1        | `24.6`    |
+| 2456      | 0.01  | 0      | 0        | `25`      |
+| 27.567891 | 1.0   | 0      | 3        | `27.568`  |
+| 27.567891 | 1.0   | 0      | -1       | `27.567891` (auto) |
+
+**3. Auto-Migration for Existing Registers**
+
+Existing registers automatically receive `decimals: -1` (auto mode) during
+startup migration. No configuration changes required for backward compatibility.
+
+### Files Modified
+
+| File                  | Changes                                      |
+| --------------------- | -------------------------------------------- |
+| `ConfigManager.cpp`   | Auto-migration, create/update register logic |
+| `ModbusRtuService.cpp`| Apply decimal precision after calibration    |
+| `ModbusTcpService.cpp`| Apply decimal precision after calibration    |
+| `API.md`              | Updated register schema documentation        |
+
+### API Changes
+
+**Create/Update Register Request:**
+
+```json
+{
+  "op": "create",
+  "type": "register",
+  "device_id": "D7A3F2",
+  "config": {
+    "register_name": "temperature",
+    "address": 0,
+    "data_type": "FLOAT32_BE",
+    "scale": 1.0,
+    "offset": 0.0,
+    "decimals": 2,
+    "unit": "°C"
+  }
+}
+```
+
+### Backward Compatibility
+
+- ✅ Existing configs work unchanged (auto-migration adds `decimals: -1`)
+- ✅ Omitting `decimals` field defaults to -1 (no rounding)
+- ✅ Invalid values clamped to valid range (-1 to 6)
+
+---
+
 ## Version 1.0.6 (Performance & Capacity Optimization)
 
 **Release Date:** January 2, 2026 (Thursday) **Status:** Production **Related:**

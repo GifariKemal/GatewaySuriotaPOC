@@ -5,7 +5,13 @@
 #include "DebugConfig.h"  // MUST BE FIRST for DEV_SERIAL_* macros
 #include "LEDManager.h"
 #include "MemoryRecovery.h"
+#include "ModbusRtuService.h"  // v1.1.0: For MQTT Subscribe Control write operations
+#include "ModbusTcpService.h"  // v1.1.0: For MQTT Subscribe Control write operations
 #include "RTCManager.h"
+
+// v1.1.0: External references to Modbus services (defined in Main.ino)
+extern ModbusRtuService* modbusRtuService;
+extern ModbusTcpService* modbusTcpService;
 
 // Helper function: Convert interval to milliseconds based on unit
 // Supports multiple unit variants for flexibility:
@@ -45,7 +51,12 @@ MqttManager::MqttManager(ConfigManager* config, ServerConfig* serverCfg,
       lastReconnectAttempt(0),
       cachedBufferSize(0),
       bufferSizeNeedsRecalculation(true),  // FIXED BUG #5: Initialize cache
-      lastDebugTime(0)  // v2.3.8 PHASE 1: Initialize connection state
+      lastDebugTime(0),  // v2.3.8 PHASE 1: Initialize connection state
+      // v1.1.0: Initialize subscribe control fields
+      subscribeControlEnabled(false),
+      responseEnabled(true),
+      defaultSubscribeQos(1),
+      subscribeControlMutex(nullptr)
 {
   queueManager = QueueManager::getInstance();
   persistentQueue = MQTTPersistentQueue::getInstance();
@@ -62,7 +73,11 @@ MqttManager::MqttManager(ConfigManager* config, ServerConfig* serverCfg,
   bufferCacheMutex = xSemaphoreCreateMutex();
   publishStateMutex = xSemaphoreCreateMutex();
 
-  if (bufferCacheMutex == NULL || publishStateMutex == NULL) {
+  // v1.1.0: Create mutex for subscribe control thread safety
+  subscribeControlMutex = xSemaphoreCreateMutex();
+
+  if (bufferCacheMutex == NULL || publishStateMutex == NULL ||
+      subscribeControlMutex == NULL) {
     LOG_MQTT_INFO("[MQTT] CRITICAL: Failed to create mutexes!");
   } else {
     LOG_MQTT_INFO("[MQTT] Thread safety mutexes created successfully");
@@ -357,6 +372,9 @@ bool MqttManager::connectToMqtt() {
 
   mqttClient.setServer(brokerAddress.c_str(), brokerPort);
 
+  // v1.1.0: Set callback for MQTT Subscribe Control (incoming messages)
+  mqttClient.setCallback(onMqttMessage);
+
   // Track connection attempt time
   unsigned long connectStartTime = millis();
 
@@ -381,6 +399,9 @@ bool MqttManager::connectToMqtt() {
     LOG_MQTT_INFO("[MQTT] Connected | Broker: %s:%d | Network: %s (%s)\n",
                   brokerAddress.c_str(), brokerPort, networkMode.c_str(),
                   localIP.toString().c_str());
+
+    // v1.1.0: Initialize MQTT subscriptions for write control
+    initializeSubscriptions();
   } else {
     LOG_MQTT_INFO("[MQTT] ERROR: Connection failed | Error code: %d\n",
                   mqttClient.state());
@@ -406,6 +427,9 @@ void MqttManager::loadMqttConfig() {
 
     // Helper 9: Load customize mode configuration
     loadCustomizeModeConfig(mqttConfig);
+
+    // v1.1.0: Load subscribe control configuration
+    loadSubscribeControlConfig(mqttConfig);
   } else {
     // Fallback to defaults if config loading fails
     LOG_MQTT_INFO("[MQTT] Failed to load config, using defaults");
@@ -1472,6 +1496,10 @@ void MqttManager::getStatus(JsonObject& status) {
   status["queue_size"] = queueManager->size();
   status["publish_mode"] = publishMode;  // v2.2.0: Show current publish mode
                                          // instead of legacy data_interval_ms
+
+  // v1.1.0: Include subscribe control status
+  JsonObject subscribeStatus = status["subscribe_control"].to<JsonObject>();
+  getSubscribeControlStatus(subscribeStatus);
 }
 
 // Persistent queue management methods
@@ -1633,6 +1661,486 @@ uint32_t MqttManager::calculateAdaptiveBatchTimeout() {
   return timeout;
 }
 
+// ============================================================================
+// v1.1.0: MQTT SUBSCRIBE CONTROL IMPLEMENTATION
+// Per-register topic approach for remote write control via MQTT
+// Topic: suriota/{gateway_id}/write/{device_id}/{topic_suffix}
+// ============================================================================
+
+/**
+ * Load subscribe control configuration from server_config.json
+ */
+void MqttManager::loadSubscribeControlConfig(JsonObject& mqttConfig) {
+  if (mqttConfig["subscribe_control"]) {
+    JsonObject subscribeConfig = mqttConfig["subscribe_control"];
+    subscribeControlEnabled = subscribeConfig["enabled"] | false;
+    subscribeTopicPrefix = subscribeConfig["topic_prefix"] | "";
+    subscribeTopicPrefix.trim();
+
+    // Auto-generate topic prefix if empty
+    if (subscribeTopicPrefix.isEmpty() && subscribeControlEnabled) {
+      subscribeTopicPrefix = "suriota/" + clientId + "/write";
+    }
+
+    responseEnabled = subscribeConfig["response_enabled"] | true;
+    defaultSubscribeQos = subscribeConfig["default_qos"] | 1;
+
+    // Validate QoS (0, 1, or 2)
+    if (defaultSubscribeQos > 2) {
+      defaultSubscribeQos = 1;
+    }
+
+#if PRODUCTION_MODE == 0
+    LOG_MQTT_INFO(
+        "[MQTT] Subscribe Control: %s | Prefix: %s | Response: %s | QoS: %d\n",
+        subscribeControlEnabled ? "ENABLED" : "DISABLED",
+        subscribeTopicPrefix.c_str(), responseEnabled ? "YES" : "NO",
+        defaultSubscribeQos);
+#endif
+  } else {
+    // Default: disabled
+    subscribeControlEnabled = false;
+#if PRODUCTION_MODE == 0
+    LOG_MQTT_INFO("[MQTT] Subscribe Control: DISABLED (no config)\n");
+#endif
+  }
+}
+
+/**
+ * Initialize subscriptions for all registers with mqtt_subscribe.enabled = true
+ */
+void MqttManager::initializeSubscriptions() {
+  if (!subscribeControlEnabled) {
+    return;
+  }
+
+  if (!configManager) {
+    LOG_MQTT_INFO(
+        "[MQTT] Subscribe Control: ConfigManager not available, skipping\n");
+    return;
+  }
+
+  xSemaphoreTake(subscribeControlMutex, portMAX_DELAY);
+
+  // Clear existing subscriptions
+  subscribedRegisters.clear();
+
+  // Load all devices with registers
+  JsonDocument devicesDoc;
+  JsonArray devices = devicesDoc.to<JsonArray>();
+  configManager->getAllDevicesWithRegisters(devices, false);  // full details
+
+  int subscriptionCount = 0;
+
+  for (JsonVariant deviceVar : devices) {
+    JsonObject device = deviceVar.as<JsonObject>();
+    String deviceId = device["device_id"] | "";
+    bool deviceEnabled = device["enabled"] | true;
+
+    if (deviceId.isEmpty() || !deviceEnabled) {
+      continue;
+    }
+
+    JsonArray registers = device["registers"];
+    for (JsonVariant regVar : registers) {
+      JsonObject reg = regVar.as<JsonObject>();
+
+      // Check if register is writable AND mqtt_subscribe enabled
+      bool writable = reg["writable"] | false;
+      bool mqttSubEnabled = false;
+      String topicSuffix = "";
+      uint8_t qos = defaultSubscribeQos;
+
+      if (writable && !reg["mqtt_subscribe"].isNull()) {
+        JsonObject mqttSub = reg["mqtt_subscribe"];
+        mqttSubEnabled = mqttSub["enabled"] | false;
+
+        if (mqttSubEnabled) {
+          String registerId = reg["register_id"] | "";
+          topicSuffix = mqttSub["topic_suffix"] | registerId;
+          qos = mqttSub["qos"] | defaultSubscribeQos;
+
+          if (qos > 2) qos = defaultSubscribeQos;
+
+          // Subscribe to this register
+          subscribeToRegister(deviceId, registerId, topicSuffix, qos);
+          subscriptionCount++;
+        }
+      }
+    }
+  }
+
+  xSemaphoreGive(subscribeControlMutex);
+
+  LOG_MQTT_INFO("[MQTT] Subscribe Control: Initialized %d subscriptions\n",
+                subscriptionCount);
+}
+
+/**
+ * Subscribe to a single register's control topic
+ */
+void MqttManager::subscribeToRegister(const String& deviceId,
+                                      const String& registerId,
+                                      const String& topicSuffix, uint8_t qos) {
+  // Build full topic: {prefix}/{device_id}/{topic_suffix}
+  String fullTopic = subscribeTopicPrefix + "/" + deviceId + "/" + topicSuffix;
+
+  // Subscribe via PubSubClient
+  bool subscribed = mqttClient.subscribe(fullTopic.c_str(), qos);
+
+  if (subscribed) {
+    // Track subscription
+    SubscribedRegister subReg;
+    subReg.deviceId = deviceId;
+    subReg.registerId = registerId;
+    subReg.topicSuffix = topicSuffix;
+    subReg.fullTopic = fullTopic;
+    subReg.qos = qos;
+    subscribedRegisters.push_back(subReg);
+
+#if PRODUCTION_MODE == 0
+    LOG_MQTT_INFO("[MQTT] Subscribed: %s (QoS %d)\n", fullTopic.c_str(), qos);
+#endif
+  } else {
+    LOG_MQTT_INFO("[MQTT] ERROR: Failed to subscribe to %s\n",
+                  fullTopic.c_str());
+  }
+}
+
+/**
+ * Unsubscribe from a register's control topic
+ */
+void MqttManager::unsubscribeFromRegister(const String& deviceId,
+                                          const String& registerId) {
+  xSemaphoreTake(subscribeControlMutex, portMAX_DELAY);
+
+  for (auto it = subscribedRegisters.begin(); it != subscribedRegisters.end();
+       ++it) {
+    if (it->deviceId == deviceId && it->registerId == registerId) {
+      mqttClient.unsubscribe(it->fullTopic.c_str());
+      LOG_MQTT_INFO("[MQTT] Unsubscribed: %s\n", it->fullTopic.c_str());
+      subscribedRegisters.erase(it);
+      break;
+    }
+  }
+
+  xSemaphoreGive(subscribeControlMutex);
+}
+
+/**
+ * Static callback for incoming MQTT messages
+ */
+void MqttManager::onMqttMessage(char* topic, byte* payload,
+                                unsigned int length) {
+  if (!instance) {
+    return;
+  }
+
+  // Convert payload to string
+  String payloadStr;
+  payloadStr.reserve(length + 1);
+  for (unsigned int i = 0; i < length; i++) {
+    payloadStr += (char)payload[i];
+  }
+
+#if PRODUCTION_MODE == 0
+  LOG_MQTT_INFO("[MQTT] Message received | Topic: %s | Payload: %s\n", topic,
+                payloadStr.c_str());
+#endif
+
+  // Handle write command
+  instance->handleWriteCommand(String(topic), payloadStr);
+}
+
+/**
+ * Handle incoming write command from MQTT
+ */
+void MqttManager::handleWriteCommand(const String& topic,
+                                     const String& payload) {
+  if (!subscribeControlEnabled) {
+    return;
+  }
+
+  // Parse topic: {prefix}/{device_id}/{topic_suffix}
+  // Example: suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint
+  if (!topic.startsWith(subscribeTopicPrefix)) {
+    return;  // Not a write command topic
+  }
+
+  // Extract device_id and topic_suffix from topic
+  String remainder = topic.substring(subscribeTopicPrefix.length() + 1);
+  int slashPos = remainder.indexOf('/');
+  if (slashPos < 0) {
+    LOG_MQTT_INFO("[MQTT] Invalid topic format: %s\n", topic.c_str());
+    return;
+  }
+
+  String deviceId = remainder.substring(0, slashPos);
+  String topicSuffix = remainder.substring(slashPos + 1);
+
+  // Find register by device_id + topic_suffix
+  JsonDocument regDoc;
+  String registerId;
+
+  if (!findRegisterByTopicSuffix(deviceId, topicSuffix, regDoc, registerId)) {
+    // Publish error response
+    if (responseEnabled) {
+      JsonDocument responseDoc;
+      responseDoc["status"] = "error";
+      responseDoc["device_id"] = deviceId;
+      responseDoc["topic_suffix"] = topicSuffix;
+      responseDoc["error_code"] = 404;
+      responseDoc["error"] = "Register not found";
+      responseDoc["timestamp"] = millis();
+      publishWriteResponse(deviceId, topicSuffix, false, responseDoc);
+    }
+    return;
+  }
+
+  // Parse value from payload
+  float value;
+  if (!parsePayloadValue(payload, value)) {
+    if (responseEnabled) {
+      JsonDocument responseDoc;
+      responseDoc["status"] = "error";
+      responseDoc["device_id"] = deviceId;
+      responseDoc["register_id"] = registerId;
+      responseDoc["error_code"] = 400;
+      responseDoc["error"] = "Invalid payload format";
+      responseDoc["received_payload"] = payload;
+      responseDoc["timestamp"] = millis();
+      publishWriteResponse(deviceId, topicSuffix, false, responseDoc);
+    }
+    return;
+  }
+
+  // Determine protocol and call appropriate Modbus service
+  JsonDocument deviceDoc;
+  JsonObject deviceObj = deviceDoc.to<JsonObject>();
+  if (!configManager->readDevice(deviceId, deviceObj)) {
+    if (responseEnabled) {
+      JsonDocument responseDoc;
+      responseDoc["status"] = "error";
+      responseDoc["device_id"] = deviceId;
+      responseDoc["register_id"] = registerId;
+      responseDoc["error_code"] = 404;
+      responseDoc["error"] = "Device not found";
+      responseDoc["timestamp"] = millis();
+      publishWriteResponse(deviceId, topicSuffix, false, responseDoc);
+    }
+    return;
+  }
+
+  String protocol = deviceObj["protocol"] | "RTU";
+  bool success = false;
+  JsonDocument responseDoc;
+  JsonObject responseObj = responseDoc.to<JsonObject>();
+
+  if (protocol == "TCP") {
+    if (modbusTcpService) {
+      success = modbusTcpService->writeRegisterValue(
+          deviceId.c_str(), registerId.c_str(), value, responseObj);
+    }
+  } else {
+    if (modbusRtuService) {
+      success = modbusRtuService->writeRegisterValue(
+          deviceId.c_str(), registerId.c_str(), value, responseObj);
+    }
+  }
+
+  // Publish response
+  if (responseEnabled) {
+    publishWriteResponse(deviceId, topicSuffix, success, responseDoc);
+  }
+
+  LOG_MQTT_INFO(
+      "[MQTT] Write Command: device=%s, register=%s, value=%.2f, result=%s\n",
+      deviceId.c_str(), registerId.c_str(), value,
+      success ? "SUCCESS" : "FAILED");
+}
+
+/**
+ * Publish write response to response topic
+ */
+void MqttManager::publishWriteResponse(const String& deviceId,
+                                       const String& topicSuffix, bool success,
+                                       JsonDocument& response) {
+  if (!responseEnabled || !mqttClient.connected()) {
+    return;
+  }
+
+  // Build response topic: {prefix}/{device_id}/{topic_suffix}/response
+  String responseTopic =
+      subscribeTopicPrefix + "/" + deviceId + "/" + topicSuffix + "/response";
+
+  // Serialize response
+  String payload;
+  serializeJson(response, payload);
+
+  // Publish response
+  bool published = mqttClient.publish(responseTopic.c_str(),
+                                      (uint8_t*)payload.c_str(), payload.length(), false);
+
+#if PRODUCTION_MODE == 0
+  LOG_MQTT_INFO("[MQTT] Response published to %s: %s (result: %s)\n",
+                responseTopic.c_str(), payload.c_str(),
+                published ? "OK" : "FAILED");
+#endif
+}
+
+/**
+ * Find register by device_id and topic_suffix
+ */
+bool MqttManager::findRegisterByTopicSuffix(const String& deviceId,
+                                            const String& topicSuffix,
+                                            JsonDocument& regDoc,
+                                            String& registerId) {
+  if (!configManager) {
+    return false;
+  }
+
+  // Read device to get all registers
+  JsonDocument deviceDoc;
+  JsonObject deviceObj = deviceDoc.to<JsonObject>();
+  if (!configManager->readDevice(deviceId, deviceObj)) {
+    return false;
+  }
+
+  // Search for register with matching topic_suffix
+  JsonArray registers = deviceObj["registers"];
+  for (JsonVariant regVar : registers) {
+    JsonObject reg = regVar.as<JsonObject>();
+
+    // Check if mqtt_subscribe is enabled
+    if (!reg["mqtt_subscribe"].isNull()) {
+      JsonObject mqttSub = reg["mqtt_subscribe"];
+      bool enabled = mqttSub["enabled"] | false;
+
+      if (enabled) {
+        String regId = reg["register_id"] | "";
+        String suffix = mqttSub["topic_suffix"] | regId;
+
+        if (suffix == topicSuffix) {
+          // Found matching register
+          registerId = regId;
+          regDoc.set(reg);
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Parse value from payload (supports raw number or JSON)
+ */
+bool MqttManager::parsePayloadValue(const String& payload, float& value) {
+  String trimmedPayload = payload;
+  trimmedPayload.trim();
+
+  if (trimmedPayload.isEmpty()) {
+    return false;
+  }
+
+  // Try JSON format first: {"value": 25.5} or {"value": 25.5, "uuid": "..."}
+  if (trimmedPayload.charAt(0) == '{') {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, trimmedPayload);
+    if (error) {
+      LOG_MQTT_INFO("[MQTT] JSON parse error: %s\n", error.c_str());
+      return false;
+    }
+
+    if (!doc["value"].isNull()) {
+      value = doc["value"].as<float>();
+      return true;
+    }
+    return false;
+  }
+
+  // Try raw number format: 25.5 or 25
+  char* endPtr;
+  value = strtof(trimmedPayload.c_str(), &endPtr);
+
+  // Check if entire string was converted
+  if (endPtr == trimmedPayload.c_str() || *endPtr != '\0') {
+    // Not a valid number - could be trailing whitespace
+    String cleaned = trimmedPayload;
+    cleaned.trim();
+    value = strtof(cleaned.c_str(), &endPtr);
+    if (endPtr == cleaned.c_str()) {
+      return false;  // Still not a number
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Re-subscribe to all registers after reconnect
+ */
+void MqttManager::resubscribeAll() {
+  if (!subscribeControlEnabled || !mqttClient.connected()) {
+    return;
+  }
+
+  xSemaphoreTake(subscribeControlMutex, portMAX_DELAY);
+
+  int resubCount = 0;
+  for (const auto& subReg : subscribedRegisters) {
+    bool subscribed = mqttClient.subscribe(subReg.fullTopic.c_str(), subReg.qos);
+    if (subscribed) {
+      resubCount++;
+    }
+  }
+
+  xSemaphoreGive(subscribeControlMutex);
+
+  LOG_MQTT_INFO("[MQTT] Re-subscribed to %d/%d topics\n", resubCount,
+                subscribedRegisters.size());
+}
+
+/**
+ * Check if subscribe control is enabled
+ */
+bool MqttManager::isSubscribeControlEnabled() const {
+  return subscribeControlEnabled;
+}
+
+/**
+ * Enable/disable subscribe control
+ */
+void MqttManager::setSubscribeControlEnabled(bool enable) {
+  subscribeControlEnabled = enable;
+  if (enable && mqttClient.connected()) {
+    initializeSubscriptions();
+  }
+}
+
+/**
+ * Get count of subscribed registers
+ */
+uint32_t MqttManager::getSubscribedRegisterCount() const {
+  return subscribedRegisters.size();
+}
+
+/**
+ * Get subscribe control status for getStatus()
+ */
+void MqttManager::getSubscribeControlStatus(JsonObject& status) {
+  status["subscribe_control_enabled"] = subscribeControlEnabled;
+  status["subscribed_registers"] = subscribedRegisters.size();
+  status["topic_prefix"] = subscribeTopicPrefix;
+  status["response_enabled"] = responseEnabled;
+  status["default_qos"] = defaultSubscribeQos;
+}
+
+// ============================================================================
+// END OF MQTT SUBSCRIBE CONTROL IMPLEMENTATION
+// ============================================================================
+
 // FIXED BUG #5: Notify MQTT manager when device configuration changes
 // This invalidates the cached buffer size calculation
 // v2.3.8 PHASE 1: Added mutex protection for thread safety
@@ -1663,6 +2171,12 @@ MqttManager::~MqttManager() {
   if (publishStateMutex != NULL) {
     vSemaphoreDelete(publishStateMutex);
     publishStateMutex = NULL;
+  }
+
+  // v1.1.0: Delete subscribe control mutex
+  if (subscribeControlMutex != NULL) {
+    vSemaphoreDelete(subscribeControlMutex);
+    subscribeControlMutex = NULL;
   }
 
   // v2.5.1 FIX: Delete event group for cleanup

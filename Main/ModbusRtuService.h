@@ -263,6 +263,11 @@ class ModbusRtuService {
   // v2.5.35: Get aggregated Modbus stats for ProductionLogger
   void getAggregatedStats(uint32_t& totalSuccess, uint32_t& totalFailed);
 
+  // v1.0.8: Write Register Support
+  // Write a value to a Modbus register (FC5, FC6, FC15, FC16)
+  bool writeRegisterValue(const char* deviceId, const char* registerId,
+                          double value, JsonObject& response);
+
   ~ModbusRtuService();
 };
 

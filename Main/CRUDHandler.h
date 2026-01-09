@@ -133,6 +133,8 @@ class CRUDHandler {
       systemHandlers;  // NEW: System operations (factory reset, etc.)
   std::map<String, CommandHandler>
       otaHandlers;  // OTA update operations (check, update, status)
+  std::map<String, CommandHandler>
+      writeHandlers;  // v1.0.8: Write register operations (FC5, FC6, FC16)
 
   // Private method to populate the handler maps
   void setupCommandHandlers();
