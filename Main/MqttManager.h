@@ -124,23 +124,27 @@ class MqttManager {
   // Connection state - replaces static in mqttLoop()
   unsigned long lastDebugTime;
 
-  // v1.1.0: MQTT Subscribe Control - Remote write register via MQTT
-  // Per-register topic approach: suriota/{gateway_id}/write/{device_id}/{topic_suffix}
-  bool subscribeControlEnabled;
-  String subscribeTopicPrefix;  // Base topic prefix for write commands
-  bool responseEnabled;         // Publish write responses
-  uint8_t defaultSubscribeQos;  // Default QoS for subscriptions (0, 1, or 2)
+  // v1.2.0: Topic-centric MQTT Subscribe Control (Desktop App spec)
+  // One topic → N registers from multiple devices
+  // Topic format: user-defined custom topic (e.g., "factory/hvac/setpoint")
+  bool customSubscribeModeEnabled;
+  String topicMode;  // "default", "custom_publish", or "custom_subscribe"
 
-  // v1.1.0: Track subscribed registers for write control
-  struct SubscribedRegister {
+  // v1.2.0: Subscription structures for topic-centric approach
+  struct SubscriptionRegister {
     String deviceId;
     String registerId;
-    String topicSuffix;
-    String fullTopic;
-    uint8_t qos;
   };
-  std::vector<SubscribedRegister> subscribedRegisters;
-  SemaphoreHandle_t subscribeControlMutex;  // Thread safety for subscribe operations
+
+  struct MqttSubscription {
+    String topic;           // User-defined MQTT topic
+    String responseTopic;   // Configurable response topic
+    uint8_t qos;            // QoS for this subscription (0, 1, or 2)
+    std::vector<SubscriptionRegister> registers;  // Registers controlled by this topic
+  };
+
+  std::vector<MqttSubscription> subscriptions;
+  SemaphoreHandle_t subscriptionsMutex;  // Thread safety for subscription operations
 
   MqttManager(ConfigManager* config, ServerConfig* serverCfg,
               NetworkMgr* netMgr);
@@ -187,20 +191,17 @@ class MqttManager {
   uint32_t determineTimeoutStrategy(uint32_t totalRegisters,
                                     uint32_t maxRefreshRate, bool hasSlowRTU);
 
-  // v1.1.0: MQTT Subscribe Control - Private methods
+  // v1.2.0: Topic-centric MQTT Subscribe Control - Private methods
   static void onMqttMessage(char* topic, byte* payload, unsigned int length);
-  void loadSubscribeControlConfig(JsonObject& mqttConfig);
+  void loadCustomSubscribeConfig(JsonObject& mqttConfig);
   void initializeSubscriptions();
-  void subscribeToRegister(const String& deviceId, const String& registerId,
-                           const String& topicSuffix, uint8_t qos);
-  void unsubscribeFromRegister(const String& deviceId, const String& registerId);
+  MqttSubscription* findSubscriptionByTopic(const String& topic);
   void handleWriteCommand(const String& topic, const String& payload);
-  void publishWriteResponse(const String& deviceId, const String& topicSuffix,
-                            bool success, JsonDocument& response);
-  bool findRegisterByTopicSuffix(const String& deviceId,
-                                 const String& topicSuffix, JsonDocument& regDoc,
-                                 String& registerId);
+  void publishWriteResponse(MqttSubscription& sub, JsonDocument& response);
+  void publishErrorResponse(MqttSubscription& sub, const String& errorMsg, int errorCode);
+  bool writeToRegister(SubscriptionRegister& reg, float value, JsonObject& result);
   bool parsePayloadValue(const String& payload, float& value);
+  bool parseMultiRegisterPayload(const String& payload, JsonDocument& values);
 
  public:
   static MqttManager* getInstance(ConfigManager* config = nullptr,
@@ -223,11 +224,11 @@ class MqttManager {
   void printQueueStatus() const;
   uint32_t getQueuedMessageCount() const;
 
-  // v1.1.0: MQTT Subscribe Control - Public methods
-  bool isSubscribeControlEnabled() const;
-  void setSubscribeControlEnabled(bool enable);
-  void resubscribeAll();  // Re-subscribe to all registers after reconnect
-  uint32_t getSubscribedRegisterCount() const;
+  // v1.2.0: Topic-centric MQTT Subscribe Control - Public methods
+  bool isCustomSubscribeModeEnabled() const;
+  void setCustomSubscribeModeEnabled(bool enable);
+  void resubscribeAll();  // Re-subscribe to all topics after reconnect
+  uint32_t getSubscriptionCount() const;
   void getSubscribeControlStatus(JsonObject& status);
 
   ~MqttManager();

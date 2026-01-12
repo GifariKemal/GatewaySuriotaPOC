@@ -1,6 +1,6 @@
-# MQTT Subscribe Control Feature
+# MQTT Subscribe Control Feature (v1.2.0)
 
-**Version:** 1.1.0 | **Date:** January 2026 | **Status:** Implementation
+**Version:** 1.2.0 | **Date:** January 2026 | **Status:** Implementation
 
 ---
 
@@ -8,42 +8,46 @@
 
 Fitur **MQTT Subscribe Control** memungkinkan gateway untuk menerima perintah write
 register dari cloud/IoT platform melalui protokol MQTT. Ini melengkapi kontrol lokal
-via BLE yang sudah ada (v1.0.8), memberikan kemampuan kontrol remote secara online.
+via BLE yang sudah ada.
 
-**Design Principle:** 1 Topic = 1 Register (Per-Register Topic Approach)
+**Design Principle:** 1 Topic → N Registers (Topic-Centric Approach)
+
+> **v1.2.0 Breaking Change:** Refactored dari register-centric (v1.1.0) ke
+> topic-centric untuk align dengan Desktop App specification.
 
 **Use Case:**
 
 - Kontrol setpoint temperature dari dashboard cloud
-- Toggle relay/coil dari aplikasi mobile via internet
+- Multi-register control dari single topic (valves, HVAC, etc.)
 - Automated control dari IoT rules engine
 - SCADA integration via MQTT broker
 
 ---
 
-## Architecture: Per-Register Topic
+## Architecture: Topic-Centric (v1.2.0)
 
-### Why Per-Register Topic?
+### Why Topic-Centric?
 
-| Aspect | Single Control Topic | Per-Register Topic |
-|--------|---------------------|-------------------|
-| **Security** | ACL sulit (perlu parse payload) | ACL mudah (per-topic) |
-| **Clarity** | Perlu baca payload | Langsung jelas dari topic |
-| **Dashboard** | Perlu routing logic | Widget langsung bind |
-| **Simplicity** | Complex payload | Simple value payload |
+| Aspect | v1.1.0 (Per-Register) | v1.2.0 (Topic-Centric) |
+|--------|---------------------|----------------------|
+| **Flexibility** | 1 topic = 1 register | 1 topic = N registers |
+| **Multi-device** | Need multiple topics | Single topic controls many |
+| **Config Location** | Per-register mqtt_subscribe | Server config |
+| **Desktop Alignment** | No | Yes |
 
 ### Topic Structure
 
 ```
 # Write Command (Cloud → Gateway)
-suriota/{gateway_id}/write/{device_id}/{register_id}
+{custom_topic}                    ← User-defined topic
 
 # Write Response (Gateway → Cloud)
-suriota/{gateway_id}/write/{device_id}/{register_id}/response
+{custom_topic}/response           ← Configurable response topic
 
 # Examples:
-suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint          ← Subscribe
-suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint/response → Publish
+factory/hvac/setpoint             ← Control temperature setpoint
+factory/valves/control            ← Control multiple valves
+plant/production/control          ← Multi-device control
 ```
 
 ### Data Flow
@@ -53,14 +57,11 @@ suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint/response → Publish
 │  IoT Dashboard / SCADA / Node-RED                                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  [Temp Setpoint: 25.5°C]  ──► .../write/D7A3F2/temp_setpoint       │
-│       └─ Slider widget            Payload: 25.5                     │
+│  [HVAC Control]  ──────► factory/hvac/setpoint                     │
+│       └─ Slider              Payload: {"value": 25.5}              │
 │                                                                     │
-│  [Fan Speed: 75%]  ───────► .../write/D7A3F2/fan_speed             │
-│       └─ Slider widget            Payload: 75                       │
-│                                                                     │
-│  [Relay 1: ON]  ──────────► .../write/A1B2C3/relay_1               │
-│       └─ Toggle switch            Payload: 1                        │
+│  [Valve Control]  ─────► factory/valves/control                    │
+│       └─ Toggle panel        Payload: {"ValveA": 1, "ValveB": 0}   │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
@@ -70,178 +71,69 @@ suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint/response → Publish
                             └───────────────┘
                                     │
                     ┌───────────────┴───────────────┐
-                    │     Per-Topic Subscription    │
-                    │  (only enabled registers)     │
+                    │    Topic-Based Subscription   │
+                    │  (from custom_subscribe_mode) │
                     └───────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  MqttManager - Subscribe Callback                                   │
 │    onMqttMessage(topic, payload)                                    │
-│      ├─ Parse topic → extract device_id, register_id                │
-│      ├─ Validate register is mqtt_subscribe enabled                 │
-│      ├─ Parse payload → get value                                   │
-│      ├─ Call ModbusService.writeRegisterValue()                     │
-│      └─ Publish response to .../response topic                      │
+│      ├─ Find subscription by topic match                           │
+│      ├─ Parse payload JSON                                         │
+│      ├─ For each register in subscription:                         │
+│      │     └─ Call ModbusService.writeRegisterValue()              │
+│      └─ Publish response to configured response_topic              │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
                           ┌─────────────────┐
-                          │  Modbus Device  │
+                          │  Modbus Devices │
                           │  (FC5/FC6/FC16) │
                           └─────────────────┘
 ```
 
 ---
 
-## Register Configuration
+## Server Configuration (v1.2.0)
 
-### New `mqtt_subscribe` Field
+### Custom Subscribe Mode
 
-Setiap register yang ingin dikontrol via MQTT harus memiliki:
-
-1. `writable: true` - Register harus writable
-2. `mqtt_subscribe.enabled: true` - Explicitly enable MQTT control
-
-```json
-{
-  "register_id": "R3C8D1",
-  "register_name": "temp_setpoint",
-  "address": 100,
-  "function_code": 3,
-  "data_type": "INT16",
-  "scale": 0.1,
-  "offset": 0,
-  "unit": "°C",
-
-  "writable": true,
-  "min_value": 0,
-  "max_value": 50,
-
-  "mqtt_subscribe": {
-    "enabled": true,
-    "topic_suffix": "temp_setpoint",
-    "qos": 1
-  }
-}
-```
-
-### Field Definitions
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `mqtt_subscribe` | object | No | MQTT subscribe configuration |
-| `mqtt_subscribe.enabled` | boolean | Yes | Enable/disable MQTT control |
-| `mqtt_subscribe.topic_suffix` | string | No | Custom topic suffix (default: register_id) |
-| `mqtt_subscribe.qos` | integer | No | QoS level 0, 1, or 2 (default: 1) |
-
-### Safety Rules
-
-1. **Must be writable** - `writable: true` is prerequisite
-2. **Explicit opt-in** - `mqtt_subscribe.enabled: true` required
-3. **Validation applied** - `min_value`/`max_value` still enforced
-4. **Calibration applied** - `scale`/`offset` reverse calibration applied
-
----
-
-## Protocol Specification
-
-### Write Command
-
-**Topic:**
-```
-suriota/{gateway_id}/write/{device_id}/{topic_suffix}
-```
-
-**Payload Options:**
-
-```
-# Option 1: Raw value (simplest)
-25.5
-
-# Option 2: JSON with value
-{"value": 25.5}
-
-# Option 3: JSON with metadata (for tracking)
-{"value": 25.5, "uuid": "550e8400-e29b-41d4-a716-446655440000"}
-```
-
-**Examples:**
-```
-Topic: suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint
-Payload: 25.5
-
-Topic: suriota/MGate1210_A3B4C5/write/D7A3F2/relay_1
-Payload: 1
-
-Topic: suriota/MGate1210_A3B4C5/write/A1B2C3/fan_speed
-Payload: {"value": 75}
-```
-
-### Write Response
-
-**Topic:**
-```
-suriota/{gateway_id}/write/{device_id}/{topic_suffix}/response
-```
-
-**Success Response:**
-```json
-{
-  "status": "ok",
-  "device_id": "D7A3F2",
-  "register_id": "R3C8D1",
-  "register_name": "temp_setpoint",
-  "written_value": 25.5,
-  "raw_value": 255,
-  "timestamp": 1704067200000
-}
-```
-
-**Error Response:**
-```json
-{
-  "status": "error",
-  "device_id": "D7A3F2",
-  "register_id": "R3C8D1",
-  "error_code": 316,
-  "error": "Value out of range",
-  "min_value": 0,
-  "max_value": 50,
-  "received_value": 100,
-  "timestamp": 1704067200000
-}
-```
-
----
-
-## Server Configuration
-
-### Global MQTT Subscribe Settings
+Configuration lives in `server_config.json` under `mqtt_config`:
 
 ```json
 {
   "mqtt_config": {
     "enabled": true,
-    "broker_address": "broker.hivemq.com",
+    "broker_address": "192.168.1.100",
     "broker_port": 1883,
-    "client_id": "MGate1210_A3B4C5",
-    "username": "",
-    "password": "",
+    "client_id": "mgate_001",
+    "username": "user",
+    "password": "pass123",
 
-    "publish_mode": "default",
-    "default_mode": {
-      "enabled": true,
-      "topic_publish": "suriota/MGate1210_A3B4C5/telemetry",
-      "interval": 5,
-      "interval_unit": "s"
-    },
+    "topic_mode": "custom_subscribe",
 
-    "subscribe_control": {
+    "custom_subscribe_mode": {
       "enabled": true,
-      "topic_prefix": "suriota/MGate1210_A3B4C5/write",
-      "response_enabled": true,
-      "default_qos": 1
+      "subscriptions": [
+        {
+          "topic": "factory/hvac/setpoint",
+          "qos": 1,
+          "response_topic": "factory/hvac/setpoint/response",
+          "registers": [
+            {"device_id": "HVAC01", "register_id": "TempSetpoint"}
+          ]
+        },
+        {
+          "topic": "factory/valves/control",
+          "qos": 2,
+          "response_topic": "factory/valves/status",
+          "registers": [
+            {"device_id": "Valve01", "register_id": "ValveA"},
+            {"device_id": "Valve01", "register_id": "ValveB"}
+          ]
+        }
+      ]
     }
   }
 }
@@ -249,144 +141,110 @@ suriota/{gateway_id}/write/{device_id}/{topic_suffix}/response
 
 ### Configuration Fields
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `subscribe_control.enabled` | boolean | false | Master switch for MQTT control |
-| `subscribe_control.topic_prefix` | string | auto | Base topic for write commands |
-| `subscribe_control.response_enabled` | boolean | true | Publish write responses |
-| `subscribe_control.default_qos` | integer | 1 | Default QoS for subscriptions |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `topic_mode` | string | Yes | Must be `"custom_subscribe"` to enable |
+| `custom_subscribe_mode.enabled` | boolean | Yes | Master switch |
+| `custom_subscribe_mode.subscriptions` | array | Yes | Array of subscription objects |
+
+### Subscription Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `topic` | string | Yes | MQTT topic to subscribe |
+| `qos` | integer | No | QoS level 0, 1, or 2 (default: 1) |
+| `response_topic` | string | No | Topic for response (default: {topic}/response) |
+| `registers` | array | Yes | Array of register references |
+
+### Register Reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `device_id` | string | Yes | ID of the Modbus device |
+| `register_id` | string | Yes | ID of the register to write |
 
 ---
 
-## Implementation Details
+## Protocol Specification
 
-### MqttManager Changes
+### Payload Formats
 
-```cpp
-// MqttManager.h - New methods
+**Single Register Subscription:**
 
-class MqttManager {
-private:
-  // Subscribe control
-  bool subscribeControlEnabled;
-  String subscribeTopicPrefix;
-  bool responseEnabled;
-
-  // Subscription tracking
-  std::vector<SubscribedRegister> subscribedRegisters;
-
-  // Callback
-  static void onMqttMessage(char* topic, byte* payload, unsigned int length);
-
-public:
-  // Subscribe management
-  void initializeSubscriptions();
-  void subscribeToRegister(const String& deviceId, const String& registerId,
-                           const String& topicSuffix, uint8_t qos);
-  void unsubscribeFromRegister(const String& deviceId, const String& registerId);
-  void resubscribeAll();
-
-  // Message handling
-  void handleWriteCommand(const String& deviceId, const String& topicSuffix,
-                          const String& payload);
-  void publishWriteResponse(const String& deviceId, const String& topicSuffix,
-                            JsonDocument& response);
-};
+```json
+// Topic: factory/hvac/setpoint → 1 register
+{"value": 25.5}
 ```
 
-### Subscription Initialization Flow
+**Multi-Register Subscription:**
 
-```cpp
-void MqttManager::initializeSubscriptions() {
-  if (!subscribeControlEnabled) return;
+```json
+// Topic: factory/valves/control → 2 registers (ValveA, ValveB)
+{
+  "ValveA": 1,
+  "ValveB": 0
+}
+```
 
-  ConfigManager* config = ConfigManager::getInstance();
-  JsonDocument devices;
-  config->readAllDevices(devices);
+### Important Rules
 
-  for (JsonObject device : devices["devices"].as<JsonArray>()) {
-    String deviceId = device["device_id"];
+| Scenario | Behavior |
+|----------|----------|
+| `{"value": X}` with 1 register | Write X to the register |
+| `{"value": X}` with N registers | **ERROR** - "Multiple registers require explicit values per register_id" |
+| `{"RegA": X, "RegB": Y}` with N registers | Write X to RegA, Y to RegB |
 
-    for (JsonObject reg : device["registers"].as<JsonArray>()) {
-      // Check if register is writable AND mqtt_subscribe enabled
-      if (reg["writable"] == true &&
-          reg["mqtt_subscribe"]["enabled"] == true) {
+### Response Format
 
-        String registerId = reg["register_id"];
-        String topicSuffix = reg["mqtt_subscribe"]["topic_suffix"] | registerId;
-        uint8_t qos = reg["mqtt_subscribe"]["qos"] | 1;
+**Success Response:**
 
-        subscribeToRegister(deviceId, registerId, topicSuffix, qos);
-      }
+```json
+{
+  "status": "ok",
+  "topic": "factory/valves/control",
+  "results": [
+    {
+      "device_id": "Valve01",
+      "register_id": "ValveA",
+      "status": "ok",
+      "written_value": 1,
+      "raw_value": 1
+    },
+    {
+      "device_id": "Valve01",
+      "register_id": "ValveB",
+      "status": "ok",
+      "written_value": 0,
+      "raw_value": 0
     }
-  }
+  ],
+  "timestamp": 1736697600000
 }
 ```
 
-### Message Callback
+**Partial Success Response:**
 
-```cpp
-void MqttManager::onMqttMessage(char* topic, byte* payload, unsigned int length) {
-  // Parse topic: suriota/{gateway}/write/{device_id}/{topic_suffix}
-  String topicStr = String(topic);
-
-  // Extract device_id and topic_suffix from topic
-  // ... parsing logic ...
-
-  // Convert payload to string
-  String payloadStr;
-  for (unsigned int i = 0; i < length; i++) {
-    payloadStr += (char)payload[i];
-  }
-
-  // Handle write command
-  getInstance()->handleWriteCommand(deviceId, topicSuffix, payloadStr);
+```json
+{
+  "status": "partial",
+  "topic": "factory/valves/control",
+  "results": [
+    {"device_id": "Valve01", "register_id": "ValveA", "status": "ok", "written_value": 1},
+    {"device_id": "Valve01", "register_id": "ValveB", "status": "error", "error": "Device offline"}
+  ],
+  "timestamp": 1736697600000
 }
 ```
 
-### Write Command Handler
+**Error Response:**
 
-```cpp
-void MqttManager::handleWriteCommand(const String& deviceId,
-                                      const String& topicSuffix,
-                                      const String& payload) {
-  // 1. Find register by device_id + topic_suffix
-  ConfigManager* config = ConfigManager::getInstance();
-  JsonDocument regDoc;
-  String registerId;
-
-  if (!findRegisterByTopicSuffix(deviceId, topicSuffix, regDoc, registerId)) {
-    publishErrorResponse(deviceId, topicSuffix, 404, "Register not found");
-    return;
-  }
-
-  // 2. Parse value from payload
-  float value;
-  if (!parsePayloadValue(payload, value)) {
-    publishErrorResponse(deviceId, topicSuffix, 400, "Invalid payload format");
-    return;
-  }
-
-  // 3. Reuse existing write logic from v1.0.8
-  JsonDocument device;
-  config->readDevice(deviceId, device);
-  String protocol = device["protocol"] | "RTU";
-
-  bool success;
-  JsonDocument response;
-
-  if (protocol == "TCP") {
-    success = ModbusTcpService::getInstance()->writeRegisterValue(
-      deviceId, registerId, value, response);
-  } else {
-    success = ModbusRtuService::getInstance()->writeRegisterValue(
-      deviceId, registerId, value, response);
-  }
-
-  // 4. Publish response
-  if (responseEnabled) {
-    publishWriteResponse(deviceId, topicSuffix, response);
-  }
+```json
+{
+  "status": "error",
+  "topic": "factory/valves/control",
+  "error": "Multiple registers require explicit values per register_id",
+  "error_code": 400,
+  "timestamp": 1736697600000
 }
 ```
 
@@ -396,167 +254,51 @@ void MqttManager::handleWriteCommand(const String& deviceId,
 
 | Code | Domain | Description |
 |------|--------|-------------|
-| 400 | MQTT | Invalid payload format |
-| 404 | MQTT | Register not found for topic |
-| 405 | MQTT | MQTT subscribe not enabled for register |
+| 400 | MQTT | Invalid JSON payload |
+| 400 | MQTT | Multiple registers require explicit values |
+| 404 | Modbus | Device not found |
+| 404 | Modbus | Register not found |
 | 315 | Modbus | Register not writable |
 | 316 | Modbus | Value out of range |
 | 318 | Modbus | Write operation failed |
 
 ---
 
-## BLE API for MQTT Subscribe Configuration
+## BLE Configuration API
 
-### Enable MQTT Subscribe on Register
-
-```json
-{
-  "op": "update",
-  "type": "register",
-  "device_id": "D7A3F2",
-  "register_id": "R3C8D1",
-  "config": {
-    "writable": true,
-    "min_value": 0,
-    "max_value": 50,
-    "mqtt_subscribe": {
-      "enabled": true,
-      "topic_suffix": "temp_setpoint",
-      "qos": 1
-    }
-  }
-}
-```
-
-### Disable MQTT Subscribe
+### Update Server Config with Subscriptions
 
 ```json
 {
   "op": "update",
-  "type": "register",
-  "device_id": "D7A3F2",
-  "register_id": "R3C8D1",
+  "type": "server_config",
   "config": {
-    "mqtt_subscribe": {
-      "enabled": false
+    "mqtt_config": {
+      "topic_mode": "custom_subscribe",
+      "custom_subscribe_mode": {
+        "enabled": true,
+        "subscriptions": [
+          {
+            "topic": "factory/hvac/setpoint",
+            "qos": 1,
+            "registers": [
+              {"device_id": "HVAC01", "register_id": "TempSetpoint"}
+            ]
+          }
+        ]
+      }
     }
   }
 }
 ```
 
-### Read MQTT Subscribe Status
-
-Response dari `read register` akan include:
+### Read Current Config
 
 ```json
-{
-  "status": "ok",
-  "register": {
-    "register_id": "R3C8D1",
-    "register_name": "temp_setpoint",
-    "writable": true,
-    "mqtt_subscribe": {
-      "enabled": true,
-      "topic_suffix": "temp_setpoint",
-      "topic_full": "suriota/MGate1210_A3B4C5/write/D7A3F2/temp_setpoint",
-      "qos": 1
-    }
-  }
-}
+{"op": "read", "type": "server_config"}
 ```
 
-### List Writable Registers (NEW v1.1.0)
-
-Command khusus untuk mendapatkan semua register yang bisa di-write, grouped by device.
-Digunakan mobile app untuk menampilkan UI konfigurasi MQTT Subscribe.
-
-**Request:**
-
-```json
-{
-  "op": "read",
-  "type": "writable_registers"
-}
-```
-
-**Response:**
-
-```json
-{
-  "status": "ok",
-  "total_writable": 5,
-  "total_mqtt_enabled": 2,
-  "devices": [
-    {
-      "device_id": "D7A3F2",
-      "device_name": "Temperature Controller",
-      "writable_count": 3,
-      "registers": [
-        {
-          "register_id": "R3C8D1",
-          "register_name": "temp_setpoint",
-          "address": 100,
-          "data_type": "INT16",
-          "min_value": 0,
-          "max_value": 50,
-          "mqtt_subscribe": {
-            "enabled": true,
-            "topic_suffix": "temp_setpoint",
-            "qos": 1
-          }
-        },
-        {
-          "register_id": "R4D9E2",
-          "register_name": "fan_speed",
-          "address": 101,
-          "data_type": "UINT16",
-          "min_value": 0,
-          "max_value": 100,
-          "mqtt_subscribe": {
-            "enabled": true,
-            "topic_suffix": "fan_speed",
-            "qos": 1
-          }
-        },
-        {
-          "register_id": "R5E0F3",
-          "register_name": "mode_select",
-          "address": 102,
-          "data_type": "INT16",
-          "mqtt_subscribe": {
-            "enabled": false
-          }
-        }
-      ]
-    },
-    {
-      "device_id": "A1B2C3",
-      "device_name": "Relay Controller",
-      "writable_count": 2,
-      "registers": [
-        {
-          "register_id": "R6F1G4",
-          "register_name": "relay_1",
-          "address": 0,
-          "data_type": "COIL",
-          "mqtt_subscribe": {
-            "enabled": false
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Response Fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `total_writable` | integer | Total jumlah register yang writable |
-| `total_mqtt_enabled` | integer | Total register dengan mqtt_subscribe.enabled=true |
-| `devices` | array | List device yang memiliki writable registers |
-| `devices[].writable_count` | integer | Jumlah writable registers di device ini |
+Response will include `custom_subscribe_mode` section.
 
 ---
 
@@ -566,96 +308,113 @@ Digunakan mobile app untuk menampilkan UI konfigurasi MQTT Subscribe.
 
 ```python
 import paho.mqtt.client as mqtt
+from paho.mqtt.client import CallbackAPIVersion
 import json
 import time
 
-BROKER = "broker.hivemq.com"
-GATEWAY_ID = "MGate1210_A3B4C5"
-DEVICE_ID = "D7A3F2"
-REGISTER_SUFFIX = "temp_setpoint"
+BROKER = "192.168.1.100"
+TOPIC = "factory/valves/control"
+RESPONSE_TOPIC = f"{TOPIC}/response"
+
+def on_connect(client, userdata, flags, reason_code, properties):
+    print(f"Connected: {reason_code}")
+    client.subscribe(RESPONSE_TOPIC)
 
 def on_message(client, userdata, msg):
-    print(f"Response: {msg.topic}")
-    print(f"Payload: {msg.payload.decode()}")
+    print(f"Response: {msg.payload.decode()}")
 
-def test_write_register():
-    client = mqtt.Client()
+def test_multi_register():
+    client = mqtt.Client(callback_api_version=CallbackAPIVersion.VERSION2)
+    client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, 1883)
-
-    # Subscribe to response topic
-    response_topic = f"suriota/{GATEWAY_ID}/write/{DEVICE_ID}/{REGISTER_SUFFIX}/response"
-    client.subscribe(response_topic)
     client.loop_start()
 
-    # Send write command
-    write_topic = f"suriota/{GATEWAY_ID}/write/{DEVICE_ID}/{REGISTER_SUFFIX}"
-    client.publish(write_topic, "25.5")
+    time.sleep(1)  # Wait for connection
 
-    print(f"Sent: {write_topic} = 25.5")
+    # Multi-register write
+    payload = json.dumps({"ValveA": 1, "ValveB": 0})
+    client.publish(TOPIC, payload, qos=1)
+    print(f"Sent: {TOPIC} = {payload}")
 
-    time.sleep(5)  # Wait for response
+    time.sleep(3)  # Wait for response
     client.loop_stop()
 
 if __name__ == "__main__":
-    test_write_register()
+    test_multi_register()
 ```
 
 ### Test Checklist
 
-- [ ] Write single register via MQTT
-- [ ] Verify response on response topic
-- [ ] Write with invalid value (out of range)
-- [ ] Write to non-enabled register (should fail)
-- [ ] Write to non-writable register (should fail)
-- [ ] Concurrent BLE + MQTT writes
+- [ ] Single register with `{"value": X}` payload
+- [ ] Multi-register with `{"RegA": X, "RegB": Y}` payload
+- [ ] Error: Single value with multi-register subscription
+- [ ] Response on custom response_topic
+- [ ] QoS levels (0, 1, 2)
 - [ ] Reconnect and resubscribe after broker disconnect
+- [ ] Both RTU and TCP devices
 
 ---
 
-## Comparison: BLE vs MQTT Control
+## Migration from v1.1.0
 
-| Aspect | BLE Control (v1.0.8) | MQTT Control (v1.1.0) |
-|--------|---------------------|----------------------|
-| Range | Local (~10m) | Global (Internet) |
-| Latency | Low (~50ms) | Medium (~200-500ms) |
-| Security | BLE pairing | Broker auth + TLS |
-| Topic | N/A | Per-register |
-| Use Case | Mobile app config | Cloud/SCADA control |
-| Concurrent | 1 client | Multiple clients |
+If upgrading from v1.1.0:
 
----
+1. **Remove** `mqtt_subscribe` from all register configurations
+2. **Add** subscriptions to `server_config.mqtt_config.custom_subscribe_mode.subscriptions[]`
+3. **Set** `mqtt_config.topic_mode` to `"custom_subscribe"`
+4. **Update** MQTT client to use new topic format and payload structure
 
-## Mobile App Integration
+### Before (v1.1.0 - Register-centric):
 
-Untuk mobile app yang ingin menggunakan MQTT control:
-
-```dart
-class MqttWriteService {
-  final String brokerHost;
-  final String gatewayId;
-
-  Future<void> writeRegister({
-    required String deviceId,
-    required String topicSuffix,
-    required dynamic value,
-  }) async {
-    final topic = 'suriota/$gatewayId/write/$deviceId/$topicSuffix';
-
-    // Simple value publish
-    await mqttClient.publish(topic, value.toString(), qos: 1);
+```json
+// In device register config
+{
+  "register_id": "TempSetpoint",
+  "mqtt_subscribe": {
+    "enabled": true,
+    "topic_suffix": "temp_setpoint",
+    "qos": 1
   }
+}
+```
 
-  Stream<WriteResponse> subscribeToResponses(String deviceId, String topicSuffix) {
-    final responseTopic = 'suriota/$gatewayId/write/$deviceId/$topicSuffix/response';
-    return mqttClient.subscribe(responseTopic).map((msg) =>
-      WriteResponse.fromJson(jsonDecode(msg.payload)));
+### After (v1.2.0 - Topic-centric):
+
+```json
+// In server_config.mqtt_config
+{
+  "topic_mode": "custom_subscribe",
+  "custom_subscribe_mode": {
+    "enabled": true,
+    "subscriptions": [
+      {
+        "topic": "factory/hvac/setpoint",
+        "qos": 1,
+        "registers": [
+          {"device_id": "HVAC01", "register_id": "TempSetpoint"}
+        ]
+      }
+    ]
   }
 }
 ```
 
 ---
 
-**Document Version:** 2.0 | **Last Updated:** January 2026
+## Comparison: v1.1.0 vs v1.2.0
+
+| Aspect | v1.1.0 (Register-centric) | v1.2.0 (Topic-centric) |
+|--------|--------------------------|------------------------|
+| Config Location | Per-register `mqtt_subscribe` | Server config `subscriptions[]` |
+| Topic Format | Auto: `suriota/{gw}/write/{dev}/{suffix}` | User-defined |
+| 1 Topic Controls | 1 register | N registers |
+| Multi-device | Multiple topics needed | Single topic |
+| Desktop App Aligned | No | Yes |
+| Payload Format | `{"value": X}` or raw | `{"value": X}` or `{"RegA": X}` |
+
+---
+
+**Document Version:** 3.0 | **Last Updated:** January 12, 2026
 
 **SURIOTA R&D Team** | support@suriota.com
