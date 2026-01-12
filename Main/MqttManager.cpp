@@ -35,6 +35,24 @@ static uint32_t convertToMilliseconds(uint32_t interval, const String& unit) {
   return interval;  // Default: treat as milliseconds
 }
 
+// v1.3.0: Helper function: Convert milliseconds back to original unit for display
+static uint32_t convertFromMilliseconds(uint32_t intervalMs, const String& unit) {
+  String unitLower = unit;
+  unitLower.toLowerCase();
+
+  if (unitLower == "ms" || unitLower == "millisecond" ||
+      unitLower == "milliseconds" || unitLower.isEmpty()) {
+    return intervalMs;  // Return as milliseconds
+  } else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" ||
+             unitLower == "second" || unitLower == "seconds") {
+    return intervalMs / 1000;  // Milliseconds to seconds
+  } else if (unitLower == "m" || unitLower == "min" || unitLower == "mins" ||
+             unitLower == "minute" || unitLower == "minutes") {
+    return intervalMs / 60000;  // Milliseconds to minutes
+  }
+  return intervalMs;  // Default: return as milliseconds
+}
+
 MqttManager* MqttManager::instance = nullptr;
 
 MqttManager::MqttManager(ConfigManager* config, ServerConfig* serverCfg,
@@ -2189,7 +2207,8 @@ void MqttManager::getPublishTopicsList(JsonArray& topics) const {
     JsonObject topicObj = topics.add<JsonObject>();
     topicObj["topic"] = defaultTopicPublish;
     topicObj["mode"] = "default";
-    topicObj["interval"] = defaultInterval;
+    // v1.3.0: Convert from milliseconds back to original unit for display
+    topicObj["interval"] = convertFromMilliseconds(defaultInterval, defaultIntervalUnit);
     topicObj["interval_unit"] = defaultIntervalUnit;
     topicObj["all_registers"] = true;
   } else if (publishMode == "customize" && customizeModeEnabled) {
@@ -2197,7 +2216,8 @@ void MqttManager::getPublishTopicsList(JsonArray& topics) const {
       JsonObject topicObj = topics.add<JsonObject>();
       topicObj["topic"] = ct.topic;
       topicObj["mode"] = "custom";
-      topicObj["interval"] = ct.interval;
+      // v1.3.0: Convert from milliseconds back to original unit for display
+      topicObj["interval"] = convertFromMilliseconds(ct.interval, ct.intervalUnit);
       topicObj["interval_unit"] = ct.intervalUnit;
 
       JsonArray regsArray = topicObj["registers"].to<JsonArray>();
@@ -2227,6 +2247,8 @@ void MqttManager::getFullStatus(JsonObject& status) {
   statsObj["last_subscribe_timestamp"] = stats.lastSubscribeTimestamp;
   statsObj["connection_uptime_ms"] = getConnectionUptime();
   statsObj["reconnect_count"] = stats.reconnectCount;
+  // v1.3.0: Add gateway uptime for accurate "time ago" calculation
+  statsObj["gateway_uptime_ms"] = millis();
 
   // Add publish topics list
   JsonArray pubTopics = status["publish_topics"].to<JsonArray>();

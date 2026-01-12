@@ -19,6 +19,26 @@ Addition of **MQTT Monitor** feature that enables real-time MQTT status monitori
 
 ---
 
+## Bug Fixes (v1.3.0 Patch)
+
+### Fix 1: Timestamp "Last publish" menampilkan nilai salah
+
+**Problem:** Desktop app menghitung `DateTime.now() - millis()` yang menghasilkan nilai huge karena `millis()` adalah waktu sejak boot (e.g., 60000ms), bukan Unix timestamp.
+
+**Solution:**
+- Firmware: Tambah field `gateway_uptime_ms` yang berisi `millis()` saat ini
+- Desktop: Hitung `gateway_uptime_ms - last_publish_timestamp` untuk mendapat "X seconds ago"
+
+### Fix 2: Interval menampilkan "10000s" instead of "10s"
+
+**Problem:** Firmware menyimpan interval dalam milliseconds internal (10000ms untuk 10s), tapi mengembalikan nilai ms dengan unit "s" → tampil "10000s".
+
+**Solution:**
+- Tambah fungsi `convertFromMilliseconds()` untuk convert balik ke unit asli
+- Update `getPublishTopicsList()` untuk menggunakan fungsi ini
+
+---
+
 ## Code Changes Detail
 
 ### File 1: MqttManager.h
@@ -326,6 +346,74 @@ controlHandlers["get_mqtt_status"] = [this](BLEManager* manager,
 - **Fully backward compatible** - No existing commands modified
 - New command `get_mqtt_status` added alongside existing commands
 - Existing apps will continue to work without modification
+
+---
+
+## Bug Fixes (v1.3.0-patch1)
+
+### Fix 1: Timestamp "Last publish/message" menampilkan nilai salah
+
+**Problem:**
+Desktop app menghitung `DateTime.now() - millis()` yang menghasilkan nilai huge karena:
+- `DateTime.now()` = Unix timestamp (e.g., 1736678400000 ms)
+- `millis()` = waktu sejak boot (e.g., 60000 ms)
+- Hasil: nilai negatif huge yang salah
+
+**Solution:**
+1. Firmware: Tambah field `gateway_uptime_ms = millis()` di response
+2. Desktop: Hitung `gateway_uptime_ms - last_publish_timestamp` untuk mendapat "X seconds ago"
+
+**Code Added (MqttManager.cpp line ~2231):**
+```cpp
+// v1.3.0: Add gateway uptime for accurate "time ago" calculation
+statsObj["gateway_uptime_ms"] = millis();
+```
+
+### Fix 2: Interval menampilkan "10000s" instead of "10s"
+
+**Problem:**
+- Firmware menyimpan interval dalam milliseconds (10000ms untuk 10s)
+- Tapi mengembalikan nilai ms dengan unit "s" → tampil "10000s"
+
+**Solution:**
+Tambah fungsi `convertFromMilliseconds()` untuk convert balik ke unit asli.
+
+**Code Added (MqttManager.cpp line ~38-54):**
+```cpp
+// v1.3.0: Helper function: Convert milliseconds back to original unit for display
+static uint32_t convertFromMilliseconds(uint32_t intervalMs, const String& unit) {
+  String unitLower = unit;
+  unitLower.toLowerCase();
+
+  if (unitLower == "ms" || unitLower == "millisecond" ||
+      unitLower == "milliseconds" || unitLower.isEmpty()) {
+    return intervalMs;
+  } else if (unitLower == "s" || unitLower == "sec" || unitLower == "secs" ||
+             unitLower == "second" || unitLower == "seconds") {
+    return intervalMs / 1000;
+  } else if (unitLower == "m" || unitLower == "min" || unitLower == "mins" ||
+             unitLower == "minute" || unitLower == "minutes") {
+    return intervalMs / 60000;
+  }
+  return intervalMs;
+}
+```
+
+**Code Updated (getPublishTopicsList):**
+```cpp
+// Before: topicObj["interval"] = defaultInterval;  // Returns 10000
+// After:
+topicObj["interval"] = convertFromMilliseconds(defaultInterval, defaultIntervalUnit);  // Returns 10
+```
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.3.0 | 2026-01-12 | Initial MQTT Monitor API implementation |
+| 1.3.0-patch1 | 2026-01-12 | Fix timestamp calculation, fix interval unit display |
 
 ---
 

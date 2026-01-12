@@ -157,7 +157,8 @@ stats.reconnectCount = 0;
       "subscribe_write_fail_count": 2,
       "last_subscribe_timestamp": 5515000,
       "connection_uptime_ms": 3600000,
-      "reconnect_count": 1
+      "reconnect_count": 1,
+      "gateway_uptime_ms": 5525000
     },
     "publish_topics": [
       {
@@ -204,6 +205,7 @@ stats.reconnectCount = 0;
 | `publish_success_count` | integer | Total successful publish operations |
 | `publish_fail_count` | integer | Total failed publish operations |
 | `last_publish_timestamp` | integer | Timestamp of last publish (millis since boot) |
+| `gateway_uptime_ms` | integer | Current gateway uptime in milliseconds (for relative time calculation) |
 | `subscribe_received_count` | integer | Total subscribe messages received |
 | `subscribe_write_success_count` | integer | Successful register writes from subscribe |
 | `subscribe_write_fail_count` | integer | Failed register writes from subscribe |
@@ -216,8 +218,8 @@ stats.reconnectCount = 0;
 | Field | Type | Description |
 |-------|------|-------------|
 | `topic` | string | Full MQTT topic path |
-| `interval` | integer | Publish interval value |
-| `interval_unit` | string | Interval unit ("s" for seconds, "m" for minutes) |
+| `interval` | integer | Publish interval value (converted to original unit, e.g., 10 for 10s) |
+| `interval_unit` | string | Interval unit ("s" for seconds, "m" for minutes, "ms" for milliseconds) |
 
 ### Subscribe Control Object
 
