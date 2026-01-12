@@ -6,6 +6,62 @@
 
 ---
 
+## Version 1.2.1 (Write Operation Bug Fix + Error Code Standardization)
+
+**Release Date:** January 12, 2026 (Sunday) **Status:** Development
+
+### Critical Bug Fix: TCP Write Operation
+
+**Problem:** Write operation always failed with error 321 ("Connection failed")
+even though read/streaming worked fine.
+
+**Root Cause:** The `connected()` check in `writeRegisterValue()` was
+unreliable for pooled TCP connections (as documented in code comments).
+
+**Fix:** Removed unreliable `connected()` check, trusting
+`getPooledConnection()` which already validates connection health.
+
+```cpp
+// BEFORE (buggy):
+if (!pooledClient || !pooledClient->connected()) { ... }
+
+// AFTER (fixed):
+if (!pooledClient) { ... }
+```
+
+**Files Changed:**
+
+- `ModbusTcpService.cpp` - Removed `connected()` check in write function
+
+### Error Code Standardization
+
+Added new write error codes (315-334) to `UnifiedErrorCodes.h`:
+
+| Code  | Name                              | Description                            |
+| ----- | --------------------------------- | -------------------------------------- |
+| 315   | ERR_MODBUS_WRITE_MUTEX_TIMEOUT    | Failed to acquire mutex for write      |
+| 316   | ERR_MODBUS_WRITE_DEVICE_NOT_FOUND | Device or register not found           |
+| 317   | ERR_MODBUS_WRITE_READONLY         | Register is read-only (FC2/FC4)        |
+| 318   | ERR_MODBUS_WRITE_NOT_WRITABLE     | Register marked as not writable        |
+| 319   | ERR_MODBUS_WRITE_VALUE_BELOW_MIN  | Value below minimum limit              |
+| 320   | ERR_MODBUS_WRITE_VALUE_ABOVE_MAX  | Value above maximum limit              |
+| 321   | ERR_MODBUS_WRITE_CONNECTION_FAILED| Failed to connect for write            |
+| 322   | ERR_MODBUS_WRITE_INVALID_FC       | Invalid write function code            |
+| 323   | ERR_MODBUS_WRITE_TIMEOUT          | Write response timeout                 |
+| 324   | ERR_MODBUS_WRITE_INVALID_RESPONSE | Invalid write response                 |
+| 331   | ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC | Modbus exception 0x01                  |
+| 332   | ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR | Modbus exception 0x02                  |
+| 333   | ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE| Modbus exception 0x03                  |
+| 334   | ERR_MODBUS_EXCEPTION_DEVICE_FAIL  | Modbus exception 0x04                  |
+
+### Files Modified
+
+- `Main/ModbusTcpService.cpp` - Write connection fix + error codes
+- `Main/ModbusRtuService.cpp` - Write error codes
+- `Main/UnifiedErrorCodes.h` - New write error codes (315-334)
+
+---
+
 ## Version 1.2.0 (Topic-Centric MQTT Subscribe - Desktop App Spec)
 
 **Release Date:** January 12, 2026 (Sunday) **Status:** Development **Related:**

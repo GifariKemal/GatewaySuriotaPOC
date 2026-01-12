@@ -2086,8 +2086,8 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
   // 1. Find device and register configuration
   if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
     response["status"] = "error";
-    response["error"] = "Failed to acquire mutex";
-    response["error_code"] = 301;
+    response["error"] = "Failed to acquire mutex for write operation";
+    response["error_code"] = 315;  // ERR_MODBUS_WRITE_MUTEX_TIMEOUT
     return false;
   }
 
@@ -2115,7 +2115,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Device or register not found";
-    response["error_code"] = 302;
+    response["error_code"] = 316;  // ERR_MODBUS_WRITE_DEVICE_NOT_FOUND
     return false;
   }
 
@@ -2125,7 +2125,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Register is read-only (FC2 or FC4)";
-    response["error_code"] = 303;
+    response["error_code"] = 317;  // ERR_MODBUS_WRITE_READONLY
     return false;
   }
 
@@ -2135,7 +2135,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Register marked as not writable";
-    response["error_code"] = 304;
+    response["error_code"] = 318;  // ERR_MODBUS_WRITE_NOT_WRITABLE
     return false;
   }
 
@@ -2146,7 +2146,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
       xSemaphoreGive(vectorMutex);
       response["status"] = "error";
       response["error"] = "Value below minimum";
-      response["error_code"] = 305;
+      response["error_code"] = 319;  // ERR_MODBUS_WRITE_VALUE_BELOW_MIN
       response["min_value"] = minVal;
       response["provided_value"] = value;
       return false;
@@ -2158,7 +2158,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
       xSemaphoreGive(vectorMutex);
       response["status"] = "error";
       response["error"] = "Value above maximum";
-      response["error_code"] = 306;
+      response["error_code"] = 320;  // ERR_MODBUS_WRITE_VALUE_ABOVE_MAX
       response["max_value"] = maxVal;
       response["provided_value"] = value;
       return false;
@@ -2189,11 +2189,16 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
   LOG_TCP_INFO("[TCP_WRITE] Reverse calibration: %.4f -> %.4f\n", value, rawValue);
 
   // 7. Get pooled TCP connection
+  // v1.2.1 FIX: Don't use connected() check - it's unreliable for pooled connections
+  // getPooledConnection() already ensures the connection is healthy or creates a new one
+  // If getPooledConnection() returns nullptr, it means the actual TCP connect() failed
   TCPClient* pooledClient = getPooledConnection(ipAddress, port);
-  if (!pooledClient || !pooledClient->connected()) {
+  if (!pooledClient) {
     response["status"] = "error";
-    response["error"] = "Failed to connect to device";
-    response["error_code"] = 307;
+    response["error"] = "Failed to connect to device for write operation";
+    response["error_code"] = 321;  // ERR_MODBUS_WRITE_CONNECTION_FAILED
+    response["ip_address"] = ipAddress;
+    response["port"] = port;
     return false;
   }
 
@@ -2263,7 +2268,7 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
   } else {
     response["status"] = "error";
     response["error"] = "Invalid write function code";
-    response["error_code"] = 308;
+    response["error_code"] = 322;  // ERR_MODBUS_WRITE_INVALID_FC
     return false;
   }
 
@@ -2281,8 +2286,8 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
 
   if (pooledClient->available() < 8) {
     response["status"] = "error";
-    response["error"] = "Response timeout";
-    response["error_code"] = 309;
+    response["error"] = "Write response timeout";
+    response["error_code"] = 323;  // ERR_MODBUS_WRITE_TIMEOUT
     response["response_time_ms"] = responseTime;
     returnPooledConnection(ipAddress, port, pooledClient, false);
     return false;
@@ -2300,25 +2305,30 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
     if (respFC & 0x80) {
       uint8_t exceptionCode = respBuffer[8];
       response["status"] = "error";
-      response["error_code"] = 310 + exceptionCode;
       response["modbus_exception"] = exceptionCode;
       response["response_time_ms"] = responseTime;
 
+      // v1.2.1: Use standardized exception error codes (330 + exception)
       switch (exceptionCode) {
         case 0x01:
-          response["error"] = "Illegal Function";
+          response["error"] = "Illegal Function - device does not support this operation";
+          response["error_code"] = 331;  // ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC
           break;
         case 0x02:
-          response["error"] = "Illegal Data Address";
+          response["error"] = "Illegal Data Address - register address not valid";
+          response["error_code"] = 332;  // ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR
           break;
         case 0x03:
-          response["error"] = "Illegal Data Value";
+          response["error"] = "Illegal Data Value - value not acceptable";
+          response["error_code"] = 333;  // ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE
           break;
         case 0x04:
-          response["error"] = "Slave Device Failure";
+          response["error"] = "Slave Device Failure - device internal error";
+          response["error_code"] = 334;  // ERR_MODBUS_EXCEPTION_DEVICE_FAIL
           break;
         default:
-          response["error"] = "Unknown Exception";
+          response["error"] = "Unknown Modbus Exception";
+          response["error_code"] = 330 + exceptionCode;  // Generic exception
           break;
       }
       LOG_TCP_ERROR("[TCP_WRITE] Exception %d\n", exceptionCode);
@@ -2340,8 +2350,8 @@ bool ModbusTcpService::writeRegisterValue(const char* deviceId,
   }
 
   response["status"] = "error";
-  response["error"] = "Invalid response";
-  response["error_code"] = 320;
+  response["error"] = "Invalid write response from device";
+  response["error_code"] = 324;  // ERR_MODBUS_WRITE_INVALID_RESPONSE
   returnPooledConnection(ipAddress, port, pooledClient, false);
   return false;
 }

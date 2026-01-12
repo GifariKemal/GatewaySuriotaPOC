@@ -1520,6 +1520,29 @@ void CRUDHandler::setupCommandHandlers() {
         LOG_CRUD_INFO("[CRUD] Location set to: %s", newLocation.c_str());
       };
 
+  // === v1.3.0: MQTT STATUS API (Desktop App MQTT Monitor) ===
+  // Get MQTT Status - Full MQTT status with statistics and topic lists
+  controlHandlers["get_mqtt_status"] = [this](BLEManager* manager,
+                                              const JsonDocument& command) {
+    MqttManager* mqttMgr = MqttManager::getInstance();
+    if (!mqttMgr) {
+      manager->sendError("MQTT manager not initialized", "control");
+      return;
+    }
+
+    auto response = make_psram_unique<JsonDocument>();
+    (*response)["status"] = "ok";
+    (*response)["command"] = "get_mqtt_status";
+
+    JsonObject data = (*response)["data"].to<JsonObject>();
+
+    // Get full MQTT status including statistics and topic lists
+    mqttMgr->getFullStatus(data);
+
+    manager->sendResponse(*response);
+    LOG_CRUD_INFO("[CRUD] MQTT status sent");
+  };
+
   // === SYSTEM HANDLERS ===
 
   // Factory Reset - Simple single-command reset

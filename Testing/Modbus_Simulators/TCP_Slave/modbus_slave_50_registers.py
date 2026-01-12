@@ -113,7 +113,7 @@ except ImportError as e:
 # =============================================================================
 # Configuration
 # =============================================================================
-SERVER_IP = "192.168.100.101"  # Bind to all interfaces (use actual IP in device config)
+SERVER_IP = "10.156.233.9"  # Bind to all interfaces (use actual IP in device config)
 SERVER_PORT = 502
 SLAVE_ID = 1
 NUM_REGISTERS = 50

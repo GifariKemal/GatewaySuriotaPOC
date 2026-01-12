@@ -124,6 +124,20 @@ class MqttManager {
   // Connection state - replaces static in mqttLoop()
   unsigned long lastDebugTime;
 
+  // v1.3.0: MQTT Statistics for monitoring (Desktop App MQTT Monitor feature)
+  struct MqttStatistics {
+    uint32_t publishSuccessCount;
+    uint32_t publishFailCount;
+    unsigned long lastPublishTimestamp;
+    uint32_t subscribeReceivedCount;
+    uint32_t subscribeWriteSuccessCount;
+    uint32_t subscribeWriteFailCount;
+    unsigned long lastSubscribeTimestamp;
+    unsigned long connectionStartTime;
+    uint32_t reconnectCount;
+  };
+  MqttStatistics stats;
+
   // v1.2.0: Topic-centric MQTT Subscribe Control (Desktop App spec)
   // One topic → N registers from multiple devices
   // Topic format: user-defined custom topic (e.g., "factory/hvac/setpoint")
@@ -230,6 +244,20 @@ class MqttManager {
   void resubscribeAll();  // Re-subscribe to all topics after reconnect
   uint32_t getSubscriptionCount() const;
   void getSubscribeControlStatus(JsonObject& status);
+
+  // v1.3.0: MQTT Statistics for Desktop App MQTT Monitor
+  uint32_t getPublishSuccessCount() const { return stats.publishSuccessCount; }
+  uint32_t getPublishFailCount() const { return stats.publishFailCount; }
+  unsigned long getLastPublishTimestamp() const { return stats.lastPublishTimestamp; }
+  uint32_t getSubscribeReceivedCount() const { return stats.subscribeReceivedCount; }
+  uint32_t getSubscribeWriteSuccessCount() const { return stats.subscribeWriteSuccessCount; }
+  uint32_t getSubscribeWriteFailCount() const { return stats.subscribeWriteFailCount; }
+  unsigned long getLastSubscribeTimestamp() const { return stats.lastSubscribeTimestamp; }
+  unsigned long getConnectionUptime();  // Non-const: calls mqttClient.connected()
+  uint32_t getReconnectCount() const { return stats.reconnectCount; }
+  void getSubscriptionsList(JsonArray& subs) const;
+  void getPublishTopicsList(JsonArray& topics) const;
+  void getFullStatus(JsonObject& status);  // Extended status for MQTT Monitor
 
   ~MqttManager();
 };

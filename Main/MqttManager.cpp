@@ -68,6 +68,17 @@ MqttManager::MqttManager(ConfigManager* config, ServerConfig* serverCfg,
   publishState.batchTimeout = 0;
   publishState.flushedOnce = false;
 
+  // v1.3.0: Initialize MQTT statistics for Desktop App MQTT Monitor
+  stats.publishSuccessCount = 0;
+  stats.publishFailCount = 0;
+  stats.lastPublishTimestamp = 0;
+  stats.subscribeReceivedCount = 0;
+  stats.subscribeWriteSuccessCount = 0;
+  stats.subscribeWriteFailCount = 0;
+  stats.lastSubscribeTimestamp = 0;
+  stats.connectionStartTime = 0;
+  stats.reconnectCount = 0;
+
   // v2.3.8 PHASE 1: Create mutexes for thread safety
   bufferCacheMutex = xSemaphoreCreateMutex();
   publishStateMutex = xSemaphoreCreateMutex();
@@ -398,6 +409,13 @@ bool MqttManager::connectToMqtt() {
     LOG_MQTT_INFO("[MQTT] Connected | Broker: %s:%d | Network: %s (%s)\n",
                   brokerAddress.c_str(), brokerPort, networkMode.c_str(),
                   localIP.toString().c_str());
+
+    // v1.3.0: Track connection statistics for Desktop App MQTT Monitor
+    if (stats.connectionStartTime == 0) {
+      stats.connectionStartTime = millis();  // First connection
+    } else {
+      stats.reconnectCount++;  // Reconnection
+    }
 
     // v1.1.0: Initialize MQTT subscriptions for write control
     initializeSubscriptions();
@@ -778,6 +796,14 @@ bool MqttManager::publishPayload(const String& topic, const String& payload,
   // Delay for TCP flush (20ms sufficient for 16KB payloads)
   if (published) {
     vTaskDelay(pdMS_TO_TICKS(20));
+  }
+
+  // v1.3.0: Update MQTT statistics for Desktop App MQTT Monitor
+  if (published) {
+    stats.publishSuccessCount++;
+    stats.lastPublishTimestamp = millis();
+  } else {
+    stats.publishFailCount++;
   }
 
   return published;
@@ -1906,6 +1932,12 @@ void MqttManager::handleWriteCommand(const String& topic,
   // Publish response
   publishWriteResponse(*sub, responseDoc);
 
+  // v1.3.0: Update MQTT subscribe statistics for Desktop App MQTT Monitor
+  stats.subscribeReceivedCount++;
+  stats.lastSubscribeTimestamp = millis();
+  stats.subscribeWriteSuccessCount += successCount;
+  stats.subscribeWriteFailCount += failCount;
+
   LOG_MQTT_INFO(
       "[MQTT] Write Command: topic=%s, success=%d, failed=%d\n",
       topic.c_str(), successCount, failCount);
@@ -2113,6 +2145,96 @@ void MqttManager::getSubscribeControlStatus(JsonObject& status) {
     totalRegisters += sub.registers.size();
   }
   status["total_registers"] = totalRegisters;
+}
+
+// ============================================================================
+// v1.3.0: MQTT STATISTICS METHODS FOR DESKTOP APP MQTT MONITOR
+// ============================================================================
+
+/**
+ * Get connection uptime in milliseconds
+ * Note: Non-const because mqttClient.connected() is not a const method
+ */
+unsigned long MqttManager::getConnectionUptime() {
+  if (stats.connectionStartTime == 0 || !mqttClient.connected()) {
+    return 0;
+  }
+  return millis() - stats.connectionStartTime;
+}
+
+/**
+ * Get list of all MQTT subscriptions with details
+ */
+void MqttManager::getSubscriptionsList(JsonArray& subs) const {
+  for (const auto& sub : subscriptions) {
+    JsonObject subObj = subs.add<JsonObject>();
+    subObj["topic"] = sub.topic;
+    subObj["response_topic"] = sub.responseTopic;
+    subObj["qos"] = sub.qos;
+
+    JsonArray regsArray = subObj["registers"].to<JsonArray>();
+    for (const auto& reg : sub.registers) {
+      JsonObject regObj = regsArray.add<JsonObject>();
+      regObj["device_id"] = reg.deviceId;
+      regObj["register_id"] = reg.registerId;
+    }
+  }
+}
+
+/**
+ * Get list of all publish topics with details
+ */
+void MqttManager::getPublishTopicsList(JsonArray& topics) const {
+  if (publishMode == "default" && defaultModeEnabled) {
+    JsonObject topicObj = topics.add<JsonObject>();
+    topicObj["topic"] = defaultTopicPublish;
+    topicObj["mode"] = "default";
+    topicObj["interval"] = defaultInterval;
+    topicObj["interval_unit"] = defaultIntervalUnit;
+    topicObj["all_registers"] = true;
+  } else if (publishMode == "customize" && customizeModeEnabled) {
+    for (const auto& ct : customTopics) {
+      JsonObject topicObj = topics.add<JsonObject>();
+      topicObj["topic"] = ct.topic;
+      topicObj["mode"] = "custom";
+      topicObj["interval"] = ct.interval;
+      topicObj["interval_unit"] = ct.intervalUnit;
+
+      JsonArray regsArray = topicObj["registers"].to<JsonArray>();
+      for (const auto& regId : ct.registers) {
+        regsArray.add(regId);
+      }
+    }
+  }
+}
+
+/**
+ * Get full MQTT status for Desktop App MQTT Monitor
+ * Includes connection status, statistics, and topic lists
+ */
+void MqttManager::getFullStatus(JsonObject& status) {
+  // Basic status from existing getStatus()
+  getStatus(status);
+
+  // v1.3.0: Add extended statistics
+  JsonObject statsObj = status["statistics"].to<JsonObject>();
+  statsObj["publish_success_count"] = stats.publishSuccessCount;
+  statsObj["publish_fail_count"] = stats.publishFailCount;
+  statsObj["last_publish_timestamp"] = stats.lastPublishTimestamp;
+  statsObj["subscribe_received_count"] = stats.subscribeReceivedCount;
+  statsObj["subscribe_write_success_count"] = stats.subscribeWriteSuccessCount;
+  statsObj["subscribe_write_fail_count"] = stats.subscribeWriteFailCount;
+  statsObj["last_subscribe_timestamp"] = stats.lastSubscribeTimestamp;
+  statsObj["connection_uptime_ms"] = getConnectionUptime();
+  statsObj["reconnect_count"] = stats.reconnectCount;
+
+  // Add publish topics list
+  JsonArray pubTopics = status["publish_topics"].to<JsonArray>();
+  getPublishTopicsList(pubTopics);
+
+  // Add subscriptions list
+  JsonArray subTopics = status["subscriptions"].to<JsonArray>();
+  getSubscriptionsList(subTopics);
 }
 
 // ============================================================================
