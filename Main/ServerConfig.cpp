@@ -117,12 +117,21 @@ void ServerConfig::createDefaultConfig() {
   customizeMode["enabled"] = false;
   customizeMode["custom_topics"].to<JsonArray>();
 
-  // v1.1.0: Subscribe control configuration (remote write via MQTT)
-  JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
-  subscribeControl["enabled"] = false;
-  subscribeControl["topic_prefix"] = "";  // Auto-generated if empty
-  subscribeControl["response_enabled"] = true;
-  subscribeControl["default_qos"] = 1;
+  // v1.2.0: Topic-centric custom subscribe mode (Desktop App spec)
+  // Replaces v1.1.0 register-centric subscribe_control
+  mqtt["topic_mode"] = "default";  // "default", "custom_publish", or "custom_subscribe"
+  JsonObject customSubscribeMode = mqtt["custom_subscribe_mode"].to<JsonObject>();
+  customSubscribeMode["enabled"] = false;
+  JsonArray subscriptions = customSubscribeMode["subscriptions"].to<JsonArray>();
+  // subscriptions[] structure:
+  // {
+  //   "topic": "factory/hvac/setpoint",
+  //   "qos": 1,
+  //   "response_topic": "factory/hvac/setpoint/response",
+  //   "registers": [
+  //     {"device_id": "D7227b", "register_id": "Ref003"}
+  //   ]
+  // }
 
   // HTTP config
   JsonObject http = root["http_config"].to<JsonObject>();
@@ -548,13 +557,16 @@ bool ServerConfig::getConfig(JsonObject& result) {
     customizeMode["custom_topics"].to<JsonArray>();
   }
 
-  // v1.1.0: Ensure subscribe_control exists (remote write via MQTT)
-  if (!mqtt["subscribe_control"]) {
-    JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
-    subscribeControl["enabled"] = false;
-    subscribeControl["topic_prefix"] = "";
-    subscribeControl["response_enabled"] = true;
-    subscribeControl["default_qos"] = 1;
+  // v1.2.0: Ensure custom_subscribe_mode exists (topic-centric - Desktop App spec)
+  if (!mqtt["custom_subscribe_mode"]) {
+    JsonObject customSubscribeMode = mqtt["custom_subscribe_mode"].to<JsonObject>();
+    customSubscribeMode["enabled"] = false;
+    customSubscribeMode["subscriptions"].to<JsonArray>();
+  }
+
+  // Ensure topic_mode exists (for topic_mode feature)
+  if (mqtt["topic_mode"].isNull()) {
+    mqtt["topic_mode"] = "default";
   }
 
   // Defensive: Ensure communication config exists (mobile app structure)
@@ -659,13 +671,16 @@ bool ServerConfig::updateConfig(JsonObjectConst newConfig) {
       customizeMode["custom_topics"].to<JsonArray>();
     }
 
-    // v1.1.0: Ensure subscribe_control exists
-    if (!mqtt["subscribe_control"]) {
-      JsonObject subscribeControl = mqtt["subscribe_control"].to<JsonObject>();
-      subscribeControl["enabled"] = false;
-      subscribeControl["topic_prefix"] = "";
-      subscribeControl["response_enabled"] = true;
-      subscribeControl["default_qos"] = 1;
+    // v1.2.0: Ensure custom_subscribe_mode exists (topic-centric - Desktop App spec)
+    if (!mqtt["custom_subscribe_mode"]) {
+      JsonObject customSubscribeMode = mqtt["custom_subscribe_mode"].to<JsonObject>();
+      customSubscribeMode["enabled"] = false;
+      customSubscribeMode["subscriptions"].to<JsonArray>();
+    }
+
+    // Ensure topic_mode exists
+    if (mqtt["topic_mode"].isNull()) {
+      mqtt["topic_mode"] = "default";
     }
   }
 

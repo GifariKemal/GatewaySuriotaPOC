@@ -1488,8 +1488,8 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
   // 1. Find device and register configuration
   if (xSemaphoreTake(vectorMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
     response["status"] = "error";
-    response["error"] = "Failed to acquire mutex";
-    response["error_code"] = 301;
+    response["error"] = "Failed to acquire mutex for write operation";
+    response["error_code"] = 315;  // ERR_MODBUS_WRITE_MUTEX_TIMEOUT
     return false;
   }
 
@@ -1517,7 +1517,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Device or register not found";
-    response["error_code"] = 302;
+    response["error_code"] = 316;  // ERR_MODBUS_WRITE_DEVICE_NOT_FOUND
     return false;
   }
 
@@ -1527,7 +1527,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Register is read-only (FC2 or FC4)";
-    response["error_code"] = 303;
+    response["error_code"] = 317;  // ERR_MODBUS_WRITE_READONLY
     return false;
   }
 
@@ -1537,7 +1537,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
     xSemaphoreGive(vectorMutex);
     response["status"] = "error";
     response["error"] = "Register marked as not writable";
-    response["error_code"] = 304;
+    response["error_code"] = 318;  // ERR_MODBUS_WRITE_NOT_WRITABLE
     return false;
   }
 
@@ -1548,7 +1548,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
       xSemaphoreGive(vectorMutex);
       response["status"] = "error";
       response["error"] = "Value below minimum";
-      response["error_code"] = 305;
+      response["error_code"] = 319;  // ERR_MODBUS_WRITE_VALUE_BELOW_MIN
       response["min_value"] = minVal;
       response["provided_value"] = value;
       return false;
@@ -1560,7 +1560,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
       xSemaphoreGive(vectorMutex);
       response["status"] = "error";
       response["error"] = "Value above maximum";
-      response["error_code"] = 306;
+      response["error_code"] = 320;  // ERR_MODBUS_WRITE_VALUE_ABOVE_MAX
       response["max_value"] = maxVal;
       response["provided_value"] = value;
       return false;
@@ -1598,8 +1598,8 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
   ModbusMaster* modbus = getModbusForBus(serialPort);
   if (!modbus) {
     response["status"] = "error";
-    response["error"] = "Invalid serial port";
-    response["error_code"] = 307;
+    response["error"] = "Invalid serial port configuration";
+    response["error_code"] = 321;  // ERR_MODBUS_WRITE_CONNECTION_FAILED
     return false;
   }
 
@@ -1628,8 +1628,8 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
   } else if (writeFC == 15) {
     // FC15: Write Multiple Coils (not commonly used, implement if needed)
     response["status"] = "error";
-    response["error"] = "FC15 not yet implemented";
-    response["error_code"] = 308;
+    response["error"] = "FC15 (Write Multiple Coils) not yet implemented";
+    response["error_code"] = 322;  // ERR_MODBUS_WRITE_INVALID_FC
     return false;
   } else if (writeFC == 16) {
     // FC16: Write Multiple Registers
@@ -1647,7 +1647,7 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
   } else {
     response["status"] = "error";
     response["error"] = "Invalid write function code";
-    response["error_code"] = 309;
+    response["error_code"] = 322;  // ERR_MODBUS_WRITE_INVALID_FC
     return false;
   }
 
@@ -1668,38 +1668,46 @@ bool ModbusRtuService::writeRegisterValue(const char* deviceId,
     response["status"] = "error";
     response["device_id"] = deviceId;
     response["register_id"] = registerId;
-    response["error_code"] = 310 + result;
     response["modbus_error"] = result;
     response["response_time_ms"] = responseTime;
 
-    // Map Modbus errors
+    // v1.2.1: Map Modbus errors to standardized error codes
     switch (result) {
       case 0x01:
-        response["error"] = "Illegal Function";
+        response["error"] = "Illegal Function - device does not support this operation";
+        response["error_code"] = 331;  // ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC
         break;
       case 0x02:
-        response["error"] = "Illegal Data Address";
+        response["error"] = "Illegal Data Address - register address not valid";
+        response["error_code"] = 332;  // ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR
         break;
       case 0x03:
-        response["error"] = "Illegal Data Value";
+        response["error"] = "Illegal Data Value - value not acceptable";
+        response["error_code"] = 333;  // ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE
         break;
       case 0x04:
-        response["error"] = "Slave Device Failure";
+        response["error"] = "Slave Device Failure - device internal error";
+        response["error_code"] = 334;  // ERR_MODBUS_EXCEPTION_DEVICE_FAIL
         break;
       case 0xE0:
-        response["error"] = "Invalid Slave ID";
+        response["error"] = "Invalid Slave ID configuration";
+        response["error_code"] = 316;  // ERR_MODBUS_WRITE_DEVICE_NOT_FOUND
         break;
       case 0xE1:
-        response["error"] = "Invalid Function";
+        response["error"] = "Invalid Function code";
+        response["error_code"] = 322;  // ERR_MODBUS_WRITE_INVALID_FC
         break;
       case 0xE2:
-        response["error"] = "Response Timeout";
+        response["error"] = "Response Timeout - device not responding";
+        response["error_code"] = 323;  // ERR_MODBUS_WRITE_TIMEOUT
         break;
       case 0xE3:
-        response["error"] = "Invalid CRC";
+        response["error"] = "Invalid CRC - communication error";
+        response["error_code"] = 324;  // ERR_MODBUS_WRITE_INVALID_RESPONSE
         break;
       default:
         response["error"] = "Unknown Modbus Error";
+        response["error_code"] = 330 + result;  // Generic exception code
         break;
     }
     LOG_RTU_ERROR("[RTU_WRITE] FAILED - error code %d\n", result);

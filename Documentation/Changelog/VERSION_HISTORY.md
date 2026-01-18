@@ -6,7 +6,181 @@
 
 ---
 
-## Version 1.1.0 (MQTT Subscribe Control)
+## Version 1.2.1 (Write Operation Bug Fix + Error Code Standardization)
+
+**Release Date:** January 12, 2026 (Sunday) **Status:** Development
+
+### Critical Bug Fix: TCP Write Operation
+
+**Problem:** Write operation always failed with error 321 ("Connection failed")
+even though read/streaming worked fine.
+
+**Root Cause:** The `connected()` check in `writeRegisterValue()` was
+unreliable for pooled TCP connections (as documented in code comments).
+
+**Fix:** Removed unreliable `connected()` check, trusting
+`getPooledConnection()` which already validates connection health.
+
+```cpp
+// BEFORE (buggy):
+if (!pooledClient || !pooledClient->connected()) { ... }
+
+// AFTER (fixed):
+if (!pooledClient) { ... }
+```
+
+**Files Changed:**
+
+- `ModbusTcpService.cpp` - Removed `connected()` check in write function
+
+### Error Code Standardization
+
+Added new write error codes (315-334) to `UnifiedErrorCodes.h`:
+
+| Code  | Name                              | Description                            |
+| ----- | --------------------------------- | -------------------------------------- |
+| 315   | ERR_MODBUS_WRITE_MUTEX_TIMEOUT    | Failed to acquire mutex for write      |
+| 316   | ERR_MODBUS_WRITE_DEVICE_NOT_FOUND | Device or register not found           |
+| 317   | ERR_MODBUS_WRITE_READONLY         | Register is read-only (FC2/FC4)        |
+| 318   | ERR_MODBUS_WRITE_NOT_WRITABLE     | Register marked as not writable        |
+| 319   | ERR_MODBUS_WRITE_VALUE_BELOW_MIN  | Value below minimum limit              |
+| 320   | ERR_MODBUS_WRITE_VALUE_ABOVE_MAX  | Value above maximum limit              |
+| 321   | ERR_MODBUS_WRITE_CONNECTION_FAILED| Failed to connect for write            |
+| 322   | ERR_MODBUS_WRITE_INVALID_FC       | Invalid write function code            |
+| 323   | ERR_MODBUS_WRITE_TIMEOUT          | Write response timeout                 |
+| 324   | ERR_MODBUS_WRITE_INVALID_RESPONSE | Invalid write response                 |
+| 331   | ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC | Modbus exception 0x01                  |
+| 332   | ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR | Modbus exception 0x02                  |
+| 333   | ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE| Modbus exception 0x03                  |
+| 334   | ERR_MODBUS_EXCEPTION_DEVICE_FAIL  | Modbus exception 0x04                  |
+
+### Files Modified
+
+- `Main/ModbusTcpService.cpp` - Write connection fix + error codes
+- `Main/ModbusRtuService.cpp` - Write error codes
+- `Main/UnifiedErrorCodes.h` - New write error codes (315-334)
+
+---
+
+## Version 1.2.0 (Topic-Centric MQTT Subscribe - Desktop App Spec)
+
+**Release Date:** January 12, 2026 (Sunday) **Status:** Development **Related:**
+MQTT Subscribe Control Refactoring
+
+### Breaking Change: Topic-Centric Approach
+
+**IMPORTANT:** This version introduces a **breaking change** from v1.1.0's
+register-centric approach.
+
+| Aspect | v1.1.0 (Old) | v1.2.0 (New) |
+|--------|-------------|--------------|
+| Config Location | Per-register `mqtt_subscribe{}` | `server_config.custom_subscribe_mode.subscriptions[]` |
+| Topic Format | Auto: `suriota/{gw}/write/{dev}/{suffix}` | User-defined custom topic |
+| Topic → Registers | 1 topic → 1 register | 1 topic → N registers (multi-device) |
+| Payload Format | `{"value": 25.5}` | Per-register: `{"RegA": 1, "RegB": 0}` |
+
+### Design Principle: Topic-Centric (Desktop App Spec)
+
+**1 Topic → N Registers** - One MQTT topic can control multiple registers across
+different devices, aligning with Desktop App configuration specification.
+
+```
+# Write Command (Cloud → Gateway)
+factory/hvac/setpoint                    ← User-defined topic
+
+# Write Response (Gateway → Cloud)
+factory/hvac/setpoint/response           ← Configurable response topic
+
+# Multi-register control
+factory/valves/control → ValveA, ValveB
+```
+
+### What's New
+
+**1. Custom Subscribe Mode Configuration (server_config.json)**
+
+```json
+{
+  "mqtt_config": {
+    "topic_mode": "custom_subscribe",
+    "custom_subscribe_mode": {
+      "enabled": true,
+      "subscriptions": [
+        {
+          "topic": "factory/hvac/setpoint",
+          "qos": 1,
+          "response_topic": "factory/hvac/setpoint/response",
+          "registers": [
+            {"device_id": "HVAC01", "register_id": "TempSetpoint"}
+          ]
+        },
+        {
+          "topic": "factory/valves/control",
+          "qos": 2,
+          "response_topic": "factory/valves/status",
+          "registers": [
+            {"device_id": "Valve01", "register_id": "ValveA"},
+            {"device_id": "Valve01", "register_id": "ValveB"}
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+**2. Payload Handling Logic**
+
+| Payload | Single Register Sub | Multi-Register Sub |
+|---------|--------------------|--------------------|
+| `{"value": 25.5}` | Write to register | **ERROR** - require explicit values |
+| `{"ValveA": 1, "ValveB": 0}` | N/A | Write 1 to ValveA, 0 to ValveB |
+
+**3. Response Format**
+
+```json
+{
+  "status": "ok",
+  "topic": "factory/valves/control",
+  "results": [
+    {"device_id": "Valve01", "register_id": "ValveA", "status": "ok", "written_value": 1},
+    {"device_id": "Valve01", "register_id": "ValveB", "status": "ok", "written_value": 0}
+  ],
+  "timestamp": 1736697600000
+}
+```
+
+### What's Removed
+
+1. **Per-register `mqtt_subscribe` field** - No longer supported in register config
+2. **`writable_registers` BLE command** - Configuration now lives in server_config
+3. **Auto-generated topic format** - Topics are now user-defined
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `MqttManager.h` | New structs: `MqttSubscription`, `SubscriptionRegister`; renamed methods |
+| `MqttManager.cpp` | Complete rewrite of subscribe control logic to topic-centric |
+| `ServerConfig.cpp` | Added `topic_mode`, `custom_subscribe_mode` config structure |
+| `ConfigManager.cpp` | Removed `mqtt_subscribe` handling from register CRUD |
+| `CRUDHandler.cpp` | Removed `writable_registers` command |
+
+### Migration Guide
+
+1. Remove `mqtt_subscribe` from all register configurations
+2. Add subscriptions to `server_config.mqtt_config.custom_subscribe_mode.subscriptions[]`
+3. Set `mqtt_config.topic_mode` to `"custom_subscribe"`
+4. Update MQTT client to use new topic format and payload structure
+
+### Documentation
+
+See [MQTT_SUBSCRIBE_CONTROL.md](../Technical_Guides/MQTT_SUBSCRIBE_CONTROL.md) for
+updated implementation details and testing guide.
+
+---
+
+## Version 1.1.0 (MQTT Subscribe Control) - DEPRECATED
 
 **Release Date:** January 9, 2026 (Thursday) **Status:** Development **Related:**
 Remote Write Control via MQTT

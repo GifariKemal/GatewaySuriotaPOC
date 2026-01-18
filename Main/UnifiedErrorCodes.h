@@ -108,6 +108,7 @@ enum UnifiedErrorCode {
   ERR_BLE_UNKNOWN = 299,                   // Unknown BLE error
 
   // MODBUS ERRORS (300-399)
+  // Read errors (300-314)
   ERR_MODBUS_SUCCESS = 300,                 // No error
   ERR_MODBUS_DEVICE_TIMEOUT = 301,          // Device no response
   ERR_MODBUS_CRC_ERROR = 302,               // CRC check failed
@@ -121,6 +122,26 @@ enum UnifiedErrorCode {
   ERR_MODBUS_REGISTER_READ_FAILED = 310,    // Register read failed
   ERR_MODBUS_DEVICE_DISABLED = 311,         // Device disabled/backoff
   ERR_MODBUS_INVALID_PARAMETER = 312,       // Invalid parameter
+
+  // Write errors (315-329) - v1.2.1
+  ERR_MODBUS_WRITE_MUTEX_TIMEOUT = 315,     // Failed to acquire mutex for write
+  ERR_MODBUS_WRITE_DEVICE_NOT_FOUND = 316,  // Device or register not found
+  ERR_MODBUS_WRITE_READONLY = 317,          // Register is read-only (FC2/FC4)
+  ERR_MODBUS_WRITE_NOT_WRITABLE = 318,      // Register marked as not writable
+  ERR_MODBUS_WRITE_VALUE_BELOW_MIN = 319,   // Value below minimum limit
+  ERR_MODBUS_WRITE_VALUE_ABOVE_MAX = 320,   // Value above maximum limit
+  ERR_MODBUS_WRITE_CONNECTION_FAILED = 321, // Failed to connect for write
+  ERR_MODBUS_WRITE_INVALID_FC = 322,        // Invalid write function code
+  ERR_MODBUS_WRITE_TIMEOUT = 323,           // Write response timeout
+  ERR_MODBUS_WRITE_INVALID_RESPONSE = 324,  // Invalid write response
+
+  // Modbus exception codes (330-339) - v1.2.1
+  // Exception code = error_code - 330 (e.g., 331 = exception 0x01)
+  ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC = 331,  // Exception 0x01: Illegal Function
+  ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR = 332,  // Exception 0x02: Illegal Data Address
+  ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE = 333, // Exception 0x03: Illegal Data Value
+  ERR_MODBUS_EXCEPTION_DEVICE_FAIL = 334,   // Exception 0x04: Slave Device Failure
+
   ERR_MODBUS_UNKNOWN = 399,                 // Unknown Modbus error
 
   // MEMORY ERRORS (400-499)
@@ -339,6 +360,36 @@ inline const char* getErrorCodeDescription(UnifiedErrorCode code) {
       return "Modbus invalid response";
     case ERR_MODBUS_DEVICE_DISABLED:
       return "Modbus device disabled";
+
+    // Write errors (v1.2.1)
+    case ERR_MODBUS_WRITE_MUTEX_TIMEOUT:
+      return "Write mutex timeout";
+    case ERR_MODBUS_WRITE_DEVICE_NOT_FOUND:
+      return "Device or register not found";
+    case ERR_MODBUS_WRITE_READONLY:
+      return "Register is read-only (FC2/FC4)";
+    case ERR_MODBUS_WRITE_NOT_WRITABLE:
+      return "Register marked as not writable";
+    case ERR_MODBUS_WRITE_VALUE_BELOW_MIN:
+      return "Value below minimum limit";
+    case ERR_MODBUS_WRITE_VALUE_ABOVE_MAX:
+      return "Value above maximum limit";
+    case ERR_MODBUS_WRITE_CONNECTION_FAILED:
+      return "Failed to connect for write";
+    case ERR_MODBUS_WRITE_INVALID_FC:
+      return "Invalid write function code";
+    case ERR_MODBUS_WRITE_TIMEOUT:
+      return "Write response timeout";
+    case ERR_MODBUS_WRITE_INVALID_RESPONSE:
+      return "Invalid write response";
+    case ERR_MODBUS_EXCEPTION_ILLEGAL_FUNC:
+      return "Modbus exception: Illegal Function";
+    case ERR_MODBUS_EXCEPTION_ILLEGAL_ADDR:
+      return "Modbus exception: Illegal Data Address";
+    case ERR_MODBUS_EXCEPTION_ILLEGAL_VALUE:
+      return "Modbus exception: Illegal Data Value";
+    case ERR_MODBUS_EXCEPTION_DEVICE_FAIL:
+      return "Modbus exception: Slave Device Failure";
 
     case ERR_MEM_SUCCESS:
       return "Memory OK";
