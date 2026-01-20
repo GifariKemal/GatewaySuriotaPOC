@@ -11,6 +11,11 @@
 #include "MemoryManager.h"        // Include the new memory manager
 #include "QueueManager.h"
 
+// v1.3.1: External reference to global BLE priority flag (defined in Main.ino)
+// Used to pause RTU/TCP/MQTT tasks during BLE command processing
+#include <atomic>
+extern std::atomic<bool> g_bleCommandActive;
+
 BLEManager::BLEManager(const String& name, CRUDHandler* cmdHandler)
     : serviceName(name),
       handler(cmdHandler),
@@ -461,6 +466,11 @@ void BLEManager::commandProcessingTask(void* parameter) {
 }
 
 void BLEManager::handleCompleteCommand(const char* command) {
+  // v1.3.1: Set BLE priority flag to pause background tasks (RTU/TCP/MQTT)
+  // This prevents resource contention that causes 28s+ response times
+  g_bleCommandActive.store(true);
+  LOG_BLE_INFO("[BLE] Command processing started - background tasks paused\n");
+
   // FIXED BUG #32: Improved logging for large commands (prevent serial buffer
   // overflow) Log complete command for debugging (with size limit for very
   // large commands)
@@ -489,6 +499,9 @@ void BLEManager::handleCompleteCommand(const char* command) {
         "[BLE CMD] ERROR: Command too large (%u bytes > %u buffer)\n", cmdLen,
         COMMAND_BUFFER_SIZE);
     sendError("Command exceeds buffer size", "parse");
+    // v1.3.1: Clear BLE priority flag on error
+    g_bleCommandActive.store(false);
+    LOG_BLE_INFO("[BLE] Command processing ended (error) - background tasks resumed\n");
     return;
   }
 
@@ -523,6 +536,9 @@ void BLEManager::handleCompleteCommand(const char* command) {
     }
 
     sendError("Invalid JSON: " + String(error.c_str()), "parse");
+    // v1.3.1: Clear BLE priority flag on error
+    g_bleCommandActive.store(false);
+    LOG_BLE_INFO("[BLE] Command processing ended (parse error) - background tasks resumed\n");
     return;
   }
 
@@ -537,6 +553,10 @@ void BLEManager::handleCompleteCommand(const char* command) {
   } else {
     sendError("No handler configured", "system");
   }
+
+  // v1.3.1: Clear BLE priority flag after command processing complete
+  g_bleCommandActive.store(false);
+  LOG_BLE_INFO("[BLE] Command processing completed - background tasks resumed\n");
 }
 
 void BLEManager::sendResponse(const JsonDocument& data) {

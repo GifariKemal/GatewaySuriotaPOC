@@ -8,6 +8,11 @@
 #include "QueueManager.h"
 #include "RTCManager.h"
 
+// v1.3.1: External reference to global BLE priority flag (defined in Main.ino)
+// When true, RTU polling should pause to give BLE highest priority
+#include <atomic>
+extern std::atomic<bool> g_bleCommandActive;
+
 extern CRUDHandler* crudHandler;
 
 ModbusRtuService::ModbusRtuService(ConfigManager* config)
@@ -231,6 +236,16 @@ void ModbusRtuService::readRtuDevicesLoop() {
 
   while (running) {
     // ============================================
+    // v1.3.1: BLE PRIORITY CHECK - Pause RTU polling when BLE is active
+    // This prevents resource contention that causes 28s+ BLE response times
+    // ============================================
+    if (g_bleCommandActive.load()) {
+      LOG_RTU_DEBUG("[RTU] BLE command active - pausing RTU polling\n");
+      vTaskDelay(pdMS_TO_TICKS(100));  // Wait 100ms before checking again
+      continue;
+    }
+
+    // ============================================
     // MEMORY RECOVERY CHECK (Phase 2 Optimization)
     // ============================================
     MemoryRecovery::checkAndRecover();
@@ -260,6 +275,12 @@ void ModbusRtuService::readRtuDevicesLoop() {
 
     for (auto& deviceEntry : rtuDevices) {
       if (!running) break;
+
+      // v1.3.1: Check if BLE became active during iteration - abort polling
+      if (g_bleCommandActive.load()) {
+        LOG_RTU_DEBUG("[RTU] BLE command started - aborting device polling\n");
+        break;  // Exit device loop, will pause at top of while loop
+      }
 
       // v2.5.39: Check for config changes during iteration using BOTH atomic
       // flag AND task notification Consistent with ModbusTcpService
@@ -1427,6 +1448,12 @@ void ModbusRtuService::autoRecoveryLoop() {
     vTaskDelay(pdMS_TO_TICKS(RECOVERY_INTERVAL_MS));
 
     if (!running) break;
+
+    // v1.3.1: Skip auto-recovery if BLE is active to avoid resource contention
+    if (g_bleCommandActive.load()) {
+      LOG_RTU_DEBUG("[RTU AutoRecovery] BLE active - skipping recovery cycle\n");
+      continue;
+    }
 
     LOG_RTU_INFO("[RTU AutoRecovery] Checking for auto-disabled devices...");
     unsigned long now = millis();

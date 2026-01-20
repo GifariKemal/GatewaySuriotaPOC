@@ -9,6 +9,11 @@
 #include "ModbusTcpService.h"  // v1.1.0: For MQTT Subscribe Control write operations
 #include "RTCManager.h"
 
+// v1.3.1: External reference to global BLE priority flag (defined in Main.ino)
+// When true, MQTT operations should pause to give BLE highest priority
+#include <atomic>
+extern std::atomic<bool> g_bleCommandActive;
+
 // v1.1.0: External references to Modbus services (defined in Main.ino)
 extern ModbusRtuService* modbusRtuService;
 extern ModbusTcpService* modbusTcpService;
@@ -246,6 +251,16 @@ void MqttManager::mqttLoop() {
   LOG_MQTT_INFO("[MQTT] Task started on Core 1");
 
   while (running) {
+    // ============================================
+    // v1.3.1: BLE PRIORITY CHECK - Pause MQTT when BLE is active
+    // This prevents resource contention that causes 28s+ BLE response times
+    // ============================================
+    if (g_bleCommandActive.load()) {
+      LOG_MQTT_DEBUG("[MQTT] BLE command active - pausing MQTT operations\n");
+      vTaskDelay(pdMS_TO_TICKS(100));  // Wait 100ms before checking again
+      continue;
+    }
+
     // ============================================
     // MEMORY RECOVERY CHECK (Phase 2 Optimization)
     // ============================================

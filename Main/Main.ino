@@ -83,6 +83,12 @@ ProductionLogger *productionLogger = nullptr;
 OTAManager *otaManager = nullptr;
 GatewayConfig *gatewayConfig = nullptr;  // v2.5.31: Multi-gateway identity
 
+// v1.3.1: Global BLE Priority Flag for task coordination
+// When true, RTU/TCP/MQTT tasks should pause to give BLE highest priority
+// This prevents resource contention that causes 28s+ BLE response times
+#include <atomic>
+std::atomic<bool> g_bleCommandActive{false};
+
 // v2.5.32: Firmware version and device ID now from ProductConfig.h
 // Use FIRMWARE_VERSION, PRODUCT_MODEL, PRODUCT_FULL_MODEL macros directly
 

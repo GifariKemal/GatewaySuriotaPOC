@@ -11,6 +11,11 @@
 #include "RTCManager.h"
 #include "TCPClient.h"
 
+// v1.3.1: External reference to global BLE priority flag (defined in Main.ino)
+// When true, TCP polling should pause to give BLE highest priority
+#include <atomic>
+extern std::atomic<bool> g_bleCommandActive;
+
 extern CRUDHandler* crudHandler;
 
 // Atomic transaction counter initialization (thread-safe)
@@ -203,6 +208,16 @@ void ModbusTcpService::readTcpDevicesLoop() {
 
   while (running) {
     // ============================================
+    // v1.3.1: BLE PRIORITY CHECK - Pause TCP polling when BLE is active
+    // This prevents resource contention that causes 28s+ BLE response times
+    // ============================================
+    if (g_bleCommandActive.load()) {
+      LOG_TCP_DEBUG("[TCP] BLE command active - pausing TCP polling\n");
+      vTaskDelay(pdMS_TO_TICKS(100));  // Wait 100ms before checking again
+      continue;
+    }
+
+    // ============================================
     // MEMORY RECOVERY CHECK (Phase 2 Optimization)
     // ============================================
     MemoryRecovery::checkAndRecover();
@@ -297,6 +312,12 @@ void ModbusTcpService::readTcpDevicesLoop() {
       if (!running) {
         xSemaphoreGiveRecursive(vectorMutex);
         break;  // Exit if stopped
+      }
+
+      // v1.3.1: Check if BLE became active during iteration - abort polling
+      if (g_bleCommandActive.load()) {
+        LOG_TCP_DEBUG("[TCP] BLE command started - aborting device polling\n");
+        break;  // Exit device loop, will pause at top of while loop
       }
 
       // v2.5.39: Check for config changes during iteration using BOTH atomic
