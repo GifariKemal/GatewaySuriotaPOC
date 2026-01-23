@@ -1194,6 +1194,12 @@ bool ModbusTcpService::storeRegisterValue(const char* deviceId,
   dataPoint["register_index"] =
       reg["register_index"] | 0;  // For customize mode topic mapping
 
+  // v1.3.2: Add writable status for mobile app
+  // FC1 (Coils) and FC3 (Holding Registers) are writable
+  // FC2 (Discrete Inputs) and FC4 (Input Registers) are read-only
+  uint8_t functionCode = reg["function_code"] | 3;
+  dataPoint["writable"] = ModbusUtils::isWritableType(functionCode);
+
   // CRITICAL FIX: Check enqueue() return value to detect data loss
   // If enqueue fails (queue full, memory exhausted, mutex timeout), return
   // false

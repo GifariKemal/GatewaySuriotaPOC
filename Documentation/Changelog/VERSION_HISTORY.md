@@ -6,6 +6,67 @@
 
 ---
 
+## Version 1.3.2 (Streaming Writable Status)
+
+**Release Date:** January 23, 2026 (Thursday) **Status:** Development
+
+### New Feature: Register Writable Status in Streaming Data
+
+**Request:** Mobile app team requested `writable` field in streaming API response
+to indicate whether a register can be written to.
+
+### What's New
+
+**1. Writable Field in Streaming Data**
+
+Streaming data now includes `writable` boolean field:
+
+```json
+{
+  "time": 1737619200,
+  "name": "Temperature",
+  "device_id": "D7A3F2",
+  "device_name": "Sensor 1",
+  "address": 4112,
+  "value": 25.5,
+  "unit": "°C",
+  "description": "Room temp",
+  "register_id": "R001",
+  "register_index": 0,
+  "writable": true
+}
+```
+
+**2. Writable Logic Based on Modbus Function Code**
+
+| Function Code | Register Type      | Writable |
+| ------------- | ------------------ | -------- |
+| FC1           | Coils              | `true`   |
+| FC2           | Discrete Inputs    | `false`  |
+| FC3           | Holding Registers  | `true`   |
+| FC4           | Input Registers    | `false`  |
+
+Uses existing `ModbusUtils::isWritableType()` function for consistency with write
+command validation.
+
+### Files Modified
+
+| File                   | Changes                                    |
+| ---------------------- | ------------------------------------------ |
+| `ModbusRtuService.cpp` | Added `writable` field to dataPoint        |
+| `ModbusTcpService.cpp` | Added `writable` field to dataPoint        |
+| `ProductConfig.h`      | Version bump to 1.3.2                      |
+
+### Mobile App Integration
+
+Mobile app can now:
+
+1. Show/hide write button based on `writable` field
+2. No need to lookup register config for writability check
+3. Streaming data is self-contained for UI decisions
+
+---
+
 ## Version 1.3.1 (BLE Priority Management - Critical Performance Fix)
 
 **Release Date:** January 21, 2026 (Tuesday) **Status:** Development
